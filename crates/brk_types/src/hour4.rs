@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
-use super::{INDEX_EPOCH, Timestamp};
+use super::{Timestamp, timestamp::index_epoch};
 
 pub const HOUR4_INTERVAL: u32 = 14400;
 
@@ -26,11 +26,11 @@ pub struct Hour4(u32);
 
 impl Hour4 {
     pub fn from_timestamp(ts: Timestamp) -> Self {
-        Self((*ts - INDEX_EPOCH) / HOUR4_INTERVAL)
+        Self((*ts - index_epoch()) / HOUR4_INTERVAL)
     }
 
     pub fn to_timestamp(&self) -> Timestamp {
-        Timestamp::new(INDEX_EPOCH + self.0 * HOUR4_INTERVAL)
+        Timestamp::new(index_epoch() + self.0 * HOUR4_INTERVAL)
     }
 }
 

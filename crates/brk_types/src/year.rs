@@ -1,12 +1,29 @@
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Div},
+    sync::atomic::{AtomicU16, Ordering},
 };
 
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
 use super::{Date, Timestamp};
+
+/// Bitcoin genesis year; Litecoin uses 2011. Set at startup via `brk_types::init_chain_epoch`.
+pub const GENESIS_YEAR: u16 = 2009;
+
+static GENESIS_YEAR_GLOBAL: AtomicU16 = AtomicU16::new(GENESIS_YEAR);
+
+/// Returns the active chain's genesis year.
+#[inline]
+pub fn genesis_year() -> u16 {
+    GENESIS_YEAR_GLOBAL.load(Ordering::Relaxed)
+}
+
+/// Set the chain's genesis year once at program startup.
+pub fn set_genesis_year(year: u16) {
+    GENESIS_YEAR_GLOBAL.store(year, Ordering::Relaxed);
+}
 
 /// Bitcoin year (2009, 2010, ..., 2025+)
 #[derive(
@@ -21,9 +38,9 @@ impl Year {
         Self(value)
     }
 
-    /// Returns the year as an index (0 = 2009, 1 = 2010, etc.)
+    /// Returns the year as an index (0 = genesis year, 1 = genesis+1, etc.)
     pub fn to_index(self) -> usize {
-        (self.0 - 2009) as usize
+        self.0.saturating_sub(genesis_year()) as usize
     }
 }
 

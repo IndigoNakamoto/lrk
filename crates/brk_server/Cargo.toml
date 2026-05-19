@@ -15,6 +15,7 @@ bindgen = ["dep:brk_bindgen"]
 aide = { workspace = true }
 axum = { workspace = true }
 brk_bindgen = { workspace = true, optional = true }
+brk_chain = { workspace = true }
 brk_computer = { workspace = true }
 brk_error = { workspace = true, features = ["jiff", "serde_json", "tokio", "vecdb"] }
 brk_indexer = { workspace = true }

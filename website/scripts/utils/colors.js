@@ -133,7 +133,7 @@ export const colors = {
   // Directional
   profit: palette.green,
   loss: palette.red,
-  bitcoin: palette.orange,
+  coin: palette.orange,
   usd: palette.green,
 
   // Bi-color pairs for baselines (spaced by 2 in palette)

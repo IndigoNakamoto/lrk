@@ -3,6 +3,20 @@
 pub use brk_chain::{Chain, ChainConstants};
 pub use vecdb::{CheckedSub, Exit, PrintableIndex, Version};
 
+/// Call once at startup to wire chain-specific constants into all index types.
+/// Sets:
+/// - the time epoch for sub-daily types (`Minute10`, `Hour4`, etc.)
+/// - the date epoch for daily types (`Day1`, `Week1`, `Month1`, etc.)
+/// - the halving interval (`Halving::from(Height)`, `Height::left_before_next_halving`)
+/// - the genesis year (`Year1::from(Date)`, `Week1::from(Date)`)
+pub fn init_chain_epoch(chain: Chain) {
+    let c = chain.constants();
+    timestamp::set_index_epoch(c.index_epoch);
+    date::set_date_index_zero(Date::index_zero_for_chain(chain));
+    halving::set_blocks_per_halving(c.blocks_per_halving);
+    year::set_genesis_year(c.genesis_year);
+}
+
 mod addr;
 mod addr_bytes;
 mod addr_chain_stats;

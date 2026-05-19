@@ -2,6 +2,8 @@
 
 use std::fmt::Write;
 
+use brk_chain::Chain;
+
 use crate::{
     ClientConstants, ClientMetadata, CohortConstants, IndexSetPattern, PythonSyntax,
     StructuralPattern, format_json, generate_parameterized_field, index_to_field_name,
@@ -150,13 +152,29 @@ def _p(prefix: str, acc: str) -> str:
 }
 
 /// Generate the SeriesData and SeriesEndpoint classes
-pub fn generate_endpoint_class(output: &mut String) {
+pub fn generate_endpoint_class(output: &mut String, chain: Chain) {
+    let c = chain.constants();
+    let genesis_year = c.genesis_year;
+    let epoch_month = c.index_epoch_month;
+    let epoch_day = c.index_epoch_day;
+    // day1=1 is the next calendar day after epoch start
+    let (day_one_month, day_one_day): (u8, u8) = if epoch_day < 28 {
+        (epoch_month, epoch_day + 1)
+    } else {
+        (epoch_month + 1, 1)
+    };
+    // day3 base: epoch - 1 day
+    let (day3_month, day3_day): (u8, u8) = if epoch_day > 1 {
+        (epoch_month, epoch_day - 1)
+    } else {
+        (epoch_month - 1, 28) // approximate; safe since Bitcoin epoch is Jan 1
+    };
     writeln!(
         output,
         r#"# Date conversion constants
-_GENESIS = date(2009, 1, 3)  # day1 0, week1 0
-_DAY_ONE = date(2009, 1, 9)  # day1 1 (6 day gap after genesis)
-_EPOCH = datetime(2009, 1, 1, tzinfo=timezone.utc)
+_GENESIS = date({genesis_year}, {epoch_month}, {epoch_day})  # day1 0, week1 0
+_DAY_ONE = date({genesis_year}, {day_one_month}, {day_one_day})  # day1 1
+_EPOCH = datetime({genesis_year}, {epoch_month}, {epoch_day}, tzinfo=timezone.utc)
 _DATE_INDEXES = frozenset([
     'minute10', 'minute30',
     'hour1', 'hour4', 'hour12',
@@ -184,17 +202,17 @@ def _index_to_date(index: str, i: int) -> Union[date, datetime]:
     elif index == 'week1':
         return _GENESIS + timedelta(weeks=i)
     elif index == 'month1':
-        return date(2009 + i // 12, i % 12 + 1, 1)
+        return date({genesis_year} + ({epoch_month_0} + i) // 12, ({epoch_month_0} + i) % 12 + 1, {epoch_day})
     elif index == 'month3':
         m = i * 3
-        return date(2009 + m // 12, m % 12 + 1, 1)
+        return date({genesis_year} + ({epoch_month_0} + m) // 12, ({epoch_month_0} + m) % 12 + 1, {epoch_day})
     elif index == 'month6':
         m = i * 6
-        return date(2009 + m // 12, m % 12 + 1, 1)
+        return date({genesis_year} + ({epoch_month_0} + m) // 12, ({epoch_month_0} + m) % 12 + 1, {epoch_day})
     elif index == 'year1':
-        return date(2009 + i, 1, 1)
+        return date({genesis_year} + i, 1, 1)
     elif index == 'year10':
-        return date(2009 + i * 10, 1, 1)
+        return date({genesis_year} + i * 10, 1, 1)
     else:
         raise ValueError(f"{{index}} is not a date-based index")
 
@@ -220,19 +238,19 @@ def _date_to_index(index: str, d: Union[date, datetime]) -> int:
             return 0
         return 1 + (dd - _DAY_ONE).days
     elif index == 'day3':
-        return (dd - date(2008, 12, 31)).days // 3
+        return (dd - date({genesis_year}, {day3_month}, {day3_day})).days // 3
     elif index == 'week1':
         return (dd - _GENESIS).days // 7
     elif index == 'month1':
-        return (dd.year - 2009) * 12 + (dd.month - 1)
+        return (dd.year - {genesis_year}) * 12 + (dd.month - 1 - {epoch_month_0})
     elif index == 'month3':
-        return (dd.year - 2009) * 4 + (dd.month - 1) // 3
+        return ((dd.year - {genesis_year}) * 12 + (dd.month - 1 - {epoch_month_0})) // 3
     elif index == 'month6':
-        return (dd.year - 2009) * 2 + (dd.month - 1) // 6
+        return ((dd.year - {genesis_year}) * 12 + (dd.month - 1 - {epoch_month_0})) // 6
     elif index == 'year1':
-        return dd.year - 2009
+        return dd.year - {genesis_year}
     elif index == 'year10':
-        return (dd.year - 2009) // 10
+        return (dd.year - {genesis_year}) // 10
     else:
         raise ValueError(f"{{index}} is not a date-based index")
 
@@ -616,7 +634,15 @@ class SeriesPattern(Protocol[T]):
         """Get an endpoint builder for a specific index, if supported."""
         ...
 
-"#
+"#,
+        genesis_year = genesis_year,
+        epoch_month = epoch_month,
+        epoch_day = epoch_day,
+        epoch_month_0 = epoch_month as u16 - 1,
+        day_one_month = day_one_month,
+        day_one_day = day_one_day,
+        day3_month = day3_month,
+        day3_day = day3_day,
     )
     .unwrap();
 }

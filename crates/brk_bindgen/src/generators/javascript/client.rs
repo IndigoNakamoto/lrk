@@ -2,6 +2,8 @@
 
 use std::fmt::Write;
 
+use brk_chain::Chain;
+
 use crate::{
     ClientConstants, ClientMetadata, CohortConstants, GenericSyntax, IndexSetPattern,
     JavaScriptSyntax, StructuralPattern, camel_case_keys, format_json,
@@ -9,7 +11,30 @@ use crate::{
 };
 
 /// Generate the base BrkClient class with HTTP functionality.
-pub fn generate_base_client(output: &mut String) {
+pub fn generate_base_client(output: &mut String, chain: Chain) {
+    let c = chain.constants();
+    let epoch_ms: u64 = c.index_epoch as u64 * 1000;
+    let genesis_year = c.genesis_year;
+    // JS months are 0-indexed
+    let epoch_month_0 = c.index_epoch_month as u16 - 1;
+    let epoch_day = c.index_epoch_day;
+    // Genesis block date for day1=0 / week1=0: use index_epoch date
+    let genesis_js = format!("new Date({genesis_year}, {epoch_month_0}, {epoch_day})");
+    // day1=1 is the next calendar day
+    let day_one_month_0: u16;
+    let day_one_day: u8;
+    if epoch_day < 28 {
+        day_one_month_0 = epoch_month_0;
+        day_one_day = epoch_day + 1;
+    } else {
+        day_one_month_0 = epoch_month_0 + 1;
+        day_one_day = 1;
+    }
+    let day_one_js = format!("new Date({genesis_year}, {day_one_month_0}, {day_one_day})");
+    // _addMonths: Month1(i) = epoch_date + i months
+    let add_months_js = format!(
+        "new Date({genesis_year}, {epoch_month_0} + months, {epoch_day})"
+    );
     writeln!(
         output,
         r#"/**
@@ -67,11 +92,11 @@ class BrkError extends Error {{
 }}
 
 // Date conversion constants and helpers
-const _GENESIS = new Date(2009, 0, 3);  // day1 0, week1 0
-const _DAY_ONE = new Date(2009, 0, 9);  // day1 1 (6 day gap after genesis)
+const _GENESIS = {genesis_js};  // day1 0, week1 0
+const _DAY_ONE = {day_one_js};  // day1 1
 const _MS_PER_DAY = 86400000;
 const _MS_PER_WEEK = 7 * _MS_PER_DAY;
-const _EPOCH_MS = 1230768000000;
+const _EPOCH_MS = {epoch_ms};
 const _DATE_INDEXES = new Set([
   'minute10', 'minute30',
   'hour1', 'hour4', 'hour12',
@@ -81,7 +106,7 @@ const _DATE_INDEXES = new Set([
 ]);
 
 /** @param {{number}} months @returns {{globalThis.Date}} */
-const _addMonths = (months) => new Date(2009, months, 1);
+const _addMonths = (months) => {add_months_js};
 
 /**
  * Convert an index value to a Date for date-based indexes.
@@ -102,8 +127,8 @@ function indexToDate(index, i) {{
     case 'month1': return _addMonths(i);
     case 'month3': return _addMonths(i * 3);
     case 'month6': return _addMonths(i * 6);
-    case 'year1': return new Date(2009 + i, 0, 1);
-    case 'year10': return new Date(2009 + i * 10, 0, 1);
+    case 'year1': return new Date({genesis_year} + i, 0, 1);
+    case 'year10': return new Date({genesis_year} + i * 10, 0, 1);
     default: throw new Error(`${{index}} is not a date-based index`);
   }}
 }}
@@ -129,11 +154,11 @@ function dateToIndex(index, d) {{
     }}
     case 'day3': return Math.floor((ms - _EPOCH_MS + 86400000) / 259200000);
     case 'week1': return Math.floor((ms - _GENESIS.getTime()) / _MS_PER_WEEK);
-    case 'month1': return (d.getFullYear() - 2009) * 12 + d.getMonth();
-    case 'month3': return (d.getFullYear() - 2009) * 4 + Math.floor(d.getMonth() / 3);
-    case 'month6': return (d.getFullYear() - 2009) * 2 + Math.floor(d.getMonth() / 6);
-    case 'year1': return d.getFullYear() - 2009;
-    case 'year10': return Math.floor((d.getFullYear() - 2009) / 10);
+    case 'month1': return (d.getFullYear() - {genesis_year}) * 12 + (d.getMonth() - {epoch_month_0});
+    case 'month3': return (d.getFullYear() - {genesis_year}) * 4 + Math.floor((d.getMonth() - {epoch_month_0}) / 3);
+    case 'month6': return (d.getFullYear() - {genesis_year}) * 2 + Math.floor((d.getMonth() - {epoch_month_0}) / 6);
+    case 'year1': return d.getFullYear() - {genesis_year};
+    case 'year10': return Math.floor((d.getFullYear() - {genesis_year}) / 10);
     default: throw new Error(`${{index}} is not a date-based index`);
   }}
 }}
@@ -666,7 +691,13 @@ const _m = (acc, s) => s ? (acc ? `${{acc}}_${{s}}` : s) : acc;
  */
 const _p = (prefix, acc) => acc ? `${{prefix}}_${{acc}}` : prefix;
 
-"#
+"#,
+        genesis_js = genesis_js,
+        day_one_js = day_one_js,
+        epoch_ms = epoch_ms,
+        add_months_js = add_months_js,
+        genesis_year = genesis_year,
+        epoch_month_0 = epoch_month_0,
     )
     .unwrap();
 }

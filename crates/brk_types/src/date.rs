@@ -1,4 +1,7 @@
-use std::{fmt, str::FromStr};
+use std::{
+    fmt, str::FromStr,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use brk_chain::Chain;
 use jiff::{Span, Zoned, civil::Date as Date_, tz::TimeZone};
@@ -9,6 +12,21 @@ use vecdb::{Formattable, Pco};
 use crate::ONE_DAY_IN_SEC_F64;
 
 use super::{Day1, Month1, Month3, Month6, Timestamp, Week1, Year1, Year10};
+
+/// Active chain's date index epoch stored as packed YYYYMMDD u32.
+/// Defaults to 20090101 (Bitcoin); set at startup via `brk_types::init_chain_epoch`.
+static DATE_INDEX_ZERO_GLOBAL: AtomicU32 = AtomicU32::new(20090101);
+
+/// Returns the active chain's date index epoch.
+#[inline]
+pub fn date_index_zero() -> Date {
+    Date(DATE_INDEX_ZERO_GLOBAL.load(Ordering::Relaxed))
+}
+
+/// Set the chain date index epoch once at program startup.
+pub fn set_date_index_zero(date: Date) {
+    DATE_INDEX_ZERO_GLOBAL.store(date.0, Ordering::Relaxed);
+}
 
 /// Date in YYYYMMDD format stored as u32
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Pco, JsonSchema)]
@@ -81,7 +99,7 @@ impl Date {
 
 impl Default for Date {
     fn default() -> Self {
-        Self::INDEX_ZERO
+        date_index_zero()
     }
 }
 
@@ -119,7 +137,7 @@ impl From<Day1> for Date {
     #[inline]
     fn from(value: Day1) -> Self {
         Self::from(
-            Self::INDEX_ZERO_
+            Date_::from(date_index_zero())
                 .checked_add(Span::new().days(i64::from(value)))
                 .unwrap(),
         )
@@ -129,9 +147,8 @@ impl From<Day1> for Date {
 impl From<Week1> for Date {
     #[inline]
     fn from(value: Week1) -> Self {
-        // Week 0 starts at 2009-01-01, add i weeks
         Self::from(
-            Self::INDEX_ZERO_
+            Date_::from(date_index_zero())
                 .checked_add(Span::new().weeks(i64::from(u16::from(value))))
                 .unwrap(),
         )
@@ -141,9 +158,8 @@ impl From<Week1> for Date {
 impl From<Month1> for Date {
     #[inline]
     fn from(value: Month1) -> Self {
-        // Month 0 is January 2009, add i months
         Self::from(
-            Date_::constant(2009, 1, 1)
+            Date_::from(date_index_zero())
                 .checked_add(Span::new().months(i64::from(u16::from(value))))
                 .unwrap(),
         )
@@ -153,8 +169,8 @@ impl From<Month1> for Date {
 impl From<Year1> for Date {
     #[inline]
     fn from(value: Year1) -> Self {
-        // Year 0 is 2009
-        let year = 2009i16 + usize::from(value) as i16;
+        let zero = date_index_zero();
+        let year = zero.year() as i16 + usize::from(value) as i16;
         Self::from(Date_::constant(year, 1, 1))
     }
 }
@@ -162,9 +178,8 @@ impl From<Year1> for Date {
 impl From<Month3> for Date {
     #[inline]
     fn from(value: Month3) -> Self {
-        // Quarter 0 is Q1 2009, add i*3 months
         Self::from(
-            Date_::constant(2009, 1, 1)
+            Date_::from(date_index_zero())
                 .checked_add(Span::new().months(usize::from(value) as i64 * 3))
                 .unwrap(),
         )
@@ -174,9 +189,8 @@ impl From<Month3> for Date {
 impl From<Month6> for Date {
     #[inline]
     fn from(value: Month6) -> Self {
-        // Semester 0 is H1 2009, add i*6 months
         Self::from(
-            Date_::constant(2009, 1, 1)
+            Date_::from(date_index_zero())
                 .checked_add(Span::new().months(usize::from(value) as i64 * 6))
                 .unwrap(),
         )
@@ -186,8 +200,8 @@ impl From<Month6> for Date {
 impl From<Year10> for Date {
     #[inline]
     fn from(value: Year10) -> Self {
-        // Decade 0 is 2009, add i*10 years
-        let year = 2009i16 + usize::from(value) as i16 * 10;
+        let zero = date_index_zero();
+        let year = zero.year() as i16 + usize::from(value) as i16 * 10;
         Self::from(Date_::constant(year, 1, 1))
     }
 }

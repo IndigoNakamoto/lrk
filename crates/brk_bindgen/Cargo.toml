@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+brk_chain = { workspace = true }
 brk_cohort = { workspace = true }
 brk_query = { workspace = true }
 brk_types = { workspace = true }

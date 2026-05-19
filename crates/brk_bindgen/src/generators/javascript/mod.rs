@@ -11,6 +11,8 @@ use std::{fmt::Write, fs, io, path::Path};
 
 use serde_json::json;
 
+use brk_chain::Chain;
+
 use super::write_if_changed;
 use crate::{ClientMetadata, Endpoint, TypeSchemas, VERSION};
 
@@ -22,6 +24,7 @@ pub fn generate_javascript_client(
     endpoints: &[Endpoint],
     schemas: &TypeSchemas,
     output_path: &Path,
+    chain: Chain,
 ) -> io::Result<()> {
     let mut output = String::new();
 
@@ -29,7 +32,7 @@ pub fn generate_javascript_client(
     writeln!(output, "// Do not edit manually\n").unwrap();
 
     types::generate_type_definitions(&mut output, schemas);
-    client::generate_base_client(&mut output);
+    client::generate_base_client(&mut output, chain);
     client::generate_index_accessors(&mut output, &metadata.index_set_patterns);
     client::generate_structural_patterns(&mut output, &metadata.structural_patterns, metadata);
     tree::generate_tree_typedefs(&mut output, &metadata.catalog, metadata);

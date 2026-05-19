@@ -2,6 +2,7 @@
 
 use std::{collections::btree_map::Entry, fs::create_dir_all, io, path::PathBuf};
 
+use brk_chain::Chain;
 use brk_query::Vecs;
 
 /// Output path configuration for each language client.
@@ -84,6 +85,16 @@ pub fn generate_clients(
     openapi_json: &str,
     output_paths: &ClientOutputPaths,
 ) -> io::Result<()> {
+    generate_clients_for_chain(vecs, openapi_json, output_paths, Chain::Bitcoin)
+}
+
+/// Generate all client libraries with chain-specific constants.
+pub fn generate_clients_for_chain(
+    vecs: &Vecs,
+    openapi_json: &str,
+    output_paths: &ClientOutputPaths,
+    chain: Chain,
+) -> io::Result<()> {
     let metadata = ClientMetadata::from_vecs(vecs);
 
     // Parse OpenAPI spec
@@ -114,7 +125,7 @@ pub fn generate_clients(
         if let Some(parent) = js_path.parent() {
             create_dir_all(parent)?;
         }
-        generate_javascript_client(&metadata, &endpoints, &schemas, js_path)?;
+        generate_javascript_client(&metadata, &endpoints, &schemas, js_path, chain)?;
     }
 
     // Generate Python client (needs schemas for type definitions)
@@ -122,7 +133,7 @@ pub fn generate_clients(
         if let Some(parent) = python_path.parent() {
             create_dir_all(parent)?;
         }
-        generate_python_client(&metadata, &endpoints, &schemas, python_path)?;
+        generate_python_client(&metadata, &endpoints, &schemas, python_path, chain)?;
     }
 
     Ok(())

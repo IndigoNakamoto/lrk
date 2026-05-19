@@ -29,6 +29,8 @@ pub fn main() -> anyhow::Result<()> {
 
     let config = Config::import()?;
 
+    brk_types::init_chain_epoch(config.chain());
+
     let client = config.rpc()?;
 
     let exit = Exit::new();

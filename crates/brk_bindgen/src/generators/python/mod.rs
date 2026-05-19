@@ -9,6 +9,8 @@ pub mod types;
 
 use std::{fmt::Write, io, path::Path};
 
+use brk_chain::Chain;
+
 use super::write_if_changed;
 use crate::{ClientMetadata, Endpoint, TypeSchemas};
 
@@ -20,6 +22,7 @@ pub fn generate_python_client(
     endpoints: &[Endpoint],
     schemas: &TypeSchemas,
     output_path: &Path,
+    chain: Chain,
 ) -> io::Result<()> {
     let mut output = String::new();
 
@@ -59,7 +62,7 @@ pub fn generate_python_client(
 
     types::generate_type_definitions(&mut output, schemas);
     client::generate_base_client(&mut output);
-    client::generate_endpoint_class(&mut output);
+    client::generate_endpoint_class(&mut output, chain);
     client::generate_index_accessors(&mut output, &metadata.index_set_patterns);
     client::generate_structural_patterns(&mut output, &metadata.structural_patterns, metadata);
     tree::generate_tree_classes(&mut output, &metadata.catalog, metadata);

@@ -41,7 +41,7 @@ export function buildCohortData() {
   const cohortAll = {
     name: "",
     title: "",
-    color: colors.bitcoin,
+    color: colors.coin,
     tree: utxoCohorts.all,
     addressCount: {
       base: addrs.funded.all,

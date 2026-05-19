@@ -8,26 +8,26 @@ pub struct DiskUsage {
     pub brk: String,
     /// brk data size in bytes
     pub brk_bytes: u64,
-    /// Human-readable Bitcoin blocks directory size
-    pub bitcoin: String,
-    /// Bitcoin blocks directory size in bytes
-    pub bitcoin_bytes: u64,
-    /// brk as percentage of Bitcoin data
+    /// Human-readable chain blocks directory size
+    pub chain: String,
+    /// Chain blocks directory size in bytes
+    pub chain_bytes: u64,
+    /// brk as percentage of chain data
     pub ratio: f64,
 }
 
 impl DiskUsage {
-    pub fn new(brk_bytes: u64, bitcoin_bytes: u64) -> Self {
-        let ratio = if bitcoin_bytes > 0 {
-            brk_bytes as f64 / bitcoin_bytes as f64
+    pub fn new(brk_bytes: u64, chain_bytes: u64) -> Self {
+        let ratio = if chain_bytes > 0 {
+            brk_bytes as f64 / chain_bytes as f64
         } else {
             0.0
         };
         Self {
             brk: format_bytes(brk_bytes),
             brk_bytes,
-            bitcoin: format_bytes(bitcoin_bytes),
-            bitcoin_bytes,
+            chain: format_bytes(chain_bytes),
+            chain_bytes,
             ratio,
         }
     }

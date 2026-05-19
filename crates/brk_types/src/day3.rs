@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
-use super::{INDEX_EPOCH, Timestamp};
+use super::{Timestamp, timestamp::index_epoch};
 
 pub const DAY3_INTERVAL: u32 = 259200;
 
@@ -26,11 +26,11 @@ pub struct Day3(u16);
 
 impl Day3 {
     pub fn from_timestamp(ts: Timestamp) -> Self {
-        Self(((*ts - INDEX_EPOCH + 86400) / DAY3_INTERVAL) as u16)
+        Self(((*ts - index_epoch() + 86400) / DAY3_INTERVAL) as u16)
     }
 
     pub fn to_timestamp(&self) -> Timestamp {
-        Timestamp::new(INDEX_EPOCH - 86400 + self.0 as u32 * DAY3_INTERVAL)
+        Timestamp::new(index_epoch() - 86400 + self.0 as u32 * DAY3_INTERVAL)
     }
 }
 

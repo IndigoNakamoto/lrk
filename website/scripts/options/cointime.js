@@ -104,7 +104,7 @@ export function createCointimeSection() {
   ]);
 
   const supplyBreakdown = /** @type {const} */ ([
-    { pattern: all.supply.total, name: "Total", color: colors.bitcoin },
+    { pattern: all.supply.total, name: "Total", color: colors.coin },
     {
       pattern: cointimeSupply.vaulted,
       name: "Vaulted",

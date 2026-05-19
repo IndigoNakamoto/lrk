@@ -28,6 +28,13 @@ impl ServerRoutes for ApiRouter<AppState> {
                 async |_: Empty, State(state): State<AppState>| -> Response {
                     let uptime = state.started_instant.elapsed();
                     let started_at = state.started_at.to_string();
+                    let chain_constants =
+                        state.query.inner().indexer().chain.constants();
+                    let (chain_str, ticker_str, coin_name_str) = (
+                        chain_constants.coin_name.to_lowercase(),
+                        chain_constants.ticker,
+                        chain_constants.coin_name,
+                    );
                     let sync = state
                         .run(move |q| q.sync_status(q.height()))
                         .await
@@ -36,6 +43,9 @@ impl ServerRoutes for ApiRouter<AppState> {
                         status: Cow::Borrowed("healthy"),
                         service: Cow::Borrowed("brk"),
                         version: Cow::Borrowed(VERSION),
+                        chain: Cow::Owned(chain_str),
+                        ticker: Cow::Borrowed(ticker_str),
+                        coin_name: Cow::Borrowed(coin_name_str),
                         timestamp: jiff::Timestamp::now().to_string(),
                         started_at,
                         uptime_seconds: uptime.as_secs(),

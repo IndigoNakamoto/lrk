@@ -969,7 +969,7 @@ export function createMarketSection() {
               line({
                 series: indicators.nvt.ratio,
                 name: "NVT",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
             ],
@@ -981,7 +981,7 @@ export function createMarketSection() {
               line({
                 series: indicators.thermoCapMultiple.ratio,
                 name: "Thermocap",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
             ],
@@ -1005,7 +1005,7 @@ export function createMarketSection() {
               line({
                 series: indicators.rhodlRatio.ratio,
                 name: "RHODL",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
             ],
@@ -1017,7 +1017,7 @@ export function createMarketSection() {
               line({
                 series: indicators.stockToFlow,
                 name: "S2F",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
             ],
@@ -1053,7 +1053,7 @@ export function createMarketSection() {
               line({
                 series: indicators.dormancy.supplyAdj,
                 name: "Supply Adjusted",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
               line({
@@ -1072,7 +1072,7 @@ export function createMarketSection() {
               line({
                 series: indicators.sellerExhaustion,
                 name: "SEC",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.ratio,
               }),
             ],
@@ -1087,7 +1087,7 @@ export function createMarketSection() {
                   line({
                     series: indicators.coindaysDestroyedSupplyAdj,
                     name: "CDD",
-                    color: colors.bitcoin,
+                    color: colors.coin,
                     unit: Unit.ratio,
                   }),
                 ],

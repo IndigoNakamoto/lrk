@@ -12,7 +12,8 @@ use super::{
     P2TRAddrIndex, P2WPKHAddrIndex, P2WSHAddrIndex, Timestamp, TxInIndex, TxIndex, TxOutIndex,
     UnknownOutputIndex, Week1, Year1, Year10, hour1::HOUR1_INTERVAL, hour4::HOUR4_INTERVAL,
     hour12::HOUR12_INTERVAL, minute10::MINUTE10_INTERVAL, minute30::MINUTE30_INTERVAL,
-    timestamp::INDEX_EPOCH,
+    date::date_index_zero,
+    timestamp::index_epoch,
 };
 
 /// Aggregation dimension for querying series. Includes time-based (date, week, month, year),
@@ -276,14 +277,14 @@ impl Index {
             Self::Day3 => return Some(Day3::from(i).to_timestamp()),
             _ => return self.index_to_date(i).map(|d| d.into()),
         };
-        Some(Timestamp::new(INDEX_EPOCH + i as u32 * interval))
+        Some(Timestamp::new(index_epoch() + i as u32 * interval))
     }
 
     /// Convert a date to an index value for day-precision or coarser indexes.
     /// Returns None for sub-daily indexes (use `timestamp_to_index` instead),
     /// non-date-based indexes, or dates before genesis.
     pub fn date_to_index(&self, date: Date) -> Option<usize> {
-        if date < Date::INDEX_ZERO {
+        if date < date_index_zero() {
             return None;
         }
         match self {
@@ -312,7 +313,7 @@ impl Index {
             Self::Day3 => return Some(usize::from(Day3::from_timestamp(ts))),
             _ => return self.date_to_index(Date::from(ts)),
         };
-        Some((*ts).saturating_sub(INDEX_EPOCH) as usize / interval as usize)
+        Some((*ts).saturating_sub(index_epoch()) as usize / interval as usize)
     }
 
     /// Convert an index value to a date for day-precision or coarser indexes.

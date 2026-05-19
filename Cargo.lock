@@ -360,6 +360,7 @@ dependencies = [
 name = "brk_bindgen"
 version = "0.3.0-beta.11"
 dependencies = [
+ "brk_chain",
  "brk_cohort",
  "brk_query",
  "brk_types",
@@ -624,6 +625,7 @@ dependencies = [
  "aide",
  "axum",
  "brk_bindgen",
+ "brk_chain",
  "brk_computer",
  "brk_error",
  "brk_indexer",

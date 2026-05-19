@@ -92,6 +92,8 @@ impl Server {
 
         #[cfg(feature = "bindgen")]
         let vecs = state.query.inner().vecs();
+        #[cfg(feature = "bindgen")]
+        let bindgen_chain = state.query.inner().indexer().chain;
 
         let compression_layer = CompressionLayer::new()
             .br(true)
@@ -289,7 +291,7 @@ impl Server {
                 .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"));
 
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                generate_bindings(vecs, &openapi, &output_paths)
+                generate_bindings(vecs, &openapi, &output_paths, bindgen_chain)
             }));
 
             match result {
@@ -330,10 +332,11 @@ pub fn generate_bindings(
     vecs: &brk_query::Vecs,
     openapi: &aide::openapi::OpenApi,
     output_paths: &brk_bindgen::ClientOutputPaths,
+    chain: brk_chain::Chain,
 ) -> std::io::Result<()> {
     let openapi_json = serde_json::to_string(openapi)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    brk_bindgen::generate_clients(vecs, &openapi_json, output_paths)
+    brk_bindgen::generate_clients_for_chain(vecs, &openapi_json, output_paths, chain)
 }
 
 #[cfg(test)]

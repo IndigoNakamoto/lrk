@@ -6,7 +6,9 @@
 export const Unit = /** @type {const} */ ({
   // Value units
   sats: { id: "sats", name: "Satoshis" },
-  btc: { id: "btc", name: "Bitcoin" },
+  // Coin unit — name matches the active chain (Bitcoin or Litecoin).
+  // Set via setCoinUnitName() once chain info is available from the server.
+  btc: { id: "btc", name: "Coin" },
   usd: { id: "usd", name: "US Dollars" },
 
   // Ratios & percentages
@@ -60,3 +62,12 @@ export const Unit = /** @type {const} */ ({
 
 /** @typedef {keyof typeof Unit} UnitKey */
 /** @typedef {typeof Unit[UnitKey]} UnitObject */
+
+/**
+ * Update the coin unit display name once chain info is known.
+ * Call this after fetching chain metadata from the server (e.g., the health endpoint).
+ * @param {string} coinName - e.g. "Bitcoin" or "Litecoin"
+ */
+export function setCoinUnitName(coinName) {
+    Unit.btc.name = coinName;
+}

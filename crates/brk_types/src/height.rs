@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{Bytes, CheckedSub, Formattable, Pco, PrintableIndex, Stamp};
 
-use crate::{BLOCKS_PER_DIFF_EPOCHS, BLOCKS_PER_HALVING, FromCoarserIndex};
+use crate::{BLOCKS_PER_DIFF_EPOCHS, FromCoarserIndex, halving::blocks_per_halving};
 
 use super::{Epoch, Halving, StoredU64};
 
@@ -77,7 +77,8 @@ impl Height {
     }
 
     pub fn left_before_next_halving(self) -> u32 {
-        BLOCKS_PER_HALVING - (*self % BLOCKS_PER_HALVING)
+        let bph = blocks_per_halving();
+        bph - (*self % bph)
     }
 }
 
@@ -305,10 +306,10 @@ impl FromCoarserIndex<Epoch> for Height {
 
 impl FromCoarserIndex<Halving> for Height {
     fn min_from(coarser: Halving) -> usize {
-        usize::from(coarser) * BLOCKS_PER_HALVING as usize
+        usize::from(coarser) * blocks_per_halving() as usize
     }
 
     fn max_from_(coarser: Halving) -> usize {
-        (usize::from(coarser) + 1) * BLOCKS_PER_HALVING as usize - 1
+        (usize::from(coarser) + 1) * blocks_per_halving() as usize - 1
     }
 }

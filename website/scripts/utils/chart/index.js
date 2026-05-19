@@ -1415,7 +1415,7 @@ export function createChart({ parent, brk, fitContent }) {
       const oldSeries = [...series];
       pane.series = [];
 
-      const defaultColor = unit === Unit.usd ? colors.usd : colors.bitcoin;
+      const defaultColor = unit === Unit.usd ? colors.usd : colors.coin;
 
       map.get(unit)?.forEach((blueprint, order) => {
         if (!Object.keys(blueprint.series.by).includes(idx)) return;

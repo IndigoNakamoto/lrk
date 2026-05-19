@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
-use super::{Date, Day1, Month1, Timestamp};
+use super::{Date, Day1, Month1, Timestamp, year::genesis_year};
 
 #[derive(
     Debug,
@@ -98,7 +98,7 @@ impl From<Day1> for Year1 {
 impl From<Date> for Year1 {
     #[inline]
     fn from(value: Date) -> Self {
-        Self((value.year() - 2009) as u8)
+        Self(value.year().saturating_sub(genesis_year()) as u8)
     }
 }
 

@@ -108,7 +108,7 @@ export function createCostBasisSectionWithPercentiles({ cohort, title }) {
       {
         name: "Supply Density",
         title: title("Cost Basis Supply Density"),
-        bottom: percentRatio({ pattern: cb.supplyDensity, name: "Supply Density", color: colors.bitcoin }),
+        bottom: percentRatio({ pattern: cb.supplyDensity, name: "Supply Density", color: colors.coin }),
       },
     ],
   };

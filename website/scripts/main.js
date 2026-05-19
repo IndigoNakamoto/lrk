@@ -1,5 +1,6 @@
 import { initPrice, onPrice } from "./utils/price.js";
 import { brk } from "./utils/client.js";
+import { setCoinUnitName } from "./utils/units.js";
 import { onFirstIntersection, getElementById, isHidden } from "./utils/dom.js";
 import { initOptions } from "./options/full.js";
 import {
@@ -247,3 +248,11 @@ initResizeBar();
 onFirstIntersection(searchElement, () => {
   initSearch(options);
 });
+
+// Fetch chain metadata and update coin unit label dynamically.
+fetch("/api/server/health")
+  .then((r) => r.json())
+  .then((data) => {
+    if (data?.coin_name) setCoinUnitName(data.coin_name);
+  })
+  .catch(() => {});

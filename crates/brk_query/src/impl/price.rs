@@ -4,7 +4,7 @@ use brk_computer::prices::Vecs as PricesVecs;
 use brk_error::{Error, Result};
 use brk_oracle::{Config, Oracle, cents_to_bin};
 use brk_types::{
-    Dollars, ExchangeRates, HistoricalPrice, HistoricalPriceEntry, Hour4, INDEX_EPOCH, Timestamp,
+    Dollars, ExchangeRates, HistoricalPrice, HistoricalPriceEntry, Hour4, Timestamp, index_epoch,
 };
 use vecdb::{AnyVec, ReadableVec, VecIndex};
 
@@ -93,7 +93,7 @@ impl Query {
     }
 
     fn price_at(&self, target: Timestamp) -> Result<Vec<HistoricalPriceEntry>> {
-        if *target < INDEX_EPOCH {
+        if *target < index_epoch() {
             return Ok(vec![]);
         }
         let h4 = Hour4::from_timestamp(target);

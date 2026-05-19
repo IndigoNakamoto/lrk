@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
-use super::{Date, Day1, Timestamp};
+use super::{Date, Day1, Timestamp, year::genesis_year};
 
 #[derive(
     Debug,
@@ -101,7 +101,7 @@ impl From<Date> for Week1 {
         let date = jiff::civil::Date::from(value).iso_week_date();
 
         let mut week: u16 = 0;
-        let mut year = 2009;
+        let mut year = genesis_year() as i16;
 
         while date.year() > year {
             let d = jiff::civil::Date::new(year, 6, 6).unwrap();

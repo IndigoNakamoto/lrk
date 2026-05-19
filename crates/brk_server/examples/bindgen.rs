@@ -29,7 +29,7 @@ pub fn main() -> color_eyre::Result<()> {
         .javascript(workspace_root.join("website/scripts/modules/brk-client/index.js"))
         .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"));
 
-    generate_bindings(&vecs, &openapi, &output_paths)?;
+    generate_bindings(&vecs, &openapi, &output_paths, indexer.chain)?;
 
     fs::remove_dir_all(&tmp)?;
 

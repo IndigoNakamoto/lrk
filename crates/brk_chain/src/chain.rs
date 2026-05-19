@@ -86,6 +86,10 @@ pub struct ChainConstants {
     pub kraken_pair: &'static str,
     /// Kraken result-object key in the OHLC response (e.g. `"XXBTZUSD"`, `"XLTCZUSD"`).
     pub kraken_result_key: &'static str,
+    /// Calendar month (1 = Jan) of the `index_epoch` date. Used by client generators.
+    pub index_epoch_month: u8,
+    /// Calendar day of the `index_epoch` date. Used by client generators.
+    pub index_epoch_day: u8,
 }
 
 impl ChainConstants {
@@ -110,6 +114,8 @@ impl ChainConstants {
         binance_symbol: "BTCUSDT",
         kraken_pair: "XBTUSD",
         kraken_result_key: "XXBTZUSD",
+        index_epoch_month: 1, // 2009-01-01
+        index_epoch_day: 1,
     };
 
     pub const LITECOIN: Self = Self {
@@ -130,5 +136,7 @@ impl ChainConstants {
         binance_symbol: "LTCUSDT",
         kraken_pair: "LTCUSD",
         kraken_result_key: "XLTCZUSD",
+        index_epoch_month: 10, // 2011-10-03
+        index_epoch_day: 3,
     };
 }

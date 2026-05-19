@@ -1,6 +1,7 @@
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Div},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use brk_chain::Chain;
@@ -10,8 +11,23 @@ use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
 use super::Height;
 
-/// Default halving interval (Bitcoin). For Litecoin use `ChainConstants::LITECOIN.blocks_per_halving`.
+/// Bitcoin default halving interval. For Litecoin the value is 840_000.
+/// Set at startup via `brk_types::init_chain_epoch`.
 pub const BLOCKS_PER_HALVING: u32 = 210_000;
+
+static BLOCKS_PER_HALVING_GLOBAL: AtomicU32 = AtomicU32::new(BLOCKS_PER_HALVING);
+
+/// Returns the active chain's halving interval in blocks.
+/// Defaults to the Bitcoin value; override with `set_blocks_per_halving` at startup.
+#[inline]
+pub fn blocks_per_halving() -> u32 {
+    BLOCKS_PER_HALVING_GLOBAL.load(Ordering::Relaxed)
+}
+
+/// Set the chain's halving interval once at program startup.
+pub fn set_blocks_per_halving(n: u32) {
+    BLOCKS_PER_HALVING_GLOBAL.store(n, Ordering::Relaxed);
+}
 
 #[derive(
     Debug,
@@ -86,7 +102,7 @@ impl Add<usize> for Halving {
 impl From<Height> for Halving {
     #[inline]
     fn from(value: Height) -> Self {
-        Self((u32::from(value) / BLOCKS_PER_HALVING) as u8)
+        Self((u32::from(value) / blocks_per_halving()) as u8)
     }
 }
 

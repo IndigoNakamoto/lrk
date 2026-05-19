@@ -298,7 +298,7 @@ export function createMiningSection() {
               dots({
                 series: mining.hashrate.rate.base,
                 name: "Hashrate",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.hashRate,
               }),
             ],
@@ -474,13 +474,13 @@ export function createMiningSection() {
               line({
                 series: mining.hashrate.value.ths,
                 name: "per TH/s",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.satsPerThsPerDay,
               }),
               line({
                 series: mining.hashrate.value.phs,
                 name: "per PH/s",
-                color: colors.bitcoin,
+                color: colors.coin,
                 unit: Unit.satsPerPhsPerDay,
               }),
               dotted({
@@ -509,7 +509,7 @@ export function createMiningSection() {
               ...percentRatio({
                 pattern: mining.hashrate.value.rebound,
                 name: "Hash Value",
-                color: colors.bitcoin,
+                color: colors.coin,
               }),
             ],
           },

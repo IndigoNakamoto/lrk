@@ -293,7 +293,7 @@ export function createDcaVsLumpSumSection({ investing, lookback, returns }) {
       name: "DCA",
       color: colors.profit,
     }),
-    price({ series: lookback[key], name: "Lump Sum", color: colors.bitcoin }),
+    price({ series: lookback[key], name: "Lump Sum", color: colors.coin }),
   ];
 
   /** @param {string} name @param {AllPeriodKey} key */
@@ -353,7 +353,7 @@ export function createDcaVsLumpSumSection({ investing, lookback, returns }) {
       ...satsBtcUsd({
         pattern: investing.period.lumpSumStack[key],
         name: "Lump Sum",
-        color: colors.bitcoin,
+        color: colors.coin,
       }),
     ],
   });

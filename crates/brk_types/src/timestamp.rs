@@ -38,9 +38,25 @@ pub const ONE_HOUR_IN_SEC: u32 = 60 * 60;
 pub const ONE_DAY_IN_SEC: u32 = 24 * 60 * 60;
 pub const ONE_DAY_IN_SEC_F64: f64 = ONE_DAY_IN_SEC as f64;
 
-/// 2009-01-01 00:00:00 UTC — epoch for fixed-interval Bitcoin time indexes.
-/// For Litecoin use `ChainConstants::LITECOIN.index_epoch`.
-pub const INDEX_EPOCH: u32 = 1230768000;
+/// 2009-01-01 00:00:00 UTC — Bitcoin default for fixed-interval time indexes.
+/// For Litecoin the value is 2011-10-03 (1_317_600_000). Set at startup via
+/// `brk_types::init_chain_epoch`.
+pub const INDEX_EPOCH: u32 = 1_230_768_000;
+
+static INDEX_EPOCH_GLOBAL: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(INDEX_EPOCH);
+
+/// Returns the active chain's index epoch (seconds since UNIX epoch).
+/// Defaults to the Bitcoin value; override with `set_index_epoch` at startup.
+#[inline]
+pub fn index_epoch() -> u32 {
+    INDEX_EPOCH_GLOBAL.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Set the chain index epoch once at program startup.
+pub fn set_index_epoch(epoch: u32) {
+    INDEX_EPOCH_GLOBAL.store(epoch, std::sync::atomic::Ordering::Relaxed);
+}
 
 impl Timestamp {
     pub const ZERO: Self = Self(0);
