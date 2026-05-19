@@ -136,6 +136,7 @@ impl Snapshot {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use bitcoin::hashes::Hash;
     use brk_types::{Sats, VSize, Weight};
     use smallvec::SmallVec;

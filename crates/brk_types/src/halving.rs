@@ -3,12 +3,14 @@ use std::{
     ops::{Add, AddAssign, Div},
 };
 
+use brk_chain::Chain;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
 use super::Height;
 
+/// Default halving interval (Bitcoin). For Litecoin use `ChainConstants::LITECOIN.blocks_per_halving`.
 pub const BLOCKS_PER_HALVING: u32 = 210_000;
 
 #[derive(
@@ -30,6 +32,11 @@ pub struct Halving(u8);
 impl Halving {
     pub const fn new(value: u8) -> Self {
         Self(value)
+    }
+
+    /// Derive halving from block height for a specific chain.
+    pub fn from_height_and_chain(height: Height, chain: Chain) -> Self {
+        Self((u32::from(height) / chain.constants().blocks_per_halving) as u8)
     }
 }
 

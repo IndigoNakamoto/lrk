@@ -6,22 +6,19 @@ use vecdb::ReadableVec;
 
 use crate::Query;
 
-/// Blocks per difficulty epoch (2 weeks target)
-const BLOCKS_PER_EPOCH: u32 = 2016;
-
-/// Target block time in seconds (10 minutes)
-const TARGET_BLOCK_TIME: u64 = 600;
-
 impl Query {
     /// Live difficulty-adjustment snapshot for the current epoch. Bundles
     /// progress through the 2016-block window, the projected next-retarget
     /// percentage from observed pace, an estimated wall-clock retarget time,
     /// remaining blocks/time, the previous retarget percentage (current epoch
     /// vs previous epoch first-block difficulty), and the time offset from a
-    /// 600s/block schedule. Output time fields are in milliseconds.
+    /// target-block-time schedule. Output time fields are in milliseconds.
     pub fn difficulty_adjustment(&self) -> Result<DifficultyAdjustment> {
         let indexer = self.indexer();
         let computer = self.computer();
+        let chain_constants = indexer.chain.constants();
+        let blocks_per_epoch = chain_constants.blocks_per_diff_epoch;
+        let target_block_time = chain_constants.seconds_per_block;
         let current_height = self.height();
         let current_height_u32: u32 = current_height.into();
 
@@ -41,10 +38,10 @@ impl Query {
             .data()?;
         let epoch_start_u32: u32 = epoch_start_height.into();
 
-        let next_retarget_height = epoch_start_u32 + BLOCKS_PER_EPOCH;
+        let next_retarget_height = epoch_start_u32 + blocks_per_epoch;
         let blocks_into_epoch = current_height_u32 - epoch_start_u32;
         let remaining_blocks = next_retarget_height - current_height_u32;
-        let progress_percent = (blocks_into_epoch as f64 / BLOCKS_PER_EPOCH as f64) * 100.0;
+        let progress_percent = (blocks_into_epoch as f64 / blocks_per_epoch as f64) * 100.0;
 
         let epoch_start_timestamp = computer
             .indexes
@@ -66,17 +63,17 @@ impl Query {
         let time_avg = if blocks_into_epoch > 0 {
             elapsed_time / blocks_into_epoch as u64
         } else {
-            TARGET_BLOCK_TIME
+            target_block_time
         };
 
         // Per-block time needed over remaining blocks to land the epoch at
-        // BLOCKS_PER_EPOCH * TARGET_BLOCK_TIME (the convergence path that
+        // blocks_per_epoch * target_block_time (the convergence path that
         // client UIs render as adjustedTimeAvg).
-        let target_total = BLOCKS_PER_EPOCH as u64 * TARGET_BLOCK_TIME;
+        let target_total = blocks_per_epoch as u64 * target_block_time;
         let adjusted_time_avg = if remaining_blocks > 0 {
             target_total.saturating_sub(elapsed_time) / remaining_blocks as u64
         } else {
-            TARGET_BLOCK_TIME
+            target_block_time
         };
 
         let remaining_time = remaining_blocks as u64 * adjusted_time_avg;
@@ -86,7 +83,7 @@ impl Query {
             .unwrap_or(u64::from(*current_timestamp));
         let estimated_retarget_date = now + remaining_time;
 
-        let expected_time = blocks_into_epoch as u64 * TARGET_BLOCK_TIME;
+        let expected_time = blocks_into_epoch as u64 * target_block_time;
         let difficulty_change = if elapsed_time > 0 && blocks_into_epoch > 0 {
             ((expected_time as f64 / elapsed_time as f64) - 1.0) * 100.0
         } else {
@@ -128,7 +125,7 @@ impl Query {
             (0.0, epoch_start_timestamp)
         };
 
-        let expected_blocks = elapsed_time as f64 / TARGET_BLOCK_TIME as f64;
+        let expected_blocks = elapsed_time as f64 / target_block_time as f64;
 
         Ok(DifficultyAdjustment {
             progress_percent,

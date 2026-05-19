@@ -46,7 +46,7 @@ impl Lengths {
             OutputType::P2TR => *self.p2tr_addr_index,
             OutputType::P2WPKH => *self.p2wpkh_addr_index,
             OutputType::P2WSH => *self.p2wsh_addr_index,
-            OutputType::Unknown => *self.unknown_output_index,
+            OutputType::Unknown | OutputType::MWEB => *self.unknown_output_index,
         }
     }
 

@@ -141,6 +141,7 @@ impl AddrTracker {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use brk_types::{Sats, TxOut};
 
     use super::*;

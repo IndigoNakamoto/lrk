@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use crate::{TxOut, Txid, Vout, Witness};
 use bitcoin::{Script, ScriptBuf, Sequence, transaction::OutPoint};
 use schemars::JsonSchema;

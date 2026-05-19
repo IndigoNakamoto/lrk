@@ -3,6 +3,8 @@ use std::fmt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use brk_chain::Chain;
+
 /// Time period for mining statistics.
 ///
 /// Used to specify the lookback window for pool statistics, hashrate calculations,
@@ -33,20 +35,33 @@ pub enum TimePeriod {
 }
 
 impl TimePeriod {
-    /// Approximate number of blocks for this time period (10 min per block average)
+    /// Approximate number of blocks for this time period (10 min/block, Bitcoin default).
     pub fn block_count(&self) -> usize {
+        self.block_count_for_chain(Chain::Bitcoin)
+    }
+
+    /// Approximate number of blocks for this time period given a specific chain's
+    /// block target time.
+    pub fn block_count_for_chain(&self, chain: Chain) -> usize {
+        let secs = chain.constants().seconds_per_block;
+        let day = (86_400 / secs) as usize;
         match self {
-            TimePeriod::Day => 144,
-            TimePeriod::ThreeDays => 432,
-            TimePeriod::Week => 1008,
-            TimePeriod::Month => 4320,
-            TimePeriod::ThreeMonths => 12960,
-            TimePeriod::SixMonths => 25920,
-            TimePeriod::Year => 52560,
-            TimePeriod::TwoYears => 105120,
-            TimePeriod::ThreeYears => 157680,
+            TimePeriod::Day => day,
+            TimePeriod::ThreeDays => day * 3,
+            TimePeriod::Week => day * 7,
+            TimePeriod::Month => day * 30,
+            TimePeriod::ThreeMonths => day * 90,
+            TimePeriod::SixMonths => day * 180,
+            TimePeriod::Year => day * 365,
+            TimePeriod::TwoYears => day * 365 * 2,
+            TimePeriod::ThreeYears => day * 365 * 3,
             TimePeriod::All => usize::MAX,
         }
+    }
+
+    /// Blocks per year for the given chain.
+    pub fn blocks_per_year(chain: Chain) -> u64 {
+        chain.constants().blocks_per_year
     }
 
     /// Parse from URL path segment

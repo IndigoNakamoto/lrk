@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use brk_chain::Chain;
 use brk_cohort::{
     AgeRange, AmountRange, ByEpoch, Class, CohortContext, Filter, Filtered, OverAge, OverAmount,
     SpendableType, Term, UnderAge, UnderAmount,
@@ -77,6 +78,7 @@ impl UTXOCohorts<Rw> {
         indexes: &indexes::Vecs,
         states_path: &Path,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -89,6 +91,8 @@ impl UTXOCohorts<Rw> {
             version: v + Version::ONE,
             indexes,
             cached_starts,
+
+            chain,
         };
         let all_supply = SupplyCore::forced_import(&all_cfg)?;
 
@@ -105,6 +109,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -125,6 +131,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -147,6 +155,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -167,6 +177,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -199,6 +211,8 @@ impl UTXOCohorts<Rw> {
                 version: v,
                 indexes,
                 cached_starts,
+
+                chain,
             };
             UTXOCohortVecs::new(None, ExtendedAdjustedCohortMetrics::forced_import(&cfg)?)
         };
@@ -214,6 +228,8 @@ impl UTXOCohorts<Rw> {
                 version: v,
                 indexes,
                 cached_starts,
+
+                chain,
             };
             UTXOCohortVecs::new(None, ExtendedCohortMetrics::forced_import(&cfg)?)
         };
@@ -229,6 +245,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 Ok(UTXOCohortVecs::new(
                     None,
@@ -252,6 +270,8 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+
+                    chain,
                 };
                 Ok(UTXOCohortVecs::new(
                     None,

@@ -1,3 +1,4 @@
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
@@ -34,13 +35,13 @@ pub struct RatioPerBlockPercentiles<M: StorageMode = Rw> {
 
     #[traversable(skip)]
     expanding_pct: ExpandingPercentiles,
+    /// First height included in the expanding percentile window (first halving).
+    /// Excludes pre-halving blocks where market data is sparse.
+    #[traversable(skip)]
+    min_height: usize,
 }
 
 const VERSION: Version = Version::new(6);
-
-/// First height included in ratio percentile computation (first halving).
-/// Earlier blocks lack meaningful market data and pollute the distribution.
-const MIN_HEIGHT: usize = 210_000;
 
 impl RatioPerBlockPercentiles {
     pub(crate) fn forced_import(
@@ -48,6 +49,7 @@ impl RatioPerBlockPercentiles {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        chain: Chain,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -82,6 +84,7 @@ impl RatioPerBlockPercentiles {
             pct1: import_band!("pct1"),
             pct0_5: import_band!("pct0_5"),
             expanding_pct: ExpandingPercentiles::default(),
+            min_height: chain.constants().blocks_per_halving as usize,
         })
     }
 
@@ -108,12 +111,14 @@ impl RatioPerBlockPercentiles {
         let start = starting_height.to_usize();
         let ratio_len = ratio_source.len();
 
+        let min_height = self.min_height;
+
         if ratio_len > start {
-            let expected_count = start.saturating_sub(MIN_HEIGHT);
+            let expected_count = start.saturating_sub(min_height);
             if self.expanding_pct.count() as usize != expected_count {
                 self.expanding_pct.reset();
-                if start > MIN_HEIGHT {
-                    let historical = ratio_source.collect_range_at(MIN_HEIGHT, start);
+                if start > min_height {
+                    let historical = ratio_source.collect_range_at(min_height, start);
                     self.expanding_pct.add_bulk(&historical);
                 }
             }
@@ -137,7 +142,7 @@ impl RatioPerBlockPercentiles {
             }
 
             for (i, &ratio) in new_ratios.iter().enumerate() {
-                if start + i >= MIN_HEIGHT {
+                if start + i >= min_height {
                     self.expanding_pct.add(*ratio);
                 }
                 self.expanding_pct.quantiles(&PCTS, &mut out);

@@ -6,14 +6,13 @@ use serde_json::Value;
 use tracing::info;
 use ureq::Agent;
 
-use crate::{
-    PriceSource, checked_get, default_retry,
-    ohlc::{compute_ohlc_from_range, date_from_timestamp, ohlc_from_array, timestamp_from_secs},
-};
+use crate::{PriceSource, checked_get, default_retry, ohlc::compute_ohlc_from_range};
 
 #[derive(Clone)]
 pub struct Kraken {
     agent: Agent,
+    pair: &'static str,
+    result_key: &'static str,
     _1mn: Option<BTreeMap<Timestamp, OHLCCents>>,
     _1d: Option<BTreeMap<Date, OHLCCents>>,
 }
@@ -25,8 +24,14 @@ impl Kraken {
     }
 
     pub fn new_with_agent(agent: Agent) -> Self {
+        Self::new_with_agent_and_pair(agent, "XBTUSD", "XXBTZUSD")
+    }
+
+    pub fn new_with_agent_and_pair(agent: Agent, pair: &'static str, result_key: &'static str) -> Self {
         Self {
             agent,
+            pair,
+            result_key,
             _1mn: None,
             _1d: None,
         }
@@ -57,12 +62,30 @@ impl Kraken {
 
     pub fn fetch_1mn(&self) -> Result<BTreeMap<Timestamp, OHLCCents>> {
         let agent = &self.agent;
+        let url_base = self.url(1);
+        let result_key = self.result_key;
         default_retry(|_| {
-            let url = Self::url(1);
+            let url = url_base.clone();
             info!("Fetching {url} ...");
             let bytes = checked_get(agent, &url)?;
             let json: Value = serde_json::from_slice(&bytes)?;
-            Self::parse_ohlc_response(&json)
+            // parse_ohlc_response is &self but we're inside a closure; inline the key
+            let result = json
+                .get("result")
+                .and_then(|r| r.get(result_key))
+                .and_then(|v| v.as_array())
+                .ok_or(Error::Parse("Invalid Kraken response format".into()))?
+                .iter()
+                .filter_map(|v| v.as_array())
+                .map(|arr| {
+                    let ts = arr.first().and_then(|v| v.as_u64()).unwrap_or(0);
+                    (
+                        crate::ohlc::timestamp_from_secs(ts),
+                        crate::ohlc::ohlc_from_array(arr),
+                    )
+                })
+                .collect();
+            Ok(result)
         })
     }
 
@@ -85,42 +108,37 @@ impl Kraken {
 
     pub fn fetch_1d(&self) -> Result<BTreeMap<Date, OHLCCents>> {
         let agent = &self.agent;
+        let url_base = self.url(1440);
+        let result_key = self.result_key;
         default_retry(|_| {
-            let url = Self::url(1440);
+            let url = url_base.clone();
             info!("Fetching {url} ...");
             let bytes = checked_get(agent, &url)?;
             let json: Value = serde_json::from_slice(&bytes)?;
-            Self::parse_date_ohlc_response(&json)
+            let ts_map: BTreeMap<Timestamp, OHLCCents> = json
+                .get("result")
+                .and_then(|r| r.get(result_key))
+                .and_then(|v| v.as_array())
+                .ok_or(Error::Parse("Invalid Kraken response format".into()))?
+                .iter()
+                .filter_map(|v| v.as_array())
+                .map(|arr| {
+                    let ts = arr.first().and_then(|v| v.as_u64()).unwrap_or(0);
+                    (
+                        crate::ohlc::timestamp_from_secs(ts),
+                        crate::ohlc::ohlc_from_array(arr),
+                    )
+                })
+                .collect();
+            Ok(ts_map
+                .into_iter()
+                .map(|(ts, ohlc)| (crate::ohlc::date_from_timestamp(ts), ohlc))
+                .collect())
         })
     }
 
-    /// Parse Kraken's nested JSON response: { result: { XXBTZUSD: [...] } }
-    fn parse_ohlc_response(json: &Value) -> Result<BTreeMap<Timestamp, OHLCCents>> {
-        let result = json
-            .get("result")
-            .and_then(|r| r.get("XXBTZUSD"))
-            .and_then(|v| v.as_array())
-            .ok_or(Error::Parse("Invalid Kraken response format".into()))?
-            .iter()
-            .filter_map(|v| v.as_array())
-            .map(|arr| {
-                let ts = arr.first().and_then(|v| v.as_u64()).unwrap_or(0);
-                (timestamp_from_secs(ts), ohlc_from_array(arr))
-            })
-            .collect();
-        Ok(result)
-    }
-
-    fn parse_date_ohlc_response(json: &Value) -> Result<BTreeMap<Date, OHLCCents>> {
-        Self::parse_ohlc_response(json).map(|map| {
-            map.into_iter()
-                .map(|(ts, ohlc)| (date_from_timestamp(ts), ohlc))
-                .collect()
-        })
-    }
-
-    fn url(interval: usize) -> String {
-        format!("https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval={interval}")
+    fn url(&self, interval: usize) -> String {
+        format!("https://api.kraken.com/0/public/OHLC?pair={}&interval={interval}", self.pair)
     }
 
     pub fn ping(&self) -> Result<()> {

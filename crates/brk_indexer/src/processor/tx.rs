@@ -6,6 +6,8 @@ use tracing::error;
 use vecdb::{AnyVec, WritableVec, likely};
 
 use crate::TxMetadataVecs;
+use brk_chain::Chain;
+
 use crate::constants::DUPLICATE_TXIDS;
 
 use super::{BlockProcessor, ComputedTx};
@@ -72,7 +74,7 @@ impl<'a> BlockProcessor<'a> {
                     error!(tx_index = ?ct.tx_index, len, "Missing txid for tx_index");
                 })?;
 
-            let is_dup = DUPLICATE_TXIDS.contains(&prev_txid);
+            let is_dup = self.chain == Chain::Bitcoin && DUPLICATE_TXIDS.contains(&prev_txid);
 
             if !is_dup {
                 error!(

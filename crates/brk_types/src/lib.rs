@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+pub use brk_chain::{Chain, ChainConstants};
 pub use vecdb::{CheckedSub, Exit, PrintableIndex, Version};
 
 mod addr;

@@ -1,5 +1,6 @@
 use std::{fmt, str::FromStr};
 
+use brk_chain::Chain;
 use jiff::{Span, Zoned, civil::Date as Date_, tz::TimeZone};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
@@ -14,8 +15,29 @@ use super::{Day1, Month1, Month3, Month6, Timestamp, Week1, Year1, Year10};
 pub struct Date(u32);
 
 impl Date {
+    /// Bitcoin index epoch start: 2009-01-01.
     pub const INDEX_ZERO: Self = Self(20090101);
     pub const INDEX_ZERO_: Date_ = Date_::constant(2009, 1, 1);
+
+    /// Litecoin index epoch start: 2011-10-03.
+    pub const INDEX_ZERO_LTC: Self = Self(20111003);
+    pub const INDEX_ZERO_LTC_: Date_ = Date_::constant(2011, 10, 3);
+
+    /// Returns the index epoch start date for the given chain.
+    pub fn index_zero_for_chain(chain: Chain) -> Self {
+        match chain {
+            Chain::Bitcoin => Self::INDEX_ZERO,
+            Chain::Litecoin => Self::INDEX_ZERO_LTC,
+        }
+    }
+
+    /// Returns the jiff `Date_` index epoch for the given chain.
+    pub fn index_zero_date_for_chain(chain: Chain) -> Date_ {
+        match chain {
+            Chain::Bitcoin => Self::INDEX_ZERO_,
+            Chain::Litecoin => Self::INDEX_ZERO_LTC_,
+        }
+    }
 
     pub fn new(year: u16, month: u8, day: u8) -> Self {
         Self(year as u32 * 1_00_00 + month as u32 * 1_00 + day as u32)

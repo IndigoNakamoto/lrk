@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use brk_rpc::MempoolState;
 use brk_types::{MempoolEntryInfo, Txid};
 use rustc_hash::FxHashMap;

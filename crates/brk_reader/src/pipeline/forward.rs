@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::{fs, ops::ControlFlow, sync::OnceLock, thread};
 
 use bitcoin::block::Header;

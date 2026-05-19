@@ -41,6 +41,7 @@ fn run() -> Result<()> {
 
     let mode = Mode::pick(args.pretty, args.compact, args.paths.len())?;
     let reader = Reader::new(args.blocks_dir(), &client);
+    let chain = args.chain;
     let formatter = Formatter::new(mode, args.paths);
     let parser_threads = (std::thread::available_parallelism()
         .map(|n| n.get())
@@ -49,7 +50,7 @@ fn run() -> Result<()> {
         .max(1);
     for block in reader.range_with(start, end, parser_threads)?.iter() {
         let block = block?;
-        let line = formatter.format(&Ctx::new(&block, network))?;
+        let line = formatter.format(&Ctx::new(&block, network, chain))?;
         if !line.is_empty() {
             println!("{line}");
         }

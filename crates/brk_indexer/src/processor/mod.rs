@@ -7,6 +7,7 @@ mod types;
 
 pub use types::*;
 
+use brk_chain::Chain;
 use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_types::{AddrHash, Block, Height, OutPoint, SigOps, TxInIndex, TypeIndex};
@@ -18,6 +19,7 @@ use crate::{Lengths, Readers, Stores, Vecs};
 pub struct BlockProcessor<'a> {
     pub block: &'a Block,
     pub height: Height,
+    pub chain: Chain,
     pub check_collisions: bool,
     pub lengths: &'a mut Lengths,
     pub vecs: &'a mut Vecs,

@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use derive_more::Deref;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

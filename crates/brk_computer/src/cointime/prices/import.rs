@@ -1,3 +1,4 @@
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_types::Version;
 use vecdb::Database;
@@ -10,10 +11,11 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        chain: Chain,
     ) -> Result<Self> {
         macro_rules! import {
             ($name:expr) => {
-                PriceWithRatioExtendedPerBlock::forced_import(db, $name, version, indexes)?
+                PriceWithRatioExtendedPerBlock::forced_import(db, $name, version, indexes, chain)?
             };
         }
 

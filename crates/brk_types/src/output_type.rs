@@ -3,6 +3,7 @@
     reason = "P2PK65 and P2PK33 both serialize as 'p2pk'"
 )]
 
+use brk_chain::primitives as bitcoin;
 use bitcoin::{AddressType, ScriptBuf, opcodes::all::OP_PUSHBYTES_2};
 use brk_error::Error;
 use schemars::JsonSchema;
@@ -56,6 +57,12 @@ pub enum OutputType {
     P2TR,
     P2A,
     Empty,
+    /// MimbleWimble Extension Block output (Litecoin MWEB). Not decoded;
+    /// treated as unspendable by standard indexing. Full MWEB support is
+    /// future work.
+    #[serde(rename = "mweb")]
+    #[strum(serialize = "mweb")]
+    MWEB,
     Unknown,
 }
 
@@ -88,6 +95,7 @@ impl OutputType {
             Self::P2TR => true,
             Self::P2A => true,
             Self::Empty => true,
+            Self::MWEB => false,
             Self::Unknown => true,
         }
     }
@@ -105,6 +113,7 @@ impl OutputType {
             Self::P2TR => true,
             Self::P2A => true,
             Self::Empty => false,
+            Self::MWEB => false,
             Self::Unknown => false,
         }
     }
@@ -139,8 +148,21 @@ impl OutputType {
             Self::P2TR,
             Self::P2A,
             Self::Empty,
+            Self::MWEB,
             Self::Unknown,
         ]
+    }
+
+    /// Returns `true` if this script looks like a Litecoin MWEB HogEx
+    /// integration script. Not fully decoded; tagged as `OutputType::MWEB`
+    /// so callers know to skip standard address extraction.
+    pub fn is_mweb_script(script: &ScriptBuf) -> bool {
+        if script.is_op_return() {
+            let bytes = script.as_bytes();
+            bytes.len() >= 2 && bytes[1] >= 0x20
+        } else {
+            false
+        }
     }
 }
 
@@ -227,6 +249,7 @@ impl TryFrom<OutputType> for AddressType {
             OutputType::P2TR => Self::P2tr,
             OutputType::P2WPKH => Self::P2wpkh,
             OutputType::P2WSH => Self::P2wsh,
+            OutputType::MWEB => return Err(Error::UnsupportedType("mweb".into())),
             _ => return Err(Error::UnsupportedType(format!("{:?}", value))),
         })
     }

@@ -3,6 +3,7 @@ use std::{
     ops::{Add, AddAssign, Div},
 };
 
+use brk_chain::Chain;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
@@ -81,6 +82,13 @@ impl From<Height> for Epoch {
     #[inline]
     fn from(value: Height) -> Self {
         Self((u32::from(value) / BLOCKS_PER_DIFF_EPOCHS) as u16)
+    }
+}
+
+impl Epoch {
+    /// Derive epoch from block height for a specific chain.
+    pub fn from_height_and_chain(height: Height, chain: Chain) -> Self {
+        Self((u32::from(height) / chain.constants().blocks_per_diff_epoch) as u16)
     }
 }
 

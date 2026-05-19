@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::{
     iter::Sum,
     ops::{Add, AddAssign, Div, Mul, Sub, SubAssign},

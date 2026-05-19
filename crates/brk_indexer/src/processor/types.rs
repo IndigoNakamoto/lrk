@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::{Transaction, TxOut};
 use brk_cohort::ByAddrType;
 use brk_types::{

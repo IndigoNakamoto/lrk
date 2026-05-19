@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::ops::{Add, AddAssign, Div};
 
 use derive_more::Deref;
@@ -37,7 +38,8 @@ pub const ONE_HOUR_IN_SEC: u32 = 60 * 60;
 pub const ONE_DAY_IN_SEC: u32 = 24 * 60 * 60;
 pub const ONE_DAY_IN_SEC_F64: f64 = ONE_DAY_IN_SEC as f64;
 
-/// 2009-01-01 00:00:00 UTC — epoch for fixed-interval time indexes.
+/// 2009-01-01 00:00:00 UTC — epoch for fixed-interval Bitcoin time indexes.
+/// For Litecoin use `ChainConstants::LITECOIN.index_epoch`.
 pub const INDEX_EPOCH: u32 = 1230768000;
 
 impl Timestamp {

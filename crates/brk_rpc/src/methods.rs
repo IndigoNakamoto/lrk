@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::{thread::sleep, time::Duration};
 
 use bitcoin::{consensus::encode, hex::FromHex};

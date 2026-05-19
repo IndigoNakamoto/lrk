@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::str::FromStr;
 
 use bitcoin::{Network, PublicKey, ScriptBuf, opcodes, script::Builder};
@@ -134,9 +135,11 @@ impl TryFrom<(&ScriptBuf, OutputType)> for AddrBytes {
                 let bytes = &script.as_bytes()[2..];
                 Ok(Self::P2A(P2ABytes::from(bytes)))
             }
-            OutputType::P2MS | OutputType::Unknown | OutputType::Empty | OutputType::OpReturn => {
-                Err(Error::WrongAddrType)
-            }
+            OutputType::P2MS
+            | OutputType::Unknown
+            | OutputType::Empty
+            | OutputType::OpReturn
+            | OutputType::MWEB => Err(Error::WrongAddrType),
         }
     }
 }

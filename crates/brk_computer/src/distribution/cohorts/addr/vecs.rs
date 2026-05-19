@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use brk_chain::Chain;
 use brk_cohort::{CohortContext, Filter, Filtered};
 use brk_error::Result;
 use brk_indexer::Lengths;
@@ -40,6 +41,7 @@ impl AddrCohortVecs {
         indexes: &indexes::Vecs,
         states_path: Option<&Path>,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let full_name = CohortContext::Addr.full_name(&filter, name);
 
@@ -50,6 +52,8 @@ impl AddrCohortVecs {
             version,
             indexes,
             cached_starts,
+
+            chain,
         };
 
         let addr_count = PerBlockWithDeltas::forced_import(

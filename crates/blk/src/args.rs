@@ -2,6 +2,7 @@ use std::{collections::HashSet, path::PathBuf};
 
 use brk_error::{Error, Result};
 use brk_rpc::{Auth, Client};
+use brk_types::Chain;
 
 use crate::path::Path;
 
@@ -10,6 +11,7 @@ pub struct Args {
     pub paths: Vec<Path>,
     pub pretty: bool,
     pub compact: bool,
+    pub chain: Chain,
     bitcoindir: Option<PathBuf>,
     blocksdir: Option<PathBuf>,
     rpcconnect: Option<String>,
@@ -23,6 +25,7 @@ impl Args {
     pub fn parse(raw: Vec<String>) -> Result<Self> {
         let mut pretty = false;
         let mut compact = false;
+        let mut chain = Chain::Bitcoin;
         let mut bitcoindir = None;
         let mut blocksdir = None;
         let mut rpcconnect = None;
@@ -51,6 +54,9 @@ impl Args {
                     ),
                 };
                 match key.as_str() {
+                    "chain" => {
+                        chain = value.parse().map_err(|e: String| Error::Parse(e))?;
+                    }
                     "bitcoindir" => bitcoindir = Some(PathBuf::from(value)),
                     "blocksdir" => blocksdir = Some(PathBuf::from(value)),
                     "rpcconnect" => rpcconnect = Some(value),
@@ -88,6 +94,7 @@ impl Args {
             paths,
             pretty,
             compact,
+            chain,
             bitcoindir,
             blocksdir,
             rpcconnect,
@@ -101,7 +108,7 @@ impl Args {
     pub fn bitcoin_dir(&self) -> PathBuf {
         self.bitcoindir
             .clone()
-            .unwrap_or_else(Client::default_bitcoin_path)
+            .unwrap_or_else(|| Client::default_chain_path(self.chain))
     }
 
     pub fn blocks_dir(&self) -> PathBuf {
@@ -112,7 +119,7 @@ impl Args {
 
     pub fn rpc(&self) -> Result<Client> {
         let host = self.rpcconnect.as_deref().unwrap_or("localhost");
-        let port = self.rpcport.unwrap_or(8332);
+        let port = self.rpcport.unwrap_or(self.chain.constants().default_rpc_port);
         let url = format!("http://{host}:{port}");
         let cookie = self
             .rpccookiefile

@@ -1,9 +1,10 @@
 use std::{collections::BTreeMap, path::Path};
 
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{Addr, AddrBytes, Height, OutputType, PoolSlug, Pools, TxOutIndex, pools};
+use brk_types::{Addr, AddrBytes, Height, OutputType, PoolSlug, Pools, TxOutIndex, pools_for_chain};
 use rayon::prelude::*;
 use vecdb::{
     AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportableVec, ReadableVec, Rw, StorageMode,
@@ -45,9 +46,10 @@ impl Vecs {
         parent_version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let db = open_db(parent_path, DB_NAME, 100_000)?;
-        let pools = pools();
+        let pools = pools_for_chain(chain);
 
         let version = parent_version + Version::new(4) + Version::new(pools.len() as u32);
 

@@ -20,6 +20,7 @@ use crate::{
 pub struct Binance {
     agent: Agent,
     path: Option<PathBuf>,
+    symbol: &'static str,
     _1mn: Option<BTreeMap<Timestamp, OHLCCents>>,
     _1d: Option<BTreeMap<Date, OHLCCents>>,
     har: Option<BTreeMap<Timestamp, OHLCCents>>,
@@ -31,9 +32,14 @@ impl Binance {
     }
 
     pub fn new_with_agent(path: Option<&Path>, agent: Agent) -> Self {
+        Self::new_with_agent_and_symbol(path, agent, "BTCUSDT")
+    }
+
+    pub fn new_with_agent_and_symbol(path: Option<&Path>, agent: Agent, symbol: &'static str) -> Self {
         Self {
             agent,
             path: path.map(|p| p.to_owned()),
+            symbol,
             _1mn: None,
             _1d: None,
             har: None,
@@ -81,8 +87,9 @@ impl Binance {
 
     pub fn fetch_1mn(&self) -> Result<BTreeMap<Timestamp, OHLCCents>> {
         let agent = &self.agent;
+        let url_base = self.url("interval=1m&limit=1000");
         default_retry(|_| {
-            let url = Self::url("interval=1m&limit=1000");
+            let url = url_base.clone();
             info!("Fetching {url} ...");
             let bytes = checked_get(agent, &url)?;
             let json: Value = serde_json::from_slice(&bytes)?;
@@ -110,8 +117,9 @@ impl Binance {
 
     pub fn fetch_1d(&self) -> Result<BTreeMap<Date, OHLCCents>> {
         let agent = &self.agent;
+        let url_base = self.url("interval=1d");
         default_retry(|_| {
-            let url = Self::url("interval=1d");
+            let url = url_base.clone();
             info!("Fetching {url} ...");
             let bytes = checked_get(agent, &url)?;
             let json: Value = serde_json::from_slice(&bytes)?;
@@ -218,8 +226,8 @@ impl Binance {
         })
     }
 
-    fn url(query: &str) -> String {
-        format!("https://api.binance.com/api/v3/uiKlines?symbol=BTCUSDT&{query}")
+    fn url(&self, query: &str) -> String {
+        format!("https://api.binance.com/api/v3/uiKlines?symbol={}&{query}", self.symbol)
     }
 
     pub fn ping(&self) -> Result<()> {

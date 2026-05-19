@@ -1,0 +1,19 @@
+[package]
+name = "brk_chain"
+description = "Chain-agnostic primitives and constants for BRK (Bitcoin / Litecoin)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+default = ["bitcoin"]
+bitcoin = ["dep:bitcoin"]
+litecoin = ["dep:litecoin"]
+
+[dependencies]
+bitcoin = { workspace = true, optional = true }
+litecoin = { version = "0.32.8-rc.1", features = ["serde"], optional = true }
+serde = { workspace = true }
+schemars = { workspace = true }

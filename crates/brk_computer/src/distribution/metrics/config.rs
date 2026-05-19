@@ -1,3 +1,4 @@
+use brk_chain::Chain;
 use brk_cohort::Filter;
 use brk_error::Result;
 use brk_types::{BasisPoints16, BasisPoints32, BasisPointsSigned32, Cents, Height, Version};
@@ -38,7 +39,6 @@ impl_config_import!(
     ValuePerBlock,
     ValuePerBlockCumulative,
     PriceWithRatioPerBlock,
-    PriceWithRatioExtendedPerBlock,
     RatioPerBlock<BasisPoints32>,
     RatioPerBlock<BasisPointsSigned32>,
     PercentPerBlock<BasisPoints16>,
@@ -47,6 +47,12 @@ impl_config_import!(
     PercentRollingWindows<BasisPoints32>,
     Price<PerBlock<Cents>>,
 );
+
+impl ConfigImport for PriceWithRatioExtendedPerBlock {
+    fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
+        Self::forced_import(cfg.db, &cfg.name(suffix), cfg.version + offset, cfg.indexes, cfg.chain)
+    }
+}
 
 // Generic types (macro_rules can't parse generic bounds, so written out)
 impl<T: NumericValue + JsonSchema> ConfigImport for PerBlock<T> {
@@ -129,6 +135,7 @@ pub struct ImportConfig<'a> {
     pub version: Version,
     pub indexes: &'a indexes::Vecs,
     pub cached_starts: &'a Windows<&'a WindowStartVec>,
+    pub chain: Chain,
 }
 
 impl<'a> ImportConfig<'a> {

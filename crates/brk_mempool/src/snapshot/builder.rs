@@ -97,6 +97,7 @@ impl Snapshot {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use bitcoin::hashes::Hash;

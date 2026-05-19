@@ -7,6 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_reader::{Reader, XORBytes};
 use brk_rpc::Client;
@@ -35,6 +36,7 @@ pub use vecs::*;
 
 pub struct Indexer<M: StorageMode = Rw> {
     path: PathBuf,
+    pub chain: Chain,
     pub vecs: Vecs<M>,
     pub stores: Stores,
     safe_lengths: SafeLengths,
@@ -76,10 +78,14 @@ impl Indexer<Ro> {
 
 impl Indexer {
     pub fn forced_import(outputs_dir: &Path) -> Result<Self> {
-        Self::forced_import_inner(outputs_dir, true)
+        Self::forced_import_with_chain(outputs_dir, Chain::Bitcoin)
     }
 
-    fn forced_import_inner(outputs_dir: &Path, can_retry: bool) -> Result<Self> {
+    pub fn forced_import_with_chain(outputs_dir: &Path, chain: Chain) -> Result<Self> {
+        Self::forced_import_inner(outputs_dir, chain, true)
+    }
+
+    fn forced_import_inner(outputs_dir: &Path, chain: Chain, can_retry: bool) -> Result<Self> {
         info!("Importing indexer...");
 
         let indexed_path = outputs_dir.join("indexed");
@@ -100,6 +106,7 @@ impl Indexer {
 
             Ok(Self {
                 path: indexed_path.clone(),
+                chain,
                 vecs,
                 stores,
                 safe_lengths,
@@ -117,7 +124,7 @@ impl Indexer {
                 // Data corruption or version mismatch - safe to delete and retry
                 info!("{err:?}, deleting {indexed_path:?} and retrying");
                 fs::remove_dir_all(&indexed_path)?;
-                Self::forced_import_inner(outputs_dir, false)
+                Self::forced_import_inner(outputs_dir, chain, false)
             }
             Err(err) => Err(err),
         }
@@ -263,6 +270,7 @@ impl Indexer {
             let mut processor = BlockProcessor {
                 block: &block,
                 height,
+                chain: self.chain,
                 check_collisions,
                 lengths: &mut lengths,
                 vecs,
@@ -387,6 +395,7 @@ impl ReadOnlyClone for Indexer {
     fn read_only_clone(&self) -> Indexer<Ro> {
         Indexer {
             path: self.path.clone(),
+            chain: self.chain,
             vecs: self.vecs.read_only_clone(),
             stores: self.stores.clone(),
             safe_lengths: self.safe_lengths.clone(),

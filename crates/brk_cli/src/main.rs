@@ -36,7 +36,7 @@ pub fn main() -> anyhow::Result<()> {
 
     let reader = Reader::new(config.blocksdir(), &client);
 
-    let mut indexer = Indexer::forced_import(&config.brkdir())?;
+    let mut indexer = Indexer::forced_import_with_chain(&config.brkdir(), config.chain())?;
 
     #[cfg(not(debug_assertions))]
     {
@@ -52,7 +52,7 @@ pub fn main() -> anyhow::Result<()> {
             indexer.index(&reader, &client, &exit)?;
             drop(indexer);
             Mimalloc::collect();
-            indexer = Indexer::forced_import(&config.brkdir())?;
+            indexer = Indexer::forced_import_with_chain(&config.brkdir(), config.chain())?;
         }
     }
 

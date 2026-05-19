@@ -135,6 +135,7 @@ impl RealizedFull {
                 &realized_price_name,
                 realized_price_version,
                 cfg.indexes,
+                cfg.chain,
             )?,
             price_ratio_sma: RatioSma::forced_import(
                 cfg.db,

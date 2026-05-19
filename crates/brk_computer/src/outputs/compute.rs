@@ -29,6 +29,7 @@ impl Vecs {
             &inputs.count,
             &self.by_type,
             &starting_lengths,
+            indexer,
             exit,
         )?;
         let lock = self.spent.compute(indexer, inputs, exit)?;

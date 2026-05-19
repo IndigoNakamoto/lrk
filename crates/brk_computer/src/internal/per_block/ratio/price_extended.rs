@@ -1,3 +1,4 @@
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
@@ -91,10 +92,11 @@ impl PriceWithRatioExtendedPerBlock {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        chain: Chain,
     ) -> Result<Self> {
         Ok(Self {
             base: PriceWithRatioPerBlock::forced_import(db, name, version, indexes)?,
-            percentiles: RatioPerBlockPercentiles::forced_import(db, name, version, indexes)?,
+            percentiles: RatioPerBlockPercentiles::forced_import(db, name, version, indexes, chain)?,
         })
     }
 

@@ -151,7 +151,8 @@ impl Vecs {
             supply_total_sats,
             &mining.rewards.subsidy.block.sats,
             |(i, supply_sats, subsidy_sats, ..)| {
-                let annual_flow = subsidy_sats.as_u128() as f64 * 52560.0;
+                let annual_flow =
+                    subsidy_sats.as_u128() as f64 * indexer.chain.constants().blocks_per_year as f64;
                 if annual_flow == 0.0 {
                     (i, StoredF32::from(0.0f32))
                 } else {

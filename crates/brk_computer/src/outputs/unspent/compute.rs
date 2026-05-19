@@ -1,5 +1,5 @@
 use brk_error::Result;
-use brk_indexer::Lengths;
+use brk_indexer::{Indexer, Lengths};
 use brk_types::{Height, StoredU64};
 use vecdb::Exit;
 
@@ -17,10 +17,13 @@ impl Vecs {
         inputs_count: &inputs::CountVecs,
         by_type: &ByTypeVecs,
         starting_lengths: &Lengths,
+        indexer: &Indexer,
         exit: &Exit,
     ) -> Result<()> {
         let op_return: &PerBlockCumulativeRolling<StoredU64, StoredU64> =
             &by_type.output_count.by_type.unspendable.op_return;
+
+        let bip30_dups = indexer.chain.constants().bip30_duplicate_heights;
 
         self.count.height.compute_transform3(
             starting_lengths.height,
@@ -33,12 +36,12 @@ impl Vecs {
                 let mut utxo_count =
                     *output_count - (*input_count - block_count) - *op_return_count - 1;
 
-                // BIP30 duplicate txid corrections
-                if h >= Height::new(91_842) {
-                    utxo_count -= 1;
-                }
-                if h >= Height::new(91_880) {
-                    utxo_count -= 1;
+                // BIP30: subtract one UTXO for each duplicate coinbase that has
+                // been seen at or before this height (chain-specific).
+                for &(dup_height, _orig_height) in bip30_dups {
+                    if h >= Height::new(dup_height) {
+                        utxo_count -= 1;
+                    }
                 }
 
                 (h, StoredU64::from(utxo_count))

@@ -59,6 +59,10 @@ impl Vecs {
     }
 
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
+        if !indexer.chain.supports_oracle() {
+            return Ok(());
+        }
+
         let starting_height = indexer.safe_lengths().height;
 
         let source_version = indexer.vecs.outputs.value.version()

@@ -4,6 +4,9 @@ use std::{borrow::Cow, fmt, io, path::PathBuf, result, time};
 
 use thiserror::Error;
 
+#[cfg(feature = "bitcoin")]
+use brk_chain::primitives as bitcoin;
+
 pub type Result<T, E = Error> = result::Result<T, E>;
 
 /// Convert `Option<T>` → `Result<T>` without panicking.

@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::cell::OnceCell;
 
 use bitcoin::{
@@ -5,7 +6,7 @@ use bitcoin::{
     hex::DisplayHex,
 };
 use brk_error::{Error, Result};
-use brk_types::ReadBlock;
+use brk_types::{Chain, ReadBlock};
 use serde_json::{Map, Value, json};
 
 use crate::path::{Path, Step};
@@ -80,14 +81,16 @@ const VOUT_FIELDS: &[&str] = &[
 pub struct Ctx<'a> {
     block: &'a ReadBlock,
     network: Network,
+    chain: Chain,
     size_weight: OnceCell<(usize, usize)>,
 }
 
 impl<'a> Ctx<'a> {
-    pub fn new(block: &'a ReadBlock, network: Network) -> Self {
+    pub fn new(block: &'a ReadBlock, network: Network, chain: Chain) -> Self {
         Self {
             block,
             network,
+            chain,
             size_weight: OnceCell::new(),
         }
     }
@@ -155,7 +158,7 @@ impl<'a> Ctx<'a> {
                 let (size, weight) = self.size_and_weight();
                 scalar(json!((weight - size) / 3))
             }
-            "subsidy" => scalar(json!(subsidy_sats(*b.height()))),
+            "subsidy" => scalar(json!(subsidy_sats(*b.height(), self.chain.constants().blocks_per_halving))),
             "header_hex" => scalar(json!(serialize_hex(&b.header))),
             "hex" => scalar(json!(serialize_hex(raw))),
             "coinbase" => scalar(json!(b.coinbase_tag().as_str())),
@@ -377,8 +380,8 @@ fn tx_total_out(tx: &Transaction) -> u64 {
     tx.output.iter().map(|o| o.value.to_sat()).sum()
 }
 
-fn subsidy_sats(height: u32) -> u64 {
-    let halvings = height / 210_000;
+fn subsidy_sats(height: u32, blocks_per_halving: u32) -> u64 {
+    let halvings = height / blocks_per_halving;
     if halvings >= 64 {
         0
     } else {

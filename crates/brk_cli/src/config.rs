@@ -6,7 +6,7 @@ use std::{
 use brk_error::{Error, Result};
 use brk_rpc::{Auth, Client};
 use brk_server::{CdnCacheMode, DEFAULT_MAX_UTXOS, DEFAULT_MAX_WEIGHT, Website};
-use brk_types::Port;
+use brk_types::{Chain, Port};
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,10 @@ use crate::{default_brk_path, dot_brk_path, fix_user_path};
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    /// Target blockchain: "bitcoin" (default) or "litecoin".
+    #[serde(default)]
+    chain: Option<Chain>,
+
     #[serde(default)]
     brkdir: Option<String>,
 
@@ -85,6 +89,9 @@ impl Config {
         if let Some(v) = config_args.maxutxos {
             config.maxutxos = Some(v);
         }
+        if let Some(v) = config_args.chain {
+            config.chain = Some(v);
+        }
         if let Some(v) = config_args.bitcoindir {
             config.bitcoindir = Some(v);
         }
@@ -138,7 +145,13 @@ impl Config {
                 Long("maxutxos") => {
                     config.maxutxos = Some(parser.value().unwrap().parse().unwrap())
                 }
-                Long("bitcoindir") => {
+                Long("chain") => {
+                    config.chain = Some(
+                        parser.value().unwrap().to_str().unwrap_or("bitcoin")
+                            .parse().unwrap_or(Chain::Bitcoin)
+                    )
+                }
+                Long("bitcoindir") | Long("chaindir") => {
                     config.bitcoindir = Some(parser.value().unwrap().parse().unwrap())
                 }
                 Long("blocksdir") => {
@@ -182,6 +195,11 @@ impl Config {
         println!("    -h, --help                Print help");
         println!("    -V, --version             Print version");
         println!();
+        println!(
+            "    --chain {}              Target chain {}",
+            "<CHAIN>".bright_black(),
+            "[bitcoin]".bright_black()
+        );
         println!(
             "    --brkdir {}           Output directory {}",
             "<PATH>".bright_black(),
@@ -232,7 +250,7 @@ impl Config {
         println!(
             "    --rpcport {}          RPC port {}",
             "<PORT>".bright_black(),
-            "[8332]".bright_black()
+            "[8332 bitcoin / 9332 litecoin]".bright_black()
         );
         println!(
             "    --rpccookiefile {}    RPC cookie file {}",
@@ -274,7 +292,7 @@ impl Config {
     fn check(&self) {
         if !self.bitcoindir().is_dir() {
             println!("{:?} isn't a valid directory", self.bitcoindir());
-            println!("Please use the --bitcoindir parameter to set a valid path.");
+            println!("Please use the --bitcoindir or --chaindir parameter to set a valid path.");
             println!("Run the program with '-h' for help.");
             std::process::exit(1);
         }
@@ -294,9 +312,13 @@ impl Config {
         }
 
         if self.rpc_auth().is_err() {
+            let daemon = match self.chain() {
+                Chain::Bitcoin => "bitcoind",
+                Chain::Litecoin => "litecoind",
+            };
             println!(
                 "Unsuccessful authentication with the RPC client.
-First make sure that `bitcoind` is running. If it is then please either set --rpccookiefile or --rpcuser and --rpcpassword as the default values seemed to have failed.
+First make sure that `{daemon}` is running. If it is then please either set --rpccookiefile or --rpcuser and --rpcpassword as the default values seemed to have failed.
 Finally, you can run the program with '-h' for help."
             );
             std::process::exit(1);
@@ -319,11 +341,12 @@ Finally, you can run the program with '-h' for help."
     }
 
     pub fn rpc(&self) -> Result<Client> {
+        let default_port = self.chain().constants().default_rpc_port;
         Client::new(
             &format!(
                 "http://{}:{}",
                 self.rpcconnect().unwrap_or(&"localhost".to_string()),
-                self.rpcport().unwrap_or(8332)
+                self.rpcport().unwrap_or(default_port)
             ),
             self.rpc_auth()?,
         )
@@ -352,10 +375,14 @@ Finally, you can run the program with '-h' for help."
         self.rpcport
     }
 
+    pub fn chain(&self) -> Chain {
+        self.chain.unwrap_or(Chain::Bitcoin)
+    }
+
     pub fn bitcoindir(&self) -> PathBuf {
         self.bitcoindir
             .as_ref()
-            .map_or_else(Client::default_bitcoin_path, |s| fix_user_path(s.as_ref()))
+            .map_or_else(|| Client::default_chain_path(self.chain()), |s| fix_user_path(s.as_ref()))
     }
 
     pub fn blocksdir(&self) -> PathBuf {

@@ -168,6 +168,7 @@ impl TxStore {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use bitcoin::ScriptBuf;
     use brk_types::{MempoolEntryInfo, Sats, Timestamp, VSize, Weight};
 

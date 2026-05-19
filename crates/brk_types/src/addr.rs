@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::{fmt, str::FromStr};
 
 use bitcoin::ScriptBuf;

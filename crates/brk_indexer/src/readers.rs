@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::ScriptBuf;
 use brk_types::{
     AddrBytes, OutputType, P2AAddrIndex, P2ABytes, P2PK33AddrIndex, P2PK33Bytes, P2PK65AddrIndex,

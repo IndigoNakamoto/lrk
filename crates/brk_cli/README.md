@@ -1,15 +1,15 @@
 # BRK CLI
 
-Run your own Bitcoin Research Kit instance. One binary, one command. Full sync in ~4-7h depending on hardware. ~44% disk overhead vs 250% for mempool/electrs.
+Run your own Bitcoin (or Litecoin) Research Kit instance. One binary, one command. Full sync in ~4-7h depending on hardware. ~44% disk overhead vs 250% for mempool/electrs.
 
 [bitview.space](https://bitview.space) is the official free hosted instance.
 
 ## Requirements
 
 - Linux or macOS
-- Bitcoin Core with `server=1` in `bitcoin.conf`
+- Bitcoin Core with `server=1` in `bitcoin.conf` **or** Litecoin Core with `server=1` in `litecoin.conf`
 - Access to `blk*.dat` files
-- [~400 GB disk space](https://bitview.space/api/server/disk) (see [Disk usage](#disk-usage))
+- [~400 GB disk space](https://bitview.space/api/server/disk) for Bitcoin (see [Disk usage](#disk-usage)); ~100 GB for Litecoin
 - [12+ GB RAM](https://github.com/bitcoinresearchkit/benches#benchmarks)
 
 ## Disk usage
@@ -55,9 +55,19 @@ brk -V       # Show version
 
 Command-line options override `~/.brk/config.toml` for that run only. Edit the file directly to persist settings:
 
+**Bitcoin (default):**
 ```toml
+chain = "bitcoin"
 brkdir = "/path/to/data"
 bitcoindir = "/path/to/.bitcoin"
+```
+
+**Litecoin:**
+```toml
+chain = "litecoin"
+brkdir = "/path/to/ltc-data"
+bitcoindir = "/path/to/.litecoin"
+rpcport = 9332
 ```
 
 All fields are optional. See `brk -h` for the full list.

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use brk_chain::Chain;
 use brk_cohort::{AddrGroups, AmountRange, Filter, Filtered, OverAmount, UnderAmount};
 use brk_error::Result;
 use brk_indexer::Lengths;
@@ -32,6 +33,7 @@ impl AddrCohorts {
         indexes: &indexes::Vecs,
         states_path: &Path,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -39,7 +41,7 @@ impl AddrCohorts {
         let create =
             |filter: Filter, name: &'static str, has_state: bool| -> Result<AddrCohortVecs> {
                 let sp = if has_state { Some(states_path) } else { None };
-                AddrCohortVecs::forced_import(db, filter, name, v, indexes, sp, cached_starts)
+                AddrCohortVecs::forced_import(db, filter, name, v, indexes, sp, cached_starts, chain)
             };
 
         let full = |f: Filter, name: &'static str| create(f, name, true);

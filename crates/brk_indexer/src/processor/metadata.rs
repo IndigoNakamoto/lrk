@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use brk_error::{Error, Result};
 use brk_types::{BlockHashPrefix, Timestamp};
 use tracing::error;

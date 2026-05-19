@@ -12,6 +12,17 @@ use crate::Query;
 
 impl Query {
     pub fn live_price(&self) -> Result<Dollars> {
+        if !self.indexer().chain.supports_oracle() {
+            // No on-chain oracle for this chain; return the last committed exchange price.
+            let cents_height = &self.computer().prices.spot.cents.height;
+            let last_cents = cents_height
+                .len()
+                .checked_sub(1)
+                .and_then(|i| cents_height.collect_one_at(i))
+                .ok_or_else(|| Error::NotFound("price data not yet available".to_string()))?;
+            return Ok(Dollars::from(last_cents));
+        }
+
         let base = self.cached_oracle()?;
         Ok(match self.mempool() {
             Some(mempool) => {
@@ -26,8 +37,13 @@ impl Query {
     /// Oracle warmed by the last `window_size` committed blocks, seeded from
     /// the last committed price. Cached per tip height; rebuilt on advance or
     /// reorg. Reads are capped at `safe_lengths` so concurrent indexer writes
-    /// stay invisible.
+    /// stay invisible. Returns an error for chains where the oracle is unsupported.
     fn cached_oracle(&self) -> Result<Arc<Oracle>> {
+        if !self.indexer().chain.supports_oracle() {
+            return Err(Error::NotFound(
+                "on-chain price oracle is not supported for this chain".to_string(),
+            ));
+        }
         let safe_lengths = self.safe_lengths();
         let height = safe_lengths.height;
 

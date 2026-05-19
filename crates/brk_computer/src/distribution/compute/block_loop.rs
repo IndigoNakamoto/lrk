@@ -28,9 +28,8 @@ use super::{
         cohorts::{AddrCohorts, DynCohortVecs, UTXOCohorts},
         vecs::Vecs,
     },
-    BIP30_DUPLICATE_HEIGHT_1, BIP30_DUPLICATE_HEIGHT_2, BIP30_ORIGINAL_HEIGHT_1,
-    BIP30_ORIGINAL_HEIGHT_2, ComputeContext, FLUSH_INTERVAL, IndexToTxIndexBuf, PriceRangeMax,
-    TxInReaders, TxOutReaders, VecsReaders,
+    ComputeContext, FLUSH_INTERVAL, IndexToTxIndexBuf, PriceRangeMax, TxInReaders, TxOutReaders,
+    VecsReaders,
 };
 
 /// Process all blocks from starting_height to last_height.
@@ -355,19 +354,20 @@ pub(crate) fn process_blocks(
         if height == Height::ZERO {
             // Genesis block - reset transacted (50 BTC is unspendable, handled in supply module)
             transacted = Transacted::default();
-        } else if height == Height::new(BIP30_DUPLICATE_HEIGHT_1)
-            || height == Height::new(BIP30_DUPLICATE_HEIGHT_2)
-        {
-            // BIP30: Add 50 BTC to spent from original height
-            let original_height = if height == Height::new(BIP30_DUPLICATE_HEIGHT_1) {
-                Height::new(BIP30_ORIGINAL_HEIGHT_1)
-            } else {
-                Height::new(BIP30_ORIGINAL_HEIGHT_2)
-            };
-            height_to_sent
-                .entry(original_height)
-                .or_default()
-                .iterate(Sats::FIFTY_BTC, OutputType::P2PK65);
+        } else {
+            // BIP30: handle chain-specific duplicate coinbase heights
+            let h = *height;
+            for &(dup_height, orig_height) in
+                indexer.chain.constants().bip30_duplicate_heights.iter()
+            {
+                if h == dup_height {
+                    height_to_sent
+                        .entry(Height::new(orig_height))
+                        .or_default()
+                        .iterate(Sats::FIFTY_BTC, OutputType::P2PK65);
+                    break;
+                }
+            }
         }
 
         // Push current block state before processing cohort updates

@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use crate::{Addr, AddrBytes, OutputType, Sats};
 use bitcoin::ScriptBuf;
 use schemars::JsonSchema;

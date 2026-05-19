@@ -9,7 +9,7 @@ repository.workspace = true
 exclude = ["examples/"]
 
 [dependencies]
-bitcoin = { workspace = true }
+brk_chain = { workspace = true }
 brk_error = { workspace = true }
 brk_oracle = { workspace = true }
 brk_rpc = { workspace = true }

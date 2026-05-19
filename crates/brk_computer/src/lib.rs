@@ -133,6 +133,7 @@ impl Computer {
                             VERSION,
                             &indexes,
                             &cached_starts,
+                            indexer.chain,
                         )?))
                     })?;
 
@@ -141,6 +142,7 @@ impl Computer {
                         VERSION,
                         &indexes,
                         &cached_starts,
+                        indexer.chain,
                     )?);
 
                     let inputs = inputs_handle.join().unwrap()?;
@@ -187,6 +189,7 @@ impl Computer {
                         VERSION,
                         &indexes,
                         &cached_starts,
+                        indexer.chain,
                     )?);
 
                     let market = market_handle.join().unwrap()?;

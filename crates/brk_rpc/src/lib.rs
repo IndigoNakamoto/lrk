@@ -1,3 +1,4 @@
+use brk_chain::{Chain, ChainConstants, primitives as bitcoin};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -64,6 +65,10 @@ impl Client {
         "http://localhost:8332"
     }
 
+    pub fn default_url_for_chain(constants: &ChainConstants) -> String {
+        format!("http://localhost:{}", constants.default_rpc_port)
+    }
+
     pub fn default_bitcoin_path() -> PathBuf {
         if env::consts::OS == "macos" {
             Self::default_mac_bitcoin_path()
@@ -72,8 +77,20 @@ impl Client {
         }
     }
 
+    pub fn default_chain_path(chain: Chain) -> PathBuf {
+        if env::consts::OS == "macos" {
+            Self::default_mac_chain_path(chain)
+        } else {
+            Self::default_linux_chain_path(chain)
+        }
+    }
+
     pub fn default_linux_bitcoin_path() -> PathBuf {
         Path::new(&env::var("HOME").unwrap()).join(".bitcoin")
+    }
+
+    pub fn default_linux_chain_path(chain: Chain) -> PathBuf {
+        Path::new(&env::var("HOME").unwrap()).join(chain.constants().default_datadir_linux)
     }
 
     pub fn default_mac_bitcoin_path() -> PathBuf {
@@ -81,5 +98,12 @@ impl Client {
             .join("Library")
             .join("Application Support")
             .join("Bitcoin")
+    }
+
+    pub fn default_mac_chain_path(chain: Chain) -> PathBuf {
+        Path::new(&env::var("HOME").unwrap())
+            .join("Library")
+            .join("Application Support")
+            .join(chain.constants().default_datadir_mac)
     }
 }

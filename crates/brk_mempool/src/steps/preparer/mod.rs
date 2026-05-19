@@ -12,6 +12,7 @@
 //! state on the live store. Removals are inferred by cross-referencing
 //! inputs against the full `live_txids` set from the cycle's pull.
 
+use brk_chain::primitives as bitcoin;
 use brk_types::{MempoolEntryInfo, Transaction, Txid, TxidPrefix, Vout};
 use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -125,6 +126,7 @@ impl Preparer {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use bitcoin::hashes::Hash;
     use brk_types::{FeeRate, Sats, VSize};
 

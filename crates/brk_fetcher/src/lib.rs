@@ -3,6 +3,7 @@
 use std::io::Read as _;
 use std::{path::Path, thread::sleep, time::Duration};
 
+use brk_chain::Chain;
 use brk_error::{Error, Result};
 use brk_types::{Date, Height, OHLCCents, Timestamp};
 use tracing::{info, warn};
@@ -63,10 +64,23 @@ impl Fetcher {
     }
 
     pub fn new(hars_path: Option<&Path>) -> Result<Self> {
+        Self::new_with_chain(hars_path, Chain::Bitcoin)
+    }
+
+    pub fn new_with_chain(hars_path: Option<&Path>, chain: Chain) -> Result<Self> {
         let agent = new_agent(30);
+        let c = chain.constants();
         Ok(Self {
-            binance: TrackedSource::new(Binance::new_with_agent(hars_path, agent.clone())),
-            kraken: TrackedSource::new(Kraken::new_with_agent(agent.clone())),
+            binance: TrackedSource::new(Binance::new_with_agent_and_symbol(
+                hars_path,
+                agent.clone(),
+                c.binance_symbol,
+            )),
+            kraken: TrackedSource::new(Kraken::new_with_agent_and_pair(
+                agent.clone(),
+                c.kraken_pair,
+                c.kraken_result_key,
+            )),
             brk: TrackedSource::new(BRK::new_with_agent(agent.clone())),
             agent,
         })

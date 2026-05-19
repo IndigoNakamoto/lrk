@@ -1,0 +1,156 @@
+[
+  {
+    "id": 1,
+    "name": "F2Pool",
+    "addresses": [],
+    "tags": [
+      "f2pool",
+      "/F2Pool/"
+    ],
+    "link": "https://f2pool.com"
+  },
+  {
+    "id": 2,
+    "name": "AntPool",
+    "addresses": [],
+    "tags": [
+      "antpool",
+      "AntPool"
+    ],
+    "link": "https://www.antpool.com"
+  },
+  {
+    "id": 3,
+    "name": "ViaBTC",
+    "addresses": [],
+    "tags": [
+      "ViaBTC",
+      "viabtc"
+    ],
+    "link": "https://viabtc.com"
+  },
+  {
+    "id": 4,
+    "name": "Foundry USA",
+    "addresses": [],
+    "tags": [
+      "Foundry USA Pool",
+      "foundryusapool",
+      "foundry"
+    ],
+    "link": "https://foundrydigital.com"
+  },
+  {
+    "id": 5,
+    "name": "Litecoinpool.org",
+    "addresses": [],
+    "tags": [
+      "litecoinpool",
+      "litecoinpool.org",
+      "Litecoinpool"
+    ],
+    "link": "https://www.litecoinpool.org"
+  },
+  {
+    "id": 6,
+    "name": "Poolin",
+    "addresses": [],
+    "tags": [
+      "Poolin",
+      "poolin.com"
+    ],
+    "link": "https://poolin.com"
+  },
+  {
+    "id": 7,
+    "name": "Binance Pool",
+    "addresses": [],
+    "tags": [
+      "Binance Pool",
+      "binancepool"
+    ],
+    "link": "https://pool.binance.com"
+  },
+  {
+    "id": 8,
+    "name": "Luxor",
+    "addresses": [],
+    "tags": [
+      "Luxor",
+      "luxor.tech",
+      "Mined by Luxor"
+    ],
+    "link": "https://luxor.tech"
+  },
+  {
+    "id": 9,
+    "name": "MARA Pool",
+    "addresses": [],
+    "tags": [
+      "MARA Pool",
+      "MARA",
+      "mara-pool"
+    ],
+    "link": "https://marapool.com"
+  },
+  {
+    "id": 10,
+    "name": "SpiderPool",
+    "addresses": [],
+    "tags": [
+      "SpiderPool",
+      "spider pool"
+    ],
+    "link": "https://spider.pool"
+  },
+  {
+    "id": 11,
+    "name": "BTC.com",
+    "addresses": [],
+    "tags": [
+      "BTC.COM",
+      "btc.com pool"
+    ],
+    "link": "https://pool.btc.com"
+  },
+  {
+    "id": 12,
+    "name": "Prohashing",
+    "addresses": [],
+    "tags": [
+      "Prohashing",
+      "prohashing.com"
+    ],
+    "link": "https://prohashing.com"
+  },
+  {
+    "id": 13,
+    "name": "Mining-Dutch",
+    "addresses": [],
+    "tags": [
+      "Mining-Dutch",
+      "mining-dutch.nl"
+    ],
+    "link": "https://www.mining-dutch.nl"
+  },
+  {
+    "id": 14,
+    "name": "HashCity",
+    "addresses": [],
+    "tags": [
+      "HashCity",
+      "hashcity.org"
+    ],
+    "link": "https://hashcity.org"
+  },
+  {
+    "id": 15,
+    "name": "Zergpool",
+    "addresses": [],
+    "tags": [
+      "Zergpool",
+      "zergpool.com"
+    ],
+    "link": "https://zergpool.com"
+  }
+]

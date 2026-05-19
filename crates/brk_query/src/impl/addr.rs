@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::str::FromStr;
 
 use bitcoin::{Network, PublicKey, ScriptBuf};

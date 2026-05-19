@@ -9,6 +9,7 @@
 //!   (preserving `rbf`, `size`). The Applier exhumes the cached tx
 //!   body. No raw decoding.
 
+use brk_chain::primitives as bitcoin;
 use brk_types::{MempoolEntryInfo, SigOps, Transaction, TxIn, TxOut, TxStatus, Txid, Vout};
 
 use crate::{

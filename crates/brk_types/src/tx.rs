@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use crate::{
     FeeRate, RawLockTime, Sats, SigOps, TxIn, TxIndex, TxOut, TxStatus, TxVersionRaw, Txid, VSize,
     Weight, Witness,

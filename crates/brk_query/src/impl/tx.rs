@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::{
     hashes::{Hash, sha256d},
     hex::DisplayHex,

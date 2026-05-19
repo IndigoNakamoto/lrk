@@ -297,7 +297,7 @@ checksum = "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
 name = "blk"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_error",
  "brk_reader",
  "brk_rpc",
@@ -370,6 +370,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "brk_chain"
+version = "0.3.0-beta.11"
+dependencies = [
+ "bitcoin",
+ "litecoin",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "brk_cli"
 version = "0.3.0-beta.11"
 dependencies = [
@@ -421,9 +431,9 @@ dependencies = [
 name = "brk_computer"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
  "brk_alloc",
  "brk_bencher",
+ "brk_chain",
  "brk_cohort",
  "brk_error",
  "brk_indexer",
@@ -450,7 +460,7 @@ dependencies = [
 name = "brk_error"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "fjall",
  "jiff",
  "jsonrpc",
@@ -466,6 +476,7 @@ dependencies = [
 name = "brk_fetcher"
 version = "0.3.0-beta.11"
 dependencies = [
+ "brk_chain",
  "brk_error",
  "brk_logger",
  "brk_types",
@@ -478,9 +489,9 @@ dependencies = [
 name = "brk_indexer"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
  "brk_alloc",
  "brk_bencher",
+ "brk_chain",
  "brk_cohort",
  "brk_error",
  "brk_logger",
@@ -526,7 +537,7 @@ dependencies = [
 name = "brk_mempool"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_error",
  "brk_logger",
  "brk_oracle",
@@ -552,7 +563,7 @@ dependencies = [
 name = "brk_query"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_computer",
  "brk_error",
  "brk_indexer",
@@ -577,7 +588,7 @@ dependencies = [
 name = "brk_reader"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_error",
  "brk_rpc",
  "brk_types",
@@ -593,7 +604,7 @@ dependencies = [
 name = "brk_rpc"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_error",
  "brk_logger",
  "brk_types",
@@ -675,7 +686,7 @@ dependencies = [
 name = "brk_types"
 version = "0.3.0-beta.11"
 dependencies = [
- "bitcoin",
+ "brk_chain",
  "brk_error",
  "byteview",
  "derive_more",
@@ -1980,6 +1991,34 @@ name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
+name = "litecoin"
+version = "0.32.8-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc68e0c96b1991f1595cb531029829ece409dc806da91e5a4336d777f411691c"
+dependencies = [
+ "base58ck",
+ "bech32",
+ "bitcoin-internals",
+ "bitcoin-io",
+ "bitcoin_hashes",
+ "hex-conservative",
+ "hex_lit",
+ "litecoin-units",
+ "secp256k1",
+ "serde",
+]
+
+[[package]]
+name = "litecoin-units"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1adecce1b7a05efeec7d70aece0f8bece80250cef49814d01831ac371c6b6e2e"
+dependencies = [
+ "bitcoin-internals",
+ "serde",
+]
 
 [[package]]
 name = "litemap"

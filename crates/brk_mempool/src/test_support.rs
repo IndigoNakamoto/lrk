@@ -2,6 +2,7 @@
 //! constructor noise out of the test bodies so each test reads as
 //! "set up, mutate, assert" without 20 lines of struct literals.
 
+use brk_chain::primitives as bitcoin;
 use bitcoin::{ScriptBuf, absolute::LockTime, hashes::Hash, transaction::Version};
 use brk_types::{
     MempoolEntryInfo, RawLockTime, Sats, SigOps, Timestamp, Transaction, TxIn, TxOut, TxStatus,

@@ -1,5 +1,20 @@
 name: brk
 
+# Environment variables (set in a .env file or shell):
+#
+# Bitcoin (default):
+#   CHAIN_DATA_DIR  — path to bitcoin data directory   (default: /path/to/bitcoin)
+#   RPC_HOST        — bitcoind RPC host                (default: localhost)
+#   RPC_USER        — bitcoind RPC user                (default: bitcoin)
+#   RPC_PASSWORD    — bitcoind RPC password            (default: bitcoin)
+#
+# Litecoin:
+#   CHAIN_DATA_DIR  — path to litecoin data directory  (default: /path/to/litecoin)
+#   RPC_HOST        — litecoind RPC host               (default: localhost)
+#   RPC_USER        — litecoind RPC user               (default: litecoin)
+#   RPC_PASSWORD    — litecoind RPC password           (default: litecoin)
+#   CHAIN           — "litecoin"                       (default: bitcoin)
+
 services:
   brk:
     build:
@@ -11,26 +26,28 @@ services:
     ports:
       - 7070:3110
     volumes:
-      - ${BITCOIN_DATA_DIR:-/path/to/bitcoin}:/bitcoin:ro
+      - ${CHAIN_DATA_DIR:-/path/to/bitcoin}:/chaindata:ro
       - ${BRK_DATA_VOLUME:-brk-data}:/home/brk/.brk
       # Bind mount alternative (uncomment and set BRK_DATA_DIR in .env):
       # - ${BRK_DATA_DIR:-./brk-data}:/home/brk/.brk
     command:
       - --bitcoindir
-      - /bitcoin
+      - /chaindata
       - --blocksdir
-      - /bitcoin/blocks
+      - /chaindata/blocks
       - --brkdir
       - /home/brk/.brk
+      - --chain
+      - "${CHAIN:-bitcoin}"
       - --rpcconnect
-      - "${BTC_RPC_HOST:-localhost}"
+      - "${RPC_HOST:-localhost}"
       - --rpcuser
-      - "${BTC_RPC_USER:-bitcoin}"
+      - "${RPC_USER:-bitcoin}"
       - --rpcpassword
-      - "${BTC_RPC_PASSWORD:-bitcoin}"
+      - "${RPC_PASSWORD:-bitcoin}"
       # Cookie file alternative (uncomment and remove rpcuser/rpcpassword above):
       # - --rpccookiefile
-      # - /bitcoin/.cookie
+      # - /chaindata/.cookie
     healthcheck:
       test: ["CMD", "pgrep", "-x", "brk"]
       interval: 30s

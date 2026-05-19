@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::io::Cursor;
 
 use bitcoin::consensus::Decodable;

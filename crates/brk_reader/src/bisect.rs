@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use std::{fs::File, io::Read, path::Path};
 
 use bitcoin::{block::Header, consensus::Decodable};

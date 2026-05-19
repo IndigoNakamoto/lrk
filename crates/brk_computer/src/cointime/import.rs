@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use brk_chain::Chain;
 use brk_error::Result;
 use brk_types::Version;
 
@@ -21,6 +22,7 @@ impl Vecs {
         parent_version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let db = open_db(parent_path, DB_NAME, 250_000)?;
         let version = parent_version;
@@ -29,7 +31,7 @@ impl Vecs {
         let supply = SupplyVecs::forced_import(&db, v1, indexes)?;
         let value = ValueVecs::forced_import(&db, v1, indexes, cached_starts)?;
         let cap = CapVecs::forced_import(&db, version + Version::TWO, indexes)?;
-        let prices = PricesVecs::forced_import(&db, version + Version::new(3), indexes)?;
+        let prices = PricesVecs::forced_import(&db, version + Version::new(3), indexes, chain)?;
         let adjusted = AdjustedVecs::forced_import(&db, version, indexes)?;
         let reserve_risk = ReserveRiskVecs::forced_import(&db, v1, indexes)?;
 

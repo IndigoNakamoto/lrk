@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::hashes::{Hash, HashEngine};
 use derive_more::Deref;
 

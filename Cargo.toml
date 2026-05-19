@@ -38,6 +38,7 @@ axum = { version = "0.8.9", default-features = false, features = ["http1", "json
 bitcoin = { version = "0.32.9", features = ["serde"] }
 brk_alloc = { version = "0.3.0-beta.11", path = "crates/brk_alloc" }
 brk_bencher = { version = "0.3.0-beta.11", path = "crates/brk_bencher" }
+brk_chain = { version = "0.3.0-beta.11", path = "crates/brk_chain" }
 brk_bindgen = { version = "0.3.0-beta.11", path = "crates/brk_bindgen" }
 brk_cli = { version = "0.3.0-beta.11", path = "crates/brk_cli" }
 brk_client = { version = "0.3.0-beta.11", path = "crates/brk_client" }

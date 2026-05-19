@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use brk_chain::Chain;
 use brk_cohort::{ByAddrType, Filter};
 use brk_error::Result;
 use brk_indexer::Indexer;
@@ -178,6 +179,7 @@ impl Vecs {
         parent_version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        chain: Chain,
     ) -> Result<Self> {
         let db_path = parent.join(super::DB_NAME);
         let states_path = db_path.join("states");
@@ -188,10 +190,10 @@ impl Vecs {
         let version = parent_version + VERSION;
 
         let utxo_cohorts =
-            UTXOCohorts::forced_import(&db, version, indexes, &states_path, cached_starts)?;
+            UTXOCohorts::forced_import(&db, version, indexes, &states_path, cached_starts, chain)?;
 
         let addr_cohorts =
-            AddrCohorts::forced_import(&db, version, indexes, &states_path, cached_starts)?;
+            AddrCohorts::forced_import(&db, version, indexes, &states_path, cached_starts, chain)?;
 
         // Create address data BytesVecs first so we can also use them for identity mappings
         let funded_addr_index_to_funded_addr_data = BytesVec::forced_import_with(

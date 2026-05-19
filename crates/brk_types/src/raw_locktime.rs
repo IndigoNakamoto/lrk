@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::{absolute::LockTime, locktime::absolute::LOCK_TIME_THRESHOLD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

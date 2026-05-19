@@ -1,3 +1,4 @@
+use brk_chain::primitives as bitcoin;
 use bitcoin::{Script, script::Instruction};
 use brk_types::{OutputType, SigOps, TxInIndex};
 use rayon::prelude::*;
@@ -148,7 +149,9 @@ fn legacy_sigops_for_output(output_type: OutputType, script_pubkey: &Script) -> 
         | OutputType::P2TR
         | OutputType::P2A
         | OutputType::Empty => 0,
-        OutputType::OpReturn | OutputType::Unknown => script_pubkey.count_sigops_legacy(),
+        OutputType::OpReturn | OutputType::Unknown | OutputType::MWEB => {
+            script_pubkey.count_sigops_legacy()
+        }
     }
 }
 
