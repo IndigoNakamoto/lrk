@@ -14,9 +14,22 @@ use corepc_types::{
         GetBlockHeaderVerbose, GetBlockTemplate, GetBlockVerboseOne, GetBlockVerboseZero,
         GetRawMempool, GetTxOut,
     },
-    v28::GetBlockchainInfo,
     v24::{GetMempoolInfo, MempoolEntry},
 };
+
+/// Minimal `getblockchaininfo` response.  We only use `chain`, `blocks`, and
+/// `headers`; the `softforks` map is kept as a raw `Value` so that
+/// chain-specific softfork types (e.g. Litecoin's `bip8`) do not cause a
+/// deserialization error.
+#[derive(serde::Deserialize)]
+pub struct GetBlockchainInfo {
+    pub chain: String,
+    pub blocks: i64,
+    pub headers: i64,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub softforks: serde_json::Value,
+}
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use tracing::{debug, info};
