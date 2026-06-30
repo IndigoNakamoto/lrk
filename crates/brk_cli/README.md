@@ -72,6 +72,21 @@ rpcport = 9332
 
 All fields are optional. See `brk -h` for the full list.
 
+> **Litecoin builds require the `litecoin` Cargo feature.** The block/transaction
+> decoder is selected at compile time, and only the `litecoin`-featured build
+> understands MWEB (MimbleWimble Extension Block) serialization. A default
+> (Bitcoin) build run with `--chain litecoin` will fail to index once it reaches
+> the first MWEB block. Build/run with:
+>
+> ```bash
+> cargo run -p brk_cli --features litecoin -- --chain litecoin
+> # or, from this repo, the convenience alias:
+> cargo dev-ltc -- --chain litecoin
+> ```
+>
+> When both `bitcoin` and `litecoin` features end up enabled, the `litecoin`
+> decoder takes precedence.
+
 ## Environment Variables
 
 ```bash

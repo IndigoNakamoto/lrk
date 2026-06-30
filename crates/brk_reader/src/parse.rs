@@ -64,7 +64,18 @@ pub(crate) fn parse_canonical_body(
     }
 
     let raw_bytes = cursor.into_inner();
-    let mut block = Block::from((height, bitcoin_hash, bitcoin::Block { header, txdata }));
+    #[cfg(not(feature = "litecoin"))]
+    let primitive_block = bitcoin::Block { header, txdata };
+    // Litecoin's `Block` carries the MWEB extension block; the indexer
+    // ignores it (peg-in/peg-out are visible as normal txs), so default
+    // it to `None`.
+    #[cfg(feature = "litecoin")]
+    let primitive_block = bitcoin::Block {
+        header,
+        txdata,
+        mweb_block: None,
+    };
+    let mut block = Block::from((height, bitcoin_hash, primitive_block));
     block.set_raw_data(raw_bytes, tx_offsets);
     Ok(ReadBlock::from((block, metadata, tx_metadata)))
 }

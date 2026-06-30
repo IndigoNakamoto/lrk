@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = ["brk_chain/litecoin", "brk_error/litecoin"]
+
 [dependencies]
 brk_chain = { workspace = true }
 brk_error = { workspace = true, features = ["bitcoin", "jiff", "pco", "serde_json", "vecdb"] }

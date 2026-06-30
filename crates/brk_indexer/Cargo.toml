@@ -8,6 +8,15 @@ homepage.workspace = true
 repository.workspace = true
 exclude = ["examples/"]
 
+[features]
+litecoin = [
+    "brk_chain/litecoin",
+    "brk_error/litecoin",
+    "brk_reader/litecoin",
+    "brk_rpc/litecoin",
+    "brk_types/litecoin",
+]
+
 [dependencies]
 brk_chain = { workspace = true }
 brk_error = { workspace = true, features = ["fjall", "vecdb"] }

@@ -147,7 +147,10 @@ impl Client {
         let r: GetBlockVerboseZero = self
             .0
             .call_with_retry("getblock", &[serde_json::to_value(hash)?, Value::from(0u8)])?;
-        r.block()
+        // Decode the raw block hex with the active chain's decoder
+        // (`primitives`) rather than corepc's `bitcoin`-typed `block()`.
+        // This keeps Litecoin MWEB blocks parseable.
+        encode::deserialize_hex::<bitcoin::Block>(&r.0)
             .map_err(|e| Error::Parse(format!("decode getblock: {e}")))
     }
 
@@ -190,7 +193,7 @@ impl Client {
         let r: GetBlockHash = self
             .0
             .call_with_retry("getblockhash", &[serde_json::to_value(height)?])?;
-        Ok(BlockHash::from(r.block_hash()?))
+        Self::parse_block_hash(&r.0, "getblockhash")
     }
 
     /// Get every canonical block hash for the inclusive height range

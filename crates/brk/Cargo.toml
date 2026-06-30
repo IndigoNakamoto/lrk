@@ -29,6 +29,19 @@ full = [
     "traversable",
     "types",
 ]
+litecoin = [
+    "brk_bindgen?/litecoin",
+    "brk_computer?/litecoin",
+    "brk_error?/litecoin",
+    "brk_fetcher?/litecoin",
+    "brk_indexer?/litecoin",
+    "brk_mempool?/litecoin",
+    "brk_query?/litecoin",
+    "brk_reader?/litecoin",
+    "brk_rpc?/litecoin",
+    "brk_server?/litecoin",
+    "brk_types?/litecoin",
+]
 bencher = ["brk_bencher"]
 bindgen = ["brk_bindgen"]
 client = ["brk_client"]

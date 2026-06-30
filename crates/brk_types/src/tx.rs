@@ -190,6 +190,12 @@ impl From<&Transaction> for bitcoin::Transaction {
             lock_time: tx.lock_time.into(),
             input: tx.input.iter().map(bitcoin::TxIn::from).collect(),
             output: tx.output.iter().map(bitcoin::TxOut::from).collect(),
+            // Litecoin's `Transaction` carries MWEB fields; default them to a
+            // standard (non-MWEB) tx. Absent in the `bitcoin` crate.
+            #[cfg(feature = "litecoin")]
+            mw_tx: None,
+            #[cfg(feature = "litecoin")]
+            is_hog_ex: false,
         }
     }
 }

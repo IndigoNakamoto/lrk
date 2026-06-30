@@ -3,3 +3,6 @@ rustflags = ["-C", "target-cpu=native"]
 
 [alias]
 dev = "run -p brk_cli --features brk_server/bindgen"
+# Litecoin: compiles against the MWEB-aware `litecoin` decoder. Still pass
+# `--chain litecoin` at runtime (or set it in ~/.brk/config.toml).
+dev-ltc = "run -p brk_cli --features litecoin,brk_server/bindgen"

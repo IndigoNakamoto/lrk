@@ -10,6 +10,17 @@ exclude = ["examples/", "src/api/scalar.js"]
 
 [features]
 bindgen = ["dep:brk_bindgen"]
+litecoin = [
+    "brk_chain/litecoin",
+    "brk_bindgen?/litecoin",
+    "brk_computer/litecoin",
+    "brk_error/litecoin",
+    "brk_indexer/litecoin",
+    "brk_query/litecoin",
+    "brk_reader/litecoin",
+    "brk_rpc/litecoin",
+    "brk_types/litecoin",
+]
 
 [dependencies]
 aide = { workspace = true }

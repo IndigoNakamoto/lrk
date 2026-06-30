@@ -7,6 +7,19 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = [
+    "brk_computer/litecoin",
+    "brk_error/litecoin",
+    "brk_indexer/litecoin",
+    "brk_mempool/litecoin",
+    "brk_query/litecoin",
+    "brk_reader/litecoin",
+    "brk_rpc/litecoin",
+    "brk_server/litecoin",
+    "brk_types/litecoin",
+]
+
 [dependencies]
 anyhow = "1.0"
 brk_alloc = { workspace = true }

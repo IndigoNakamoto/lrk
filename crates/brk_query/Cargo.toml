@@ -10,6 +10,16 @@ exclude = ["examples/"]
 
 [features]
 tokio = ["dep:tokio", "brk_error/tokio"]
+litecoin = [
+    "brk_chain/litecoin",
+    "brk_computer/litecoin",
+    "brk_error/litecoin",
+    "brk_indexer/litecoin",
+    "brk_mempool/litecoin",
+    "brk_reader/litecoin",
+    "brk_rpc/litecoin",
+    "brk_types/litecoin",
+]
 
 [dependencies]
 brk_chain = { workspace = true }
