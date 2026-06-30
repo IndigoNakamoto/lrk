@@ -8,6 +8,6 @@
 
 > **P2SHBytes** = [`U8x20`](U8x20.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:831](https://github.com/bitcoinresearchkit/brk/blob/6ff43c0f74cf0925ed63288a681f08b5cb45400b/modules/brk-client/index.js#L831)
+Defined in: [Developer/brk/modules/brk-client/index.js:851](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L851)
 
 ## Type Parameters

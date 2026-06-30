@@ -1,28 +1,21 @@
-use brk_oracle::Histogram;
+use brk_oracle::HistogramRaw;
 use brk_types::{MempoolRecentTx, Transaction, TxOut, Txid, TxidPrefix, Vin};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{state::TxEntry, stores::OutputBins};
+use crate::{state::TxEntry, stores::LiveHistograms};
 
 const RECENT_CAP: usize = 10;
 
-/// Per-tx record: live tx body, its mempool entry, and the pre-bucketed
-/// oracle bins for its outputs. Kept under one key so a single map probe
-/// returns everything readers need.
+/// Per-tx record: live tx body and its mempool entry, kept under one key
+/// so a single map probe returns everything readers need.
 pub struct TxRecord {
     pub tx: Transaction,
     pub entry: TxEntry,
-    pub output_bins: OutputBins,
 }
 
 impl TxRecord {
     pub fn new(tx: Transaction, entry: TxEntry) -> Self {
-        let output_bins = OutputBins::from_tx(&tx);
-        Self {
-            tx,
-            entry,
-            output_bins,
-        }
+        Self { tx, entry }
     }
 }
 
@@ -32,15 +25,15 @@ impl TxRecord {
 /// set of prefixes whose tx still has at least one `prevout: None`,
 /// maintained on every `insert` / `remove_by_prefix` / `apply_fills`
 /// so the post-update prevout filler can early-exit when empty.
-/// `live_histogram` mirrors the union of each record's `OutputBins`,
-/// kept in sync on `insert` / `remove_by_prefix` so the oracle-blend
-/// read path is a single array clone, not a full pool walk.
+/// `histograms` holds the eligible (oracle-blend) and raw per-bin output
+/// histograms, kept in sync on `insert` / `remove_by_prefix` so each read
+/// path is a single array clone, not a full pool walk.
 #[derive(Default)]
 pub struct TxStore {
     records: FxHashMap<TxidPrefix, TxRecord>,
     recent: Vec<MempoolRecentTx>,
     unresolved: FxHashSet<TxidPrefix>,
-    live_histogram: Histogram,
+    histograms: LiveHistograms,
 }
 
 impl TxStore {
@@ -92,9 +85,7 @@ impl TxStore {
             self.unresolved.insert(prefix);
         }
         let record = TxRecord::new(tx, entry);
-        for bin in record.output_bins.iter() {
-            self.live_histogram[bin as usize] += 1;
-        }
+        self.histograms.add(&record);
         self.records.insert(prefix, record);
     }
 
@@ -112,16 +103,21 @@ impl TxStore {
     pub fn remove_by_prefix(&mut self, prefix: &TxidPrefix) -> Option<TxRecord> {
         let record = self.records.remove(prefix)?;
         self.unresolved.remove(prefix);
-        for bin in record.output_bins.iter() {
-            self.live_histogram[bin as usize] -= 1;
-        }
+        self.histograms.remove(&record);
         Some(record)
     }
 
-    /// Snapshot the live oracle-bin histogram. Maintained incrementally
-    /// on insert/remove, so this is `O(NUM_BINS)`, not `O(live_outputs)`.
-    pub fn live_histogram(&self) -> Histogram {
-        self.live_histogram.clone()
+    /// Snapshot the round-dollar-eligible histogram that feeds the oracle
+    /// blend. Maintained incrementally, so this is `O(NUM_BINS)`, not
+    /// `O(live_outputs)`.
+    pub fn live_eligible_histogram(&self) -> HistogramRaw {
+        self.histograms.eligible()
+    }
+
+    /// Snapshot the raw histogram: every live output binned by value with no
+    /// payment filtering. Maintained incrementally alongside the eligible one.
+    pub fn live_raw_histogram(&self) -> HistogramRaw {
+        self.histograms.raw()
     }
 
     /// Set of prefixes with at least one unfilled prevout. Used by the
@@ -264,7 +260,10 @@ mod tests {
         assert_eq!(applied[0].value, new_prevout.value);
 
         let record = store.record_by_prefix(&prefix).expect("record present");
-        assert_eq!(record.tx.input[0].prevout.as_ref().unwrap().value, new_prevout.value);
+        assert_eq!(
+            record.tx.input[0].prevout.as_ref().unwrap().value,
+            new_prevout.value
+        );
         assert_eq!(
             record.tx.input[1].prevout.as_ref().unwrap().value,
             prev_present.value
@@ -278,7 +277,10 @@ mod tests {
         let stray_prefix = TxidPrefix::from(&fake_txid(0xFF));
         let applied = store.apply_fills(
             &stray_prefix,
-            vec![(Vin::from(0u32), TxOut::from((ScriptBuf::new(), Sats::from(1u64))))],
+            vec![(
+                Vin::from(0u32),
+                TxOut::from((ScriptBuf::new(), Sats::from(1u64))),
+            )],
         );
         assert!(applied.is_empty());
     }
@@ -320,10 +322,7 @@ mod tests {
         let tx_a = fake_tx(
             20,
             &[Some(TxOut::from((p2wpkh_script(8), Sats::from(1_234u64))))],
-            &[
-                (p2wpkh_script(9), 2_345),
-                (p2wpkh_script(10), 3_456),
-            ],
+            &[(p2wpkh_script(9), 2_345), (p2wpkh_script(10), 3_456)],
         );
         let tx_b = fake_tx(
             21,
@@ -336,11 +335,41 @@ mod tests {
         store.insert(tx_a, entry_a);
         store.insert(tx_b, entry_b);
 
-        let total_after_both: u32 = store.live_histogram().iter().sum();
+        let total_after_both: u32 = store.live_eligible_histogram().iter().sum();
         assert_eq!(total_after_both, 3, "two outputs + one output");
 
         store.remove_by_prefix(&prefix_a);
-        let total_after_remove: u32 = store.live_histogram().iter().sum();
+        let total_after_remove: u32 = store.live_eligible_histogram().iter().sum();
         assert_eq!(total_after_remove, 1);
+    }
+
+    #[test]
+    fn raw_histogram_bins_outputs_the_eligible_filter_drops() {
+        let mut store = TxStore::default();
+        // 2_345 sats is a round-dollar-eligible payment; 100_000_000 sats (1 BTC)
+        // is a round-BTC value the eligible filter drops but raw still bins.
+        let tx = fake_tx(
+            30,
+            &[Some(TxOut::from((p2wpkh_script(1), Sats::from(50_000u64))))],
+            &[(p2wpkh_script(2), 2_345), (p2wpkh_script(3), 100_000_000)],
+        );
+        let entry = entry_for(&tx, 100, 100);
+        let prefix = entry.txid_prefix();
+        store.insert(tx, entry);
+
+        assert_eq!(
+            store.live_eligible_histogram().iter().sum::<u32>(),
+            1,
+            "round-BTC output filtered out of the eligible histogram"
+        );
+        assert_eq!(
+            store.live_raw_histogram().iter().sum::<u32>(),
+            2,
+            "raw histogram bins every output"
+        );
+
+        store.remove_by_prefix(&prefix);
+        assert_eq!(store.live_eligible_histogram().iter().sum::<u32>(), 0);
+        assert_eq!(store.live_raw_histogram().iter().sum::<u32>(), 0);
     }
 }

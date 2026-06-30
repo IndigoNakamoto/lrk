@@ -77,6 +77,12 @@ const _openBrowserCache = (option) => {{
 }};
 
 /**
+ * @param {{string}} url
+ * @returns {{URL}}
+ */
+const _parseBaseUrl = (url) => new URL(url, typeof location === 'undefined' ? undefined : location.href);
+
+/**
  * Custom error class for BRK client errors
  */
 class BrkError extends Error {{
@@ -428,6 +434,9 @@ class BrkClientBase {{
     const isString = typeof options === 'string';
     const rawUrl = isString ? options : options.baseUrl;
     this.baseUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+    const url = _parseBaseUrl(this.baseUrl);
+    this.url = url.href.endsWith('/') ? url.href.slice(0, -1) : url.href;
+    this.domain = url.hostname;
     this.timeout = isString ? 5000 : (options.timeout ?? 5000);
     /** @type {{Promise<Cache | null>}} */
     this._browserCachePromise = _openBrowserCache(isString ? undefined : options.browserCache);
@@ -473,14 +482,17 @@ class BrkClientBase {{
 
   /**
    * @param {{string}} path
-   * @param {{{{ signal?: AbortSignal }}}} [options]
+   * @param {{{{ signal?: AbortSignal, cache?: boolean }}}} [options]
    * @returns {{Promise<Response>}}
    */
-  async get(path, {{ signal }} = {{}}) {{
+  async get(path, {{ signal, cache = true }} = {{}}) {{
     const url = `${{this.baseUrl}}${{path}}`;
     const signals = [AbortSignal.timeout(this.timeout)];
     if (signal) signals.push(signal);
-    const res = await fetch(url, {{ signal: AbortSignal.any(signals) }});
+    /** @type {{RequestInit}} */
+    const init = {{ signal: AbortSignal.any(signals) }};
+    if (!cache) init.cache = 'no-store';
+    const res = await fetch(url, init);
     if (!res.ok) throw new BrkError(`HTTP ${{res.status}}: ${{url}}`, res.status);
     return res;
   }}
@@ -500,14 +512,21 @@ class BrkClientBase {{
    * @template T
    * @param {{string}} path
    * @param {{(res: Response) => Promise<T>}} parse - Response body reader
-   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal }}}} [options]
+   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
    * @returns {{Promise<T>}}
    */
-  async _getCached(path, parse, {{ onValue, signal }} = {{}}) {{
+  async _getCached(path, parse, {{ onValue, signal, cache = true }} = {{}}) {{
+    if (!cache) {{
+      const res = await this.get(path, {{ signal, cache }});
+      const value = await parse(res);
+      if (onValue) onValue(value);
+      return value;
+    }}
+
     const url = `${{this.baseUrl}}${{path}}`;
     /** @type {{_MemEntry<T> | undefined}} */
     const memHit = this._memGet(url);
-    const browserCache = this._browserCache ?? await this._browserCachePromise;
+    const browserCache = this._browserCache;
 
     // L1 fast path: deliver from memCache, revalidate via network.
     // ETag match → zero parse, zero clone, zero cache write, no second onValue fire.
@@ -522,8 +541,8 @@ class BrkClientBase {{
         this._memSet(url, netEtag, value);
         if (onValue) onValue(value);
         if (cloned && browserCache) {{
-          const cache = browserCache;
-          _runIdle(() => cache.put(url, cloned));
+          const cacheStore = browserCache;
+          _runIdle(() => cacheStore.put(url, cloned));
         }}
         return value;
       }} catch {{
@@ -556,8 +575,8 @@ class BrkClientBase {{
       this._memSet(url, netEtag, value);
       if (onValue) onValue(value);
       if (cloned && browserCache) {{
-        const cache = browserCache;
-        _runIdle(() => cache.put(url, cloned));
+        const cacheStore = browserCache;
+        _runIdle(() => cacheStore.put(url, cloned));
       }}
       return value;
     }} catch (e) {{
@@ -571,7 +590,7 @@ class BrkClientBase {{
    * Make a GET request expecting a JSON response. Cached and supports `onValue`.
    * @template T
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal }}}} [options]
+   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
    * @returns {{Promise<T>}}
    */
   getJson(path, options) {{
@@ -582,7 +601,7 @@ class BrkClientBase {{
    * Make a GET request expecting a text response (text/plain, text/csv, ...).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: string) => void, signal?: AbortSignal }}}} [options]
+   * @param {{{{ onValue?: (value: string) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
    * @returns {{Promise<string>}}
    */
   getText(path, options) {{
@@ -593,7 +612,7 @@ class BrkClientBase {{
    * Make a GET request expecting binary data (application/octet-stream).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: Uint8Array) => void, signal?: AbortSignal }}}} [options]
+   * @param {{{{ onValue?: (value: Uint8Array) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
    * @returns {{Promise<Uint8Array>}}
    */
   getBytes(path, options) {{

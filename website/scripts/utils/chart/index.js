@@ -65,6 +65,7 @@ import { Unit } from "../units.js";
  * @typedef {Object} Legend
  * @property {HTMLLegendElement} element
  * @property {function(HTMLElement): void} setPrefix
+ * @property {function(): void} clearPrefix
  * @property {function({ series: AnySeries, name: string, order: number, colors: Color[] }): void} addOrReplace
  * @property {function(number): void} removeFrom
  */
@@ -1339,6 +1340,8 @@ export function createChart({ parent, brk, fitContent }) {
 
   /** @type {Record<number, ReturnType<typeof createPersistedValue<"lin" | "log">>>} */
   const scalePersistedValues = {};
+  /** @type {Record<number, HTMLElement | undefined>} */
+  const scaleSelectorElements = {};
 
   /**
    * @param {number} paneIndex
@@ -1366,8 +1369,7 @@ export function createChart({ parent, brk, fitContent }) {
     const td = tr?.querySelector("td:last-child");
     if (!td) return;
 
-    // Remove previous if any
-    td.querySelector(":scope > .field")?.remove();
+    scaleSelectorElements[paneIndex]?.remove();
 
     /** @type {HTMLTableCellElement} */ (td).style.position = "relative";
 
@@ -1381,6 +1383,7 @@ export function createChart({ parent, brk, fitContent }) {
       },
       toTitle: (c) => (c === "lin" ? "Linear scale" : "Logarithmic scale"),
     });
+    scaleSelectorElements[paneIndex] = radios;
     td.append(radios);
   }
 
@@ -1586,7 +1589,7 @@ export function createChart({ parent, brk, fitContent }) {
           choices,
           groups,
           id: "index",
-        }),
+        }).element,
       );
 
       for (const preset of getRangePresets()) {
@@ -1618,6 +1621,7 @@ export function createChart({ parent, brk, fitContent }) {
         const units = Array.from(map.keys());
         if (!units.length) {
           blueprints.panes[paneIndex].unit = null;
+          legends[paneIndex].clearPrefix();
           return;
         }
 
@@ -1649,7 +1653,7 @@ export function createChart({ parent, brk, fitContent }) {
               blueprints.panes[paneIndex].unit = unit;
               blueprints.rebuildPane(paneIndex);
             },
-          }),
+          }).element,
         );
       });
 
@@ -1676,6 +1680,7 @@ export function createChart({ parent, brk, fitContent }) {
     capture({
       screenshot: ichart.takeScreenshot(),
       chartWidth: chartEl.clientWidth,
+      chartElement: chartEl,
       parent,
       legends,
     });

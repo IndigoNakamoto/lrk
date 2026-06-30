@@ -1,0 +1,15 @@
+dialog {
+  --dialog-space: 1.5rem;
+
+  color-scheme: light;
+  width: min(100% - 2rem, 30rem);
+  border: 0;
+  border-radius: var(--dialog-space);
+  padding: var(--dialog-space);
+  color: var(--black);
+  background: var(--white);
+
+  &::backdrop {
+    background: color-mix(in oklch, var(--black) 72%, transparent);
+  }
+}

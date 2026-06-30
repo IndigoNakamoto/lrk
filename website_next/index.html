@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en" data-loading>
+  <head>
+    <meta charset="utf-8" />
+    <title>bitview</title>
+    <meta
+      name="description"
+      content="Explore Bitcoin data from blocks to patterns."
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <style>
+      html,
+      body {
+        background: var(--black);
+      }
+
+      html {
+        --layer-transition: 8;
+        --layer-loading: 100;
+        --transition-duration: 150ms;
+        --reveal-duration: 500ms;
+        --overlay-layer: var(--layer-transition);
+        --overlay-duration: var(--transition-duration);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: var(--overlay-layer);
+        background: var(--black);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--overlay-duration) ease;
+      }
+
+      html[data-loading] body::before,
+      html[data-transition] body::before {
+        opacity: 1;
+      }
+
+      html[data-loading],
+      html[data-revealing] {
+        --overlay-layer: var(--layer-loading);
+      }
+
+      html[data-revealing] {
+        --overlay-duration: var(--reveal-duration);
+      }
+
+      html[data-transition] {
+        --overlay-layer: var(--layer-transition);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          --transition-duration: 0ms;
+          --reveal-duration: 0ms;
+        }
+
+        body::before {
+          transition: none;
+        }
+      }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="bitview" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- Keep URL in sync with @font-face in styles/fonts.css -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/assets/fonts/Lilex[wght]-v2_620.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/assets/fonts/InstrumentSerif-Regular.woff2"
+      crossorigin
+    />
+
+    <!-- IMPORTMAP -->
+    <link rel="stylesheet" href="/styles/reset.css" />
+    <link rel="stylesheet" href="/styles/variables.css" />
+    <link rel="stylesheet" href="/styles/fonts.css" />
+    <link rel="stylesheet" href="/styles/main.css" />
+
+    <link rel="stylesheet" href="/cube/style.css" />
+    <link rel="stylesheet" href="/header/style.css" />
+
+    <link rel="stylesheet" href="/home/style.css" />
+    <link rel="stylesheet" href="/explore/style.css" />
+    <link rel="stylesheet" href="/learn/style.css" />
+    <link rel="stylesheet" href="/learn/charts/style.css" />
+    <link rel="stylesheet" href="/learn/charts/controls/style.css" />
+    <link rel="stylesheet" href="/learn/charts/legend/style.css" />
+    <link rel="stylesheet" href="/learn/charts/scrubber/style.css" />
+    <link rel="stylesheet" href="/learn/charts/area/style.css" />
+    <link rel="stylesheet" href="/learn/charts/bar/style.css" />
+    <link rel="stylesheet" href="/learn/charts/line/style.css" />
+    <link rel="stylesheet" href="/learn/charts/dots/style.css" />
+    <link rel="stylesheet" href="/learn/charts/stacked/style.css" />
+    <link rel="stylesheet" href="/learn/contents/style.css" />
+    <link rel="stylesheet" href="/build/style.css" />
+    <link rel="stylesheet" href="/wallets/style.css" />
+    <link rel="stylesheet" href="/dialog/style.css" />
+    <link rel="stylesheet" href="/wallets/amount/style.css" />
+    <link rel="stylesheet" href="/wallets/hold/style.css" />
+    <link rel="stylesheet" href="/wallets/layout/style.css" />
+    <link rel="stylesheet" href="/wallets/form/style.css" />
+    <link rel="stylesheet" href="/wallets/add/style.css" />
+    <link rel="stylesheet" href="/wallets/empty/style.css" />
+    <link rel="stylesheet" href="/wallets/start/style.css" />
+    <link rel="stylesheet" href="/wallets/start/reset/style.css" />
+    <link rel="stylesheet" href="/wallets/selector/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/summary/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/receive/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/tabs/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/address/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/history/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/holdings/style.css" />
+    <link rel="stylesheet" href="/wallets/wallet/addresses/style.css" />
+    <!-- /IMPORTMAP -->
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js", {
+            scope: "/",
+          });
+        });
+      }
+    </script>
+    <script type="module" src="/entry.js" fetchpriority="high"></script>
+  </head>
+  <body></body>
+</html>

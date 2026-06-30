@@ -42,25 +42,13 @@ fieldset {
   align-items: center;
   gap: 0.5rem;
 
-  > div.field {
-    text-transform: lowercase;
-    display: flex;
-    align-items: center;
+  &:has(> label > input[type="radio"]) {
     gap: 1rem;
 
-    > legend,
-    > div {
+    > label {
       flex-shrink: 0;
-    }
-
-    label {
       padding: 0.5rem;
       margin: -0.5rem;
-    }
-
-    > div {
-      display: flex;
-      gap: 1.5rem;
     }
   }
 }

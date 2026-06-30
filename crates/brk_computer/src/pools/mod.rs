@@ -23,7 +23,7 @@ use crate::{
         WindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
     },
-    mining, prices,
+    mining, price,
 };
 
 pub const DB_NAME: &str = "pools";
@@ -92,7 +92,7 @@ impl Vecs {
         indexer: &Indexer,
         indexes: &indexes::Vecs,
         blocks: &blocks::Vecs,
-        prices: &prices::Vecs,
+        prices: &price::Vecs,
         mining: &mining::Vecs,
         exit: &Exit,
     ) -> Result<()> {

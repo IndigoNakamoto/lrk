@@ -1,0 +1,8 @@
+main.wallets {
+  .start {
+    .reset {
+      justify-self: start;
+      width: 100%;
+    }
+  }
+}

@@ -2,221 +2,74 @@
 //!
 //! Detects round-dollar transaction patterns ($1, $5, $10, ... $10,000) in Bitcoin
 //! block outputs to derive the current price without any exchange data.
+//!
+//! Behavior changes by height along two independent axes, each in its own module:
+//!
+//! - EMA regime (`config`): below [`START_HEIGHT_SLOW`] prices come from the baked
+//!   pre-oracle tape. From there to [`START_HEIGHT_FAST`] a slow cold-start EMA
+//!   runs with a shape-anchoring restoring force. At [`START_HEIGHT_FAST`] it
+//!   switches to a fast EMA that tracks mature-market volatility.
+//! - Output filter (`filter`): below
+//!   [`PaymentFilter::MODERN_TX_OUTPUT_FANOUT_CAP_START_HEIGHT`] batch-payout
+//!   transactions are capped strictly. Above it the cap relaxes but still drops
+//!   very large fan-outs.
+//!
+//! The two boundaries differ on purpose. The EMA must hand off to fast before the
+//! 2020 crash, while the output cap helps the thin pre-2020 mix for longer and
+//! still prevents modern fan-out clusters from dominating one EMA slot.
 
-use brk_types::{Cents, Dollars, OutputType, Sats};
+use brk_types::{Cents, Dollars};
 
 mod config;
-mod histogram;
+mod filter;
+mod scale;
+mod seed;
+mod stencil;
+mod window;
 
-use config::{DEFAULT_EXCLUDED_OUTPUT_TYPES, DEFAULT_MIN_SATS};
-pub use config::Config;
-pub use histogram::Histogram;
+pub use config::{Config, START_HEIGHT_FAST, START_HEIGHT_SLOW};
+pub use filter::PaymentFilter;
+pub use scale::{
+    bin_to_cents, cents_to_bin, sats_to_bin, HistogramEma, HistogramEmaCompact, HistogramRaw,
+    BINS_PER_DECADE, NUM_BINS,
+};
+pub use seed::{pre_oracle_price_cents, pre_oracle_prices_from, seed_bin, seed_price_cents};
+
+use stencil::Stencil;
+use window::EmaWindow;
 
 /// Oracle algorithm version. Bump on any change that alters computed prices
 /// so downstream consumers can invalidate cached results.
-pub const VERSION: u32 = 2;
-
-/// Pre-oracle dollar prices, one per line, heights 0..630_000.
-pub const PRICES: &str = include_str!("prices.txt");
-
-/// First height where the oracle computes from on-chain data.
-pub const START_HEIGHT: usize = 525_000;
-
-pub const BINS_PER_DECADE: usize = 200;
-const MIN_LOG_BTC: i32 = -8;
-const MAX_LOG_BTC: i32 = 4;
-pub const NUM_BINS: usize = BINS_PER_DECADE * (MAX_LOG_BTC - MIN_LOG_BTC) as usize;
-
-/// Bin offsets for 19 round-USD amounts relative to the $100 reference (offset 0).
-/// Each offset = log10(amount / 100) * BINS_PER_DECADE.
-const STENCIL_OFFSETS: [i32; 19] = [
-    -400, // $1
-    -340, // $2
-    -305, // $3
-    -260, // $5
-    -200, // $10
-    -165, // $15
-    -140, // $20
-    -120, // $25
-    -105, // $30
-    -60,  // $50
-    0,    // $100
-    35,   // $150
-    60,   // $200
-    95,   // $300
-    140,  // $500
-    200,  // $1000
-    260,  // $2000
-    340,  // $5000
-    400,  // $10000
-];
-
-/// Maps a satoshi value to its log-scale bin index.
-/// bin = round(log10(sats) * BINS_PER_DECADE).
-#[inline(always)]
-pub fn sats_to_bin(sats: Sats) -> Option<usize> {
-    if sats.is_zero() {
-        return None;
-    }
-    let bin = ((*sats as f64).log10() * BINS_PER_DECADE as f64).round() as i64;
-    if bin >= 0 && (bin as usize) < NUM_BINS {
-        Some(bin as usize)
-    } else {
-        None
-    }
-}
-
-/// Bitmask form of `DEFAULT_EXCLUDED_OUTPUT_TYPES`, evaluated at compile
-/// time so `default_eligible_bin` checks membership with a single AND.
-const DEFAULT_EXCLUDED_MASK: u16 = {
-    let mut mask = 0u16;
-    let mut i = 0;
-    while i < DEFAULT_EXCLUDED_OUTPUT_TYPES.len() {
-        mask |= 1u16 << DEFAULT_EXCLUDED_OUTPUT_TYPES[i] as u8;
-        i += 1;
-    }
-    mask
-};
-
-/// Bin index for `(sats, output_type)` under `Config::default()` rules.
-/// Returns `None` for excluded types (P2TR/P2WSH), dust, round-BTC values,
-/// or out-of-range bins. Mirror of `Oracle::output_to_bin` for callers that
-/// can pre-bin outputs at write time and don't have an `Oracle` handle.
-#[inline(always)]
-pub fn default_eligible_bin(sats: Sats, output_type: OutputType) -> Option<u16> {
-    if DEFAULT_EXCLUDED_MASK & (1u16 << output_type as u8) != 0 {
-        return None;
-    }
-    if *sats < DEFAULT_MIN_SATS || sats.is_common_round_value() {
-        return None;
-    }
-    sats_to_bin(sats).map(|b| b as u16)
-}
-
-/// Converts a fractional bin to a USD price in cents.
-/// For a $D output at price P: sats = D * 1e8 / P, so P = 10^(10 - bin/200) dollars,
-/// where 10 = log10($100 reference * 1e8 sats/BTC).
-#[inline]
-pub fn bin_to_cents(bin: f64) -> u64 {
-    let dollars = 10.0_f64.powf(10.0 - bin / BINS_PER_DECADE as f64);
-    (dollars * 100.0).round() as u64
-}
-
-/// Converts a USD price in cents to a fractional bin (inverse of bin_to_cents).
-#[inline]
-pub fn cents_to_bin(cents: f64) -> f64 {
-    (10.0 - (cents / 100.0).log10()) * BINS_PER_DECADE as f64
-}
-
-/// Scores each candidate bin in the search window by summing normalized stencil
-/// matches across the EMA histogram, then refines with parabolic interpolation.
-fn find_best_bin(
-    ema: &[f64; NUM_BINS],
-    prev_bin: f64,
-    search_below: usize,
-    search_above: usize,
-) -> f64 {
-    let center = prev_bin.round() as usize;
-    let search_start = center.saturating_sub(search_below);
-    let search_end = (center + search_above + 1).min(NUM_BINS);
-
-    if search_start >= search_end {
-        return prev_bin;
-    }
-
-    // Per-offset peak within the search window (for normalization).
-    let mut track_norm = [0.0f64; 19];
-    for (i, &offset) in STENCIL_OFFSETS.iter().enumerate() {
-        for bin in search_start..search_end {
-            let idx = bin as i32 + offset;
-            if idx >= 0 && (idx as usize) < NUM_BINS {
-                track_norm[i] = track_norm[i].max(ema[idx as usize]);
-            }
-        }
-    }
-
-    let score = |bin: usize| -> f64 {
-        let mut total = 0.0;
-        for (i, &offset) in STENCIL_OFFSETS.iter().enumerate() {
-            let idx = bin as i32 + offset;
-            if idx >= 0 && (idx as usize) < NUM_BINS && track_norm[i] > 0.0 {
-                total += ema[idx as usize] / track_norm[i];
-            }
-        }
-        total
-    };
-
-    let mut best_bin = search_start;
-    let mut best_score = score(search_start);
-    for bin in (search_start + 1)..search_end {
-        let candidate = score(bin);
-        if candidate > best_score {
-            best_score = candidate;
-            best_bin = bin;
-        }
-    }
-
-    // Parabolic sub-bin interpolation for fractional precision.
-    let score_center = best_score;
-    let score_left = if best_bin > search_start {
-        score(best_bin - 1)
-    } else {
-        score_center
-    };
-    let score_right = if best_bin + 1 < search_end {
-        score(best_bin + 1)
-    } else {
-        score_center
-    };
-    let denom = score_left - 2.0 * score_center + score_right;
-    let sub_bin = if denom.abs() > 1e-10 {
-        (0.5 * (score_left - score_right) / denom).clamp(-0.5, 0.5)
-    } else {
-        0.0
-    };
-
-    best_bin as f64 + sub_bin
-}
+pub const VERSION: u32 = 4;
 
 #[derive(Clone)]
 pub struct Oracle {
-    histograms: Vec<Histogram>,
-    ema: Box<[f64; NUM_BINS]>,
-    cursor: usize,
-    filled: usize,
+    window: EmaWindow,
     ref_bin: f64,
     config: Config,
-    weights: Vec<f64>,
-    excluded_mask: u16,
     warmup: bool,
+    stencil: Stencil,
 }
 
 impl Oracle {
     pub fn new(start_bin: f64, config: Config) -> Self {
-        let window_size = config.window_size;
-        let decay = 1.0 - config.alpha;
-        let weights: Vec<f64> = (0..window_size)
-            .map(|i| config.alpha * decay.powi(i as i32))
-            .collect();
-        let excluded_mask = config
-            .excluded_output_types
-            .iter()
-            .fold(0u16, |mask, ot| mask | (1 << *ot as u8));
         Self {
-            histograms: vec![Histogram::zeros(); window_size],
-            ema: Box::new([0.0; NUM_BINS]),
-            cursor: 0,
-            filled: 0,
+            window: EmaWindow::new(config.window_size, config.alpha),
             ref_bin: start_bin,
-            weights,
-            excluded_mask,
             warmup: false,
+            stencil: Stencil::new(config.shape_weight),
             config,
         }
     }
 
+    /// Create an oracle ready to process height [`START_HEIGHT_SLOW`], seeded from
+    /// the baked pre-oracle price tape and using the slow cold-start config.
+    pub fn from_seed() -> Self {
+        Self::new(seed_bin(), Config::slow())
+    }
+
     /// Create an oracle restored from a known price. `fill` should call
-    /// `process_histogram` for the warmup blocks; during warmup the ring
+    /// `process_histogram` for the warmup blocks. During warmup the ring
     /// fills without recomputing EMA or searching, then we recompute once
     /// at the end so the first non-warmup call has a primed EMA.
     pub fn from_checkpoint(ref_bin: f64, config: Config, fill: impl FnOnce(&mut Self)) -> Self {
@@ -224,22 +77,18 @@ impl Oracle {
         oracle.warmup = true;
         fill(&mut oracle);
         oracle.warmup = false;
-        oracle.recompute_ema();
+        oracle.window.recompute();
         oracle
     }
 
-    pub fn process_histogram(&mut self, hist: &Histogram) -> f64 {
-        self.histograms[self.cursor] = hist.clone();
-        self.cursor = (self.cursor + 1) % self.config.window_size;
-        if self.filled < self.config.window_size {
-            self.filled += 1;
-        }
+    pub fn process_histogram(&mut self, hist: &HistogramRaw) -> f64 {
+        self.window.push(hist);
 
         if !self.warmup {
-            self.recompute_ema();
+            self.window.recompute();
 
-            self.ref_bin = find_best_bin(
-                &self.ema,
+            self.ref_bin = self.stencil.pick(
+                self.window.ema(),
                 self.ref_bin,
                 self.config.search_below,
                 self.config.search_above,
@@ -248,8 +97,27 @@ impl Oracle {
         self.ref_bin
     }
 
+    /// Switch EMA regime mid-stream (slow -> fast at [`START_HEIGHT_FAST`]) by
+    /// re-warming under `config` over the most recent `config.window_size` raw
+    /// histograms, so a continuous build and an incremental warm-up reach the
+    /// same state. `ref_bin` carries over.
+    pub fn reconfigure(&mut self, config: Config) {
+        let kept = self.window.recent(config.window_size);
+        *self = Self::from_checkpoint(self.ref_bin, config, |o| {
+            kept.iter().for_each(|h| {
+                o.process_histogram(h);
+            });
+        });
+    }
+
     pub fn ref_bin(&self) -> f64 {
         self.ref_bin
+    }
+
+    /// The current weighted EMA over the window, one value per log-scale bin.
+    /// `ema()[i]` is bin `i` (see `sats_to_bin`).
+    pub fn ema(&self) -> &HistogramEma {
+        self.window.ema()
     }
 
     pub fn price_cents(&self) -> Cents {
@@ -259,35 +127,6 @@ impl Oracle {
     pub fn price_dollars(&self) -> Dollars {
         self.price_cents().into()
     }
-
-    /// Config-aware bin index for `(sats, output_type)`. Returns `None`
-    /// for excluded types, dust, round-BTC values, or out-of-range bins.
-    /// Callers under `Config::default()` should use `default_eligible_bin`
-    /// (free function) to skip the `&self` indirection.
-    #[inline(always)]
-    pub fn output_to_bin(&self, sats: Sats, output_type: OutputType) -> Option<usize> {
-        if self.excluded_mask & (1 << output_type as u8) != 0 {
-            return None;
-        }
-        if *sats < self.config.min_sats
-            || (self.config.exclude_common_round_values && sats.is_common_round_value())
-        {
-            return None;
-        }
-        sats_to_bin(sats)
-    }
-
-    fn recompute_ema(&mut self) {
-        self.ema.fill(0.0);
-        for age in 0..self.filled {
-            let idx = (self.cursor + self.config.window_size - 1 - age) % self.config.window_size;
-            let weight = self.weights[age];
-            let h = &self.histograms[idx];
-            (0..NUM_BINS).for_each(|bin| {
-                self.ema[bin] += weight * h[bin] as f64;
-            });
-        }
-    }
 }
 
 #[cfg(test)]
@@ -295,29 +134,97 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sats_to_bin_round_trip() {
-        assert_eq!(sats_to_bin(Sats::new(100_000_000)), Some(1600));
-        assert_eq!(sats_to_bin(Sats::new(1)), Some(0));
-        assert_eq!(sats_to_bin(Sats::ZERO), None);
-    }
-
-    #[test]
-    fn bin_to_cents_known_values() {
-        assert_eq!(bin_to_cents(1600.0), 10000);
-        assert_eq!(bin_to_cents(1800.0), 1000);
-    }
-
-    #[test]
-    fn sats_to_bin_boundary() {
-        assert_eq!(sats_to_bin(Sats::new(1_000_000_000_000)), None);
-        let sats = 10.0_f64.powf(11.995) as u64;
-        assert!(sats_to_bin(Sats::new(sats)).is_some());
-    }
-
-    #[test]
     fn oracle_basic() {
         let oracle = Oracle::new(1600.0, Config::default());
         assert_eq!(oracle.ref_bin(), 1600.0);
         assert_eq!(oracle.price_cents(), bin_to_cents(1600.0).into());
+    }
+
+    #[test]
+    fn from_seed_matches_manual_seed() {
+        let mut seeded = Oracle::from_seed();
+        let mut manual = Oracle::new(seed_bin(), Config::slow());
+        let mut hist = HistogramRaw::zeros();
+        hist.increment(1200);
+
+        assert_eq!(seeded.ref_bin(), manual.ref_bin());
+        assert_eq!(
+            seeded.process_histogram(&hist),
+            manual.process_histogram(&hist)
+        );
+        assert!(seeded.ema().iter().eq(manual.ema().iter()));
+    }
+
+    // reconfigure must leave the oracle in the same state as a fresh warm-up
+    // over the most recent window of raw histograms. The continuous build and
+    // the incremental resume rely on this agreeing at the slow -> fast seam.
+    #[test]
+    fn reconfigure_matches_fresh_warmup() {
+        let hists: Vec<HistogramRaw> = (0..60)
+            .map(|i| {
+                let mut h = HistogramRaw::zeros();
+                h.increment(1200 + i % 7);
+                h.increment(1600 + i % 5);
+                h
+            })
+            .collect();
+
+        let fast = Config::default();
+        let mut switched = Oracle::new(1600.0, Config::slow());
+        hists.iter().for_each(|h| {
+            switched.process_histogram(h);
+        });
+        switched.reconfigure(fast);
+
+        let keep = fast.window_size;
+        let fresh = Oracle::from_checkpoint(switched.ref_bin(), fast, |o| {
+            hists[hists.len() - keep..].iter().for_each(|h| {
+                o.process_histogram(h);
+            });
+        });
+
+        assert!(switched.ema().iter().eq(fresh.ema().iter()));
+    }
+
+    #[test]
+    fn sequential_ema_matches_fresh_warmups() {
+        let hists: Vec<HistogramRaw> = (0..80)
+            .map(|i| {
+                let mut h = HistogramRaw::zeros();
+                h.increment(1000 + i % 11);
+                h.increment(1300 + i % 13);
+                h.increment(1700 + i % 17);
+                h
+            })
+            .collect();
+
+        for config in [Config::slow(), Config::default()] {
+            let query_start = config.window_size + 5;
+            let query_end = query_start + 20;
+            let seed = 1600.0;
+            let mut sequential = Oracle::from_checkpoint(seed, config, |o| {
+                hists[query_start + 1 - config.window_size..query_start + 1]
+                    .iter()
+                    .for_each(|h| {
+                        o.process_histogram(h);
+                    });
+            });
+
+            for height in query_start..query_end {
+                if height != query_start {
+                    sequential.process_histogram(&hists[height]);
+                }
+
+                let fresh = Oracle::from_checkpoint(seed, config, |o| {
+                    hists[height + 1 - config.window_size..height + 1]
+                        .iter()
+                        .for_each(|h| {
+                            o.process_histogram(h);
+                        });
+                });
+
+                assert!(sequential.ema().iter().eq(fresh.ema().iter()));
+            }
+        }
     }
 }

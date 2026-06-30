@@ -1,4 +1,4 @@
-import { createLabeledInput, createSpanName } from "../dom.js";
+import { createLabeledInput, createSpan, createSpanName } from "../dom.js";
 import { stringToId } from "../format.js";
 
 /** @param {HTMLElement} el */
@@ -27,22 +27,24 @@ export function createLegend() {
   element.append(scroller);
   captureScroll(scroller);
 
-  const separator = window.document.createElement("span");
-  separator.textContent = "|";
+  const separator = createSpan("|");
   captureScroll(separator);
+  /** @type {HTMLElement | null} */
+  let prefix = null;
 
   return {
     element,
     scroller,
     /** @param {HTMLElement} el */
     setPrefix(el) {
-      const prev = separator.previousSibling;
-      if (prev) {
-        prev.replaceWith(el);
-      } else {
-        scroller.prepend(el, separator);
-      }
+      prefix ? prefix.replaceWith(el) : scroller.prepend(el, separator);
+      prefix = el;
       captureScroll(el);
+    },
+    clearPrefix() {
+      prefix?.remove();
+      prefix = null;
+      separator.remove();
     },
   };
 }
@@ -77,6 +79,7 @@ export function createSeriesLegend() {
   return {
     element: legend.element,
     setPrefix: legend.setPrefix,
+    clearPrefix: legend.clearPrefix,
     /**
      * @param {Object} args
      * @param {AnySeries} args.series

@@ -30,6 +30,18 @@
  * @property {Dollars} realizedPrice - Realized price (average cost basis) in USD
  */
 /**
+ * @typedef {Object} AddrHashPrefixMatches
+ * @property {OutputType} addrType
+ * @property {string} prefix
+ * @property {boolean} truncated
+ * @property {Addr[]} addresses
+ */
+/**
+ * @typedef {Object} AddrHashPrefixParam
+ * @property {OutputType} addrType
+ * @property {string} prefix
+ */
+/**
  * Address statistics in the mempool (unconfirmed transactions only)
  *
  * Based on mempool.space's format.
@@ -645,6 +657,14 @@ ancestors and no descendants (matches mempool.space).
  * Block height
  *
  * @typedef {number} Height
+ */
+/**
+ * Path parameter accepting either a block height (`840000`) or a calendar date
+ * (`YYYY-MM-DD`). The handler resolves it and dispatches to the per-height or
+ * per-day variant, choosing the matching cache strategy.
+ *
+ * @typedef {Object} HeightOrDateParam
+ * @property {string} point
  */
 /**
  * Block height path parameter
@@ -1349,9 +1369,9 @@ on serialization otherwise.
 /**
  * Aggregation strategy for URPD buckets.
  * Options: raw (no aggregation), lin200/lin500/lin1000 (linear $200/$500/$1000),
- * log10/log50/log100/log200 (logarithmic with 10/50/100/200 buckets per decade).
+ * log10/log50/log100/log200/log500/log1000/log2000 (logarithmic with 10/50/100/200/500/1000/2000 buckets per decade).
  *
- * @typedef {("raw"|"lin200"|"lin500"|"lin1000"|"log10"|"log50"|"log100"|"log200")} UrpdAggregation
+ * @typedef {("raw"|"lin200"|"lin500"|"lin1000"|"log10"|"log50"|"log100"|"log200"|"log500"|"log1000"|"log2000")} UrpdAggregation
  */
 /**
  * A single bucket in a URPD snapshot.
@@ -1476,6 +1496,12 @@ const _openBrowserCache = (option) => {
   const name = typeof option === 'string' ? option : _defaultBrowserCacheName;
   return caches.open(name).catch(() => null);
 };
+
+/**
+ * @param {string} url
+ * @returns {URL}
+ */
+const _parseBaseUrl = (url) => new URL(url, typeof location === 'undefined' ? undefined : location.href);
 
 /**
  * Custom error class for BRK client errors
@@ -1829,6 +1855,9 @@ class BrkClientBase {
     const isString = typeof options === 'string';
     const rawUrl = isString ? options : options.baseUrl;
     this.baseUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+    const url = _parseBaseUrl(this.baseUrl);
+    this.url = url.href.endsWith('/') ? url.href.slice(0, -1) : url.href;
+    this.domain = url.hostname;
     this.timeout = isString ? 5000 : (options.timeout ?? 5000);
     /** @type {Promise<Cache | null>} */
     this._browserCachePromise = _openBrowserCache(isString ? undefined : options.browserCache);
@@ -1874,14 +1903,17 @@ class BrkClientBase {
 
   /**
    * @param {string} path
-   * @param {{ signal?: AbortSignal }} [options]
+   * @param {{ signal?: AbortSignal, cache?: boolean }} [options]
    * @returns {Promise<Response>}
    */
-  async get(path, { signal } = {}) {
+  async get(path, { signal, cache = true } = {}) {
     const url = `${this.baseUrl}${path}`;
     const signals = [AbortSignal.timeout(this.timeout)];
     if (signal) signals.push(signal);
-    const res = await fetch(url, { signal: AbortSignal.any(signals) });
+    /** @type {RequestInit} */
+    const init = { signal: AbortSignal.any(signals) };
+    if (!cache) init.cache = 'no-store';
+    const res = await fetch(url, init);
     if (!res.ok) throw new BrkError(`HTTP ${res.status}: ${url}`, res.status);
     return res;
   }
@@ -1901,14 +1933,21 @@ class BrkClientBase {
    * @template T
    * @param {string} path
    * @param {(res: Response) => Promise<T>} parse - Response body reader
-   * @param {{ onValue?: (value: T) => void, signal?: AbortSignal }} [options]
+   * @param {{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }} [options]
    * @returns {Promise<T>}
    */
-  async _getCached(path, parse, { onValue, signal } = {}) {
+  async _getCached(path, parse, { onValue, signal, cache = true } = {}) {
+    if (!cache) {
+      const res = await this.get(path, { signal, cache });
+      const value = await parse(res);
+      if (onValue) onValue(value);
+      return value;
+    }
+
     const url = `${this.baseUrl}${path}`;
     /** @type {_MemEntry<T> | undefined} */
     const memHit = this._memGet(url);
-    const browserCache = this._browserCache ?? await this._browserCachePromise;
+    const browserCache = this._browserCache;
 
     // L1 fast path: deliver from memCache, revalidate via network.
     // ETag match → zero parse, zero clone, zero cache write, no second onValue fire.
@@ -1923,8 +1962,8 @@ class BrkClientBase {
         this._memSet(url, netEtag, value);
         if (onValue) onValue(value);
         if (cloned && browserCache) {
-          const cache = browserCache;
-          _runIdle(() => cache.put(url, cloned));
+          const cacheStore = browserCache;
+          _runIdle(() => cacheStore.put(url, cloned));
         }
         return value;
       } catch {
@@ -1957,8 +1996,8 @@ class BrkClientBase {
       this._memSet(url, netEtag, value);
       if (onValue) onValue(value);
       if (cloned && browserCache) {
-        const cache = browserCache;
-        _runIdle(() => cache.put(url, cloned));
+        const cacheStore = browserCache;
+        _runIdle(() => cacheStore.put(url, cloned));
       }
       return value;
     } catch (e) {
@@ -1972,7 +2011,7 @@ class BrkClientBase {
    * Make a GET request expecting a JSON response. Cached and supports `onValue`.
    * @template T
    * @param {string} path
-   * @param {{ onValue?: (value: T) => void, signal?: AbortSignal }} [options]
+   * @param {{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }} [options]
    * @returns {Promise<T>}
    */
   getJson(path, options) {
@@ -1983,7 +2022,7 @@ class BrkClientBase {
    * Make a GET request expecting a text response (text/plain, text/csv, ...).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {string} path
-   * @param {{ onValue?: (value: string) => void, signal?: AbortSignal }} [options]
+   * @param {{ onValue?: (value: string) => void, signal?: AbortSignal, cache?: boolean }} [options]
    * @returns {Promise<string>}
    */
   getText(path, options) {
@@ -1994,7 +2033,7 @@ class BrkClientBase {
    * Make a GET request expecting binary data (application/octet-stream).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {string} path
-   * @param {{ onValue?: (value: Uint8Array) => void, signal?: AbortSignal }} [options]
+   * @param {{ onValue?: (value: Uint8Array) => void, signal?: AbortSignal, cache?: boolean }} [options]
    * @returns {Promise<Uint8Array>}
    */
   getBytes(path, options) {
@@ -2486,6 +2525,22 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern3(client, acc) {
  * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
  * @property {AdjustedRatioValuePattern} sopr
+ */
+
+/**
+ * @typedef {Object} CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2
+ * @property {CentsDeltaToUsdPattern} cap
+ * @property {PricePattern} capitalized
+ * @property {BlockCumulativeSumPattern} grossPnl
+ * @property {BlockCumulativeNegativeSumPattern} loss
+ * @property {SeriesPattern1<StoredF32>} mvrv
+ * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
+ * @property {BlockCumulativeSumPattern} peakRegret
+ * @property {BpsCentsPercentilesRatioSatsSmaStdUsdPattern} price
+ * @property {BlockCumulativeSumPattern} profit
+ * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
+ * @property {_1m1w1y24hPattern8} sellSideRiskRatio
+ * @property {RatioValuePattern2} sopr
  */
 
 /**
@@ -2997,6 +3052,17 @@ function create_1m1w1y24hBpsPercentRatioPattern(client, acc) {
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} outputToReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} outputToReusedAddrShare
  * @property {_1m1w1y24hBpsPercentRatioPattern} spendableOutputToReusedAddrShare
+ */
+
+/**
+ * @typedef {Object} ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2
+ * @property {CoindaysCoinyearsDormancyTransferPattern} activity
+ * @property {InMaxMinPerSupplyPattern} costBasis
+ * @property {InPattern} investedCapital
+ * @property {SpendingSpentUnspentPattern} outputs
+ * @property {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2} realized
+ * @property {DeltaDominanceHalfInTotalPattern2} supply
+ * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
  */
 
 /**
@@ -5029,6 +5095,25 @@ function createPriceRatioPattern(client, acc, disc) {
 }
 
 /**
+ * @typedef {Object} RatioValuePattern2
+ * @property {_1m1w1y24hPattern<StoredF64>} ratio
+ * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
+ */
+
+/**
+ * Create a RatioValuePattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {RatioValuePattern2}
+ */
+function createRatioValuePattern2(client, acc) {
+  return {
+    ratio: create_1m1w1y24hPattern(client, _m(acc, 'sopr')),
+    valueDestroyed: createAverageBlockCumulativeSumPattern(client, _m(acc, 'value_destroyed')),
+  };
+}
+
+/**
  * @typedef {Object} RatioValuePattern
  * @property {_24hPattern} ratio
  * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
@@ -5175,7 +5260,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Investing} investing
  * @property {SeriesTree_Market} market
  * @property {SeriesTree_Pools} pools
- * @property {SeriesTree_Prices} prices
+ * @property {SeriesTree_Price} price
  * @property {SeriesTree_Supply} supply
  * @property {SeriesTree_Cohorts} cohorts
  */
@@ -6707,14 +6792,14 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Prices
- * @property {SeriesTree_Prices_Split} split
- * @property {SeriesTree_Prices_Ohlc} ohlc
- * @property {SeriesTree_Prices_Spot} spot
+ * @typedef {Object} SeriesTree_Price
+ * @property {SeriesTree_Price_Split} split
+ * @property {SeriesTree_Price_Ohlc} ohlc
+ * @property {SeriesTree_Price_Spot} spot
  */
 
 /**
- * @typedef {Object} SeriesTree_Prices_Split
+ * @typedef {Object} SeriesTree_Price_Split
  * @property {CentsSatsUsdPattern3} open
  * @property {CentsSatsUsdPattern3} high
  * @property {CentsSatsUsdPattern3} low
@@ -6722,14 +6807,14 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Prices_Ohlc
+ * @typedef {Object} SeriesTree_Price_Ohlc
  * @property {SeriesPattern2<OHLCDollars>} usd
  * @property {SeriesPattern2<OHLCCents>} cents
  * @property {SeriesPattern2<OHLCSats>} sats
  */
 
 /**
- * @typedef {Object} SeriesTree_Prices_Spot
+ * @typedef {Object} SeriesTree_Price_Spot
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<Sats>} sats
@@ -6769,6 +6854,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Cohorts_Utxo_OverAge} overAge
  * @property {SeriesTree_Cohorts_Utxo_Epoch} epoch
  * @property {SeriesTree_Cohorts_Utxo_Class} class
+ * @property {SeriesTree_Cohorts_Utxo_Entry} entry
  * @property {SeriesTree_Cohorts_Utxo_OverAmount} overAmount
  * @property {SeriesTree_Cohorts_Utxo_AmountRange} amountRange
  * @property {SeriesTree_Cohorts_Utxo_UnderAmount} underAmount
@@ -7126,7 +7212,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price} price
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr} sopr
+ * @property {RatioValuePattern2} sopr
  * @property {BlockCumulativeSumPattern} grossPnl
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
  * @property {BlockCumulativeSumPattern} peakRegret
@@ -7231,12 +7317,6 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr
- * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
- * @property {_1m1w1y24hPattern<StoredF64>} ratio
- */
-
-/**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_AgeRange
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} under1h
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1hTo1d
@@ -7334,6 +7414,258 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2024
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2025
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2026
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount} discount
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium} premium
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount
+ * @property {DeltaDominanceHalfInTotalPattern2} supply
+ * @property {SpendingSpentUnspentPattern} outputs
+ * @property {CoindaysCoinyearsDormancyTransferPattern} activity
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized} realized
+ * @property {InMaxMinPerSupplyPattern} costBasis
+ * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
+ * @property {InPattern} investedCapital
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized
+ * @property {CentsDeltaToUsdPattern} cap
+ * @property {BlockCumulativeSumPattern} profit
+ * @property {BlockCumulativeNegativeSumPattern} loss
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price} price
+ * @property {SeriesPattern1<StoredF32>} mvrv
+ * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
+ * @property {RatioValuePattern2} sopr
+ * @property {BlockCumulativeSumPattern} grossPnl
+ * @property {_1m1w1y24hPattern8} sellSideRiskRatio
+ * @property {BlockCumulativeSumPattern} peakRegret
+ * @property {PricePattern} capitalized
+ * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SeriesPattern1<SatsFract>} sats
+ * @property {SeriesPattern1<BasisPoints32>} bps
+ * @property {SeriesPattern1<StoredF32>} ratio
+ * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
+ * @property {_1m1w1y2y4yAllPattern} sma
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev} stdDev
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_All} all
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_4y} _4y
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_2y} _2y
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_1y} _1y
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_All
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_4y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_2y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_1y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium
+ * @property {DeltaDominanceHalfInTotalPattern2} supply
+ * @property {SpendingSpentUnspentPattern} outputs
+ * @property {CoindaysCoinyearsDormancyTransferPattern} activity
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized} realized
+ * @property {InMaxMinPerSupplyPattern} costBasis
+ * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
+ * @property {InPattern} investedCapital
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized
+ * @property {CentsDeltaToUsdPattern} cap
+ * @property {BlockCumulativeSumPattern} profit
+ * @property {BlockCumulativeNegativeSumPattern} loss
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price} price
+ * @property {SeriesPattern1<StoredF32>} mvrv
+ * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
+ * @property {RatioValuePattern2} sopr
+ * @property {BlockCumulativeSumPattern} grossPnl
+ * @property {_1m1w1y24hPattern8} sellSideRiskRatio
+ * @property {BlockCumulativeSumPattern} peakRegret
+ * @property {PricePattern} capitalized
+ * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SeriesPattern1<SatsFract>} sats
+ * @property {SeriesPattern1<BasisPoints32>} bps
+ * @property {SeriesPattern1<StoredF32>} ratio
+ * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
+ * @property {_1m1w1y2y4yAllPattern} sma
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev} stdDev
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_All} all
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_4y} _4y
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_2y} _2y
+ * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_1y} _1y
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_All
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_4y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_2y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_1y
+ * @property {SeriesPattern1<StoredF32>} sd
+ * @property {SeriesPattern1<StoredF32>} zscore
+ * @property {CentsSatsUsdPattern} _0sd
+ * @property {PriceRatioPattern} p05sd
+ * @property {PriceRatioPattern} p1sd
+ * @property {PriceRatioPattern} p15sd
+ * @property {PriceRatioPattern} p2sd
+ * @property {PriceRatioPattern} p25sd
+ * @property {PriceRatioPattern} p3sd
+ * @property {PriceRatioPattern} m05sd
+ * @property {PriceRatioPattern} m1sd
+ * @property {PriceRatioPattern} m15sd
+ * @property {PriceRatioPattern} m2sd
+ * @property {PriceRatioPattern} m25sd
+ * @property {PriceRatioPattern} m3sd
  */
 
 /**
@@ -7561,7 +7893,7 @@ function createTransferPattern(client, acc) {
  * @extends BrkClientBase
  */
 class BrkClient extends BrkClientBase {
-  VERSION = "v0.3.0-beta.11";
+  VERSION = "v0.3.6";
 
   INDEXES = /** @type {const} */ ([
     "minute10",
@@ -7898,6 +8230,19 @@ class BrkClient extends BrkClientBase {
       "id": "class_2026",
       "short": "2026",
       "long": "Class 2026"
+    }
+  });
+
+  ENTRY_NAMES = /** @type {const} */ ({
+    "discount": {
+      "id": "veteran",
+      "short": "Veteran",
+      "long": "Veteran Coins"
+    },
+    "premium": {
+      "id": "rookie",
+      "short": "Rookie",
+      "long": "Rookie Coins"
     }
   });
 
@@ -9845,7 +10190,7 @@ class BrkClient extends BrkClientBase {
           noderunners: createBlocksDominancePattern(this, 'noderunners'),
         },
       },
-      prices: {
+      price: {
         split: {
           open: createCentsSatsUsdPattern3(this, 'price_open'),
           high: createCentsSatsUsdPattern3(this, 'price_high'),
@@ -10221,10 +10566,7 @@ class BrkClient extends BrkClientBase {
               },
               mvrv: createSeriesPattern1(this, 'lth_mvrv'),
               netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'lth_net'),
-              sopr: {
-                valueDestroyed: createAverageBlockCumulativeSumPattern(this, 'lth_value_destroyed'),
-                ratio: create_1m1w1y24hPattern(this, 'lth_sopr'),
-              },
+              sopr: createRatioValuePattern2(this, 'lth'),
               grossPnl: createBlockCumulativeSumPattern(this, 'lth_realized_gross_pnl'),
               sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'lth_sell_side_risk_ratio'),
               peakRegret: createBlockCumulativeSumPattern(this, 'lth_realized_peak_regret'),
@@ -10324,6 +10666,208 @@ class BrkClient extends BrkClientBase {
             _2024: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'class_2024'),
             _2025: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'class_2025'),
             _2026: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'class_2026'),
+          },
+          entry: {
+            discount: {
+              supply: createDeltaDominanceHalfInTotalPattern2(this, 'veteran_supply'),
+              outputs: createSpendingSpentUnspentPattern(this, 'veteran'),
+              activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'veteran'),
+              realized: {
+                cap: createCentsDeltaToUsdPattern(this, 'veteran_realized_cap'),
+                profit: createBlockCumulativeSumPattern(this, 'veteran_realized_profit'),
+                loss: createBlockCumulativeNegativeSumPattern(this, 'veteran_realized_loss'),
+                price: {
+                  usd: createSeriesPattern1(this, 'veteran_realized_price'),
+                  cents: createSeriesPattern1(this, 'veteran_realized_price_cents'),
+                  sats: createSeriesPattern1(this, 'veteran_realized_price_sats'),
+                  bps: createSeriesPattern1(this, 'veteran_realized_price_ratio_bps'),
+                  ratio: createSeriesPattern1(this, 'veteran_realized_price_ratio'),
+                  percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'veteran_realized_price'),
+                  sma: create_1m1w1y2y4yAllPattern(this, 'veteran_realized_price_ratio_sma'),
+                  stdDev: {
+                    all: {
+                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd'),
+                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore'),
+                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd'),
+                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd'),
+                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd'),
+                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd'),
+                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd'),
+                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd'),
+                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd'),
+                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd'),
+                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd'),
+                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd'),
+                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd'),
+                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd'),
+                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd'),
+                    },
+                    _4y: {
+                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_4y'),
+                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_4y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_4y'),
+                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_4y'),
+                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_4y'),
+                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_4y'),
+                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_4y'),
+                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_4y'),
+                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_4y'),
+                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_4y'),
+                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_4y'),
+                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_4y'),
+                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_4y'),
+                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_4y'),
+                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_4y'),
+                    },
+                    _2y: {
+                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_2y'),
+                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_2y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_2y'),
+                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_2y'),
+                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_2y'),
+                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_2y'),
+                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_2y'),
+                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_2y'),
+                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_2y'),
+                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_2y'),
+                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_2y'),
+                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_2y'),
+                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_2y'),
+                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_2y'),
+                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_2y'),
+                    },
+                    _1y: {
+                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_1y'),
+                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_1y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_1y'),
+                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_1y'),
+                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_1y'),
+                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_1y'),
+                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_1y'),
+                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_1y'),
+                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_1y'),
+                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_1y'),
+                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_1y'),
+                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_1y'),
+                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_1y'),
+                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_1y'),
+                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_1y'),
+                    },
+                  },
+                },
+                mvrv: createSeriesPattern1(this, 'veteran_mvrv'),
+                netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'veteran_net'),
+                sopr: createRatioValuePattern2(this, 'veteran'),
+                grossPnl: createBlockCumulativeSumPattern(this, 'veteran_realized_gross_pnl'),
+                sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'veteran_sell_side_risk_ratio'),
+                peakRegret: createBlockCumulativeSumPattern(this, 'veteran_realized_peak_regret'),
+                capitalized: createPricePattern(this, 'veteran_capitalized_price'),
+                profitToLossRatio: create_1m1w1y24hPattern(this, 'veteran_realized_profit_to_loss_ratio'),
+              },
+              costBasis: createInMaxMinPerSupplyPattern(this, 'veteran'),
+              unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'veteran'),
+              investedCapital: createInPattern(this, 'veteran_invested_capital_in'),
+            },
+            premium: {
+              supply: createDeltaDominanceHalfInTotalPattern2(this, 'rookie_supply'),
+              outputs: createSpendingSpentUnspentPattern(this, 'rookie'),
+              activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'rookie'),
+              realized: {
+                cap: createCentsDeltaToUsdPattern(this, 'rookie_realized_cap'),
+                profit: createBlockCumulativeSumPattern(this, 'rookie_realized_profit'),
+                loss: createBlockCumulativeNegativeSumPattern(this, 'rookie_realized_loss'),
+                price: {
+                  usd: createSeriesPattern1(this, 'rookie_realized_price'),
+                  cents: createSeriesPattern1(this, 'rookie_realized_price_cents'),
+                  sats: createSeriesPattern1(this, 'rookie_realized_price_sats'),
+                  bps: createSeriesPattern1(this, 'rookie_realized_price_ratio_bps'),
+                  ratio: createSeriesPattern1(this, 'rookie_realized_price_ratio'),
+                  percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'rookie_realized_price'),
+                  sma: create_1m1w1y2y4yAllPattern(this, 'rookie_realized_price_ratio_sma'),
+                  stdDev: {
+                    all: {
+                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd'),
+                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore'),
+                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd'),
+                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd'),
+                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd'),
+                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd'),
+                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd'),
+                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd'),
+                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd'),
+                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd'),
+                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd'),
+                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd'),
+                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd'),
+                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd'),
+                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd'),
+                    },
+                    _4y: {
+                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_4y'),
+                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_4y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_4y'),
+                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_4y'),
+                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_4y'),
+                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_4y'),
+                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_4y'),
+                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_4y'),
+                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_4y'),
+                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_4y'),
+                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_4y'),
+                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_4y'),
+                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_4y'),
+                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_4y'),
+                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_4y'),
+                    },
+                    _2y: {
+                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_2y'),
+                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_2y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_2y'),
+                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_2y'),
+                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_2y'),
+                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_2y'),
+                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_2y'),
+                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_2y'),
+                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_2y'),
+                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_2y'),
+                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_2y'),
+                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_2y'),
+                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_2y'),
+                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_2y'),
+                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_2y'),
+                    },
+                    _1y: {
+                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_1y'),
+                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_1y'),
+                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_1y'),
+                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_1y'),
+                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_1y'),
+                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_1y'),
+                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_1y'),
+                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_1y'),
+                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_1y'),
+                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_1y'),
+                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_1y'),
+                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_1y'),
+                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_1y'),
+                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_1y'),
+                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_1y'),
+                    },
+                  },
+                },
+                mvrv: createSeriesPattern1(this, 'rookie_mvrv'),
+                netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'rookie_net'),
+                sopr: createRatioValuePattern2(this, 'rookie'),
+                grossPnl: createBlockCumulativeSumPattern(this, 'rookie_realized_gross_pnl'),
+                sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'rookie_sell_side_risk_ratio'),
+                peakRegret: createBlockCumulativeSumPattern(this, 'rookie_realized_peak_regret'),
+                capitalized: createPricePattern(this, 'rookie_capitalized_price'),
+                profitToLossRatio: create_1m1w1y24hPattern(this, 'rookie_realized_profit_to_loss_ratio'),
+              },
+              costBasis: createInMaxMinPerSupplyPattern(this, 'rookie'),
+              unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'rookie'),
+              investedCapital: createInPattern(this, 'rookie_invested_capital_in'),
+            },
           },
           overAmount: {
             _1sat: createActivityOutputsRealizedSupplyUnrealizedPattern2(this, 'utxos_over_1sat'),
@@ -10538,12 +11082,12 @@ class BrkClient extends BrkClientBase {
    * Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.
    *
    * Endpoint: `GET /health`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Health) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Health) => void, cache?: boolean }} [options]
    * @returns {Promise<Health>}
    */
-  async getHealth({ signal, onValue } = {}) {
+  async getHealth({ signal, onValue, cache } = {}) {
     const path = `/health`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10552,12 +11096,12 @@ class BrkClient extends BrkClientBase {
    * Returns the current version of the API server
    *
    * Endpoint: `GET /version`
-   * @param {{ signal?: AbortSignal, onValue?: (value: string) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: string) => void, cache?: boolean }} [options]
    * @returns {Promise<string>}
    */
-  async getVersion({ signal, onValue } = {}) {
+  async getVersion({ signal, onValue, cache } = {}) {
     const path = `/version`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10566,12 +11110,12 @@ class BrkClient extends BrkClientBase {
    * Returns the sync status of the indexer, including indexed height, tip height, blocks behind, and last indexed timestamp.
    *
    * Endpoint: `GET /api/server/sync`
-   * @param {{ signal?: AbortSignal, onValue?: (value: SyncStatus) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: SyncStatus) => void, cache?: boolean }} [options]
    * @returns {Promise<SyncStatus>}
    */
-  async getSyncStatus({ signal, onValue } = {}) {
+  async getSyncStatus({ signal, onValue, cache } = {}) {
     const path = `/api/server/sync`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10580,12 +11124,12 @@ class BrkClient extends BrkClientBase {
    * Returns the disk space used by BRK and Bitcoin data.
    *
    * Endpoint: `GET /api/server/disk`
-   * @param {{ signal?: AbortSignal, onValue?: (value: DiskUsage) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: DiskUsage) => void, cache?: boolean }} [options]
    * @returns {Promise<DiskUsage>}
    */
-  async getDiskUsage({ signal, onValue } = {}) {
+  async getDiskUsage({ signal, onValue, cache } = {}) {
     const path = `/api/server/disk`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10594,12 +11138,12 @@ class BrkClient extends BrkClientBase {
    * Returns the complete hierarchical catalog of available series organized as a tree structure. Series are grouped by categories and subcategories.
    *
    * Endpoint: `GET /api/series`
-   * @param {{ signal?: AbortSignal, onValue?: (value: TreeNode) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: TreeNode) => void, cache?: boolean }} [options]
    * @returns {Promise<TreeNode>}
    */
-  async getSeriesTree({ signal, onValue } = {}) {
+  async getSeriesTree({ signal, onValue, cache } = {}) {
     const path = `/api/series`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10608,12 +11152,12 @@ class BrkClient extends BrkClientBase {
    * Returns the number of series available per index type.
    *
    * Endpoint: `GET /api/series/count`
-   * @param {{ signal?: AbortSignal, onValue?: (value: SeriesCount[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: SeriesCount[]) => void, cache?: boolean }} [options]
    * @returns {Promise<SeriesCount[]>}
    */
-  async getSeriesCount({ signal, onValue } = {}) {
+  async getSeriesCount({ signal, onValue, cache } = {}) {
     const path = `/api/series/count`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10622,12 +11166,12 @@ class BrkClient extends BrkClientBase {
    * Returns all available indexes with their accepted query aliases. Use any alias when querying series.
    *
    * Endpoint: `GET /api/series/indexes`
-   * @param {{ signal?: AbortSignal, onValue?: (value: IndexInfo[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: IndexInfo[]) => void, cache?: boolean }} [options]
    * @returns {Promise<IndexInfo[]>}
    */
-  async getIndexes({ signal, onValue } = {}) {
+  async getIndexes({ signal, onValue, cache } = {}) {
     const path = `/api/series/indexes`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10639,16 +11183,16 @@ class BrkClient extends BrkClientBase {
    *
    * @param {number=} [page] - Pagination index
    * @param {number=} [per_page] - Results per page (default: 1000, max: 1000)
-   * @param {{ signal?: AbortSignal, onValue?: (value: PaginatedSeries) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PaginatedSeries) => void, cache?: boolean }} [options]
    * @returns {Promise<PaginatedSeries>}
    */
-  async listSeries(page, per_page, { signal, onValue } = {}) {
+  async listSeries(page, per_page, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (page !== undefined) params.set('page', String(page));
     if (per_page !== undefined) params.set('per_page', String(per_page));
     const query = params.toString();
     const path = `/api/series/list${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10660,16 +11204,16 @@ class BrkClient extends BrkClientBase {
    *
    * @param {SeriesName} q - Search query string
    * @param {Limit=} [limit] - Maximum number of results
-   * @param {{ signal?: AbortSignal, onValue?: (value: string[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: string[]) => void, cache?: boolean }} [options]
    * @returns {Promise<string[]>}
    */
-  async searchSeries(q, limit, { signal, onValue } = {}) {
+  async searchSeries(q, limit, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     params.set('q', String(q));
     if (limit !== undefined) params.set('limit', String(limit));
     const query = params.toString();
     const path = `/api/series/search${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10680,12 +11224,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/series/{series}`
    *
    * @param {SeriesName} series
-   * @param {{ signal?: AbortSignal, onValue?: (value: SeriesInfo) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: SeriesInfo) => void, cache?: boolean }} [options]
    * @returns {Promise<SeriesInfo>}
    */
-  async getSeriesInfo(series, { signal, onValue } = {}) {
+  async getSeriesInfo(series, { signal, onValue, cache } = {}) {
     const path = `/api/series/${series}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10701,10 +11245,10 @@ class BrkClient extends BrkClientBase {
    * @param {RangeIndex=} [end] - Exclusive end: integer index, date (YYYY-MM-DD), or timestamp (ISO 8601). Negative integers count from end. Aliases: `to`, `t`, `e`
    * @param {Limit=} [limit] - Maximum number of values to return (ignored if `end` is set). Aliases: `count`, `c`, `l`
    * @param {Format=} [format] - Format of the output
-   * @param {{ signal?: AbortSignal, onValue?: (value: AnySeriesData | string) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: AnySeriesData | string) => void, cache?: boolean }} [options]
    * @returns {Promise<AnySeriesData | string>}
    */
-  async getSeries(series, index, start, end, limit, format, { signal, onValue } = {}) {
+  async getSeries(series, index, start, end, limit, format, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (start !== undefined) params.set('start', String(start));
     if (end !== undefined) params.set('end', String(end));
@@ -10712,8 +11256,8 @@ class BrkClient extends BrkClientBase {
     if (format !== undefined) params.set('format', String(format));
     const query = params.toString();
     const path = `/api/series/${series}/${index}${query ? '?' + query : ''}`;
-    if (format === 'csv') return this.getText(path, { signal, onValue });
-    return this.getJson(path, { signal, onValue });
+    if (format === 'csv') return this.getText(path, { signal, onValue, cache });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10729,10 +11273,10 @@ class BrkClient extends BrkClientBase {
    * @param {RangeIndex=} [end] - Exclusive end: integer index, date (YYYY-MM-DD), or timestamp (ISO 8601). Negative integers count from end. Aliases: `to`, `t`, `e`
    * @param {Limit=} [limit] - Maximum number of values to return (ignored if `end` is set). Aliases: `count`, `c`, `l`
    * @param {Format=} [format] - Format of the output
-   * @param {{ signal?: AbortSignal, onValue?: (value: boolean[] | string) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: boolean[] | string) => void, cache?: boolean }} [options]
    * @returns {Promise<boolean[] | string>}
    */
-  async getSeriesData(series, index, start, end, limit, format, { signal, onValue } = {}) {
+  async getSeriesData(series, index, start, end, limit, format, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (start !== undefined) params.set('start', String(start));
     if (end !== undefined) params.set('end', String(end));
@@ -10740,8 +11284,8 @@ class BrkClient extends BrkClientBase {
     if (format !== undefined) params.set('format', String(format));
     const query = params.toString();
     const path = `/api/series/${series}/${index}/data${query ? '?' + query : ''}`;
-    if (format === 'csv') return this.getText(path, { signal, onValue });
-    return this.getJson(path, { signal, onValue });
+    if (format === 'csv') return this.getText(path, { signal, onValue, cache });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10753,12 +11297,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {SeriesName} series - Series name
    * @param {Index} index - Aggregation index
-   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void, cache?: boolean }} [options]
    * @returns {Promise<*>}
    */
-  async getSeriesLatest(series, index, { signal, onValue } = {}) {
+  async getSeriesLatest(series, index, { signal, onValue, cache } = {}) {
     const path = `/api/series/${series}/${index}/latest`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10770,12 +11314,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {SeriesName} series - Series name
    * @param {Index} index - Aggregation index
-   * @param {{ signal?: AbortSignal, onValue?: (value: number) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: number) => void, cache?: boolean }} [options]
    * @returns {Promise<number>}
    */
-  async getSeriesLen(series, index, { signal, onValue } = {}) {
+  async getSeriesLen(series, index, { signal, onValue, cache } = {}) {
     const path = `/api/series/${series}/${index}/len`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10787,12 +11331,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {SeriesName} series - Series name
    * @param {Index} index - Aggregation index
-   * @param {{ signal?: AbortSignal, onValue?: (value: Version) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Version) => void, cache?: boolean }} [options]
    * @returns {Promise<Version>}
    */
-  async getSeriesVersion(series, index, { signal, onValue } = {}) {
+  async getSeriesVersion(series, index, { signal, onValue, cache } = {}) {
     const path = `/api/series/${series}/${index}/version`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10808,10 +11352,10 @@ class BrkClient extends BrkClientBase {
    * @param {RangeIndex=} [end] - Exclusive end: integer index, date (YYYY-MM-DD), or timestamp (ISO 8601). Negative integers count from end. Aliases: `to`, `t`, `e`
    * @param {Limit=} [limit] - Maximum number of values to return (ignored if `end` is set). Aliases: `count`, `c`, `l`
    * @param {Format=} [format] - Format of the output
-   * @param {{ signal?: AbortSignal, onValue?: (value: AnySeriesData[] | string) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: AnySeriesData[] | string) => void, cache?: boolean }} [options]
    * @returns {Promise<AnySeriesData[] | string>}
    */
-  async getSeriesBulk(series, index, start, end, limit, format, { signal, onValue } = {}) {
+  async getSeriesBulk(series, index, start, end, limit, format, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     params.set('series', String(series));
     params.set('index', String(index));
@@ -10821,8 +11365,8 @@ class BrkClient extends BrkClientBase {
     if (format !== undefined) params.set('format', String(format));
     const query = params.toString();
     const path = `/api/series/bulk${query ? '?' + query : ''}`;
-    if (format === 'csv') return this.getText(path, { signal, onValue });
-    return this.getJson(path, { signal, onValue });
+    if (format === 'csv') return this.getText(path, { signal, onValue, cache });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10831,12 +11375,12 @@ class BrkClient extends BrkClientBase {
    * Cohorts for which URPD data is available. Returns names like `all`, `sth`, `lth`, `utxos_under_1h_old`.
    *
    * Endpoint: `GET /api/urpd`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Cohort[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Cohort[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Cohort[]>}
    */
-  async listUrpdCohorts({ signal, onValue } = {}) {
+  async listUrpdCohorts({ signal, onValue, cache } = {}) {
     const path = `/api/urpd`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10847,12 +11391,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/urpd/{cohort}/dates`
    *
    * @param {Cohort} cohort
-   * @param {{ signal?: AbortSignal, onValue?: (value: Date[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Date[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Date[]>}
    */
-  async listUrpdDates(cohort, { signal, onValue } = {}) {
+  async listUrpdDates(cohort, { signal, onValue, cache } = {}) {
     const path = `/api/urpd/${cohort}/dates`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10866,15 +11410,15 @@ class BrkClient extends BrkClientBase {
    *
    * @param {Cohort} cohort
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
-   * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpd(cohort, agg, { signal, onValue } = {}) {
+  async getUrpd(cohort, agg, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
     const query = params.toString();
     const path = `/api/urpd/${cohort}${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10889,15 +11433,15 @@ class BrkClient extends BrkClientBase {
    * @param {Cohort} cohort
    * @param {string} date
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
-   * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpdAt(cohort, date, agg, { signal, onValue } = {}) {
+  async getUrpdAt(cohort, date, agg, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
     const query = params.toString();
     const path = `/api/urpd/${cohort}/${date}${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10908,12 +11452,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-difficulty-adjustment)*
    *
    * Endpoint: `GET /api/v1/difficulty-adjustment`
-   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustment) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustment) => void, cache?: boolean }} [options]
    * @returns {Promise<DifficultyAdjustment>}
    */
-  async getDifficultyAdjustment({ signal, onValue } = {}) {
+  async getDifficultyAdjustment({ signal, onValue, cache } = {}) {
     const path = `/api/v1/difficulty-adjustment`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10924,12 +11468,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
    *
    * Endpoint: `GET /api/v1/prices`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Prices) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Prices) => void, cache?: boolean }} [options]
    * @returns {Promise<Prices>}
    */
-  async getPrices({ signal, onValue } = {}) {
+  async getPrices({ signal, onValue, cache } = {}) {
     const path = `/api/v1/prices`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10942,15 +11486,32 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/historical-price`
    *
    * @param {Timestamp=} [timestamp]
-   * @param {{ signal?: AbortSignal, onValue?: (value: HistoricalPrice) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: HistoricalPrice) => void, cache?: boolean }} [options]
    * @returns {Promise<HistoricalPrice>}
    */
-  async getHistoricalPrice(timestamp, { signal, onValue } = {}) {
+  async getHistoricalPrice(timestamp, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     if (timestamp !== undefined) params.set('timestamp', String(timestamp));
     const query = params.toString();
     const path = `/api/v1/historical-price${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Address hash-prefix matches
+   *
+   * Find addresses by address type and address-payload hash prefix. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata for the returned addresses through `/api/address/{address}`.
+   *
+   * Endpoint: `GET /api/address/hash-prefix/{addr_type}/{prefix}`
+   *
+   * @param {OutputType} addr_type
+   * @param {string} prefix
+   * @param {{ signal?: AbortSignal, onValue?: (value: AddrHashPrefixMatches) => void, cache?: boolean }} [options]
+   * @returns {Promise<AddrHashPrefixMatches>}
+   */
+  async getAddressHashPrefixMatches(addr_type, prefix, { signal, onValue, cache } = {}) {
+    const path = `/api/address/hash-prefix/${addr_type}/${prefix}`;
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10963,12 +11524,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/address/{address}`
    *
    * @param {Addr} address
-   * @param {{ signal?: AbortSignal, onValue?: (value: AddrStats) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: AddrStats) => void, cache?: boolean }} [options]
    * @returns {Promise<AddrStats>}
    */
-  async getAddress(address, { signal, onValue } = {}) {
+  async getAddress(address, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10981,12 +11542,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/address/{address}/txs`
    *
    * @param {Addr} address
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getAddressTxs(address, { signal, onValue } = {}) {
+  async getAddressTxs(address, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}/txs`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -10999,12 +11560,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/address/{address}/txs/chain`
    *
    * @param {Addr} address
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getAddressConfirmedTxs(address, { signal, onValue } = {}) {
+  async getAddressConfirmedTxs(address, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}/txs/chain`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11018,12 +11579,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {Addr} address
    * @param {Txid} after_txid - Last txid from the previous page (return transactions strictly older than this)
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getAddressConfirmedTxsAfter(address, after_txid, { signal, onValue } = {}) {
+  async getAddressConfirmedTxsAfter(address, after_txid, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}/txs/chain/${after_txid}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11036,12 +11597,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/address/{address}/txs/mempool`
    *
    * @param {Addr} address
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getAddressMempoolTxs(address, { signal, onValue } = {}) {
+  async getAddressMempoolTxs(address, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}/txs/mempool`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11054,12 +11615,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/address/{address}/utxo`
    *
    * @param {Addr} address
-   * @param {{ signal?: AbortSignal, onValue?: (value: Utxo[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Utxo[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Utxo[]>}
    */
-  async getAddressUtxos(address, { signal, onValue } = {}) {
+  async getAddressUtxos(address, { signal, onValue, cache } = {}) {
     const path = `/api/address/${address}/utxo`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11072,12 +11633,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/validate-address/{address}`
    *
    * @param {string} address - Bitcoin address to validate (can be any string)
-   * @param {{ signal?: AbortSignal, onValue?: (value: AddrValidation) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: AddrValidation) => void, cache?: boolean }} [options]
    * @returns {Promise<AddrValidation>}
    */
-  async validateAddress(address, { signal, onValue } = {}) {
+  async validateAddress(address, { signal, onValue, cache } = {}) {
     const path = `/api/v1/validate-address/${address}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11090,12 +11651,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfo>}
    */
-  async getBlock(hash, { signal, onValue } = {}) {
+  async getBlock(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11108,12 +11669,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/block/{hash}`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfoV1>}
    */
-  async getBlockV1(hash, { signal, onValue } = {}) {
+  async getBlockV1(hash, { signal, onValue, cache } = {}) {
     const path = `/api/v1/block/${hash}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11126,12 +11687,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}/header`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void, cache?: boolean }} [options]
    * @returns {Promise<Hex>}
    */
-  async getBlockHeader(hash, { signal, onValue } = {}) {
+  async getBlockHeader(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/header`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11144,12 +11705,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block-height/{height}`
    *
    * @param {Height} height
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockHash) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockHash) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockHash>}
    */
-  async getBlockByHeight(height, { signal, onValue } = {}) {
+  async getBlockByHeight(height, { signal, onValue, cache } = {}) {
     const path = `/api/block-height/${height}`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11162,12 +11723,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/blocks/timestamp/{timestamp}`
    *
    * @param {Timestamp} timestamp
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTimestamp) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTimestamp) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockTimestamp>}
    */
-  async getBlockByTimestamp(timestamp, { signal, onValue } = {}) {
+  async getBlockByTimestamp(timestamp, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/blocks/timestamp/${timestamp}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11180,12 +11741,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}/raw`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: Uint8Array) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Uint8Array) => void, cache?: boolean }} [options]
    * @returns {Promise<Uint8Array>}
    */
-  async getBlockRaw(hash, { signal, onValue } = {}) {
+  async getBlockRaw(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/raw`;
-    return this.getBytes(path, { signal, onValue });
+    return this.getBytes(path, { signal, onValue, cache });
   }
 
   /**
@@ -11198,12 +11759,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}/status`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockStatus) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockStatus) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockStatus>}
    */
-  async getBlockStatus(hash, { signal, onValue } = {}) {
+  async getBlockStatus(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/status`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11214,12 +11775,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-tip-height)*
    *
    * Endpoint: `GET /api/blocks/tip/height`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Height) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Height) => void, cache?: boolean }} [options]
    * @returns {Promise<Height>}
    */
-  async getBlockTipHeight({ signal, onValue } = {}) {
+  async getBlockTipHeight({ signal, onValue, cache } = {}) {
     const path = `/api/blocks/tip/height`;
-    return Number(await this.getText(path, { signal, onValue: onValue ? (v) => onValue(Number(v)) : undefined }));
+    return Number(await this.getText(path, { signal, cache, onValue: onValue ? (v) => onValue(Number(v)) : undefined }));
   }
 
   /**
@@ -11230,12 +11791,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-tip-hash)*
    *
    * Endpoint: `GET /api/blocks/tip/hash`
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockHash) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockHash) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockHash>}
    */
-  async getBlockTipHash({ signal, onValue } = {}) {
+  async getBlockTipHash({ signal, onValue, cache } = {}) {
     const path = `/api/blocks/tip/hash`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11249,12 +11810,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {BlockHash} hash - Bitcoin block hash
    * @param {BlockTxIndex} index - Transaction index within the block (0-based)
-   * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void, cache?: boolean }} [options]
    * @returns {Promise<Txid>}
    */
-  async getBlockTxid(hash, index, { signal, onValue } = {}) {
+  async getBlockTxid(hash, index, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/txid/${index}`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11267,12 +11828,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}/txids`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: Txid[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Txid[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Txid[]>}
    */
-  async getBlockTxids(hash, { signal, onValue } = {}) {
+  async getBlockTxids(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/txids`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11285,12 +11846,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/block/{hash}/txs`
    *
    * @param {BlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getBlockTxs(hash, { signal, onValue } = {}) {
+  async getBlockTxs(hash, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/txs`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11304,12 +11865,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {BlockHash} hash - Bitcoin block hash
    * @param {BlockTxIndex} start_index - Starting transaction index within the block (0-based)
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
    */
-  async getBlockTxsFromIndex(hash, start_index, { signal, onValue } = {}) {
+  async getBlockTxsFromIndex(hash, start_index, { signal, onValue, cache } = {}) {
     const path = `/api/block/${hash}/txs/${start_index}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11320,12 +11881,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-blocks)*
    *
    * Endpoint: `GET /api/blocks`
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfo[]>}
    */
-  async getBlocks({ signal, onValue } = {}) {
+  async getBlocks({ signal, onValue, cache } = {}) {
     const path = `/api/blocks`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11338,12 +11899,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/blocks/{height}`
    *
    * @param {Height} height
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfo[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfo[]>}
    */
-  async getBlocksFromHeight(height, { signal, onValue } = {}) {
+  async getBlocksFromHeight(height, { signal, onValue, cache } = {}) {
     const path = `/api/blocks/${height}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11354,12 +11915,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-blocks-v1)*
    *
    * Endpoint: `GET /api/v1/blocks`
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfoV1[]>}
    */
-  async getBlocksV1({ signal, onValue } = {}) {
+  async getBlocksV1({ signal, onValue, cache } = {}) {
     const path = `/api/v1/blocks`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11372,12 +11933,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/blocks/{height}`
    *
    * @param {Height} height
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfoV1[]>}
    */
-  async getBlocksV1FromHeight(height, { signal, onValue } = {}) {
+  async getBlocksV1FromHeight(height, { signal, onValue, cache } = {}) {
     const path = `/api/v1/blocks/${height}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11388,12 +11949,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mining-pools)*
    *
    * Endpoint: `GET /api/v1/mining/pools`
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolInfo[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolInfo[]) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolInfo[]>}
    */
-  async getPools({ signal, onValue } = {}) {
+  async getPools({ signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pools`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11406,12 +11967,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/pools/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolsSummary) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolsSummary) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolsSummary>}
    */
-  async getPoolStats(time_period, { signal, onValue } = {}) {
+  async getPoolStats(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pools/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11424,12 +11985,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/pool/{slug}`
    *
    * @param {PoolSlug} slug
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolDetail) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolDetail) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolDetail>}
    */
-  async getPool(slug, { signal, onValue } = {}) {
+  async getPool(slug, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pool/${slug}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11440,12 +12001,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mining-pool-hashrates)*
    *
    * Endpoint: `GET /api/v1/mining/hashrate/pools`
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolHashrateEntry[]>}
    */
-  async getPoolsHashrate({ signal, onValue } = {}) {
+  async getPoolsHashrate({ signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/hashrate/pools`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11458,12 +12019,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/hashrate/pools/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolHashrateEntry[]>}
    */
-  async getPoolsHashrateByPeriod(time_period, { signal, onValue } = {}) {
+  async getPoolsHashrateByPeriod(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/hashrate/pools/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11476,12 +12037,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/pool/{slug}/hashrate`
    *
    * @param {PoolSlug} slug
-   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: PoolHashrateEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<PoolHashrateEntry[]>}
    */
-  async getPoolHashrate(slug, { signal, onValue } = {}) {
+  async getPoolHashrate(slug, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pool/${slug}/hashrate`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11494,12 +12055,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/pool/{slug}/blocks`
    *
    * @param {PoolSlug} slug
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfoV1[]>}
    */
-  async getPoolBlocks(slug, { signal, onValue } = {}) {
+  async getPoolBlocks(slug, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pool/${slug}/blocks`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11513,12 +12074,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {PoolSlug} slug
    * @param {Height} height
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockInfoV1[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockInfoV1[]>}
    */
-  async getPoolBlocksFrom(slug, height, { signal, onValue } = {}) {
+  async getPoolBlocksFrom(slug, height, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/pool/${slug}/blocks/${height}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11529,12 +12090,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-hashrate)*
    *
    * Endpoint: `GET /api/v1/mining/hashrate`
-   * @param {{ signal?: AbortSignal, onValue?: (value: HashrateSummary) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: HashrateSummary) => void, cache?: boolean }} [options]
    * @returns {Promise<HashrateSummary>}
    */
-  async getHashrate({ signal, onValue } = {}) {
+  async getHashrate({ signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/hashrate`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11547,12 +12108,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/hashrate/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: HashrateSummary) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: HashrateSummary) => void, cache?: boolean }} [options]
    * @returns {Promise<HashrateSummary>}
    */
-  async getHashrateByPeriod(time_period, { signal, onValue } = {}) {
+  async getHashrateByPeriod(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/hashrate/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11563,12 +12124,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-difficulty-adjustments)*
    *
    * Endpoint: `GET /api/v1/mining/difficulty-adjustments`
-   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustmentEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustmentEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<DifficultyAdjustmentEntry[]>}
    */
-  async getDifficultyAdjustments({ signal, onValue } = {}) {
+  async getDifficultyAdjustments({ signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/difficulty-adjustments`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11581,12 +12142,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/difficulty-adjustments/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustmentEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: DifficultyAdjustmentEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<DifficultyAdjustmentEntry[]>}
    */
-  async getDifficultyAdjustmentsByPeriod(time_period, { signal, onValue } = {}) {
+  async getDifficultyAdjustmentsByPeriod(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/difficulty-adjustments/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11599,12 +12160,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/reward-stats/{block_count}`
    *
    * @param {number} block_count - Number of recent blocks to include
-   * @param {{ signal?: AbortSignal, onValue?: (value: RewardStats) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: RewardStats) => void, cache?: boolean }} [options]
    * @returns {Promise<RewardStats>}
    */
-  async getRewardStats(block_count, { signal, onValue } = {}) {
+  async getRewardStats(block_count, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/reward-stats/${block_count}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11617,12 +12178,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/blocks/fees/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockFeesEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockFeesEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockFeesEntry[]>}
    */
-  async getBlockFees(time_period, { signal, onValue } = {}) {
+  async getBlockFees(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/blocks/fees/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11635,12 +12196,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/blocks/rewards/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockRewardsEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockRewardsEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockRewardsEntry[]>}
    */
-  async getBlockRewards(time_period, { signal, onValue } = {}) {
+  async getBlockRewards(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/blocks/rewards/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11653,12 +12214,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/blocks/fee-rates/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockFeeRatesEntry[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockFeeRatesEntry[]) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockFeeRatesEntry[]>}
    */
-  async getBlockFeeRates(time_period, { signal, onValue } = {}) {
+  async getBlockFeeRates(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/blocks/fee-rates/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11671,12 +12232,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mining/blocks/sizes-weights/{time_period}`
    *
    * @param {TimePeriod} time_period
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockSizesWeights) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockSizesWeights) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockSizesWeights>}
    */
-  async getBlockSizesWeights(time_period, { signal, onValue } = {}) {
+  async getBlockSizesWeights(time_period, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mining/blocks/sizes-weights/${time_period}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11687,12 +12248,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
    *
    * Endpoint: `GET /api/v1/fees/mempool-blocks`
-   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolBlock[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolBlock[]) => void, cache?: boolean }} [options]
    * @returns {Promise<MempoolBlock[]>}
    */
-  async getMempoolBlocks({ signal, onValue } = {}) {
+  async getMempoolBlocks({ signal, onValue, cache } = {}) {
     const path = `/api/v1/fees/mempool-blocks`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11703,12 +12264,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees)*
    *
    * Endpoint: `GET /api/v1/fees/recommended`
-   * @param {{ signal?: AbortSignal, onValue?: (value: RecommendedFees) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: RecommendedFees) => void, cache?: boolean }} [options]
    * @returns {Promise<RecommendedFees>}
    */
-  async getRecommendedFees({ signal, onValue } = {}) {
+  async getRecommendedFees({ signal, onValue, cache } = {}) {
     const path = `/api/v1/fees/recommended`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11719,12 +12280,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees-precise)*
    *
    * Endpoint: `GET /api/v1/fees/precise`
-   * @param {{ signal?: AbortSignal, onValue?: (value: RecommendedFees) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: RecommendedFees) => void, cache?: boolean }} [options]
    * @returns {Promise<RecommendedFees>}
    */
-  async getPreciseFees({ signal, onValue } = {}) {
+  async getPreciseFees({ signal, onValue, cache } = {}) {
     const path = `/api/v1/fees/precise`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11735,12 +12296,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool)*
    *
    * Endpoint: `GET /api/mempool`
-   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolInfo) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolInfo) => void, cache?: boolean }} [options]
    * @returns {Promise<MempoolInfo>}
    */
-  async getMempool({ signal, onValue } = {}) {
+  async getMempool({ signal, onValue, cache } = {}) {
     const path = `/api/mempool`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11749,12 +12310,12 @@ class BrkClient extends BrkClientBase {
    * Returns an opaque hash that changes whenever the projected next block changes. Same value as the mempool ETag. Useful as a freshness/liveness signal: if it stays constant for tens of seconds on a live network, the mempool sync loop has stalled.
    *
    * Endpoint: `GET /api/mempool/hash`
-   * @param {{ signal?: AbortSignal, onValue?: (value: NextBlockHash) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: NextBlockHash) => void, cache?: boolean }} [options]
    * @returns {Promise<NextBlockHash>}
    */
-  async getMempoolHash({ signal, onValue } = {}) {
+  async getMempoolHash({ signal, onValue, cache } = {}) {
     const path = `/api/mempool/hash`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11765,12 +12326,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-transaction-ids)*
    *
    * Endpoint: `GET /api/mempool/txids`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Txid[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Txid[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Txid[]>}
    */
-  async getMempoolTxids({ signal, onValue } = {}) {
+  async getMempoolTxids({ signal, onValue, cache } = {}) {
     const path = `/api/mempool/txids`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11781,12 +12342,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-recent)*
    *
    * Endpoint: `GET /api/mempool/recent`
-   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolRecentTx[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: MempoolRecentTx[]) => void, cache?: boolean }} [options]
    * @returns {Promise<MempoolRecentTx[]>}
    */
-  async getMempoolRecent({ signal, onValue } = {}) {
+  async getMempoolRecent({ signal, onValue, cache } = {}) {
     const path = `/api/mempool/recent`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11797,12 +12358,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-replacements)*
    *
    * Endpoint: `GET /api/v1/replacements`
-   * @param {{ signal?: AbortSignal, onValue?: (value: ReplacementNode[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: ReplacementNode[]) => void, cache?: boolean }} [options]
    * @returns {Promise<ReplacementNode[]>}
    */
-  async getReplacements({ signal, onValue } = {}) {
+  async getReplacements({ signal, onValue, cache } = {}) {
     const path = `/api/v1/replacements`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11813,12 +12374,12 @@ class BrkClient extends BrkClientBase {
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-fullrbf-replacements)*
    *
    * Endpoint: `GET /api/v1/fullrbf/replacements`
-   * @param {{ signal?: AbortSignal, onValue?: (value: ReplacementNode[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: ReplacementNode[]) => void, cache?: boolean }} [options]
    * @returns {Promise<ReplacementNode[]>}
    */
-  async getFullrbfReplacements({ signal, onValue } = {}) {
+  async getFullrbfReplacements({ signal, onValue, cache } = {}) {
     const path = `/api/v1/fullrbf/replacements`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11827,12 +12388,12 @@ class BrkClient extends BrkClientBase {
    * Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
    *
    * Endpoint: `GET /api/v1/mempool/block-template`
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplate) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplate) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockTemplate>}
    */
-  async getBlockTemplate({ signal, onValue } = {}) {
+  async getBlockTemplate({ signal, onValue, cache } = {}) {
     const path = `/api/v1/mempool/block-template`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11843,12 +12404,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/mempool/block-template/diff/{hash}`
    *
    * @param {NextBlockHash} hash
-   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplateDiff) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplateDiff) => void, cache?: boolean }} [options]
    * @returns {Promise<BlockTemplateDiff>}
    */
-  async getBlockTemplateDiff(hash, { signal, onValue } = {}) {
+  async getBlockTemplateDiff(hash, { signal, onValue, cache } = {}) {
     const path = `/api/v1/mempool/block-template/diff/${hash}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11857,12 +12418,86 @@ class BrkClient extends BrkClientBase {
    * Returns the current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the last 12 blocks plus mempool.
    *
    * Endpoint: `GET /api/mempool/price`
-   * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean }} [options]
    * @returns {Promise<Dollars>}
    */
-  async getLivePrice({ signal, onValue } = {}) {
+  async getLivePrice({ signal, onValue, cache } = {}) {
     const path = `/api/mempool/price`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Live BTC/USD price
+   *
+   * Current BTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
+   *
+   * Endpoint: `GET /api/oracle/price`
+   * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean }} [options]
+   * @returns {Promise<Dollars>}
+   */
+  async getOraclePrice({ signal, onValue, cache } = {}) {
+    const path = `/api/oracle/price`;
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Live payment output histogram
+   *
+   * Live smoothed histogram of oracle-eligible payment outputs, binned by output value on the oracle log scale. It combines the committed oracle window with the forming mempool block. A flat array of log-scale bins.
+   *
+   * Endpoint: `GET /api/oracle/histogram/payments/live`
+   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean }} [options]
+   * @returns {Promise<number[]>}
+   */
+  async getOracleHistogramPaymentsLive({ signal, onValue, cache } = {}) {
+    const path = `/api/oracle/histogram/payments/live`;
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Payment output histogram at height or day
+   *
+   * Smoothed histogram of oracle-eligible payment outputs for a confirmed point. A block height (`840000`) gives that block's oracle payment histogram; a calendar date (`YYYY-MM-DD`) gives the average of that day's per-block payment histograms. A flat array of log-scale bins.
+   *
+   * Endpoint: `GET /api/oracle/histogram/payments/{point}`
+   *
+   * @param {string} point
+   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean }} [options]
+   * @returns {Promise<number[]>}
+   */
+  async getOracleHistogramPayments(point, { signal, onValue, cache } = {}) {
+    const path = `/api/oracle/histogram/payments/${point}`;
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Live output value histogram
+   *
+   * Live unfiltered output value histogram for the forming mempool block. Every live output is binned by value on the oracle log scale; no oracle payment filters are applied. A flat array of log-scale bins, all zero when no mempool is configured.
+   *
+   * Endpoint: `GET /api/oracle/histogram/outputs/live`
+   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean }} [options]
+   * @returns {Promise<number[]>}
+   */
+  async getOracleHistogramOutputsLive({ signal, onValue, cache } = {}) {
+    const path = `/api/oracle/histogram/outputs/live`;
+    return this.getJson(path, { signal, onValue, cache });
+  }
+
+  /**
+   * Output value histogram at height or day
+   *
+   * Unfiltered output value histogram for a confirmed point. A block height (`840000`) gives every output in that block, coinbase included, binned by value on the oracle log scale; a calendar date (`YYYY-MM-DD`) sums every block that day. A flat array of log-scale bins.
+   *
+   * Endpoint: `GET /api/oracle/histogram/outputs/{point}`
+   *
+   * @param {string} point
+   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean }} [options]
+   * @returns {Promise<number[]>}
+   */
+  async getOracleHistogramOutputs(point, { signal, onValue, cache } = {}) {
+    const path = `/api/oracle/histogram/outputs/${point}`;
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11873,12 +12508,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx-index/{index}`
    *
    * @param {TxIndex} index
-   * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void, cache?: boolean }} [options]
    * @returns {Promise<Txid>}
    */
-  async getTxByIndex(index, { signal, onValue } = {}) {
+  async getTxByIndex(index, { signal, onValue, cache } = {}) {
     const path = `/api/tx-index/${index}`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11891,12 +12526,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/cpfp/{txid}`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: CpfpInfo) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: CpfpInfo) => void, cache?: boolean }} [options]
    * @returns {Promise<CpfpInfo>}
    */
-  async getCpfp(txid, { signal, onValue } = {}) {
+  async getCpfp(txid, { signal, onValue, cache } = {}) {
     const path = `/api/v1/cpfp/${txid}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11909,12 +12544,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/tx/{txid}/rbf`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: RbfResponse) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: RbfResponse) => void, cache?: boolean }} [options]
    * @returns {Promise<RbfResponse>}
    */
-  async getTxRbf(txid, { signal, onValue } = {}) {
+  async getTxRbf(txid, { signal, onValue, cache } = {}) {
     const path = `/api/v1/tx/${txid}/rbf`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11927,12 +12562,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Transaction) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction>}
    */
-  async getTx(txid, { signal, onValue } = {}) {
+  async getTx(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -11945,12 +12580,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/hex`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void, cache?: boolean }} [options]
    * @returns {Promise<Hex>}
    */
-  async getTxHex(txid, { signal, onValue } = {}) {
+  async getTxHex(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/hex`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11963,12 +12598,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/merkleblock-proof`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Hex) => void, cache?: boolean }} [options]
    * @returns {Promise<Hex>}
    */
-  async getTxMerkleblockProof(txid, { signal, onValue } = {}) {
+  async getTxMerkleblockProof(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/merkleblock-proof`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -11981,12 +12616,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/merkle-proof`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: MerkleProof) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: MerkleProof) => void, cache?: boolean }} [options]
    * @returns {Promise<MerkleProof>}
    */
-  async getTxMerkleProof(txid, { signal, onValue } = {}) {
+  async getTxMerkleProof(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/merkle-proof`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -12000,12 +12635,12 @@ class BrkClient extends BrkClientBase {
    *
    * @param {Txid} txid - Transaction ID
    * @param {Vout} vout - Output index
-   * @param {{ signal?: AbortSignal, onValue?: (value: TxOutspend) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: TxOutspend) => void, cache?: boolean }} [options]
    * @returns {Promise<TxOutspend>}
    */
-  async getTxOutspend(txid, vout, { signal, onValue } = {}) {
+  async getTxOutspend(txid, vout, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/outspend/${vout}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -12018,12 +12653,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/outspends`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: TxOutspend[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: TxOutspend[]) => void, cache?: boolean }} [options]
    * @returns {Promise<TxOutspend[]>}
    */
-  async getTxOutspends(txid, { signal, onValue } = {}) {
+  async getTxOutspends(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/outspends`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -12036,12 +12671,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/raw`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: Uint8Array) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: Uint8Array) => void, cache?: boolean }} [options]
    * @returns {Promise<Uint8Array>}
    */
-  async getTxRaw(txid, { signal, onValue } = {}) {
+  async getTxRaw(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/raw`;
-    return this.getBytes(path, { signal, onValue });
+    return this.getBytes(path, { signal, onValue, cache });
   }
 
   /**
@@ -12054,12 +12689,12 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/tx/{txid}/status`
    *
    * @param {Txid} txid
-   * @param {{ signal?: AbortSignal, onValue?: (value: TxStatus) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: TxStatus) => void, cache?: boolean }} [options]
    * @returns {Promise<TxStatus>}
    */
-  async getTxStatus(txid, { signal, onValue } = {}) {
+  async getTxStatus(txid, { signal, onValue, cache } = {}) {
     const path = `/api/tx/${txid}/status`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -12072,15 +12707,15 @@ class BrkClient extends BrkClientBase {
    * Endpoint: `GET /api/v1/transaction-times`
    *
    * @param {Txid[]} txId - Transaction IDs to look up (max 250 per request).
-   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean }} [options]
    * @returns {Promise<number[]>}
    */
-  async getTransactionTimes(txId, { signal, onValue } = {}) {
+  async getTransactionTimes(txId, { signal, onValue, cache } = {}) {
     const params = new URLSearchParams();
     for (const _v of txId) params.append('txId[]', String(_v));
     const query = params.toString();
     const path = `/api/v1/transaction-times${query ? '?' + query : ''}`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
   /**
@@ -12107,12 +12742,12 @@ class BrkClient extends BrkClientBase {
    * Full OpenAPI 3.1 specification for this API.
    *
    * Endpoint: `GET /openapi.json`
-   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void, cache?: boolean }} [options]
    * @returns {Promise<*>}
    */
-  async getOpenapi({ signal, onValue } = {}) {
+  async getOpenapi({ signal, onValue, cache } = {}) {
     const path = `/openapi.json`;
-    return this.getText(path, { signal, onValue });
+    return this.getText(path, { signal, onValue, cache });
   }
 
   /**
@@ -12121,12 +12756,12 @@ class BrkClient extends BrkClientBase {
    * Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. Full spec available at `/openapi.json`.
    *
    * Endpoint: `GET /api.json`
-   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: *) => void, cache?: boolean }} [options]
    * @returns {Promise<*>}
    */
-  async getApi({ signal, onValue } = {}) {
+  async getApi({ signal, onValue, cache } = {}) {
     const path = `/api.json`;
-    return this.getJson(path, { signal, onValue });
+    return this.getJson(path, { signal, onValue, cache });
   }
 
 }

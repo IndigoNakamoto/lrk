@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use brk_chain::Chain;
-use brk_cohort::{ByAddrType, Filter};
+use brk_cohort::{ByAddrType, EntryPrice, Filter};
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
@@ -30,7 +30,7 @@ use crate::{
         PerBlockCumulativeRolling, WindowStartVec, Windows, WithAddrTypes,
         db_utils::{finalize_db, open_db},
     },
-    outputs, prices, transactions,
+    outputs, price, transactions,
 };
 
 use super::{
@@ -318,7 +318,7 @@ impl Vecs {
         outputs: &outputs::Vecs,
         transactions: &transactions::Vecs,
         blocks: &blocks::Vecs,
-        prices: &prices::Vecs,
+        prices: &price::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         self.db.sync_bg_tasks()?;
@@ -343,12 +343,13 @@ impl Vecs {
         // Try to resume from checkpoint, fall back to fresh start if needed
         let recovered_height = match start_mode {
             StartMode::Resume(height) => {
-                let stamp = Stamp::from(height);
+                // Roll back only on a reorg. A clean resume has nothing to undo, and an
+                // interrupted run wrote no rollback metadata (periodic flushes use
+                // with_changes=false; only the final write creates the `changes/` dir),
+                // so `rollback_before` would fail with `NotFound`.
+                let chain_state_rollback = (height < current_height)
+                    .then(|| self.supply_state.rollback_before(Stamp::from(height)));
 
-                // Rollback BytesVec state and capture results for validation
-                let chain_state_rollback = self.supply_state.rollback_before(stamp);
-
-                // Validate all rollbacks and imports are consistent
                 let recovered = recover_state(
                     height,
                     chain_state_rollback,
@@ -437,13 +438,34 @@ impl Vecs {
             let end = usize::from(recovered_height);
             debug!("building supply_state vec for {} heights", recovered_height);
             let supply_state_data: Vec<_> = self.supply_state.collect_range_at(0, end);
+            let capitalized_price_data: Vec<_> = self
+                .utxo_cohorts
+                .all
+                .metrics
+                .realized
+                .capitalized
+                .price
+                .cents
+                .height
+                .collect_range_at(0, end);
+
+            let mut entry_anchor = Cents::ZERO;
             chain_state = supply_state_data
                 .into_iter()
                 .enumerate()
-                .map(|(h, supply)| BlockState {
-                    supply,
-                    price: self.caches.prices[h],
-                    timestamp: self.caches.timestamps[h],
+                .map(|(h, supply)| {
+                    let price = self.caches.prices[h];
+                    let entry = EntryPrice::from_is_discount(
+                        entry_anchor == Cents::ZERO || price <= entry_anchor,
+                    );
+                    entry_anchor = capitalized_price_data[h];
+
+                    BlockState {
+                        supply,
+                        entry,
+                        price,
+                        timestamp: self.caches.timestamps[h],
+                    }
                 })
                 .collect();
             debug!("chain_state rebuilt");
@@ -475,6 +497,20 @@ impl Vecs {
             let prices = std::mem::take(&mut self.caches.prices);
             let timestamps = std::mem::take(&mut self.caches.timestamps);
             let price_range_max = std::mem::take(&mut self.caches.price_range_max);
+            let entry_anchor = starting_height
+                .decremented()
+                .and_then(|height| {
+                    self.utxo_cohorts
+                        .all
+                        .metrics
+                        .realized
+                        .capitalized
+                        .price
+                        .cents
+                        .height
+                        .collect_one(height)
+                })
+                .unwrap_or(Cents::ZERO);
 
             process_blocks(
                 self,
@@ -487,6 +523,7 @@ impl Vecs {
                 last_height,
                 &mut chain_state,
                 &mut tx_index_to_height,
+                entry_anchor,
                 &prices,
                 &timestamps,
                 &price_range_max,

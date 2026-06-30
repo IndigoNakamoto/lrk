@@ -6,8 +6,7 @@ use std::path::PathBuf;
 
 use brk_indexer::Indexer;
 use brk_oracle::{
-    Config, Histogram, Oracle, PRICES, START_HEIGHT, bin_to_cents, cents_to_bin,
-    default_eligible_bin,
+    bin_to_cents, cents_to_bin, Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};
@@ -94,7 +93,11 @@ impl YearStats {
     fn median_pct(&mut self) -> f64 {
         self.errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let n = self.errors.len();
-        if n == 0 { 0.0 } else { self.errors[n / 2] }
+        if n == 0 {
+            0.0
+        } else {
+            self.errors[n / 2]
+        }
     }
 
     fn percentile(&self, p: f64) -> f64 {
@@ -172,15 +175,7 @@ fn main() {
         .map(|ts| (**ts / 86400).saturating_sub(GENESIS_DAY) as usize)
         .collect();
 
-    let start_price: f64 = PRICES
-        .lines()
-        .nth(START_HEIGHT - 1)
-        .expect("prices.txt too short")
-        .parse()
-        .expect("Failed to parse seed price");
-
-    let config = Config::default();
-    let mut oracle = Oracle::new(cents_to_bin(start_price * 100.0), config);
+    let mut oracle = Oracle::from_seed();
 
     let total_txs = indexer.vecs.transactions.txid.len();
     let total_outputs = indexer.vecs.outputs.value.len();
@@ -201,7 +196,11 @@ fn main() {
     let mut oracle_candles: Vec<DayCandle> = Vec::new();
     let mut current_di: Option<usize> = None;
 
-    for h in START_HEIGHT..total_heights {
+    for h in START_HEIGHT_SLOW..total_heights {
+        if h == START_HEIGHT_FAST {
+            oracle.reconfigure(Config::default());
+        }
+
         let ft = first_tx_index[h];
         let next_ft = first_tx_index
             .get(h + 1)
@@ -235,23 +234,18 @@ fn main() {
             .output_type
             .collect_range_at(out_start, out_end);
 
-        // Drop every output of a tx carrying an OP_RETURN (protocol machinery).
-        let mut hist = Histogram::zeros();
-        for tx in 0..tx_count {
+        let tx_outputs = (0..tx_count).map(|tx| {
             let lo = tx_starts[tx] - out_start;
             let hi = tx_starts
                 .get(tx + 1)
                 .map(|s| s - out_start)
                 .unwrap_or(out_end - out_start);
-            if output_types[lo..hi].contains(&OutputType::OpReturn) {
-                continue;
-            }
-            for i in lo..hi {
-                if let Some(bin) = default_eligible_bin(values[i], output_types[i]) {
-                    hist.increment(bin as usize);
-                }
-            }
-        }
+            values[lo..hi]
+                .iter()
+                .copied()
+                .zip(output_types[lo..hi].iter().copied())
+        });
+        let hist = PaymentFilter::for_height(h).histogram(tx_outputs);
 
         let ref_bin = oracle.process_histogram(&hist);
         let oracle_price = bin_to_cents(ref_bin) as f64 / 100.0;
@@ -373,10 +367,12 @@ fn main() {
     println!("  brk_oracle accuracy report");
     println!("  ══════════════════════════");
     println!();
-    println!("  Config:       w12, alpha=2/7, search -9/+11, noisy/dust/round-btc filtered");
     println!(
-        "  Test range:   height {} .. {} ({} blocks)",
-        START_HEIGHT,
+        "  Config:       slow w40 alpha=0.10 until {START_HEIGHT_FAST}, then w12 alpha=2/7; shared payment filter"
+    );
+    println!(
+        "  Test range:   height {} .. {} ({} exchange-covered blocks)",
+        START_HEIGHT_SLOW,
         total_heights - 1,
         overall.total_blocks
     );

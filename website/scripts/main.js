@@ -9,6 +9,7 @@ import {
 } from "./panes/chart.js";
 import { init as initExplorer } from "./explorer/index.js";
 import { init as initSearch } from "./panes/search.js";
+import { setOption as setHeatmapOption } from "../src/heatmap/index.js";
 import { readStored, removeStored, writeToStorage } from "./utils/storage.js";
 import {
   asideElement,
@@ -21,6 +22,7 @@ import {
   navLabelElement,
   searchElement,
   layoutButtonElement,
+  heatmapElement,
   style,
 } from "./utils/elements.js";
 import { idle } from "./utils/timing.js";
@@ -111,7 +113,7 @@ initPrice(brk);
 
 onPrice((price) => {
   console.log("close:", price);
-  window.document.title = `${price.toLocaleString("en-us")} | ${window.location.host}`;
+  window.document.title = `${price.toLocaleString("en-us")} | bitview`;
 });
 
 const options = initOptions();
@@ -132,6 +134,8 @@ function initSelected() {
       /** @type {HTMLElement | undefined} */
       let element;
 
+      console.log(option);
+
       switch (option.kind) {
         case "explorer": {
           element = explorerElement;
@@ -140,6 +144,13 @@ function initSelected() {
             initExplorer(options.selected);
           }
           firstTimeLoadingExplorer = false;
+
+          break;
+        }
+        case "heatmap": {
+          element = heatmapElement;
+
+          setHeatmapOption(option);
 
           break;
         }
@@ -200,7 +211,9 @@ function initResizeBar() {
   const bar = getElementById("resize-bar");
   const key = "bar-width";
   const root = document.documentElement;
-  const max = () => parseFloat(style.getPropertyValue("--max-main-width")) / 100 * window.innerWidth;
+  const max = () =>
+    (parseFloat(style.getPropertyValue("--max-main-width")) / 100) *
+    window.innerWidth;
 
   const saved = readStored(key);
   if (saved) root.style.setProperty("--sidebar-width", `${saved}px`);

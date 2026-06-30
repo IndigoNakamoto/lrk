@@ -1,10 +1,12 @@
 mod addr_after_txid_param;
+mod addr_hash_prefix_param;
 mod addr_param;
 mod block_count_param;
 mod blockhash_param;
 mod blockhash_start_index;
 mod blockhash_tx_index;
 mod empty;
+mod height_or_date_param;
 mod height_param;
 mod next_block_hash_param;
 mod pool_slug_param;
@@ -19,12 +21,14 @@ mod urpd_params;
 mod validate_addr_param;
 
 pub use addr_after_txid_param::*;
+pub use addr_hash_prefix_param::*;
 pub use addr_param::*;
 pub use block_count_param::*;
 pub use blockhash_param::*;
 pub use blockhash_start_index::*;
 pub use blockhash_tx_index::*;
 pub use empty::*;
+pub use height_or_date_param::*;
 pub use height_param::*;
 pub use next_block_hash_param::*;
 pub use pool_slug_param::*;

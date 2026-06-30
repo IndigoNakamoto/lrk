@@ -104,6 +104,20 @@
  *
  * @typedef {Required<Omit<PartialChartOption, "top" | "bottom">> & ProcessedChartOptionAddons & ProcessedOptionAddons} ChartOption
  *
+ * @typedef {Object} PartialHeatmapOptionSpecific
+ * @property {"heatmap"} kind
+ * @property {string} title
+ * @property {HeatmapPointSource} points
+ * @property {HeatmapGridFactory} grid
+ * @property {HeatmapColorFn} color
+ * @property {HeatmapAxis} [axis]
+ * @property {HeatmapDefaults} [defaults]
+ * @property {HeatmapTooltipFn} [tooltip]
+ *
+ * @typedef {PartialOption & PartialHeatmapOptionSpecific} PartialHeatmapOption
+ *
+ * @typedef {PartialHeatmapOption & ProcessedOptionAddons} HeatmapOption
+ *
  * @typedef {Object} PartialUrlOptionSpecific
  * @property {"link"} [kind]
  * @property {() => string} url
@@ -114,9 +128,9 @@
  *
  * @typedef {Required<PartialUrlOption> & ProcessedOptionAddons} UrlOption
  *
- * @typedef {PartialExplorerOption | PartialChartOption | PartialUrlOption} AnyPartialOption
+ * @typedef {PartialExplorerOption | PartialChartOption | PartialUrlOption | PartialHeatmapOption} AnyPartialOption
  *
- * @typedef {ExplorerOption | ChartOption | UrlOption} Option
+ * @typedef {ExplorerOption | ChartOption | UrlOption | HeatmapOption} Option
  *
  * @typedef {(AnyPartialOption | PartialOptionsGroup)[]} PartialOptionsTree
  *
@@ -323,7 +337,6 @@
  * @property {AddrCountPattern} addressCount
  *
  * @typedef {UtxoCohortObject | AddrCohortObject | CohortWithoutRelative} CohortObject
- *
  *
  * @typedef {Object} AddrCohortGroupObject
  * @property {string} name

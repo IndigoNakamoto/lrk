@@ -5,6 +5,7 @@ import {
   createCohortFolderAll,
   createCohortFolderFull,
   createCohortFolderWithAdjusted,
+  createCohortFolderWithNupl,
   createCohortFolderLongTerm,
   createCohortFolderAgeRangeWithMatured,
   createCohortFolderBasicWithMarketCap,
@@ -25,6 +26,16 @@ import { createNetworkSection } from "./network.js";
 import { createMiningSection } from "./mining.js";
 import { createCointimeSection } from "./cointime.js";
 import { createInvestingSection } from "./investing.js";
+import {
+  oracleOutputsHeatmapOption,
+  oraclePaymentsHeatmapOption,
+} from "../../src/heatmap/oracle.js";
+import {
+  urpdAgeBandHeatmapFolders,
+  urpdAllHeatmapOptions,
+  urpdLthHeatmapOptions,
+  urpdSthHeatmapOptions,
+} from "../../src/heatmap/urpd.js";
 
 // Re-export types for external consumers
 export * from "./types.js";
@@ -43,6 +54,7 @@ export function createPartialOptions() {
     overAge,
     ageRange,
     epoch,
+    entry,
     utxosOverAmount,
     addressesOverAmount,
     utxosUnderAmount,
@@ -63,6 +75,7 @@ export function createPartialOptions() {
       kind: "explorer",
       title: "Explorer",
     },
+
     {
       name: "Charts",
       tree: [
@@ -87,6 +100,19 @@ export function createPartialOptions() {
             createCohortFolderFull(termShort),
 
             createCohortFolderLongTerm(termLong),
+
+            {
+              name: "Entry",
+              tree: [
+                createGroupedCohortFolderWithNupl({
+                  name: "Compare",
+                  title: "Veteran vs Rookie",
+                  list: entry,
+                  all: cohortAll,
+                }),
+                ...entry.map(createCohortFolderWithNupl),
+              ],
+            },
 
             {
               name: "UTXO Age",
@@ -291,6 +317,25 @@ export function createPartialOptions() {
         {
           name: "Frameworks",
           tree: [createCointimeSection()],
+        },
+      ],
+    },
+
+    {
+      name: "Heatmaps",
+      tree: [
+        {
+          name: "Output Values",
+          tree: [oracleOutputsHeatmapOption, oraclePaymentsHeatmapOption],
+        },
+        {
+          name: "Price Distributions",
+          tree: [
+            ...urpdAllHeatmapOptions,
+            { name: "STH", tree: urpdSthHeatmapOptions },
+            { name: "LTH", tree: urpdLthHeatmapOptions },
+            { name: "Age Bands", tree: urpdAgeBandHeatmapFolders },
+          ],
         },
       ],
     },

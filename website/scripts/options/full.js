@@ -1,5 +1,9 @@
 import { createPartialOptions } from "./partial.js";
-import { createButtonElement, createAnchorElement } from "../utils/dom.js";
+import {
+  createAnchorElement,
+  createButtonElement,
+  createSmall,
+} from "../utils/dom.js";
 import { pushHistory, resetParams } from "../utils/url.js";
 import { readStored, writeToStorage } from "../utils/storage.js";
 import { stringToId } from "../utils/format.js";
@@ -311,6 +315,14 @@ export function initOptions() {
           option.kind = anyPartial.kind;
           option.path = [];
           option.name = name;
+        } else if ("kind" in anyPartial && anyPartial.kind === "heatmap") {
+          Object.assign(
+            option,
+            /** @satisfies {HeatmapOption} */ ({
+              ...anyPartial,
+              path,
+            }),
+          );
         } else if ("url" in anyPartial) {
           Object.assign(
             option,
@@ -387,9 +399,7 @@ export function initOptions() {
         details.append(summary);
         summary.append(node.name);
 
-        const count = window.document.createElement("small");
-        count.textContent = `[${node.count.toLocaleString("en-us")}]`;
-        summary.append(count);
+        summary.append(createSmall(`[${node.count.toLocaleString("en-us")}]`));
 
         let built = false;
         if (autoOpen && isOnSelectedPath(node.path)) {
