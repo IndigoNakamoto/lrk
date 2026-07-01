@@ -5,10 +5,10 @@
  */
 export const Unit = /** @type {const} */ ({
   // Value units
-  sats: { id: "sats", name: "Satoshis" },
+  sats: { id: "sats", name: "Litoshis" },
   // Coin unit — name matches the active chain (Bitcoin or Litecoin).
   // Set via setCoinUnitName() once chain info is available from the server.
-  btc: { id: "btc", name: "Coin" },
+  btc: { id: "btc", name: "Litecoin" },
   usd: { id: "usd", name: "US Dollars" },
 
   // Ratios & percentages
@@ -42,7 +42,7 @@ export const Unit = /** @type {const} */ ({
   epoch: { id: "epoch", name: "Epoch" },
 
   // Fees
-  feeRate: { id: "feerate", name: "Sat/vByte" },
+  feeRate: { id: "feerate", name: "Lit/vByte" },
 
   // Rates
   perSec: { id: "per-sec", name: "Per Second" },
@@ -50,14 +50,14 @@ export const Unit = /** @type {const} */ ({
   // Cointime
   coinblocks: { id: "coinblocks", name: "Coinblocks" },
   coindays: { id: "coindays", name: "Coindays" },
-  satblocks: { id: "satblocks", name: "Satblocks" },
-  satdays: { id: "satdays", name: "Satdays" },
+  satblocks: { id: "satblocks", name: "Litblocks" },
+  satdays: { id: "satdays", name: "Litdays" },
 
   // Hash price/value
   usdPerThsPerDay: { id: "usd-ths-day", name: "USD/TH/s/Day" },
   usdPerPhsPerDay: { id: "usd-phs-day", name: "USD/PH/s/Day" },
-  satsPerThsPerDay: { id: "sats-ths-day", name: "Sats/TH/s/Day" },
-  satsPerPhsPerDay: { id: "sats-phs-day", name: "Sats/PH/s/Day" },
+  satsPerThsPerDay: { id: "sats-ths-day", name: "Lits/TH/s/Day" },
+  satsPerPhsPerDay: { id: "sats-phs-day", name: "Lits/PH/s/Day" },
 });
 
 /** @typedef {keyof typeof Unit} UnitKey */

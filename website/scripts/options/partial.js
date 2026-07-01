@@ -348,8 +348,8 @@ export function createPartialOptions() {
 
     {
       name: "Source",
-      url: () => "https://bitcoinresearchkit.org",
-      title: "Bitcoin Research Kit",
+      url: () => "https://litecoinresearchkit.org",
+      title: "Litecoin Research Kit",
     },
   ];
 }

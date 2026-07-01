@@ -1,9 +1,9 @@
 {
-  "name": "bitview",
-  "short_name": "bitview",
-  "description": "Bitcoin transparency, amplified",
+  "name": "liteview",
+  "short_name": "liteview",
+  "description": "Litecoin transparency, amplified",
   "categories": [
-    "bitcoin",
+    "litecoin",
     "on-chain",
     "data"
   ],
@@ -11,8 +11,8 @@
   "scope": "/",
   "display": "standalone",
   "handle_links": "preferred",
-  "theme_color": "#f26610",
-  "background_color": "#f26610",
+  "theme_color": "#345D9D",
+  "background_color": "#345D9D",
   "lang": "en",
   "icons": [
     {

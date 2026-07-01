@@ -354,7 +354,7 @@ function createConfirmedCube(block) {
   );
   const unit = document.createElement("p");
   unit.classList.add("dim");
-  unit.textContent = "sat/vB";
+  unit.textContent = "lit/vB";
   feesEl.append(avg, range, unit);
   leftFace.append(feesEl);
 
@@ -433,7 +433,7 @@ function createProjectedCube() {
   rangeP.append(rangeLo, span("-", "dim"), rangeHi);
   const unitP = document.createElement("p");
   unitP.classList.add("dim");
-  unitP.textContent = "sat/vB";
+  unitP.textContent = "lit/vB";
   cube.leftFace.append(medianP, rangeP, unitP);
 
   return {

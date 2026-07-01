@@ -8,19 +8,19 @@ const BINS = 2400;
 const MIN_LOG = -8;
 const BINS_PER_DECADE = 200;
 const AMOUNT_CHOICES = [
-  { label: "1 sat", key: "1sat", value: -8 },
-  { label: "10 sats", key: "10sats", value: -7 },
-  { label: "100 sats", key: "100sats", value: -6 },
-  { label: "1k sats", key: "1ksats", value: -5 },
-  { label: "10k sats", key: "10ksats", value: -4 },
-  { label: "100k sats", key: "100ksats", value: -3 },
-  { label: "0.01 BTC", key: "0.01btc", value: -2 },
-  { label: "0.1 BTC", key: "0.1btc", value: -1 },
-  { label: "1 BTC", key: "1btc", value: 0 },
-  { label: "10 BTC", key: "10btc", value: 1 },
-  { label: "100 BTC", key: "100btc", value: 2 },
-  { label: "1k BTC", key: "1kbtc", value: 3 },
-  { label: "10k BTC", key: "10kbtc", value: 4 },
+  { label: "1 lit", key: "1sat", value: -8 },
+  { label: "10 lits", key: "10sats", value: -7 },
+  { label: "100 lits", key: "100sats", value: -6 },
+  { label: "1k lits", key: "1ksats", value: -5 },
+  { label: "10k lits", key: "10ksats", value: -4 },
+  { label: "100k lits", key: "100ksats", value: -3 },
+  { label: "0.01 LTC", key: "0.01btc", value: -2 },
+  { label: "0.1 LTC", key: "0.1btc", value: -1 },
+  { label: "1 LTC", key: "1btc", value: 0 },
+  { label: "10 LTC", key: "10btc", value: 1 },
+  { label: "100 LTC", key: "100btc", value: 2 },
+  { label: "1k LTC", key: "1kbtc", value: 3 },
+  { label: "10k LTC", key: "10kbtc", value: 4 },
 ];
 
 export const oracleOutputsHeatmapOption = createOracleHeatmapOption(
@@ -135,6 +135,6 @@ function formatAmount(value) {
     if (choice) return choice.label;
   }
   const btc = 10 ** value;
-  if (btc >= 1) return `${formatCompact(btc)} BTC`;
-  return `${formatCompact(btc * 100_000_000)} sats`;
+  if (btc >= 1) return `${formatCompact(btc)} LTC`;
+  return `${formatCompact(btc * 100_000_000)} lits`;
 }

@@ -124,7 +124,7 @@ function renderInput(vin, coinbaseAscii) {
   }
   const amt = document.createElement("span");
   amt.classList.add("amount");
-  amt.textContent = vin.prevout ? `${formatBtc(vin.prevout.value)} BTC` : "";
+  amt.textContent = vin.prevout ? `${formatBtc(vin.prevout.value)} LTC` : "";
   row.append(addr, amt);
   return row;
 }
@@ -154,7 +154,7 @@ function renderOutput(vout) {
   }
   const amt = document.createElement("span");
   amt.classList.add("amount");
-  amt.textContent = `${formatBtc(vout.value)} BTC`;
+  amt.textContent = `${formatBtc(vout.value)} LTC`;
   row.append(addr, amt);
   return row;
 }
@@ -221,10 +221,10 @@ export function renderTx(tx, coinbaseAscii) {
   const feeInfo = document.createElement("span");
   const vsize = Math.ceil(tx.weight / 4);
   const feeRate = vsize > 0 ? tx.fee / vsize : 0;
-  feeInfo.textContent = `${formatFeeRate(feeRate)} sat/vB \u2013 ${tx.fee.toLocaleString()} sats`;
+  feeInfo.textContent = `${formatFeeRate(feeRate)} lit/vB \u2013 ${tx.fee.toLocaleString()} lits`;
   const total = document.createElement("span");
   total.classList.add("amount", "total");
-  total.textContent = `${formatBtc(totalOut)} BTC`;
+  total.textContent = `${formatBtc(totalOut)} LTC`;
   foot.append(feeInfo, total);
   el.append(foot);
 

@@ -336,7 +336,7 @@ function createBlockCube(block) {
   );
   const unit = document.createElement("p");
   unit.classList.add("dim");
-  unit.textContent = "sat/vB";
+  unit.textContent = "lit/vB";
   feesEl.append(avg, range, unit);
   leftFace.append(feesEl);
 

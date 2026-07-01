@@ -405,16 +405,16 @@ export function createMarketSection() {
     name: "Market",
     tree: [
       // Price
-      { name: "Price", title: "Bitcoin Price" },
+      { name: "Price", title: "Litecoin Price" },
 
-      // Sats/$
+      // Lits/$
       {
-        name: "Sats/$",
-        title: "Sats per Dollar",
+        name: "Lits/$",
+        title: "Lits per Dollar",
         bottom: [
           line({
             series: prices.spot.sats,
-            name: "Sats/$",
+            name: "Lits/$",
             unit: Unit.sats,
           }),
         ],

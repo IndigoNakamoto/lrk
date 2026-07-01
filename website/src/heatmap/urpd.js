@@ -263,7 +263,7 @@ function formatPrice(value) {
 
 /** @param {number} value */
 function formatBitcoin(value) {
-  return `${numberToShortUSFormat(value)} BTC`;
+  return `${numberToShortUSFormat(value)} LTC`;
 }
 
 /** @param {number} value */

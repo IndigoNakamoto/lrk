@@ -83,6 +83,6 @@ function updateMempoolCube(cube, block, position) {
   range.append(formatFeeRate(block.feeRange[0]), dash, formatFeeRate(block.feeRange[6]));
   const unit = document.createElement("p");
   unit.classList.add("dim");
-  unit.textContent = "sat/vB";
+  unit.textContent = "lit/vB";
   cube.leftFace.append(median, range, unit);
 }
