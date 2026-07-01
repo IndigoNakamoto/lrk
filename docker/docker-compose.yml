@@ -2,18 +2,16 @@ name: brk
 
 # Environment variables (set in a .env file or shell):
 #
-# Bitcoin (default):
-#   CHAIN_DATA_DIR  — path to bitcoin data directory   (default: /path/to/bitcoin)
-#   RPC_HOST        — bitcoind RPC host                (default: localhost)
-#   RPC_USER        — bitcoind RPC user                (default: bitcoin)
-#   RPC_PASSWORD    — bitcoind RPC password            (default: bitcoin)
-#
-# Litecoin:
+# Litecoin (default for this fork):
 #   CHAIN_DATA_DIR  — path to litecoin data directory  (default: /path/to/litecoin)
 #   RPC_HOST        — litecoind RPC host               (default: localhost)
 #   RPC_USER        — litecoind RPC user               (default: litecoin)
 #   RPC_PASSWORD    — litecoind RPC password           (default: litecoin)
-#   CHAIN           — "litecoin"                       (default: bitcoin)
+#   CHAIN           — "litecoin" or "bitcoin"          (default: litecoin)
+#
+# Bitcoin: set CHAIN=bitcoin plus the matching CHAIN_DATA_DIR/RPC_* values.
+# (Note: the image is built with the `litecoin` feature; a Bitcoin node works,
+#  but MWEB-specific decoding is only exercised on Litecoin.)
 
 services:
   brk:
@@ -26,25 +24,25 @@ services:
     ports:
       - 7070:3110
     volumes:
-      - ${CHAIN_DATA_DIR:-/path/to/bitcoin}:/chaindata:ro
+      - ${CHAIN_DATA_DIR:-/path/to/litecoin}:/chaindata:ro
       - ${BRK_DATA_VOLUME:-brk-data}:/home/brk/.brk
       # Bind mount alternative (uncomment and set BRK_DATA_DIR in .env):
       # - ${BRK_DATA_DIR:-./brk-data}:/home/brk/.brk
     command:
-      - --bitcoindir
+      - --chaindir
       - /chaindata
       - --blocksdir
       - /chaindata/blocks
       - --brkdir
       - /home/brk/.brk
       - --chain
-      - "${CHAIN:-bitcoin}"
+      - "${CHAIN:-litecoin}"
       - --rpcconnect
       - "${RPC_HOST:-localhost}"
       - --rpcuser
-      - "${RPC_USER:-bitcoin}"
+      - "${RPC_USER:-litecoin}"
       - --rpcpassword
-      - "${RPC_PASSWORD:-bitcoin}"
+      - "${RPC_PASSWORD:-litecoin}"
       # Cookie file alternative (uncomment and remove rpcuser/rpcpassword above):
       # - --rpccookiefile
       # - /chaindata/.cookie

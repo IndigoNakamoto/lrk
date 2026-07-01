@@ -6,8 +6,18 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
+# The server embeds the website at compile time via
+# include_dir!("$CARGO_MANIFEST_DIR/website") in brk_website, where that path
+# is a symlink to the top-level website/, which in turn symlinks
+# scripts/modules -> ../../modules. Both real directories must be in the build
+# context or the include_dir! step fails with a dangling symlink.
+COPY website website
+COPY modules modules
 
-RUN cargo build --release --locked
+# Litecoin requires the MWEB-aware decoder, selected via the `litecoin` feature
+# on brk_cli (the `brk` binary). A default build fails to index at the first
+# MWEB block.
+RUN cargo build --release --locked -p brk_cli --features litecoin
 
 FROM debian:bookworm-slim
 
