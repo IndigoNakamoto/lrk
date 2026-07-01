@@ -30,10 +30,17 @@ impl Vecs {
             exit,
         )?;
 
-        self.investor.cents.height.compute_subtract(
+        // investor_cap = realized_cap - thermo_cap, floored at 0. Thermo cap
+        // (cumulative miner revenue valued at spot) can exceed realized cap in
+        // early history — especially on chains priced from backfilled exchange
+        // data (Litecoin) — and a negative investor cap is meaningless, so
+        // saturate instead of using `compute_subtract`, which panics on
+        // unsigned underflow.
+        self.investor.cents.height.compute_transform2(
             starting_lengths.height,
             realized_cap_cents,
             &self.thermo.cents.height,
+            |(i, realized, thermo, ..)| (i, realized.checked_sub(thermo).unwrap_or_default()),
             exit,
         )?;
 
