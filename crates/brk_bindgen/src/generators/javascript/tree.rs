@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
+use brk_chain::Chain;
 use brk_types::TreeNode;
 
 use crate::{
@@ -87,6 +88,7 @@ pub fn generate_main_client(
     catalog: &TreeNode,
     metadata: &ClientMetadata,
     endpoints: &[Endpoint],
+    chain: Chain,
 ) {
     let pattern_lookup = metadata.pattern_lookup();
 
@@ -100,7 +102,7 @@ pub fn generate_main_client(
     writeln!(output, " */").unwrap();
     writeln!(output, "class BrkClient extends BrkClientBase {{").unwrap();
 
-    generate_static_constants(output);
+    generate_static_constants(output, chain);
 
     writeln!(output, "  /**").unwrap();
     writeln!(output, "   * @param {{BrkClientOptions|string}} options").unwrap();

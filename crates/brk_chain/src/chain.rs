@@ -90,6 +90,10 @@ pub struct ChainConstants {
     /// `"LTC-USD"`). Unlike Binance/Kraken, Coinbase serves full paginated daily
     /// history, so it is the primary source for chains without an on-chain oracle.
     pub coinbase_product: &'static str,
+    /// Bitfinex candle symbol (e.g. `"tBTCUSD"`, `"tLTCUSD"`). Bitfinex serves
+    /// daily history back to 2013 (earlier than Coinbase's 2016 listing) in a
+    /// single request, so it fills the early-history gap for exchange pricing.
+    pub bitfinex_symbol: &'static str,
     /// Calendar month (1 = Jan) of the `index_epoch` date. Used by client generators.
     pub index_epoch_month: u8,
     /// Calendar day of the `index_epoch` date. Used by client generators.
@@ -119,6 +123,7 @@ impl ChainConstants {
         kraken_pair: "XBTUSD",
         kraken_result_key: "XXBTZUSD",
         coinbase_product: "BTC-USD",
+        bitfinex_symbol: "tBTCUSD",
         index_epoch_month: 1, // 2009-01-01
         index_epoch_day: 1,
     };
@@ -142,6 +147,7 @@ impl ChainConstants {
         kraken_pair: "LTCUSD",
         kraken_result_key: "XLTCZUSD",
         coinbase_product: "LTC-USD",
+        bitfinex_symbol: "tLTCUSD",
         index_epoch_month: 10, // 2011-10-03
         index_epoch_day: 3,
     };

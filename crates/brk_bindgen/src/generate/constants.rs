@@ -10,7 +10,8 @@ use brk_cohort::{
     OVER_AGE_NAMES, OVER_AMOUNT_NAMES, PROFIT_NAMES, PROFITABILITY_RANGE_NAMES,
     SPENDABLE_TYPE_NAMES, TERM_NAMES, UNDER_AGE_NAMES, UNDER_AMOUNT_NAMES,
 };
-use brk_types::{Index, pools};
+use brk_chain::Chain;
+use brk_types::{Index, pools_for_chain};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -24,12 +25,12 @@ pub struct ClientConstants {
 }
 
 impl ClientConstants {
-    /// Collect all constant data.
-    pub fn collect() -> Self {
+    /// Collect all constant data for the given chain.
+    pub fn collect(chain: Chain) -> Self {
         let indexes = Index::all();
         let indexes: Vec<&'static str> = indexes.iter().map(|i| i.name()).collect();
 
-        let pools = pools();
+        let pools = pools_for_chain(chain);
         let mut sorted_pools: Vec<_> = pools.iter().collect();
         sorted_pools.sort_by_key(|p| p.name.to_lowercase());
         let pool_map: BTreeMap<String, &'static str> = sorted_pools

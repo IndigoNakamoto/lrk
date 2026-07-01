@@ -36,7 +36,7 @@ pub fn generate_javascript_client(
     client::generate_index_accessors(&mut output, &metadata.index_set_patterns);
     client::generate_structural_patterns(&mut output, &metadata.structural_patterns, metadata);
     tree::generate_tree_typedefs(&mut output, &metadata.catalog, metadata);
-    tree::generate_main_client(&mut output, &metadata.catalog, metadata, endpoints);
+    tree::generate_main_client(&mut output, &metadata.catalog, metadata, endpoints, chain);
 
     write_if_changed(output_path, &output)?;
 

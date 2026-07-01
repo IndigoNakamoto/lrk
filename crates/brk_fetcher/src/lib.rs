@@ -10,6 +10,7 @@ use tracing::{info, warn};
 use ureq::Agent;
 
 mod binance;
+mod bitfinex;
 mod brk;
 mod coinbase;
 mod kraken;
@@ -18,6 +19,7 @@ mod retry;
 mod source;
 
 pub use binance::*;
+pub use bitfinex::*;
 pub use brk::*;
 pub use coinbase::*;
 pub use kraken::*;
@@ -58,6 +60,7 @@ pub struct Fetcher {
     pub binance: TrackedSource<Binance>,
     pub kraken: TrackedSource<Kraken>,
     pub coinbase: TrackedSource<Coinbase>,
+    pub bitfinex: TrackedSource<Bitfinex>,
     pub brk: TrackedSource<BRK>,
 }
 
@@ -89,6 +92,11 @@ impl Fetcher {
                 c.coinbase_product,
                 c.genesis_timestamp as i64,
             )),
+            bitfinex: TrackedSource::new(Bitfinex::new_with_agent(
+                agent.clone(),
+                c.bitfinex_symbol,
+                c.genesis_timestamp as i64 * 1000,
+            )),
             brk: TrackedSource::new(BRK::new_with_agent(agent.clone())),
             agent,
         })
@@ -102,6 +110,7 @@ impl Fetcher {
         f(&mut self.binance);
         f(&mut self.kraken);
         f(&mut self.coinbase);
+        f(&mut self.bitfinex);
         f(&mut self.brk);
     }
 
@@ -123,6 +132,11 @@ impl Fetcher {
         match fetch(&mut self.coinbase) {
             Some(Ok(ohlc)) => return Some(Ok(ohlc)),
             Some(Err(e)) => warn!("Coinbase fetch failed: {e}"),
+            None => {}
+        }
+        match fetch(&mut self.bitfinex) {
+            Some(Ok(ohlc)) => return Some(Ok(ohlc)),
+            Some(Err(e)) => warn!("Bitfinex fetch failed: {e}"),
             None => {}
         }
         match fetch(&mut self.brk) {
@@ -217,6 +231,8 @@ How to fix this:
         self.kraken.reset_health();
         self.coinbase.clear();
         self.coinbase.reset_health();
+        self.bitfinex.clear();
+        self.bitfinex.reset_health();
         self.brk.clear();
         self.brk.reset_health();
     }
@@ -227,6 +243,7 @@ How to fix this:
             (self.binance.name(), self.binance.ping()),
             (self.kraken.name(), self.kraken.ping()),
             (self.coinbase.name(), self.coinbase.ping()),
+            (self.bitfinex.name(), self.bitfinex.ping()),
             (self.brk.name(), self.brk.ping()),
         ]
     }

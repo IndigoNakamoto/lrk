@@ -10,8 +10,8 @@ use crate::{
 };
 
 /// Generate class-level constants for the BrkClient class.
-pub fn generate_class_constants(output: &mut String) {
-    let constants = ClientConstants::collect();
+pub fn generate_class_constants(output: &mut String, chain: Chain) {
+    let constants = ClientConstants::collect(chain);
 
     // VERSION
     writeln!(output, "    VERSION = \"{}\"\n", constants.version).unwrap();

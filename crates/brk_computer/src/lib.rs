@@ -46,7 +46,7 @@ pub struct Computer<M: StorageMode = Rw> {
     pub outputs: Box<outputs::Vecs<M>>,
 }
 
-const VERSION: Version = Version::new(6);
+const VERSION: Version = Version::new(7);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {

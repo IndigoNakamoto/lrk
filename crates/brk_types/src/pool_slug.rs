@@ -212,44 +212,27 @@ pub enum PoolSlug {
     #[serde(rename = "solopoolcom")]
     SoloPool,
     Noderunners,
-    #[serde(skip)]
-    Dummy171,
-    #[serde(skip)]
-    Dummy172,
-    #[serde(skip)]
-    Dummy173,
-    #[serde(skip)]
-    Dummy174,
-    #[serde(skip)]
-    Dummy175,
-    #[serde(skip)]
-    Dummy176,
-    #[serde(skip)]
-    Dummy177,
-    #[serde(skip)]
-    Dummy178,
-    #[serde(skip)]
-    Dummy179,
-    #[serde(skip)]
-    Dummy180,
-    #[serde(skip)]
-    Dummy181,
-    #[serde(skip)]
-    Dummy182,
-    #[serde(skip)]
-    Dummy183,
-    #[serde(skip)]
-    Dummy184,
-    #[serde(skip)]
-    Dummy185,
-    #[serde(skip)]
-    Dummy186,
-    #[serde(skip)]
-    Dummy187,
-    #[serde(skip)]
-    Dummy188,
-    #[serde(skip)]
-    Dummy189,
+    // Litecoin-specific pools (from litecoinspace.org). Variant names lowercase
+    // to their litecoinspace slug so `pools-ltc-v1.json` ids resolve correctly.
+    Kupool,
+    Litecoinpoolorg,
+    Hash700,
+    Lsoftwaredmcc,
+    Hashspace,
+    Dogegogocom,
+    Longpool,
+    Kryptex,
+    Dxpool,
+    K1pool,
+    Molepool,
+    Solopoolorg,
+    Prohashing,
+    Hashhut,
+    Happychina,
+    Himpool,
+    P2pspbxyz,
+    Hyperdonkey,
+    Zergpool,
     #[serde(skip)]
     Dummy190,
     #[serde(skip)]
@@ -413,6 +396,12 @@ impl PoolSlug {
                 | Self::Unknown
                 | Self::ViaBtc
                 | Self::WhitePool
+                // Major Litecoin pools (>=~1% of recent blocks).
+                | Self::Kupool
+                | Self::Litecoinpoolorg
+                | Self::Hash700
+                | Self::Lsoftwaredmcc
+                | Self::Hashspace
         )
     }
 }

@@ -2,6 +2,8 @@
 
 use std::fmt::Write;
 
+use brk_chain::Chain;
+
 use crate::{
     Endpoint, Parameter, escape_python_keyword,
     generators::{normalize_return_type, write_description},
@@ -12,7 +14,7 @@ use super::client::generate_class_constants;
 use super::types::js_type_to_python;
 
 /// Generate the main client class
-pub fn generate_main_client(output: &mut String, endpoints: &[Endpoint]) {
+pub fn generate_main_client(output: &mut String, endpoints: &[Endpoint], chain: Chain) {
     writeln!(output, "class BrkClient(BrkClientBase):").unwrap();
     writeln!(
         output,
@@ -22,7 +24,7 @@ pub fn generate_main_client(output: &mut String, endpoints: &[Endpoint]) {
     writeln!(output).unwrap();
 
     // Generate class-level constants
-    generate_class_constants(output);
+    generate_class_constants(output, chain);
 
     writeln!(
         output,

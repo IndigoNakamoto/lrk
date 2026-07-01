@@ -6,7 +6,7 @@ use bitcoin::hex::DisplayHex;
 use brk_error::{Error, OptionData, Result};
 use brk_types::{
     BlockExtras, BlockHash, BlockHashPrefix, BlockHeader, BlockInfo, BlockInfoV1, BlockPool,
-    FeeRate, Height, PoolSlug, Sats, Timestamp, TxIndex, VSize, pools,
+    FeeRate, Height, PoolSlug, Sats, Timestamp, TxIndex, VSize, pools_for_chain,
 };
 use vecdb::{ReadableVec, VecIndex};
 
@@ -208,7 +208,7 @@ impl Query {
         let indexer = self.indexer();
         let computer = self.computer();
         let reader = self.reader();
-        let all_pools = pools();
+        let all_pools = pools_for_chain(indexer.chain);
 
         // Bulk read all indexed data
         let blockhashes = indexer.vecs.blocks.blockhash.collect_range_at(begin, end);

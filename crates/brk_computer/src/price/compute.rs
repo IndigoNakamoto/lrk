@@ -1,12 +1,12 @@
 use std::ops::Range;
 
 use brk_error::Result;
-use brk_fetcher::{Coinbase, new_agent};
+use brk_fetcher::{Bitfinex, Coinbase, new_agent};
 use brk_indexer::{Indexer, Lengths};
 use brk_oracle::{
     bin_to_cents, cents_to_bin, Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
 };
-use brk_types::{Cents, Date, OutputType, Sats, Timestamp, TxIndex, TxOutIndex};
+use brk_types::{Cents, Date, OutputType, Sats, Timestamp, TxIndex, TxOutIndex, Version};
 use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, StorageMode, VecIndex, WritableVec};
 
@@ -187,14 +187,19 @@ impl Vecs {
     /// chains without BRK's on-chain oracle (e.g. Litecoin).
     ///
     /// Each block height is priced at the daily close for its timestamp's date,
-    /// forward-filling across gaps; heights before the exchange listing use the
-    /// earliest known price. The full history is fetched once from Coinbase
-    /// (~`history_days / 300` requests), so this needs network access.
+    /// forward-filling across gaps; heights before the earliest known price fall
+    /// back to it. History is fetched once (Bitfinex reaches ~2013, Coinbase
+    /// ~2016) and merged, so this needs network access.
     fn compute_prices_from_exchange(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        let source_version =
-            indexer.vecs.outputs.value.version() + indexer.vecs.outputs.output_type.version();
+        // The trailing `Version` is the pricing-algorithm version: bump it when
+        // the exchange sources or merge logic change so committed prices reset
+        // and every height is re-priced. Downstream metrics recompute via the
+        // global computer `VERSION`.
+        let source_version = indexer.vecs.outputs.value.version()
+            + indexer.vecs.outputs.output_type.version()
+            + Version::new(2);
         self.spot
             .cents
             .height
@@ -216,14 +221,37 @@ impl Vecs {
             return Ok(());
         }
 
-        // Fetch the full daily close-price history once.
+        // Fetch full daily close history once. Bitfinex lists LTC/USD from 2013
+        // (before Coinbase's 2016 listing), so start from it and overlay
+        // Coinbase where it exists (more liquid/canonical for the USD pair on
+        // recent dates). At least one source must succeed.
         let constants = indexer.chain.constants();
+        let mut bitfinex = Bitfinex::new_with_agent(
+            new_agent(30),
+            constants.bitfinex_symbol,
+            constants.genesis_timestamp as i64 * 1000,
+        );
         let mut coinbase = Coinbase::new_with_agent(
             new_agent(30),
             constants.coinbase_product,
             constants.genesis_timestamp as i64,
         );
-        let daily = coinbase.daily_closes()?;
+
+        let mut daily: std::collections::BTreeMap<Date, Cents> = std::collections::BTreeMap::new();
+        match bitfinex.daily_closes() {
+            Ok(m) => daily.extend(m),
+            Err(e) => info!("Bitfinex history unavailable ({e}); relying on Coinbase"),
+        }
+        match coinbase.daily_closes() {
+            Ok(m) => daily.extend(m),
+            Err(e) => {
+                if daily.is_empty() {
+                    return Err(e);
+                }
+                info!("Coinbase history unavailable ({e}); relying on Bitfinex");
+            }
+        }
+
         let earliest = daily
             .values()
             .next()
@@ -231,7 +259,8 @@ impl Vecs {
             .unwrap_or_else(|| Cents::from(0u64));
 
         info!(
-            "Computing exchange prices ({}): heights {committed} to {total_heights} from {} daily points",
+            "Computing exchange prices ({} / {}): heights {committed} to {total_heights} from {} daily points",
+            constants.bitfinex_symbol,
             constants.coinbase_product,
             daily.len()
         );

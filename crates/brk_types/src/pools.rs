@@ -9,8 +9,11 @@ use super::Pool;
 const JSON_BTC: &str = include_str!("../pools-v2.json");
 const JSON_LTC: &str = include_str!("../pools-ltc-v1.json");
 const POOL_COUNT_BTC: usize = 171;
-/// LTC pool count: entries 1-15 plus the Unknown slot at 0.
-const POOL_COUNT_LTC: usize = 16;
+/// Array capacity for LTC pools. Entries (from `pools-ltc-v1.json`) map to
+/// `PoolSlug` discriminants: shared pools reuse existing variants and
+/// Litecoin-specific pools occupy ids 171-189, so the backing array must span
+/// the full `PoolSlug` range. `Pools::len()` reports the actual pool count.
+const POOL_COUNT_LTC: usize = 256;
 const TESTNET_IDS: &[u16] = &[145, 146, 149, 150, 156, 163];
 
 #[derive(Deserialize)]

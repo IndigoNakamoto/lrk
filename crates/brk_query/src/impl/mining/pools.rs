@@ -4,7 +4,7 @@ use brk_error::{Error, OptionData, Result};
 use brk_types::{
     BlockInfoV1, Day1, Height, Pool, PoolBlockCounts, PoolBlockShares, PoolDetail, PoolDetailInfo,
     PoolHashrateEntry, PoolInfo, PoolSlug, PoolStats, PoolsSummary, StoredF64, StoredU64,
-    TimePeriod, pools,
+    TimePeriod, pools_for_chain,
 };
 use vecdb::{AnyVec, ReadableVec, VecIndex};
 
@@ -49,7 +49,7 @@ impl Query {
         let start = self.start_height(time_period)?.to_usize();
         let lookback = &computer.blocks.lookback;
 
-        let pools = pools();
+        let pools = pools_for_chain(self.indexer().chain);
         let mut pool_data: Vec<(&'static Pool, u64)> = Vec::new();
 
         // Range count = cumulative(end) - cumulative(start - 1).
@@ -115,7 +115,10 @@ impl Query {
 
     /// All supported pools as `PoolInfo`. Static list, no indexer reads, can't fail.
     pub fn all_pools(&self) -> Vec<PoolInfo> {
-        pools().iter().map(PoolInfo::from).collect()
+        pools_for_chain(self.indexer().chain)
+            .iter()
+            .map(PoolInfo::from)
+            .collect()
     }
 
     /// Per-pool detail: lifetime block count plus 24h and 1w windowed counts,
@@ -130,7 +133,7 @@ impl Query {
         let current_height = self.height();
         let end = current_height.to_usize();
 
-        let pools_list = pools();
+        let pools_list = pools_for_chain(self.indexer().chain);
         let pool = pools_list.get(slug);
 
         let cumulative = computer
@@ -279,7 +282,7 @@ impl Query {
     /// where the share is the pool's last-7-days block count divided by the
     /// network's last-7-days block count.
     pub fn pool_hashrate(&self, slug: PoolSlug) -> Result<Vec<PoolHashrateEntry>> {
-        let pool_name = pools().get(slug).name;
+        let pool_name = pools_for_chain(self.indexer().chain).get(slug).name;
         let shared = self.hashrate_shared_data(0)?;
         let pool_cum = self.pool_daily_cumulative(slug, shared.start_day, shared.end_day)?;
         Ok(Self::compute_hashrate_entries(
@@ -306,7 +309,7 @@ impl Query {
         };
 
         let shared = self.hashrate_shared_data(start_height)?;
-        let pools_list = pools();
+        let pools_list = pools_for_chain(self.indexer().chain);
         let mut entries = Vec::new();
 
         for pool in pools_list.iter() {

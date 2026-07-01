@@ -66,7 +66,7 @@ pub fn generate_python_client(
     client::generate_index_accessors(&mut output, &metadata.index_set_patterns);
     client::generate_structural_patterns(&mut output, &metadata.structural_patterns, metadata);
     tree::generate_tree_classes(&mut output, &metadata.catalog, metadata);
-    api::generate_main_client(&mut output, endpoints);
+    api::generate_main_client(&mut output, endpoints, chain);
 
     write_if_changed(output_path, &output)?;
 

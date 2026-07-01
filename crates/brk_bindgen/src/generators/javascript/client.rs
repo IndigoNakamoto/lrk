@@ -722,8 +722,8 @@ const _p = (prefix, acc) => acc ? `${{prefix}}_${{acc}}` : prefix;
 }
 
 /// Generate static constants for the BrkClient class.
-pub fn generate_static_constants(output: &mut String) {
-    let constants = ClientConstants::collect();
+pub fn generate_static_constants(output: &mut String, chain: Chain) {
+    let constants = ClientConstants::collect(chain);
 
     // VERSION, INDEXES, POOL_ID_TO_POOL_NAME
     writeln!(output, "  VERSION = \"{}\";\n", constants.version).unwrap();
