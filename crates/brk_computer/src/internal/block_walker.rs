@@ -4,15 +4,15 @@
 //! to the caller.
 
 use brk_error::Result;
-use brk_types::TxIndex;
+use brk_types::{OutputType, TxIndex};
 use vecdb::VecIndex;
 
 /// Aggregated per-block counters produced by [`walk_blocks`].
 pub(crate) struct BlockAggregate {
     pub entries_all: u64,
-    pub entries_per_type: [u64; 12],
+    pub entries_per_type: [u64; OutputType::COUNT],
     pub txs_all: u64,
-    pub txs_per_type: [u64; 12],
+    pub txs_per_type: [u64; OutputType::COUNT],
 }
 
 /// Whether to include the coinbase tx (first tx in each block) in the walk.
@@ -23,18 +23,18 @@ pub(crate) enum CoinbasePolicy {
 }
 
 /// Walk every block in `fi_batch`, calling `scan_tx` once per tx (which
-/// fills a `[u32; 12]` with the per-output-type count for that tx),
-/// aggregating into a [`BlockAggregate`] and handing it to `store`.
+/// fills a `[u32; OutputType::COUNT]` with the per-output-type count for that
+/// tx), aggregating into a [`BlockAggregate`] and handing it to `store`.
 ///
-/// `entries_all` and `txs_all` aggregate over the 12 output types
-/// indistinguishably; downstream consumers can cap to the 11 spendable
-/// types if op_return is non-applicable.
+/// `entries_all` and `txs_all` aggregate over all output types
+/// indistinguishably; downstream consumers can cap to the spendable types if
+/// op_return is non-applicable.
 #[inline]
 pub(crate) fn walk_blocks(
     fi_batch: &[TxIndex],
     txid_len: usize,
     coinbase: CoinbasePolicy,
-    mut scan_tx: impl FnMut(usize, &mut [u32; 12]) -> Result<()>,
+    mut scan_tx: impl FnMut(usize, &mut [u32; OutputType::COUNT]) -> Result<()>,
     mut store: impl FnMut(BlockAggregate) -> Result<()>,
 ) -> Result<()> {
     for (j, first_tx) in fi_batch.iter().enumerate() {
@@ -49,13 +49,13 @@ pub(crate) fn walk_blocks(
             CoinbasePolicy::Skip => fi + 1,
         };
 
-        let mut entries_per_type = [0u64; 12];
-        let mut txs_per_type = [0u64; 12];
+        let mut entries_per_type = [0u64; OutputType::COUNT];
+        let mut txs_per_type = [0u64; OutputType::COUNT];
         let mut entries_all = 0u64;
         let mut txs_all = 0u64;
 
         for tx_pos in start_tx..next_fi {
-            let mut per_tx = [0u32; 12];
+            let mut per_tx = [0u32; OutputType::COUNT];
             scan_tx(tx_pos, &mut per_tx)?;
             let mut tx_has_any = false;
             for (i, &n) in per_tx.iter().enumerate() {

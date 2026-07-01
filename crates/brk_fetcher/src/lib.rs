@@ -11,6 +11,7 @@ use ureq::Agent;
 
 mod binance;
 mod brk;
+mod coinbase;
 mod kraken;
 mod ohlc;
 mod retry;
@@ -18,6 +19,7 @@ mod source;
 
 pub use binance::*;
 pub use brk::*;
+pub use coinbase::*;
 pub use kraken::*;
 pub use ohlc::compute_ohlc_from_range;
 use retry::*;
@@ -55,6 +57,7 @@ pub struct Fetcher {
     pub agent: Agent,
     pub binance: TrackedSource<Binance>,
     pub kraken: TrackedSource<Kraken>,
+    pub coinbase: TrackedSource<Coinbase>,
     pub brk: TrackedSource<BRK>,
 }
 
@@ -81,6 +84,11 @@ impl Fetcher {
                 c.kraken_pair,
                 c.kraken_result_key,
             )),
+            coinbase: TrackedSource::new(Coinbase::new_with_agent(
+                agent.clone(),
+                c.coinbase_product,
+                c.genesis_timestamp as i64,
+            )),
             brk: TrackedSource::new(BRK::new_with_agent(agent.clone())),
             agent,
         })
@@ -93,6 +101,7 @@ impl Fetcher {
     {
         f(&mut self.binance);
         f(&mut self.kraken);
+        f(&mut self.coinbase);
         f(&mut self.brk);
     }
 
@@ -109,6 +118,11 @@ impl Fetcher {
         match fetch(&mut self.kraken) {
             Some(Ok(ohlc)) => return Some(Ok(ohlc)),
             Some(Err(e)) => warn!("Kraken fetch failed: {e}"),
+            None => {}
+        }
+        match fetch(&mut self.coinbase) {
+            Some(Ok(ohlc)) => return Some(Ok(ohlc)),
+            Some(Err(e)) => warn!("Coinbase fetch failed: {e}"),
             None => {}
         }
         match fetch(&mut self.brk) {
@@ -201,6 +215,8 @@ How to fix this:
         self.binance.reset_health();
         self.kraken.clear();
         self.kraken.reset_health();
+        self.coinbase.clear();
+        self.coinbase.reset_health();
         self.brk.clear();
         self.brk.reset_health();
     }
@@ -210,6 +226,7 @@ How to fix this:
         vec![
             (self.binance.name(), self.binance.ping()),
             (self.kraken.name(), self.kraken.ping()),
+            (self.coinbase.name(), self.coinbase.ping()),
             (self.brk.name(), self.brk.ping()),
         ]
     }

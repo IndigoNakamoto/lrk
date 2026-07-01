@@ -126,7 +126,7 @@ impl Vecs {
 fn push_block(
     metric: &mut WithOutputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
     total: u64,
-    per_type: &[u64; 12],
+    per_type: &[u64; OutputType::COUNT],
 ) {
     metric.all.block.push(StoredU64::from(total));
     for (otype, vec) in metric.by_type.iter_typed_mut() {

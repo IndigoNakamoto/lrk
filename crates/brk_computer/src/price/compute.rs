@@ -1,11 +1,12 @@
 use std::ops::Range;
 
 use brk_error::Result;
+use brk_fetcher::{Coinbase, new_agent};
 use brk_indexer::{Indexer, Lengths};
 use brk_oracle::{
     bin_to_cents, cents_to_bin, Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
 };
-use brk_types::{Cents, OutputType, Sats, TxIndex, TxOutIndex};
+use brk_types::{Cents, Date, OutputType, Sats, Timestamp, TxIndex, TxOutIndex};
 use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, StorageMode, VecIndex, WritableVec};
 
@@ -62,7 +63,9 @@ impl Vecs {
 
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         if !indexer.chain.supports_oracle() {
-            return Ok(());
+            // Chains without a calibrated on-chain oracle (e.g. Litecoin) price
+            // each block from exchange daily closes instead.
+            return self.compute_prices_from_exchange(indexer, exit);
         }
 
         let starting_height = indexer.safe_lengths().height;
@@ -174,6 +177,90 @@ impl Vecs {
 
         info!(
             "Oracle prices complete: {} committed",
+            self.spot.cents.height.len()
+        );
+
+        Ok(())
+    }
+
+    /// Populate the height-indexed spot price from exchange daily closes, for
+    /// chains without BRK's on-chain oracle (e.g. Litecoin).
+    ///
+    /// Each block height is priced at the daily close for its timestamp's date,
+    /// forward-filling across gaps; heights before the exchange listing use the
+    /// earliest known price. The full history is fetched once from Coinbase
+    /// (~`history_days / 300` requests), so this needs network access.
+    fn compute_prices_from_exchange(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
+        let starting_height = indexer.safe_lengths().height;
+
+        let source_version =
+            indexer.vecs.outputs.value.version() + indexer.vecs.outputs.output_type.version();
+        self.spot
+            .cents
+            .height
+            .inner
+            .validate_computed_version_or_reset(source_version)?;
+
+        let total_heights = indexer.vecs.blocks.timestamp.len();
+
+        // Reorg: truncate to the safe height before appending.
+        let truncate_to = self.spot.cents.height.len().min(starting_height.to_usize());
+        self.spot
+            .cents
+            .height
+            .inner
+            .truncate_if_needed_at(truncate_to)?;
+
+        let committed = self.spot.cents.height.len();
+        if committed >= total_heights {
+            return Ok(());
+        }
+
+        // Fetch the full daily close-price history once.
+        let constants = indexer.chain.constants();
+        let mut coinbase = Coinbase::new_with_agent(
+            new_agent(30),
+            constants.coinbase_product,
+            constants.genesis_timestamp as i64,
+        );
+        let daily = coinbase.daily_closes()?;
+        let earliest = daily
+            .values()
+            .next()
+            .copied()
+            .unwrap_or_else(|| Cents::from(0u64));
+
+        info!(
+            "Computing exchange prices ({}): heights {committed} to {total_heights} from {} daily points",
+            constants.coinbase_product,
+            daily.len()
+        );
+
+        let timestamps: Vec<Timestamp> = indexer
+            .vecs
+            .blocks
+            .timestamp
+            .collect_range_at(committed, total_heights);
+
+        for ts in timestamps {
+            let date = Date::from(ts);
+            // Daily close at-or-before this block's date (forward-fills gaps);
+            // pre-listing heights fall back to the earliest known price.
+            let cents = daily
+                .range(..=date)
+                .next_back()
+                .map(|(_, c)| *c)
+                .unwrap_or(earliest);
+            self.spot.cents.height.inner.push(cents);
+        }
+
+        {
+            let _lock = exit.lock();
+            self.spot.cents.height.inner.write()?;
+        }
+
+        info!(
+            "Exchange prices complete: {} committed",
             self.spot.cents.height.len()
         );
 

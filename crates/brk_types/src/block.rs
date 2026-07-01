@@ -63,6 +63,14 @@ impl Block {
         if let Some(raw) = self.raw_tx_bytes(index) {
             let total_size = raw.len() as u32;
             let is_segwit = raw[4] == 0x00;
+            // Litecoin MWEB transactions set bit 0x08 in the segwit flag byte and
+            // carry an MWEB extension between the witness and the locktime. The
+            // raw-bytes txid fast path assumes Bitcoin's segwit layout, so it
+            // would hash the wrong preimage; defer to the MWEB-aware decoder.
+            #[cfg(feature = "litecoin")]
+            if is_segwit && raw.len() > 5 && (raw[5] & 0x08) != 0 {
+                return (tx.compute_txid(), tx.base_size() as u32, total_size);
+            }
             let base_size = if is_segwit {
                 tx.base_size() as u32
             } else {

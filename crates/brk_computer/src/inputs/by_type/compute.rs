@@ -1,6 +1,6 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
-use brk_types::StoredU64;
+use brk_types::{OutputType, StoredU64};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 
 use super::{Vecs, WithInputTypes};
@@ -110,7 +110,7 @@ impl Vecs {
 fn push_block(
     metric: &mut WithInputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
     total: u64,
-    per_type: &[u64; 12],
+    per_type: &[u64; OutputType::COUNT],
 ) {
     metric.all.block.push(StoredU64::from(total));
     for (otype, vec) in metric.by_type.iter_typed_mut() {

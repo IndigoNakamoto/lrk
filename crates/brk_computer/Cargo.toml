@@ -12,6 +12,7 @@ exclude = ["examples/"]
 litecoin = [
     "brk_chain/litecoin",
     "brk_error/litecoin",
+    "brk_fetcher/litecoin",
     "brk_indexer/litecoin",
     "brk_rpc/litecoin",
     "brk_types/litecoin",
@@ -21,6 +22,7 @@ litecoin = [
 brk_chain = { workspace = true }
 brk_error = { workspace = true, features = ["vecdb"] }
 brk_cohort = { workspace = true }
+brk_fetcher = { workspace = true }
 brk_indexer = { workspace = true }
 brk_oracle = { workspace = true }
 brk_logger = { workspace = true }

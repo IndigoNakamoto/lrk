@@ -4,7 +4,14 @@ use brk_types::{BlkMetadata, BlkPosition};
 
 use crate::{XORBytes, XORIndex, xor_bytes::XOR_LEN};
 
+// Network magic prefixing every block in the `blk*.dat` files. Selected at
+// compile time to match the active chain's decoder (see `brk_chain`): Bitcoin
+// mainnet uses `0xF9BEB4D9`, Litecoin mainnet uses `0xFBC0B6DB`. Using the wrong
+// magic makes the scanner find zero blocks, so the index stays empty.
+#[cfg(not(feature = "litecoin"))]
 const MAGIC_BYTES: [u8; 4] = [0xF9, 0xBE, 0xB4, 0xD9];
+#[cfg(feature = "litecoin")]
+const MAGIC_BYTES: [u8; 4] = [0xFB, 0xC0, 0xB6, 0xDB];
 
 /// Returns the position immediately after the matched magic, or
 /// `None` if no match. Advances `xor_i` by the bytes consumed either

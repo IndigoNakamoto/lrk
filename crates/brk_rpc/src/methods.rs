@@ -14,7 +14,7 @@ use corepc_types::{
         GetBlockHeaderVerbose, GetBlockTemplate, GetBlockVerboseOne, GetBlockVerboseZero,
         GetRawMempool, GetTxOut,
     },
-    v24::{GetMempoolInfo, MempoolEntry},
+    v24::MempoolEntry,
 };
 
 /// Minimal `getblockchaininfo` response.  We only use `chain`, `blocks`, and
@@ -122,8 +122,8 @@ fn build_gbt(raw: GetBlockTemplate) -> Result<Vec<BlockTemplateTx>> {
 /// via integer sat/kvB (bitcoind's native CFeeRate unit) so the f64 drift
 /// in the JSON-decoded value can't push 1.0 sat/vB to 1.0...e-13 above 1.0
 /// and trip `ceil_to(0.001)` downstream.
-fn build_min_fee(raw: GetMempoolInfo) -> FeeRate {
-    let sat_per_kvb = (raw.mempool_min_fee * 100_000_000.0).round() as u64;
+fn build_min_fee(mempool_min_fee: f64) -> FeeRate {
+    let sat_per_kvb = (mempool_min_fee * 100_000_000.0).round() as u64;
     FeeRate::from(sat_per_kvb as f64 / 1000.0)
 }
 
@@ -376,11 +376,14 @@ impl Client {
     /// batched round-trip: `getblocktemplate` + `getrawmempool false`
     /// + `getmempoolinfo`.
     pub fn fetch_mempool_state(&self) -> Result<(MempoolState, Vec<BlockTemplateTx>)> {
+        // Litecoin's `getblocktemplate` rejects a segwit-only rule set with
+        // RPC error -8; it requires the `mweb` rule as well.
+        #[cfg(not(feature = "litecoin"))]
+        let gbt_rules = serde_json::json!({ "rules": ["segwit"] });
+        #[cfg(feature = "litecoin")]
+        let gbt_rules = serde_json::json!({ "rules": ["segwit", "mweb"] });
         let requests: [(&str, Vec<Value>); 3] = [
-            (
-                "getblocktemplate",
-                vec![serde_json::json!({ "rules": ["segwit"] })],
-            ),
+            ("getblocktemplate", vec![gbt_rules]),
             ("getrawmempool", vec![Value::Bool(false)]),
             ("getmempoolinfo", vec![]),
         ];
@@ -400,7 +403,17 @@ impl Client {
             Error::Parse(format!("gbt height out of range: {}", template.height))
         })?);
         let block_template = build_gbt(template)?;
-        let min_fee = build_min_fee(serde_json::from_str(info_raw.get())?);
+        // Only `mempoolminfee` is needed. Deserializing corepc's full
+        // `GetMempoolInfo` fails on Litecoin 0.21, whose `getmempoolinfo`
+        // response omits the newer `total_fee` field.
+        let info_val: Value = serde_json::from_str(info_raw.get())?;
+        let mempool_min_fee = info_val
+            .get("mempoolminfee")
+            .and_then(|v| v.as_f64())
+            .ok_or(Error::Parse(
+                "getmempoolinfo missing mempoolminfee".into(),
+            ))?;
+        let min_fee = build_min_fee(mempool_min_fee);
 
         Ok((
             MempoolState {

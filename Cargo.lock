@@ -456,6 +456,7 @@ dependencies = [
  "brk_chain",
  "brk_cohort",
  "brk_error",
+ "brk_fetcher",
  "brk_indexer",
  "brk_logger",
  "brk_oracle",

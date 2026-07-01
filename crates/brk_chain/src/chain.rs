@@ -86,6 +86,10 @@ pub struct ChainConstants {
     pub kraken_pair: &'static str,
     /// Kraken result-object key in the OHLC response (e.g. `"XXBTZUSD"`, `"XLTCZUSD"`).
     pub kraken_result_key: &'static str,
+    /// Coinbase Exchange product id for daily-history backfill (e.g. `"BTC-USD"`,
+    /// `"LTC-USD"`). Unlike Binance/Kraken, Coinbase serves full paginated daily
+    /// history, so it is the primary source for chains without an on-chain oracle.
+    pub coinbase_product: &'static str,
     /// Calendar month (1 = Jan) of the `index_epoch` date. Used by client generators.
     pub index_epoch_month: u8,
     /// Calendar day of the `index_epoch` date. Used by client generators.
@@ -114,6 +118,7 @@ impl ChainConstants {
         binance_symbol: "BTCUSDT",
         kraken_pair: "XBTUSD",
         kraken_result_key: "XXBTZUSD",
+        coinbase_product: "BTC-USD",
         index_epoch_month: 1, // 2009-01-01
         index_epoch_day: 1,
     };
@@ -136,6 +141,7 @@ impl ChainConstants {
         binance_symbol: "LTCUSDT",
         kraken_pair: "LTCUSD",
         kraken_result_key: "XLTCZUSD",
+        coinbase_product: "LTC-USD",
         index_epoch_month: 10, // 2011-10-03
         index_epoch_day: 3,
     };

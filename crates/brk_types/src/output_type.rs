@@ -67,6 +67,12 @@ pub enum OutputType {
 }
 
 impl OutputType {
+    /// Number of `OutputType` variants. Used to size per-type arrays indexed by
+    /// `otype as usize`. `Unknown` is the last (highest-discriminant) variant,
+    /// so this stays correct if variants are added/removed (e.g. the Litecoin
+    /// `MWEB` variant, which bumped this from 12 to 13).
+    pub const COUNT: usize = Self::Unknown as usize + 1;
+
     pub const ADDR_TYPES: [Self; 8] = [
         Self::P2PK65,
         Self::P2PK33,
