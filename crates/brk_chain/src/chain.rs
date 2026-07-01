@@ -61,7 +61,10 @@ pub struct ChainConstants {
     pub blocks_per_year: u64,
     /// Unix timestamp of the genesis block.
     pub genesis_timestamp: u32,
-    /// Unix timestamp of the index epoch start (the calendar day of genesis).
+    /// Unix timestamp of the index epoch start: January 1 of the genesis year
+    /// (Bitcoin: 2009-01-01, Litecoin: 2011-01-01). Date-based indexes anchor
+    /// here, so it must line up with `genesis_year`'s January — not the exact
+    /// genesis block date — or the date↔index round-trip desyncs.
     pub index_epoch: u32,
     /// Calendar year of the genesis block (used for cohort start year).
     pub genesis_year: u16,
@@ -135,7 +138,7 @@ impl ChainConstants {
         initial_subsidy: 50 * 100_000_000,
         blocks_per_year: 210_240,
         genesis_timestamp: 1_317_972_665,
-        index_epoch: 1_317_600_000, // 2011-10-03 00:00:00 UTC
+        index_epoch: 1_293_840_000, // 2011-01-01 00:00:00 UTC (Jan 1 of genesis year)
         genesis_year: 2011,
         default_rpc_port: 9332,
         default_datadir_linux: ".litecoin",
@@ -148,7 +151,7 @@ impl ChainConstants {
         kraken_result_key: "XLTCZUSD",
         coinbase_product: "LTC-USD",
         bitfinex_symbol: "tLTCUSD",
-        index_epoch_month: 10, // 2011-10-03
-        index_epoch_day: 3,
+        index_epoch_month: 1, // 2011-01-01
+        index_epoch_day: 1,
     };
 }

@@ -39,7 +39,7 @@ pub const ONE_DAY_IN_SEC: u32 = 24 * 60 * 60;
 pub const ONE_DAY_IN_SEC_F64: f64 = ONE_DAY_IN_SEC as f64;
 
 /// 2009-01-01 00:00:00 UTC — Bitcoin default for fixed-interval time indexes.
-/// For Litecoin the value is 2011-10-03 (1_317_600_000). Set at startup via
+/// For Litecoin the value is 2011-01-01 (1_293_840_000). Set at startup via
 /// `brk_types::init_chain_epoch`.
 pub const INDEX_EPOCH: u32 = 1_230_768_000;
 

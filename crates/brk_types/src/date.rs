@@ -37,9 +37,10 @@ impl Date {
     pub const INDEX_ZERO: Self = Self(20090101);
     pub const INDEX_ZERO_: Date_ = Date_::constant(2009, 1, 1);
 
-    /// Litecoin index epoch start: 2011-10-03.
-    pub const INDEX_ZERO_LTC: Self = Self(20111003);
-    pub const INDEX_ZERO_LTC_: Date_ = Date_::constant(2011, 10, 3);
+    /// Litecoin index epoch start: 2011-01-01 (January 1 of the genesis year,
+    /// matching Bitcoin's convention so date↔index conversions round-trip).
+    pub const INDEX_ZERO_LTC: Self = Self(20110101);
+    pub const INDEX_ZERO_LTC_: Date_ = Date_::constant(2011, 1, 1);
 
     /// Returns the index epoch start date for the given chain.
     pub fn index_zero_for_chain(chain: Chain) -> Self {

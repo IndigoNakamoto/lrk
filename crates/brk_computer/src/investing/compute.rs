@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPointsSigned32, Bitcoin, Cents, Date, Day1, Dollars, Sats};
+use brk_types::{BasisPointsSigned32, Bitcoin, Cents, Day1, Dollars, Sats};
 use vecdb::{AnyVec, Exit, ReadableOptionVec, ReadableVec, VecIndex};
 
 use super::{ByDcaPeriod, Vecs};
@@ -24,7 +24,15 @@ impl Vecs {
         let h2d = &indexes.height.day1;
         let close = &prices.split.close.usd.day1;
 
-        let first_price_di = Day1::try_from(Date::new(2010, 7, 12)).unwrap().to_usize();
+        // First day the close series actually has a price. Bitcoin's exchange
+        // history starts 2010-07-12, but other chains (e.g. Litecoin) begin
+        // later — and after their index epoch — so hardcoding a Bitcoin date is
+        // both unindexable (`Day1::try_from` errors on pre-epoch dates and would
+        // panic here) and semantically wrong. DCA can't accumulate before the
+        // first price exists, and `num_days` below must anchor to that day.
+        let first_price_di = (0..close.len())
+            .find(|i| close.collect_one_flat(Day1::from(*i)).is_some())
+            .unwrap_or(0);
 
         // Compute per-height DCA sats contribution once (reused by all periods).
         // Value = sats_from_dca(close_price) on day-boundary blocks, Sats::ZERO otherwise.

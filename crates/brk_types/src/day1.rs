@@ -11,7 +11,7 @@ use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
 use crate::{FromCoarserIndex, Month1, Month3, Month6, Week1, Year1, Year10};
 
-use super::{Date, Timestamp};
+use super::{Date, Timestamp, date::date_index_zero, year::genesis_year};
 
 #[derive(
     Debug,
@@ -75,11 +75,17 @@ impl Add<usize> for Day1 {
 impl TryFrom<Date> for Day1 {
     type Error = Error;
     fn try_from(value: Date) -> Result<Self, Self::Error> {
+        // Anchor on the active chain's index epoch (Bitcoin: 2009-01-01,
+        // Litecoin: 2011-10-03). This must match `From<Day1> for Date`, which
+        // also uses `date_index_zero()`; a hardcoded epoch here would desync the
+        // date↔index round-trip and shift every dated series (e.g. it made
+        // Litecoin's ~2014-2016 prices render ~2.75 years too late).
+        let zero = jiff::civil::Date::from(date_index_zero());
         let value_ = jiff::civil::Date::from(value);
-        if value_ < Date::INDEX_ZERO_ {
+        if value_ < zero {
             Err(Error::UnindexableDate)
         } else {
-            Ok(Self(Date::INDEX_ZERO_.until(value_)?.get_days() as u16))
+            Ok(Self(zero.until(value_)?.get_days() as u16))
         }
     }
 }
@@ -107,71 +113,75 @@ impl FromCoarserIndex<Week1> for Day1 {
     }
 }
 
+/// Day1 index for `date`, clamped to 0 for dates before the chain epoch.
+/// Coarser buckets can start before the epoch (e.g. Litecoin's genesis year
+/// 2011 begins in January, but the epoch is 2011-10-03), so those days simply
+/// map to the first index rather than failing.
+fn day1_index_or_zero(date: Date) -> usize {
+    Day1::try_from(date).map(usize::from).unwrap_or(0)
+}
+
 impl FromCoarserIndex<Month1> for Day1 {
     fn min_from(coarser: Month1) -> usize {
-        let d = Date::new(2009, 1, 1)
+        let d = Date::new(genesis_year(), 1, 1)
             .into_jiff()
             .checked_add(Span::new().months(u16::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 
     fn max_from_(coarser: Month1) -> usize {
-        let d = Date::new(2009, 1, 31)
+        let d = Date::new(genesis_year(), 1, 31)
             .into_jiff()
             .checked_add(Span::new().months(u16::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 }
 
 impl FromCoarserIndex<Month3> for Day1 {
     fn min_from(coarser: Month3) -> usize {
-        let d = Date::new(2009, 1, 1)
+        let d = Date::new(genesis_year(), 1, 1)
             .into_jiff()
             .checked_add(Span::new().months(3 * u8::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 
     fn max_from_(coarser: Month3) -> usize {
-        let d = Date::new(2009, 3, 31)
+        let d = Date::new(genesis_year(), 3, 31)
             .into_jiff()
             .checked_add(Span::new().months(3 * u8::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 }
 
 impl FromCoarserIndex<Month6> for Day1 {
     fn min_from(coarser: Month6) -> usize {
-        let d = Date::new(2009, 1, 1)
+        let d = Date::new(genesis_year(), 1, 1)
             .into_jiff()
             .checked_add(Span::new().months(6 * u8::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 
     fn max_from_(coarser: Month6) -> usize {
-        let d = Date::new(2009, 5, 31)
+        let d = Date::new(genesis_year(), 5, 31)
             .into_jiff()
             .checked_add(Span::new().months(1 + 6 * u8::from(coarser)))
             .unwrap();
-        Day1::try_from(Date::from(d)).unwrap().into()
+        day1_index_or_zero(Date::from(d))
     }
 }
 
 impl FromCoarserIndex<Year1> for Day1 {
     fn min_from(coarser: Year1) -> usize {
-        Self::try_from(Date::new(2009 + u8::from(coarser) as u16, 1, 1))
-            .unwrap()
-            .into()
+        day1_index_or_zero(Date::new(genesis_year() + u8::from(coarser) as u16, 1, 1))
     }
 
     fn max_from_(coarser: Year1) -> usize {
-        Self::try_from(Date::new(2009 + u8::from(coarser) as u16, 12, 31))
-            .unwrap()
-            .into()
+        day1_index_or_zero(Date::new(genesis_year() + u8::from(coarser) as u16, 12, 31))
     }
 }
 
@@ -179,20 +189,17 @@ impl FromCoarserIndex<Year10> for Day1 {
     fn min_from(coarser: Year10) -> usize {
         let coarser = u8::from(coarser);
         if coarser == 0 {
-            // Decade 0 starts at 2000, before INDEX_ZERO (2009-01-01)
+            // Decade 0 starts before the epoch; clamp to the first index.
             0
         } else {
-            Self::try_from(Date::new(2000 + 10 * coarser as u16, 1, 1))
-                .unwrap()
-                .into()
+            // `Year10` buckets by calendar decade (see `Year10::from(Date)`).
+            day1_index_or_zero(Date::new(2000 + 10 * coarser as u16, 1, 1))
         }
     }
 
     fn max_from_(coarser: Year10) -> usize {
         let coarser = u8::from(coarser);
-        Self::try_from(Date::new(2009 + 10 * coarser as u16, 12, 31))
-            .unwrap()
-            .into()
+        day1_index_or_zero(Date::new(2009 + 10 * coarser as u16, 12, 31))
     }
 }
 

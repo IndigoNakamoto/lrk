@@ -46,7 +46,9 @@ pub struct Computer<M: StorageMode = Rw> {
     pub outputs: Box<outputs::Vecs<M>>,
 }
 
-const VERSION: Version = Version::new(7);
+// v8: fixed chain-aware date-index epoch (Day1 date↔index round-trip and the
+// Litecoin index epoch), which changes every date-indexed vec; forces recompute.
+const VERSION: Version = Version::new(8);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {

@@ -28,7 +28,7 @@ Sats = int
 # Index within its type (e.g., 0 for first P2WPKH address)
 TypeIndex = int
 # Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
-OutputType = Literal["p2pk", "p2pk", "p2pkh", "multisig", "p2sh", "op_return", "v0_p2wpkh", "v0_p2wsh", "v1_p2tr", "p2a", "empty", "unknown"]
+OutputType = Union[Literal["p2pk", "p2pk", "p2pkh", "multisig", "p2sh", "op_return", "v0_p2wpkh", "v0_p2wsh", "v1_p2tr", "p2a", "empty", "unknown"], str]
 # Unified index for any address type (funded or empty)
 AnyAddrIndex = TypeIndex
 # Unsigned basis points stored as u16.
@@ -54,7 +54,7 @@ BasisPointsSigned32 = int
 # Bitcoin amount as floating point (1 BTC = 100,000,000 satoshis)
 Bitcoin = float
 # URL-friendly mining pool identifier
-PoolSlug = Literal["unknown", "blockfills", "ultimuspool", "terrapool", "luxor", "1thash", "btccom", "bitfarms", "huobipool", "wayicn", "canoepool", "btctop", "bitcoincom", "175btc", "gbminers", "axbt", "asicminer", "bitminter", "bitcoinrussia", "btcserv", "simplecoinus", "btcguild", "eligius", "ozcoin", "eclipsemc", "maxbtc", "triplemining", "coinlab", "50btc", "ghashio", "stminingcorp", "bitparking", "mmpool", "polmine", "kncminer", "bitalo", "f2pool", "hhtt", "megabigpower", "mtred", "nmcbit", "yourbtcnet", "givemecoins", "braiinspool", "antpool", "multicoinco", "bcpoolio", "cointerra", "kanopool", "solock", "ckpool", "nicehash", "bitclub", "bitcoinaffiliatenetwork", "btcc", "bwpool", "exxbw", "bitsolo", "bitfury", "21inc", "digitalbtc", "8baochi", "mybtccoinpool", "tbdice", "hashpool", "nexious", "bravomining", "hotpool", "okexpool", "bcmonster", "1hash", "bixin", "tatmaspool", "viabtc", "connectbtc", "batpool", "waterhole", "dcexploration", "dcex", "btpool", "58coin", "bitcoinindia", "shawnp0wers", "phashio", "rigpool", "haozhuzhu", "7pool", "miningkings", "hashbx", "dpool", "rawpool", "haominer", "helix", "bitcoinukraine", "poolin", "secretsuperstar", "tigerpoolnet", "sigmapoolcom", "okpooltop", "hummerpool", "tangpool", "bytepool", "spiderpool", "novablock", "miningcity", "binancepool", "minerium", "lubiancom", "okkong", "aaopool", "emcdpool", "foundryusa", "sbicrypto", "arkpool", "purebtccom", "marapool", "kucoinpool", "entrustcharitypool", "okminer", "titan", "pegapool", "btcnuggets", "cloudhashing", "digitalxmintsy", "telco214", "btcpoolparty", "multipool", "transactioncoinmining", "btcdig", "trickysbtcpool", "btcmp", "eobot", "unomp", "patels", "gogreenlight", "bitcoinindiapool", "ekanembtc", "canoe", "tiger", "1m1x", "zulupool", "secpool", "ocean", "whitepool", "wiz", "wk057", "futurebitapollosolo", "carbonnegative", "portlandhodl", "phoenix", "neopool", "maxipool", "bitfufupool", "gdpool", "miningdutch", "publicpool", "miningsquared", "innopolistech", "btclab", "parasite", "redrockpool", "est3lar", "braiinssolo", "solopoolcom", "noderunners"]
+PoolSlug = Literal["unknown", "blockfills", "ultimuspool", "terrapool", "luxor", "1thash", "btccom", "bitfarms", "huobipool", "wayicn", "canoepool", "btctop", "bitcoincom", "175btc", "gbminers", "axbt", "asicminer", "bitminter", "bitcoinrussia", "btcserv", "simplecoinus", "btcguild", "eligius", "ozcoin", "eclipsemc", "maxbtc", "triplemining", "coinlab", "50btc", "ghashio", "stminingcorp", "bitparking", "mmpool", "polmine", "kncminer", "bitalo", "f2pool", "hhtt", "megabigpower", "mtred", "nmcbit", "yourbtcnet", "givemecoins", "braiinspool", "antpool", "multicoinco", "bcpoolio", "cointerra", "kanopool", "solock", "ckpool", "nicehash", "bitclub", "bitcoinaffiliatenetwork", "btcc", "bwpool", "exxbw", "bitsolo", "bitfury", "21inc", "digitalbtc", "8baochi", "mybtccoinpool", "tbdice", "hashpool", "nexious", "bravomining", "hotpool", "okexpool", "bcmonster", "1hash", "bixin", "tatmaspool", "viabtc", "connectbtc", "batpool", "waterhole", "dcexploration", "dcex", "btpool", "58coin", "bitcoinindia", "shawnp0wers", "phashio", "rigpool", "haozhuzhu", "7pool", "miningkings", "hashbx", "dpool", "rawpool", "haominer", "helix", "bitcoinukraine", "poolin", "secretsuperstar", "tigerpoolnet", "sigmapoolcom", "okpooltop", "hummerpool", "tangpool", "bytepool", "spiderpool", "novablock", "miningcity", "binancepool", "minerium", "lubiancom", "okkong", "aaopool", "emcdpool", "foundryusa", "sbicrypto", "arkpool", "purebtccom", "marapool", "kucoinpool", "entrustcharitypool", "okminer", "titan", "pegapool", "btcnuggets", "cloudhashing", "digitalxmintsy", "telco214", "btcpoolparty", "multipool", "transactioncoinmining", "btcdig", "trickysbtcpool", "btcmp", "eobot", "unomp", "patels", "gogreenlight", "bitcoinindiapool", "ekanembtc", "canoe", "tiger", "1m1x", "zulupool", "secpool", "ocean", "whitepool", "wiz", "wk057", "futurebitapollosolo", "carbonnegative", "portlandhodl", "phoenix", "neopool", "maxipool", "bitfufupool", "gdpool", "miningdutch", "publicpool", "miningsquared", "innopolistech", "btclab", "parasite", "redrockpool", "est3lar", "braiinssolo", "solopoolcom", "noderunners", "kupool", "litecoinpoolorg", "hash700", "lsoftwaredmcc", "hashspace", "dogegogocom", "longpool", "kryptex", "dxpool", "k1pool", "molepool", "solopoolorg", "prohashing", "hashhut", "happychina", "himpool", "p2pspbxyz", "hyperdonkey", "zergpool"]
 # Fee rate in sat/vB
 FeeRate = float
 # Weight in weight units (WU). Max block weight is 4,000,000 WU.
@@ -1025,14 +1025,14 @@ class DiskUsage(TypedDict):
     Attributes:
         brk: Human-readable brk data size (e.g., "48.8 GiB")
         brk_bytes: brk data size in bytes
-        bitcoin: Human-readable Bitcoin blocks directory size
-        bitcoin_bytes: Bitcoin blocks directory size in bytes
-        ratio: brk as percentage of Bitcoin data
+        chain: Human-readable chain blocks directory size
+        chain_bytes: Chain blocks directory size in bytes
+        ratio: brk as percentage of chain data
     """
     brk: str
     brk_bytes: int
-    bitcoin: str
-    bitcoin_bytes: int
+    chain: str
+    chain_bytes: int
     ratio: float
 
 class EmptyAddrData(TypedDict):
@@ -1119,6 +1119,9 @@ class Health(TypedDict):
         status: Health status ("healthy")
         service: Service name
         version: Server version
+        chain: Active chain ("bitcoin" or "litecoin")
+        ticker: Active chain ticker symbol ("BTC" or "LTC")
+        coin_name: Active chain display name ("Bitcoin" or "Litecoin")
         timestamp: Current server time (ISO 8601)
         started_at: Server start time (ISO 8601)
         uptime_seconds: Uptime in seconds
@@ -1132,6 +1135,9 @@ class Health(TypedDict):
     status: str
     service: str
     version: str
+    chain: str
+    ticker: str
+    coin_name: str
     timestamp: str
     started_at: str
     uptime_seconds: int
@@ -1913,9 +1919,9 @@ def _p(prefix: str, acc: str) -> str:
 
 
 # Date conversion constants
-_GENESIS = date(2009, 1, 3)  # day1 0, week1 0
-_DAY_ONE = date(2009, 1, 9)  # day1 1 (6 day gap after genesis)
-_EPOCH = datetime(2009, 1, 1, tzinfo=timezone.utc)
+_GENESIS = date(2011, 1, 1)  # day1 0, week1 0
+_DAY_ONE = date(2011, 1, 2)  # day1 1
+_EPOCH = datetime(2011, 1, 1, tzinfo=timezone.utc)
 _DATE_INDEXES = frozenset([
     'minute10', 'minute30',
     'hour1', 'hour4', 'hour12',
@@ -1943,17 +1949,17 @@ def _index_to_date(index: str, i: int) -> Union[date, datetime]:
     elif index == 'week1':
         return _GENESIS + timedelta(weeks=i)
     elif index == 'month1':
-        return date(2009 + i // 12, i % 12 + 1, 1)
+        return date(2011 + (0 + i) // 12, (0 + i) % 12 + 1, 1)
     elif index == 'month3':
         m = i * 3
-        return date(2009 + m // 12, m % 12 + 1, 1)
+        return date(2011 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
     elif index == 'month6':
         m = i * 6
-        return date(2009 + m // 12, m % 12 + 1, 1)
+        return date(2011 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
     elif index == 'year1':
-        return date(2009 + i, 1, 1)
+        return date(2011 + i, 1, 1)
     elif index == 'year10':
-        return date(2009 + i * 10, 1, 1)
+        return date(2011 + i * 10, 1, 1)
     else:
         raise ValueError(f"{index} is not a date-based index")
 
@@ -1979,19 +1985,19 @@ def _date_to_index(index: str, d: Union[date, datetime]) -> int:
             return 0
         return 1 + (dd - _DAY_ONE).days
     elif index == 'day3':
-        return (dd - date(2008, 12, 31)).days // 3
+        return (dd - date(2011, 0, 28)).days // 3
     elif index == 'week1':
         return (dd - _GENESIS).days // 7
     elif index == 'month1':
-        return (dd.year - 2009) * 12 + (dd.month - 1)
+        return (dd.year - 2011) * 12 + (dd.month - 1 - 0)
     elif index == 'month3':
-        return (dd.year - 2009) * 4 + (dd.month - 1) // 3
+        return ((dd.year - 2011) * 12 + (dd.month - 1 - 0)) // 3
     elif index == 'month6':
-        return (dd.year - 2009) * 2 + (dd.month - 1) // 6
+        return ((dd.year - 2011) * 12 + (dd.month - 1 - 0)) // 6
     elif index == 'year1':
-        return dd.year - 2009
+        return dd.year - 2011
     elif index == 'year10':
-        return (dd.year - 2009) // 10
+        return (dd.year - 2011) // 10
     else:
         raise ValueError(f"{index} is not a date-based index")
 
@@ -5638,173 +5644,42 @@ class SeriesTree_Pools_Major:
         self.unknown: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'unknown')
         self.luxor: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'luxor')
         self.btccom: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btccom')
-        self.btctop: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btctop')
-        self.btcguild: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btcguild')
-        self.eligius: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'eligius')
         self.f2pool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'f2pool')
-        self.braiinspool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'braiinspool')
         self.antpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'antpool')
-        self.btcc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btcc')
-        self.bwpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'bwpool')
-        self.bitfury: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'bitfury')
         self.viabtc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'viabtc')
         self.poolin: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'poolin')
         self.spiderpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'spiderpool')
         self.binancepool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'binancepool')
-        self.foundryusa: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'foundryusa')
         self.sbicrypto: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'sbicrypto')
-        self.marapool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'marapool')
-        self.secpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'secpool')
-        self.ocean: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'ocean')
-        self.whitepool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'whitepool')
+        self.kupool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'kupool')
+        self.litecoinpoolorg: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'litecoinpoolorg')
+        self.hash700: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'hash700')
+        self.lsoftwaredmcc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'lsoftwaredmcc')
+        self.hashspace: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'hashspace')
 
 class SeriesTree_Pools_Minor:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.blockfills: BlocksDominancePattern = BlocksDominancePattern(client, 'blockfills')
-        self.ultimuspool: BlocksDominancePattern = BlocksDominancePattern(client, 'ultimuspool')
-        self.terrapool: BlocksDominancePattern = BlocksDominancePattern(client, 'terrapool')
-        self.onethash: BlocksDominancePattern = BlocksDominancePattern(client, 'onethash')
-        self.bitfarms: BlocksDominancePattern = BlocksDominancePattern(client, 'bitfarms')
-        self.huobipool: BlocksDominancePattern = BlocksDominancePattern(client, 'huobipool')
-        self.wayicn: BlocksDominancePattern = BlocksDominancePattern(client, 'wayicn')
-        self.canoepool: BlocksDominancePattern = BlocksDominancePattern(client, 'canoepool')
-        self.bitcoincom: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoincom')
-        self.pool175btc: BlocksDominancePattern = BlocksDominancePattern(client, 'pool175btc')
-        self.gbminers: BlocksDominancePattern = BlocksDominancePattern(client, 'gbminers')
-        self.axbt: BlocksDominancePattern = BlocksDominancePattern(client, 'axbt')
-        self.asicminer: BlocksDominancePattern = BlocksDominancePattern(client, 'asicminer')
-        self.bitminter: BlocksDominancePattern = BlocksDominancePattern(client, 'bitminter')
-        self.bitcoinrussia: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinrussia')
-        self.btcserv: BlocksDominancePattern = BlocksDominancePattern(client, 'btcserv')
-        self.simplecoinus: BlocksDominancePattern = BlocksDominancePattern(client, 'simplecoinus')
-        self.ozcoin: BlocksDominancePattern = BlocksDominancePattern(client, 'ozcoin')
-        self.eclipsemc: BlocksDominancePattern = BlocksDominancePattern(client, 'eclipsemc')
-        self.maxbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'maxbtc')
-        self.triplemining: BlocksDominancePattern = BlocksDominancePattern(client, 'triplemining')
-        self.coinlab: BlocksDominancePattern = BlocksDominancePattern(client, 'coinlab')
-        self.pool50btc: BlocksDominancePattern = BlocksDominancePattern(client, 'pool50btc')
-        self.ghashio: BlocksDominancePattern = BlocksDominancePattern(client, 'ghashio')
-        self.stminingcorp: BlocksDominancePattern = BlocksDominancePattern(client, 'stminingcorp')
-        self.bitparking: BlocksDominancePattern = BlocksDominancePattern(client, 'bitparking')
-        self.mmpool: BlocksDominancePattern = BlocksDominancePattern(client, 'mmpool')
-        self.polmine: BlocksDominancePattern = BlocksDominancePattern(client, 'polmine')
-        self.kncminer: BlocksDominancePattern = BlocksDominancePattern(client, 'kncminer')
-        self.bitalo: BlocksDominancePattern = BlocksDominancePattern(client, 'bitalo')
-        self.hhtt: BlocksDominancePattern = BlocksDominancePattern(client, 'hhtt')
-        self.megabigpower: BlocksDominancePattern = BlocksDominancePattern(client, 'megabigpower')
-        self.mtred: BlocksDominancePattern = BlocksDominancePattern(client, 'mtred')
-        self.nmcbit: BlocksDominancePattern = BlocksDominancePattern(client, 'nmcbit')
-        self.yourbtcnet: BlocksDominancePattern = BlocksDominancePattern(client, 'yourbtcnet')
-        self.givemecoins: BlocksDominancePattern = BlocksDominancePattern(client, 'givemecoins')
-        self.multicoinco: BlocksDominancePattern = BlocksDominancePattern(client, 'multicoinco')
-        self.bcpoolio: BlocksDominancePattern = BlocksDominancePattern(client, 'bcpoolio')
-        self.cointerra: BlocksDominancePattern = BlocksDominancePattern(client, 'cointerra')
-        self.kanopool: BlocksDominancePattern = BlocksDominancePattern(client, 'kanopool')
-        self.solock: BlocksDominancePattern = BlocksDominancePattern(client, 'solock')
-        self.ckpool: BlocksDominancePattern = BlocksDominancePattern(client, 'ckpool')
         self.nicehash: BlocksDominancePattern = BlocksDominancePattern(client, 'nicehash')
-        self.bitclub: BlocksDominancePattern = BlocksDominancePattern(client, 'bitclub')
-        self.bitcoinaffiliatenetwork: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinaffiliatenetwork')
-        self.exxbw: BlocksDominancePattern = BlocksDominancePattern(client, 'exxbw')
-        self.bitsolo: BlocksDominancePattern = BlocksDominancePattern(client, 'bitsolo')
-        self.twentyoneinc: BlocksDominancePattern = BlocksDominancePattern(client, 'twentyoneinc')
-        self.digitalbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'digitalbtc')
-        self.eightbaochi: BlocksDominancePattern = BlocksDominancePattern(client, 'eightbaochi')
-        self.mybtccoinpool: BlocksDominancePattern = BlocksDominancePattern(client, 'mybtccoinpool')
-        self.tbdice: BlocksDominancePattern = BlocksDominancePattern(client, 'tbdice')
-        self.hashpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hashpool')
-        self.nexious: BlocksDominancePattern = BlocksDominancePattern(client, 'nexious')
-        self.bravomining: BlocksDominancePattern = BlocksDominancePattern(client, 'bravomining')
-        self.hotpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hotpool')
-        self.okexpool: BlocksDominancePattern = BlocksDominancePattern(client, 'okexpool')
-        self.bcmonster: BlocksDominancePattern = BlocksDominancePattern(client, 'bcmonster')
-        self.onehash: BlocksDominancePattern = BlocksDominancePattern(client, 'onehash')
-        self.bixin: BlocksDominancePattern = BlocksDominancePattern(client, 'bixin')
-        self.tatmaspool: BlocksDominancePattern = BlocksDominancePattern(client, 'tatmaspool')
-        self.connectbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'connectbtc')
-        self.batpool: BlocksDominancePattern = BlocksDominancePattern(client, 'batpool')
-        self.waterhole: BlocksDominancePattern = BlocksDominancePattern(client, 'waterhole')
-        self.dcexploration: BlocksDominancePattern = BlocksDominancePattern(client, 'dcexploration')
-        self.dcex: BlocksDominancePattern = BlocksDominancePattern(client, 'dcex')
-        self.btpool: BlocksDominancePattern = BlocksDominancePattern(client, 'btpool')
-        self.fiftyeightcoin: BlocksDominancePattern = BlocksDominancePattern(client, 'fiftyeightcoin')
-        self.bitcoinindia: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinindia')
-        self.shawnp0wers: BlocksDominancePattern = BlocksDominancePattern(client, 'shawnp0wers')
-        self.phashio: BlocksDominancePattern = BlocksDominancePattern(client, 'phashio')
-        self.rigpool: BlocksDominancePattern = BlocksDominancePattern(client, 'rigpool')
-        self.haozhuzhu: BlocksDominancePattern = BlocksDominancePattern(client, 'haozhuzhu')
-        self.sevenpool: BlocksDominancePattern = BlocksDominancePattern(client, 'sevenpool')
-        self.miningkings: BlocksDominancePattern = BlocksDominancePattern(client, 'miningkings')
-        self.hashbx: BlocksDominancePattern = BlocksDominancePattern(client, 'hashbx')
-        self.dpool: BlocksDominancePattern = BlocksDominancePattern(client, 'dpool')
-        self.rawpool: BlocksDominancePattern = BlocksDominancePattern(client, 'rawpool')
-        self.haominer: BlocksDominancePattern = BlocksDominancePattern(client, 'haominer')
-        self.helix: BlocksDominancePattern = BlocksDominancePattern(client, 'helix')
-        self.bitcoinukraine: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinukraine')
-        self.secretsuperstar: BlocksDominancePattern = BlocksDominancePattern(client, 'secretsuperstar')
-        self.tigerpoolnet: BlocksDominancePattern = BlocksDominancePattern(client, 'tigerpoolnet')
         self.sigmapoolcom: BlocksDominancePattern = BlocksDominancePattern(client, 'sigmapoolcom')
-        self.okpooltop: BlocksDominancePattern = BlocksDominancePattern(client, 'okpooltop')
-        self.hummerpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hummerpool')
-        self.tangpool: BlocksDominancePattern = BlocksDominancePattern(client, 'tangpool')
-        self.bytepool: BlocksDominancePattern = BlocksDominancePattern(client, 'bytepool')
-        self.novablock: BlocksDominancePattern = BlocksDominancePattern(client, 'novablock')
-        self.miningcity: BlocksDominancePattern = BlocksDominancePattern(client, 'miningcity')
-        self.minerium: BlocksDominancePattern = BlocksDominancePattern(client, 'minerium')
-        self.lubiancom: BlocksDominancePattern = BlocksDominancePattern(client, 'lubiancom')
-        self.okkong: BlocksDominancePattern = BlocksDominancePattern(client, 'okkong')
-        self.aaopool: BlocksDominancePattern = BlocksDominancePattern(client, 'aaopool')
         self.emcdpool: BlocksDominancePattern = BlocksDominancePattern(client, 'emcdpool')
-        self.arkpool: BlocksDominancePattern = BlocksDominancePattern(client, 'arkpool')
-        self.purebtccom: BlocksDominancePattern = BlocksDominancePattern(client, 'purebtccom')
-        self.kucoinpool: BlocksDominancePattern = BlocksDominancePattern(client, 'kucoinpool')
-        self.entrustcharitypool: BlocksDominancePattern = BlocksDominancePattern(client, 'entrustcharitypool')
-        self.okminer: BlocksDominancePattern = BlocksDominancePattern(client, 'okminer')
-        self.titan: BlocksDominancePattern = BlocksDominancePattern(client, 'titan')
-        self.pegapool: BlocksDominancePattern = BlocksDominancePattern(client, 'pegapool')
-        self.btcnuggets: BlocksDominancePattern = BlocksDominancePattern(client, 'btcnuggets')
-        self.cloudhashing: BlocksDominancePattern = BlocksDominancePattern(client, 'cloudhashing')
-        self.digitalxmintsy: BlocksDominancePattern = BlocksDominancePattern(client, 'digitalxmintsy')
-        self.telco214: BlocksDominancePattern = BlocksDominancePattern(client, 'telco214')
-        self.btcpoolparty: BlocksDominancePattern = BlocksDominancePattern(client, 'btcpoolparty')
-        self.multipool: BlocksDominancePattern = BlocksDominancePattern(client, 'multipool')
-        self.transactioncoinmining: BlocksDominancePattern = BlocksDominancePattern(client, 'transactioncoinmining')
-        self.btcdig: BlocksDominancePattern = BlocksDominancePattern(client, 'btcdig')
-        self.trickysbtcpool: BlocksDominancePattern = BlocksDominancePattern(client, 'trickysbtcpool')
-        self.btcmp: BlocksDominancePattern = BlocksDominancePattern(client, 'btcmp')
-        self.eobot: BlocksDominancePattern = BlocksDominancePattern(client, 'eobot')
-        self.unomp: BlocksDominancePattern = BlocksDominancePattern(client, 'unomp')
-        self.patels: BlocksDominancePattern = BlocksDominancePattern(client, 'patels')
-        self.gogreenlight: BlocksDominancePattern = BlocksDominancePattern(client, 'gogreenlight')
-        self.bitcoinindiapool: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinindiapool')
-        self.ekanembtc: BlocksDominancePattern = BlocksDominancePattern(client, 'ekanembtc')
-        self.canoe: BlocksDominancePattern = BlocksDominancePattern(client, 'canoe')
-        self.tiger: BlocksDominancePattern = BlocksDominancePattern(client, 'tiger')
-        self.onem1x: BlocksDominancePattern = BlocksDominancePattern(client, 'onem1x')
         self.zulupool: BlocksDominancePattern = BlocksDominancePattern(client, 'zulupool')
-        self.wiz: BlocksDominancePattern = BlocksDominancePattern(client, 'wiz')
-        self.wk057: BlocksDominancePattern = BlocksDominancePattern(client, 'wk057')
-        self.futurebitapollosolo: BlocksDominancePattern = BlocksDominancePattern(client, 'futurebitapollosolo')
-        self.carbonnegative: BlocksDominancePattern = BlocksDominancePattern(client, 'carbonnegative')
-        self.portlandhodl: BlocksDominancePattern = BlocksDominancePattern(client, 'portlandhodl')
-        self.phoenix: BlocksDominancePattern = BlocksDominancePattern(client, 'phoenix')
-        self.neopool: BlocksDominancePattern = BlocksDominancePattern(client, 'neopool')
-        self.maxipool: BlocksDominancePattern = BlocksDominancePattern(client, 'maxipool')
-        self.bitfufupool: BlocksDominancePattern = BlocksDominancePattern(client, 'bitfufupool')
-        self.gdpool: BlocksDominancePattern = BlocksDominancePattern(client, 'gdpool')
         self.miningdutch: BlocksDominancePattern = BlocksDominancePattern(client, 'miningdutch')
-        self.publicpool: BlocksDominancePattern = BlocksDominancePattern(client, 'publicpool')
-        self.miningsquared: BlocksDominancePattern = BlocksDominancePattern(client, 'miningsquared')
-        self.innopolistech: BlocksDominancePattern = BlocksDominancePattern(client, 'innopolistech')
-        self.btclab: BlocksDominancePattern = BlocksDominancePattern(client, 'btclab')
-        self.parasite: BlocksDominancePattern = BlocksDominancePattern(client, 'parasite')
-        self.redrockpool: BlocksDominancePattern = BlocksDominancePattern(client, 'redrockpool')
-        self.est3lar: BlocksDominancePattern = BlocksDominancePattern(client, 'est3lar')
-        self.braiinssolo: BlocksDominancePattern = BlocksDominancePattern(client, 'braiinssolo')
-        self.solopool: BlocksDominancePattern = BlocksDominancePattern(client, 'solopool')
-        self.noderunners: BlocksDominancePattern = BlocksDominancePattern(client, 'noderunners')
+        self.dogegogocom: BlocksDominancePattern = BlocksDominancePattern(client, 'dogegogocom')
+        self.longpool: BlocksDominancePattern = BlocksDominancePattern(client, 'longpool')
+        self.kryptex: BlocksDominancePattern = BlocksDominancePattern(client, 'kryptex')
+        self.dxpool: BlocksDominancePattern = BlocksDominancePattern(client, 'dxpool')
+        self.k1pool: BlocksDominancePattern = BlocksDominancePattern(client, 'k1pool')
+        self.molepool: BlocksDominancePattern = BlocksDominancePattern(client, 'molepool')
+        self.solopoolorg: BlocksDominancePattern = BlocksDominancePattern(client, 'solopoolorg')
+        self.prohashing: BlocksDominancePattern = BlocksDominancePattern(client, 'prohashing')
+        self.hashhut: BlocksDominancePattern = BlocksDominancePattern(client, 'hashhut')
+        self.happychina: BlocksDominancePattern = BlocksDominancePattern(client, 'happychina')
+        self.himpool: BlocksDominancePattern = BlocksDominancePattern(client, 'himpool')
+        self.p2pspbxyz: BlocksDominancePattern = BlocksDominancePattern(client, 'p2pspbxyz')
+        self.hyperdonkey: BlocksDominancePattern = BlocksDominancePattern(client, 'hyperdonkey')
+        self.zergpool: BlocksDominancePattern = BlocksDominancePattern(client, 'zergpool')
 
 class SeriesTree_Pools:
     """Series tree node."""
@@ -7052,170 +6927,39 @@ class BrkClient(BrkClientBase):
     ]
 
     POOL_ID_TO_POOL_NAME = {
-      "aaopool": "AAO Pool",
       "antpool": "AntPool",
-      "arkpool": "ArkPool",
-      "asicminer": "ASICMiner",
-      "axbt": "A-XBT",
-      "batpool": "BATPOOL",
-      "bcmonster": "BCMonster",
-      "bcpoolio": "bcpool.io",
       "binancepool": "Binance Pool",
-      "bitalo": "Bitalo",
-      "bitclub": "BitClub",
-      "bitcoinaffiliatenetwork": "Bitcoin Affiliate Network",
-      "bitcoincom": "Bitcoin.com",
-      "bitcoinindia": "Bitcoin India",
-      "bitcoinindiapool": "BitcoinIndia",
-      "bitcoinrussia": "BitcoinRussia",
-      "bitcoinukraine": "Bitcoin-Ukraine",
-      "bitfarms": "Bitfarms",
-      "bitfufupool": "BitFuFuPool",
-      "bitfury": "BitFury",
-      "bitminter": "BitMinter",
-      "bitparking": "Bitparking",
-      "bitsolo": "Bitsolo",
-      "bixin": "Bixin",
-      "blockfills": "BlockFills",
-      "braiinspool": "Braiins Pool",
-      "braiinssolo": "Braiins Solo",
-      "bravomining": "Bravo Mining",
-      "btcc": "BTCC",
       "btccom": "BTC.com",
-      "btcdig": "BTCDig",
-      "btcguild": "BTC Guild",
-      "btclab": "BTCLab",
-      "btcmp": "BTCMP",
-      "btcnuggets": "BTC Nuggets",
-      "btcpoolparty": "BTC Pool Party",
-      "btcserv": "BTCServ",
-      "btctop": "BTC.TOP",
-      "btpool": "BTPOOL",
-      "bwpool": "BWPool",
-      "bytepool": "BytePool",
-      "canoe": "CANOE",
-      "canoepool": "CanoePool",
-      "carbonnegative": "Carbon Negative",
-      "ckpool": "CKPool",
-      "cloudhashing": "CloudHashing",
-      "coinlab": "CoinLab",
-      "cointerra": "Cointerra",
-      "connectbtc": "ConnectBTC",
-      "dcex": "DCEX",
-      "dcexploration": "DCExploration",
-      "digitalbtc": "digitalBTC",
-      "digitalxmintsy": "digitalX Mintsy",
-      "dpool": "DPOOL",
-      "eclipsemc": "EclipseMC",
-      "eightbaochi": "8baochi",
-      "ekanembtc": "EkanemBTC",
-      "eligius": "Eligius",
+      "dogegogocom": "dogegogo.com",
+      "dxpool": "DxPool",
       "emcdpool": "EMCDPool",
-      "entrustcharitypool": "Entrust Charity Pool",
-      "eobot": "Eobot",
-      "est3lar": "Est3lar",
-      "exxbw": "EXX&BW",
       "f2pool": "F2Pool",
-      "fiftyeightcoin": "58COIN",
-      "foundryusa": "Foundry USA",
-      "futurebitapollosolo": "FutureBit Apollo Solo",
-      "gbminers": "GBMiners",
-      "gdpool": "GDPool",
-      "ghashio": "GHash.IO",
-      "givemecoins": "Give Me Coins",
-      "gogreenlight": "GoGreenLight",
-      "haominer": "haominer",
-      "haozhuzhu": "HAOZHUZHU",
-      "hashbx": "HashBX",
-      "hashpool": "HASHPOOL",
-      "helix": "Helix",
-      "hhtt": "HHTT",
-      "hotpool": "HotPool",
-      "hummerpool": "Hummerpool",
-      "huobipool": "Huobi.pool",
-      "innopolistech": "Innopolis Tech",
-      "kanopool": "KanoPool",
-      "kncminer": "KnCMiner",
-      "kucoinpool": "KuCoinPool",
-      "lubiancom": "Lubian.com",
-      "luxor": "Luxor",
-      "marapool": "MARA Pool",
-      "maxbtc": "MaxBTC",
-      "maxipool": "MaxiPool",
-      "megabigpower": "MegaBigPower",
-      "minerium": "Minerium",
-      "miningcity": "MiningCity",
-      "miningdutch": "Mining-Dutch",
-      "miningkings": "MiningKings",
-      "miningsquared": "Mining Squared",
-      "mmpool": "mmpool",
-      "mtred": "Mt Red",
-      "multicoinco": "MultiCoin.co",
-      "multipool": "Multipool",
-      "mybtccoinpool": "myBTCcoin Pool",
-      "neopool": "Neopool",
-      "nexious": "Nexious",
+      "happychina": "happychina",
+      "hash700": "Hash700",
+      "hashhut": "hash-hut",
+      "hashspace": "Hash Space",
+      "himpool": "HimPool",
+      "hyperdonkey": "HyperDonkey",
+      "k1pool": "K1Pool",
+      "kryptex": "Kryptex",
+      "kupool": "Kupool",
+      "litecoinpoolorg": "Litecoinpool.org",
+      "longpool": "LongPool",
+      "lsoftwaredmcc": "LSoftware DMCC",
+      "luxor": "Luxor Labs",
+      "miningdutch": "Mining Dutch",
+      "molepool": "molepool",
       "nicehash": "NiceHash",
-      "nmcbit": "NMCbit",
-      "noderunners": "Noderunners",
-      "novablock": "NovaBlock",
-      "ocean": "OCEAN",
-      "okexpool": "OKExPool",
-      "okkong": "OKKONG",
-      "okminer": "OKMINER",
-      "okpooltop": "okpool.top",
-      "onehash": "1Hash",
-      "onem1x": "1M1X",
-      "onethash": "1THash",
-      "ozcoin": "OzCoin",
-      "parasite": "Parasite",
-      "patels": "Patels",
-      "pegapool": "PEGA Pool",
-      "phashio": "PHash.IO",
-      "phoenix": "Phoenix",
-      "polmine": "Polmine",
-      "pool175btc": "175btc",
-      "pool50btc": "50BTC",
+      "p2pspbxyz": "p2p-spb.xyz",
       "poolin": "Poolin",
-      "portlandhodl": "Portland.HODL",
-      "publicpool": "Public Pool",
-      "purebtccom": "PureBTC.COM",
-      "rawpool": "Rawpool",
-      "redrockpool": "RedRock Pool",
-      "rigpool": "RigPool",
+      "prohashing": "Prohashing",
       "sbicrypto": "SBI Crypto",
-      "secpool": "SECPOOL",
-      "secretsuperstar": "SecretSuperstar",
-      "sevenpool": "7pool",
-      "shawnp0wers": "shawnp0wers",
       "sigmapoolcom": "Sigmapool.com",
-      "simplecoinus": "simplecoin.us",
-      "solock": "Solo CK",
-      "solopool": "SoloPool.com",
-      "spiderpool": "SpiderPool",
-      "stminingcorp": "ST Mining Corp",
-      "tangpool": "Tangpool",
-      "tatmaspool": "TATMAS Pool",
-      "tbdice": "TBDice",
-      "telco214": "Telco 214",
-      "terrapool": "Terra Pool",
-      "tiger": "tiger",
-      "tigerpoolnet": "tigerpool.net",
-      "titan": "Titan",
-      "transactioncoinmining": "transactioncoinmining",
-      "trickysbtcpool": "Tricky's BTC Pool",
-      "triplemining": "TripleMining",
-      "twentyoneinc": "21 Inc.",
-      "ultimuspool": "ULTIMUSPOOL",
+      "solopoolorg": "solopool.org",
+      "spiderpool": "Spiderpool",
       "unknown": "Unknown",
-      "unomp": "UNOMP",
       "viabtc": "ViaBTC",
-      "waterhole": "Waterhole",
-      "wayicn": "WAYI.CN",
-      "whitepool": "WhitePool",
-      "wiz": "wiz",
-      "wk057": "wk057",
-      "yourbtcnet": "Yourbtc.net",
+      "zergpool": "zergpool",
       "zulupool": "Zulupool"
     }
 
