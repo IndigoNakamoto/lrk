@@ -735,7 +735,7 @@ pub fn generate_static_constants(output: &mut String, chain: Chain) {
     );
 
     // Cohort constants with camelCase keys
-    for (name, value) in CohortConstants::all() {
+    for (name, value) in CohortConstants::for_chain(chain) {
         write_static_const(output, name, &format_json(&camel_case_keys(value)));
     }
 

@@ -1,4 +1,4 @@
-const storagePrefix = "bitview:learn-section";
+const storagePrefix = "litview:learn-section";
 
 /** @param {string} id */
 function getStorageKey(id) {

@@ -27,7 +27,7 @@ pub fn generate_class_constants(output: &mut String, chain: Chain) {
     write_class_const(output, "POOL_ID_TO_POOL_NAME", &format_json(&pool_map));
 
     // Cohort constants (no camelCase conversion for Python)
-    for (name, value) in CohortConstants::all() {
+    for (name, value) in CohortConstants::for_chain(chain) {
         write_class_const(output, name, &format_json(&value));
     }
 }

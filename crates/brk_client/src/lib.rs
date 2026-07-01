@@ -9359,7 +9359,7 @@ impl BrkClient {
 
     /// Disk usage
     ///
-    /// Returns the disk space used by BRK and Bitcoin data.
+    /// Returns the disk space used by LRK and Litecoin data.
     ///
     /// Endpoint: `GET /api/server/disk`
     pub fn get_disk_usage(&self) -> Result<DiskUsage> {
@@ -9578,9 +9578,9 @@ impl BrkClient {
         self.base.get_json(&format!("/api/v1/difficulty-adjustment"))
     }
 
-    /// Current BTC price
+    /// Current LTC price
     ///
-    /// Returns bitcoin latest price (on-chain derived, USD only).
+    /// Returns litecoin latest price (exchange-derived, USD only).
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
     ///
@@ -9591,7 +9591,7 @@ impl BrkClient {
 
     /// Historical price
     ///
-    /// Get historical BTC/USD price. Optionally specify a UNIX timestamp to get the price at that time.
+    /// Get historical LTC/USD price. Optionally specify a UNIX timestamp to get the price at that time.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
     ///
@@ -9615,7 +9615,7 @@ impl BrkClient {
 
     /// Address information
     ///
-    /// Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+    /// Retrieve address information including balance and transaction counts. Supports all standard Litecoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
     ///
@@ -9681,7 +9681,7 @@ impl BrkClient {
 
     /// Validate address
     ///
-    /// Validate a Bitcoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses.
+    /// Validate a Litecoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-validate)*
     ///
@@ -10066,7 +10066,7 @@ impl BrkClient {
 
     /// Projected mempool blocks
     ///
-    /// Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+    /// Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
     ///
@@ -10163,7 +10163,7 @@ impl BrkClient {
 
     /// Projected next block template
     ///
-    /// Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+    /// Litecoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
     ///
     /// Endpoint: `GET /api/v1/mempool/block-template`
     pub fn get_block_template(&self) -> Result<BlockTemplate> {
@@ -10179,18 +10179,18 @@ impl BrkClient {
         self.base.get_json(&format!("/api/v1/mempool/block-template/diff/{hash}"))
     }
 
-    /// Live BTC/USD price
+    /// Live LTC/USD price
     ///
-    /// Returns the current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the last 12 blocks plus mempool.
+    /// Returns the current LTC/USD price in dollars, derived from on-chain round-dollar output patterns in the last 12 blocks plus mempool.
     ///
     /// Endpoint: `GET /api/mempool/price`
     pub fn get_live_price(&self) -> Result<Dollars> {
         self.base.get_json(&format!("/api/mempool/price"))
     }
 
-    /// Live BTC/USD price
+    /// Live LTC/USD price
     ///
-    /// Current BTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
+    /// Current LTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
     ///
     /// Endpoint: `GET /api/oracle/price`
     pub fn get_oracle_price(&self) -> Result<Dollars> {

@@ -1,15 +1,14 @@
 {
   "schema_version": "v1",
-  "name_for_human": "Bitcoin Research Kit",
-  "name_for_model": "bitcoin_research_kit",
-  "description_for_human": "Query Bitcoin on-chain analytics: thousands of metrics, block explorer, address index.",
-  "description_for_model": "Bitcoin on-chain analytics API. Search metrics via /api/metrics/search/{query}, fetch data via /api/metric/{metric}/{index}. No auth required.",
+  "name_for_human": "Litecoin Research Kit",
+  "name_for_model": "litecoin_research_kit",
+  "description_for_human": "Query Litecoin on-chain analytics: thousands of metrics, block explorer, address index.",
+  "description_for_model": "Litecoin on-chain analytics API. Search metrics via /api/metrics/search/{query}, fetch data via /api/metric/{metric}/{index}. No auth required.",
   "auth": { "type": "none" },
   "api": {
     "type": "openapi",
     "url": "https://litview.space/openapi.json"
   },
   "logo_url": "https://litview.space/assets/favicon/web-app-manifest-512x512.png",
-  "contact_email": "hello@bitcoinresearchkit.org",
-  "legal_info_url": "https://github.com/bitcoinresearchkit/brk/blob/main/docs/LICENSE.md"
+  "legal_info_url": "https://github.com/IndigoNakamoto/lrk/blob/main/docs/LICENSE.md"
 }

@@ -52,6 +52,18 @@ pub struct CohortConstants;
 impl CohortConstants {
     /// Get all cohort constants as name-value pairs for iteration.
     pub fn all() -> Vec<(&'static str, Value)> {
+        Self::for_chain(Chain::Bitcoin)
+    }
+
+    /// Cohort constants with chain-specific display labels (`short` / `long`).
+    pub fn for_chain(chain: Chain) -> Vec<(&'static str, Value)> {
+        Self::all_bitcoin()
+            .into_iter()
+            .map(|(name, value)| (name, crate::coin_labels::relabel_cohort_constants(value, chain)))
+            .collect()
+    }
+
+    fn all_bitcoin() -> Vec<(&'static str, Value)> {
         fn to_value<T: Serialize>(v: &T) -> Value {
             serde_json::to_value(v).unwrap()
         }

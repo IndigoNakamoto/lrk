@@ -14,7 +14,7 @@ import { units } from "../../../charts/units.js";
 export const marketCapSection = {
   title: "Market Cap",
   description:
-    "Market cap is circulating supply multiplied by the current bitcoin price. It answers: what is all circulating BTC worth at today's market price?",
+    "Market cap is circulating supply multiplied by the current litecoin price. It answers: what is all circulating LTC worth at today's market price?",
   chart: {
     title: "Market cap",
     unit: units.usd,
@@ -64,7 +64,7 @@ export const marketCapSection = {
     {
       title: "Address Balance",
       description:
-        "Groups market cap by the total BTC held at each address. Addresses are not people or entities, but this still helps show how current market value is distributed across address balances.",
+        "Groups market cap by the total LTC held at each address. Addresses are not people or entities, but this still helps show how current market value is distributed across address balances.",
       chart: {
         title: "Market cap by address balance",
         unit: units.usd,
@@ -74,7 +74,7 @@ export const marketCapSection = {
     {
       title: "Type",
       description:
-        "Groups market cap by Bitcoin output type. This shows how much current market value is held in each script format.",
+        "Groups market cap by Litecoin output type. This shows how much current market value is held in each script format.",
       chart: {
         title: "Market cap by type",
         unit: units.usd,

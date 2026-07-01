@@ -1,9 +1,9 @@
-# Bitcoin Research Kit (BRK) — Full API Reference
+# Litecoin Research Kit (LRK) — Full API Reference
 
-> Free, open-source Bitcoin on-chain analytics API. 49,000+ time-series, block explorer, address index, mempool, mining stats — all computed from a Bitcoin Core node. No auth required.
+> Free, open-source Litecoin on-chain analytics API. 8,000+ time-series, block explorer, address index, mempool, mining stats — all computed from a Litecoin Core node. No auth required.
 
 Base URL: https://litview.space
-GitHub: https://github.com/bitcoinresearchkit/brk
+GitHub: https://github.com/IndigoNakamoto/lrk
 License: MIT
 
 ## Quick Start
@@ -11,7 +11,7 @@ License: MIT
     # Search for series by keyword
     curl -s "https://litview.space/api/series/search?q=price"
 
-    # Get Bitcoin closing price for the last 30 days
+    # Get Litecoin closing price for the last 30 days
     curl -s "https://litview.space/api/series/price/day?start=-30"
 
     # Get just the latest price
@@ -94,13 +94,13 @@ Sync status.
 
 ### GET https://litview.space/api/server/disk
 
-Disk usage for BRK data and Bitcoin Core data directories.
+Disk usage for LRK data and Litecoin Core data directories.
 
 ---
 
 ## Series
 
-The core feature. 49,000+ on-chain time-series.
+The core feature. 8,000+ on-chain time-series.
 
 ### GET https://litview.space/api/series/search?q={query}
 
@@ -285,7 +285,7 @@ Mempool.space compatible.
 
 ### GET https://litview.space/api/tx/{txid}
 
-Full transaction data. Values in satoshis (1 BTC = 100,000,000 sats).
+Full transaction data. Values in litoshis (1 LTC = 100,000,000 lits).
 
     → {
         "index": 0,
@@ -394,7 +394,7 @@ Unspent outputs.
 
 ### GET https://litview.space/api/mempool/price
 
-Live BTC/USD price derived from on-chain round-dollar transaction patterns.
+Live LTC/USD price derived from on-chain round-dollar transaction patterns.
 
     → 70817.64
 
@@ -476,7 +476,7 @@ Reward statistics for the last N blocks.
 
 ## Series Categories
 
-49,000+ series across these categories. Use `/api/series/search?q={keyword}` to discover, or `/api/series` for the full tree.
+8,000+ series across these categories. Use `/api/series/search?q={keyword}` to discover, or `/api/series` for the full tree.
 
 - **Market**: price, market_cap, realized_cap, mvrv, nvt, thermocap, and variants (SMA, rolling)
 - **Supply**: circulating, issued, inflation_rate, subsidy

@@ -21,7 +21,7 @@ export function createStartStory() {
 
   titleAccent.append("wallets");
   title.append("Watch-only", titleBreak, titleAccent);
-  lead.append("View a Bitcoin wallet privately, without spending access.");
+  lead.append("View a Litecoin wallet privately, without spending access.");
   details.append(
     createDetail("Open xpubs and watch-only descriptors."),
     createDetail("Addresses are derived on your device."),

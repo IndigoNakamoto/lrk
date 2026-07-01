@@ -1,6 +1,6 @@
 import { encryption } from "./encryption.js";
 
-const STORAGE_KEY = "bitview.wallets.v3";
+const STORAGE_KEY = "litview.wallets.v3";
 
 /**
  * @typedef {import("./encryption.js").EncryptedSecret} EncryptedSecret

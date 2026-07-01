@@ -7,6 +7,7 @@ websites/dist
 bridge/
 /ids.txt
 rust_out
+.wrangler/
 
 # Copies
 *\ copy*

@@ -1,6 +1,6 @@
-# Bitcoin Research Kit (BRK)
+# Litecoin Research Kit (LRK)
 
-> Free, open-source Bitcoin on-chain analytics API at https://litview.space. 49,000+ time-series (price, hashrate, supply, MVRV, HODL waves, and more), block explorer, address index, mempool stats, mining data. No auth required. JSON and CSV output.
+> Free, open-source Litecoin on-chain analytics API at https://litview.space. 8,000+ time-series (price, hashrate, supply, MVRV, HODL waves, and more), block explorer, address index, mempool stats, mining data. No auth required. JSON and CSV output.
 
 ## API Documentation
 
@@ -29,4 +29,4 @@
 
 ## Source
 
-- [GitHub](https://github.com/bitcoinresearchkit/brk): MIT licensed
+- [GitHub](https://github.com/IndigoNakamoto/lrk): MIT licensed

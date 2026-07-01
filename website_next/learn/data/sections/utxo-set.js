@@ -24,7 +24,7 @@ const line = /** @type {const} */ ("line");
 export const utxoSetSection = {
   title: "UTXO Set",
   description:
-    "The UTXO set is the collection of all spendable bitcoin outputs that exist right now. Each UTXO is a separate coin fragment created by a transaction and later consumed when it is spent. Counting UTXOs shows how Bitcoin is split into pieces, which is different from counting how much BTC those pieces contain.",
+    "The UTXO set is the collection of all spendable litecoin outputs that exist right now. Each UTXO is a separate coin fragment created by a transaction and later consumed when it is spent. Counting UTXOs shows how Litecoin is split into pieces, which is different from counting how much LTC those pieces contain.",
   chart: {
     title: "UTXO set",
     unit: units.utxos,
@@ -62,7 +62,7 @@ export const utxoSetSection = {
         {
           title: "Spent",
           description:
-            "Counts how many UTXOs were spent during each rolling window. This measures how much of the existing set was consumed as transaction inputs, regardless of the BTC value inside those outputs.",
+            "Counts how many UTXOs were spent during each rolling window. This measures how much of the existing set was consumed as transaction inputs, regardless of the LTC value inside those outputs.",
           chart: {
             title: "Spent UTXOs",
             unit: units.utxos,
@@ -106,7 +106,7 @@ export const utxoSetSection = {
             {
               title: "Balance",
               description:
-                "Groups spending rate by the BTC amount held in each UTXO. This shows whether small or large outputs are being consumed faster.",
+                "Groups spending rate by the LTC amount held in each UTXO. This shows whether small or large outputs are being consumed faster.",
               chart: {
                 title: "UTXO spending rate by balance",
                 unit: units.percent,
@@ -159,7 +159,7 @@ export const utxoSetSection = {
         {
           title: "Term",
           description:
-            "Splits the UTXO set between short-term and long-term holder cohorts. This counts pieces, not BTC, so it shows whether recent and dormant supply is made of many small outputs or fewer larger ones.",
+            "Splits the UTXO set between short-term and long-term holder cohorts. This counts pieces, not LTC, so it shows whether recent and dormant supply is made of many small outputs or fewer larger ones.",
           chart: {
             title: "UTXO set by term",
             unit: units.utxos,
@@ -179,7 +179,7 @@ export const utxoSetSection = {
         {
           title: "Balance",
           description:
-            "Groups UTXOs by the BTC amount held in each output. This shows the size distribution of spendable pieces, from tiny fragments to very large outputs.",
+            "Groups UTXOs by the LTC amount held in each output. This shows the size distribution of spendable pieces, from tiny fragments to very large outputs.",
           chart: {
             title: "UTXO set by balance",
             unit: units.utxos,

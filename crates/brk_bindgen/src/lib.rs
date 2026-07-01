@@ -50,6 +50,7 @@ impl ClientOutputPaths {
 
 mod analysis;
 mod backends;
+mod coin_labels;
 mod generate;
 mod generators;
 mod openapi;
@@ -97,10 +98,16 @@ pub fn generate_clients_for_chain(
 ) -> io::Result<()> {
     let metadata = ClientMetadata::from_vecs(vecs);
 
-    // Parse OpenAPI spec
-    let spec = parse_openapi_json(openapi_json)?;
+    // Parse OpenAPI spec (chain-specific display labels in descriptions)
+    let mut openapi_value: serde_json::Value = serde_json::from_str(openapi_json)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    coin_labels::relabel_openapi_descriptions(&mut openapi_value, chain);
+    let openapi_json = serde_json::to_string(&openapi_value)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+    let spec = parse_openapi_json(&openapi_json)?;
     let endpoints = extract_endpoints(&spec);
-    let mut schemas = extract_schemas(openapi_json);
+    let mut schemas = extract_schemas(&openapi_json);
 
     // Collect leaf type schemas from the catalog and merge into schemas
     collect_leaf_type_schemas(&metadata.catalog, &mut schemas);

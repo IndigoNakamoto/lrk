@@ -52,7 +52,7 @@ function createMajorPoolSection({ name, pool }) {
       {
         title: "Rewards",
         description:
-          "Sums the BTC earned by blocks attributed to the pool. Rewards include both the block subsidy and transaction fees.",
+          "Sums the LTC earned by blocks attributed to the pool. Rewards include both the block subsidy and transaction fees.",
         chart: {
           title: `${name} rewards`,
           unit: units.btc,
@@ -101,7 +101,7 @@ function createMinorPoolSection({ name, pool }) {
 export const miningPoolsSection = {
   title: "Mining Pools",
   description:
-    "Mining pools coordinate miners so they can find blocks more steadily and split rewards. Pool charts show which pools are producing blocks, how their share changes, and how much BTC is paid to pools that are large enough to track in detail.",
+    "Mining pools coordinate miners so they can find blocks more steadily and split rewards. Pool charts show which pools are producing blocks, how their share changes, and how much LTC is paid to pools that are large enough to track in detail.",
   children: [
     {
       title: "Major",
@@ -131,7 +131,7 @@ export const miningPoolsSection = {
         {
           title: "Rewards",
           description:
-            "Compares rolling monthly BTC rewards earned by major pools. Rewards include both subsidy and transaction fees.",
+            "Compares rolling monthly LTC rewards earned by major pools. Rewards include both subsidy and transaction fees.",
           chart: {
             title: "Major pool rewards",
             unit: units.btc,

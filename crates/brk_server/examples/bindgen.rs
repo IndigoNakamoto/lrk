@@ -1,6 +1,7 @@
 use std::{env, fs, path::PathBuf};
 
 use aide::axum::ApiRouter;
+use brk_chain::Chain;
 use brk_computer::Computer;
 use brk_indexer::Indexer;
 use brk_query::Vecs;
@@ -12,7 +13,12 @@ pub fn main() -> color_eyre::Result<()> {
     let tmp = env::temp_dir().join("brk_bindgen");
     fs::create_dir_all(&tmp)?;
 
-    let indexer = Indexer::forced_import(&tmp)?;
+    #[cfg(feature = "litecoin")]
+    let chain = Chain::Litecoin;
+    #[cfg(not(feature = "litecoin"))]
+    let chain = Chain::Bitcoin;
+
+    let indexer = Indexer::forced_import_with_chain(&tmp, chain)?;
     let computer = Computer::forced_import(&tmp, &indexer)?;
     let vecs = Vecs::build_rw(&indexer, &computer);
 
@@ -26,10 +32,10 @@ pub fn main() -> color_eyre::Result<()> {
 
     let output_paths = brk_bindgen::ClientOutputPaths::new()
         .rust(workspace_root.join("crates/brk_client/src/lib.rs"))
-        .javascript(workspace_root.join("website/scripts/modules/brk-client/index.js"))
+        .javascript(workspace_root.join("modules/brk-client/index.js"))
         .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"));
 
-    generate_bindings(&vecs, &openapi, &output_paths, indexer.chain)?;
+    generate_bindings(&vecs, &openapi, &output_paths, chain)?;
 
     fs::remove_dir_all(&tmp)?;
 

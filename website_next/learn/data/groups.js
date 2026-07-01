@@ -23,21 +23,21 @@ export const ageRanges = /** @type {const} */ ([
 ]);
 
 export const amountRanges = /** @type {const} */ ([
-  ["0 sats", "_0sats"],
-  ["1-10 sats", "_1satTo10sats"],
-  ["10-100 sats", "_10satsTo100sats"],
-  ["100-1k sats", "_100satsTo1kSats"],
-  ["1k-10k sats", "_1kSatsTo10kSats"],
-  ["10k-100k sats", "_10kSatsTo100kSats"],
-  ["100k-1M sats", "_100kSatsTo1mSats"],
-  ["1M-10M sats", "_1mSatsTo10mSats"],
-  ["10M sats-1 BTC", "_10mSatsTo1btc"],
-  ["1-10 BTC", "_1btcTo10btc"],
-  ["10-100 BTC", "_10btcTo100btc"],
-  ["100-1k BTC", "_100btcTo1kBtc"],
-  ["1k-10k BTC", "_1kBtcTo10kBtc"],
-  ["10k-100k BTC", "_10kBtcTo100kBtc"],
-  ["100k+ BTC", "over100kBtc"],
+  ["0 litoshis", "_0sats"],
+  ["1-10 lits", "_1satTo10sats"],
+  ["10-100 lits", "_10satsTo100sats"],
+  ["100-1k lits", "_100satsTo1kSats"],
+  ["1k-10k lits", "_1kSatsTo10kSats"],
+  ["10k-100k lits", "_10kSatsTo100kSats"],
+  ["100k-1M lits", "_100kSatsTo1mSats"],
+  ["1M-10M lits", "_1mSatsTo10mSats"],
+  ["10M lits-1 LTC", "_10mSatsTo1btc"],
+  ["1-10 LTC", "_1btcTo10btc"],
+  ["10-100 LTC", "_10btcTo100btc"],
+  ["100-1k LTC", "_100btcTo1kBtc"],
+  ["1k-10k LTC", "_1kBtcTo10kBtc"],
+  ["10k-100k LTC", "_10kBtcTo100kBtc"],
+  ["100k+ LTC", "over100kBtc"],
 ]);
 
 export const spendableTypes = /** @type {const} */ ([

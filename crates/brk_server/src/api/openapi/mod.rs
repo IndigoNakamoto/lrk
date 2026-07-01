@@ -22,9 +22,9 @@ use crate::VERSION;
 
 pub fn create_openapi() -> OpenApi {
     let info = Info {
-        title: "Bitcoin Research Kit".to_string(),
+        title: "Litecoin Research Kit".to_string(),
         description: Some(
-            r#"API for querying Bitcoin blockchain data, mempool state, and on-chain series.
+            r#"API for querying Litecoin blockchain data, mempool state, and on-chain series.
 
 ### Features
 
@@ -36,10 +36,10 @@ pub fn create_openapi() -> OpenApi {
 ### Quick start
 
 ```bash
-curl -s https://bitview.space/api/blocks/tip/height
-curl -s https://bitview.space/api/v1/fees/recommended
-curl -s https://bitview.space/api/mempool
-curl -s https://bitview.space/api/series/search?q=price
+curl -s https://litview.space/api/blocks/tip/height
+curl -s https://litview.space/api/v1/fees/recommended
+curl -s https://litview.space/api/mempool
+curl -s https://litview.space/api/series/search?q=price
 ```
 
 ### Errors
@@ -70,21 +70,20 @@ All errors return structured JSON with a consistent format:
 
 ### Links
 
-- [GitHub](https://github.com/bitcoinresearchkit/brk)
-- [Bitview](https://bitview.space) - Web app built on this API"#
+- [GitHub](https://github.com/IndigoNakamoto/lrk)
+- [Litview](https://litview.space) - Web app built on this API"#
                 .to_string(),
         ),
         version: format!("v{VERSION}"),
         contact: Some(Contact {
-            name: Some("Bitcoin Research Kit".to_string()),
-            url: Some("https://github.com/bitcoinresearchkit/brk".to_string()),
-            email: Some("hello@bitcoinresearchkit.org".to_string()),
+            name: Some("Litecoin Research Kit".to_string()),
+            url: Some("https://github.com/IndigoNakamoto/lrk".to_string()),
             ..Contact::default()
         }),
         license: Some(License {
             name: "MIT".to_string(),
             url: Some(
-                "https://github.com/bitcoinresearchkit/brk/blob/main/docs/LICENSE.md".to_string(),
+                "https://github.com/IndigoNakamoto/lrk/blob/main/docs/LICENSE.md".to_string(),
             ),
             ..License::default()
         }),
@@ -102,7 +101,7 @@ All errors return structured JSON with a consistent format:
         Tag {
             name: "Series".to_string(),
             description: Some(
-                "Access thousands of Bitcoin network time-series data. Query historical statistics \
+                "Access thousands of Litecoin network time-series data. Query historical statistics \
                 across various indexes (date, week, month, block height) with JSON or CSV output.\n\n\
                 **Note:** Series names are subject to change while the project is in active development."
                     .to_string(),
@@ -112,7 +111,7 @@ All errors return structured JSON with a consistent format:
         Tag {
             name: "General".to_string(),
             description: Some(
-                "General Bitcoin network information including difficulty adjustments and price data.\n\n\
+                "General Litecoin network information including difficulty adjustments and price data.\n\n\
                 *[Mempool.space](https://mempool.space/docs/api/rest) compatible.*"
                     .to_string(),
             ),
@@ -121,7 +120,7 @@ All errors return structured JSON with a consistent format:
         Tag {
             name: "Addresses".to_string(),
             description: Some(
-                "Query Bitcoin address data including balances, transaction history, and UTXOs. \
+                "Query Litecoin address data including balances, transaction history, and UTXOs. \
                 Supports all address types: P2PKH, P2SH, P2WPKH, P2WSH, and P2TR.\n\n\
                 *[Mempool.space](https://mempool.space/docs/api/rest) compatible.*"
                     .to_string(),
@@ -180,7 +179,7 @@ All errors return structured JSON with a consistent format:
         Tag {
             name: "Oracle".to_string(),
             description: Some(
-                "On-chain BTC/USD price derived purely from round-dollar payment patterns in \
+                "On-chain LTC/USD price derived purely from round-dollar payment patterns in \
                 transaction outputs, with no external price feed. Payment activity is binned on a \
                 log scale, and a smoothed EMA over recent blocks locates the price.\n\n\
                 Histograms come in two flavors, each available at the live tip (mempool-blended) \
@@ -198,7 +197,7 @@ All errors return structured JSON with a consistent format:
                 "UTXO Realized Price Distribution. For each (cohort, date) pair, supply is \
                 grouped by the close price at which each UTXO was last moved. One snapshot is \
                 emitted per UTC day.\n\n\
-                Each bucket carries `supply` (BTC), `realized_cap` (USD, = `price_floor * supply`), \
+                Each bucket carries `supply` (LTC), `realized_cap` (USD, = `price_floor * supply`), \
                 and `unrealized_pnl` (USD, = `(close - price_floor) * supply`, can be negative).\n\n\
                 Aggregate with the `agg` query parameter (alias `bucket`):\n\
                 - `raw`: one bucket per rounded price (default).\n\

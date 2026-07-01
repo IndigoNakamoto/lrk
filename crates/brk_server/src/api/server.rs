@@ -128,7 +128,7 @@ impl ServerRoutes for ApiRouter<AppState> {
                         .server_tag()
                         .summary("Disk usage")
                         .description(
-                            "Returns the disk space used by BRK and Bitcoin data.",
+                            "Returns the disk space used by LRK and Litecoin data.",
                         )
                         .json_response::<DiskUsage>()
                         .not_modified()

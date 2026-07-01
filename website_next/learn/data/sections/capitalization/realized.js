@@ -64,7 +64,7 @@ export const realizedCapSection = {
     {
       title: "Address Balance",
       description:
-        "Groups realized cap by the total BTC held at each address. Addresses are not people or entities, but this still helps show how cost basis is distributed across address balances.",
+        "Groups realized cap by the total LTC held at each address. Addresses are not people or entities, but this still helps show how cost basis is distributed across address balances.",
       chart: {
         title: "Realized cap by address balance",
         unit: units.usd,
@@ -74,7 +74,7 @@ export const realizedCapSection = {
     {
       title: "Type",
       description:
-        "Groups realized cap by Bitcoin output type. This shows how much cost basis is held in each script format.",
+        "Groups realized cap by Litecoin output type. This shows how much cost basis is held in each script format.",
       chart: {
         title: "Realized cap by type",
         unit: units.usd,
