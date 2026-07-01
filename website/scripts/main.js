@@ -113,7 +113,7 @@ initPrice(brk);
 
 onPrice((price) => {
   console.log("close:", price);
-  window.document.title = `${price.toLocaleString("en-us")} | bitview`;
+  window.document.title = `${price.toLocaleString("en-us")} | litview`;
 });
 
 const options = initOptions();

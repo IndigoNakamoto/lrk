@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 173.2 200" role="img" aria-label="bitview">
-  <title>bitview</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 173.2 200" role="img" aria-label="litview">
+  <title>litview</title>
   <style>
     .glass { fill-opacity: 0.4; }
     .glass-top,       .liquid-top   { fill: oklch(26.6% 0 0); }

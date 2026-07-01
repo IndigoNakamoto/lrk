@@ -1,6 +1,6 @@
 {
-  "name": "bitview",
-  "short_name": "bitview",
+  "name": "litview",
+  "short_name": "litview",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
