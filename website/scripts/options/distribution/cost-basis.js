@@ -93,7 +93,7 @@ export function createCostBasisSectionWithPercentiles({ cohort, title }) {
         tree: singleWeightFolder({
           avgPrice: tree.realized.price, avgName: "All",
           inProfit: cb.inProfit.perCoin, inLoss: cb.inLoss.perCoin,
-          percentiles: cb.perCoin, color, weightLabel: "BTC-weighted", title,
+          percentiles: cb.perCoin, color, weightLabel: "LTC-weighted", title,
           min: cb.min, max: cb.max,
         }),
       },
@@ -185,7 +185,7 @@ export function createGroupedCostBasisSectionWithPercentiles({ list, all, title 
           getInProfit: (c) => c.tree.costBasis.inProfit.perCoin,
           getInLoss: (c) => c.tree.costBasis.inLoss.perCoin,
           getPercentiles: (c) => c.tree.costBasis.perCoin,
-          avgTitle: "Average", weightLabel: "BTC-weighted",
+          avgTitle: "Average", weightLabel: "LTC-weighted",
         }),
       },
       {

@@ -8118,967 +8118,981 @@ class BrkClient extends BrkClientBase {
     "zulupool": "Zulupool"
   });
 
-  TERM_NAMES = /** @type {const} */ ({
-    "short": {
-      "id": "sth",
-      "short": "STH",
-      "long": "Short Term Holders"
-    },
-    "long": {
-      "id": "lth",
-      "short": "LTH",
-      "long": "Long Term Holders"
+  TERM_NAMES = /** @type {const} */ (    {
+      "short": {
+        "id": "sth",
+        "short": "STH",
+        "long": "Short Term Holders"
+      },
+      "long": {
+        "id": "lth",
+        "short": "LTH",
+        "long": "Long Term Holders"
+      }
     }
-  });
+  );
 
-  EPOCH_NAMES = /** @type {const} */ ({
-    "_0": {
-      "id": "epoch_0",
-      "short": "0",
-      "long": "Epoch 0"
-    },
-    "_1": {
-      "id": "epoch_1",
-      "short": "1",
-      "long": "Epoch 1"
-    },
-    "_2": {
-      "id": "epoch_2",
-      "short": "2",
-      "long": "Epoch 2"
-    },
-    "_3": {
-      "id": "epoch_3",
-      "short": "3",
-      "long": "Epoch 3"
-    },
-    "_4": {
-      "id": "epoch_4",
-      "short": "4",
-      "long": "Epoch 4"
+  EPOCH_NAMES = /** @type {const} */ (    {
+      "_0": {
+        "id": "epoch_0",
+        "short": "0",
+        "long": "Epoch 0"
+      },
+      "_1": {
+        "id": "epoch_1",
+        "short": "1",
+        "long": "Epoch 1"
+      },
+      "_2": {
+        "id": "epoch_2",
+        "short": "2",
+        "long": "Epoch 2"
+      },
+      "_3": {
+        "id": "epoch_3",
+        "short": "3",
+        "long": "Epoch 3"
+      },
+      "_4": {
+        "id": "epoch_4",
+        "short": "4",
+        "long": "Epoch 4"
+      }
     }
-  });
+  );
 
-  CLASS_NAMES = /** @type {const} */ ({
-    "_2009": {
-      "id": "class_2009",
-      "short": "2009",
-      "long": "Class 2009"
-    },
-    "_2010": {
-      "id": "class_2010",
-      "short": "2010",
-      "long": "Class 2010"
-    },
-    "_2011": {
-      "id": "class_2011",
-      "short": "2011",
-      "long": "Class 2011"
-    },
-    "_2012": {
-      "id": "class_2012",
-      "short": "2012",
-      "long": "Class 2012"
-    },
-    "_2013": {
-      "id": "class_2013",
-      "short": "2013",
-      "long": "Class 2013"
-    },
-    "_2014": {
-      "id": "class_2014",
-      "short": "2014",
-      "long": "Class 2014"
-    },
-    "_2015": {
-      "id": "class_2015",
-      "short": "2015",
-      "long": "Class 2015"
-    },
-    "_2016": {
-      "id": "class_2016",
-      "short": "2016",
-      "long": "Class 2016"
-    },
-    "_2017": {
-      "id": "class_2017",
-      "short": "2017",
-      "long": "Class 2017"
-    },
-    "_2018": {
-      "id": "class_2018",
-      "short": "2018",
-      "long": "Class 2018"
-    },
-    "_2019": {
-      "id": "class_2019",
-      "short": "2019",
-      "long": "Class 2019"
-    },
-    "_2020": {
-      "id": "class_2020",
-      "short": "2020",
-      "long": "Class 2020"
-    },
-    "_2021": {
-      "id": "class_2021",
-      "short": "2021",
-      "long": "Class 2021"
-    },
-    "_2022": {
-      "id": "class_2022",
-      "short": "2022",
-      "long": "Class 2022"
-    },
-    "_2023": {
-      "id": "class_2023",
-      "short": "2023",
-      "long": "Class 2023"
-    },
-    "_2024": {
-      "id": "class_2024",
-      "short": "2024",
-      "long": "Class 2024"
-    },
-    "_2025": {
-      "id": "class_2025",
-      "short": "2025",
-      "long": "Class 2025"
-    },
-    "_2026": {
-      "id": "class_2026",
-      "short": "2026",
-      "long": "Class 2026"
+  CLASS_NAMES = /** @type {const} */ (    {
+      "_2009": {
+        "id": "class_2009",
+        "short": "2009",
+        "long": "Class 2009"
+      },
+      "_2010": {
+        "id": "class_2010",
+        "short": "2010",
+        "long": "Class 2010"
+      },
+      "_2011": {
+        "id": "class_2011",
+        "short": "2011",
+        "long": "Class 2011"
+      },
+      "_2012": {
+        "id": "class_2012",
+        "short": "2012",
+        "long": "Class 2012"
+      },
+      "_2013": {
+        "id": "class_2013",
+        "short": "2013",
+        "long": "Class 2013"
+      },
+      "_2014": {
+        "id": "class_2014",
+        "short": "2014",
+        "long": "Class 2014"
+      },
+      "_2015": {
+        "id": "class_2015",
+        "short": "2015",
+        "long": "Class 2015"
+      },
+      "_2016": {
+        "id": "class_2016",
+        "short": "2016",
+        "long": "Class 2016"
+      },
+      "_2017": {
+        "id": "class_2017",
+        "short": "2017",
+        "long": "Class 2017"
+      },
+      "_2018": {
+        "id": "class_2018",
+        "short": "2018",
+        "long": "Class 2018"
+      },
+      "_2019": {
+        "id": "class_2019",
+        "short": "2019",
+        "long": "Class 2019"
+      },
+      "_2020": {
+        "id": "class_2020",
+        "short": "2020",
+        "long": "Class 2020"
+      },
+      "_2021": {
+        "id": "class_2021",
+        "short": "2021",
+        "long": "Class 2021"
+      },
+      "_2022": {
+        "id": "class_2022",
+        "short": "2022",
+        "long": "Class 2022"
+      },
+      "_2023": {
+        "id": "class_2023",
+        "short": "2023",
+        "long": "Class 2023"
+      },
+      "_2024": {
+        "id": "class_2024",
+        "short": "2024",
+        "long": "Class 2024"
+      },
+      "_2025": {
+        "id": "class_2025",
+        "short": "2025",
+        "long": "Class 2025"
+      },
+      "_2026": {
+        "id": "class_2026",
+        "short": "2026",
+        "long": "Class 2026"
+      }
     }
-  });
+  );
 
-  ENTRY_NAMES = /** @type {const} */ ({
-    "discount": {
-      "id": "veteran",
-      "short": "Veteran",
-      "long": "Veteran Coins"
-    },
-    "premium": {
-      "id": "rookie",
-      "short": "Rookie",
-      "long": "Rookie Coins"
+  ENTRY_NAMES = /** @type {const} */ (    {
+      "discount": {
+        "id": "veteran",
+        "short": "Veteran",
+        "long": "Veteran Coins"
+      },
+      "premium": {
+        "id": "rookie",
+        "short": "Rookie",
+        "long": "Rookie Coins"
+      }
     }
-  });
+  );
 
-  SPENDABLE_TYPE_NAMES = /** @type {const} */ ({
-    "p2pk65": {
-      "id": "p2pk65",
-      "short": "P2PK65",
-      "long": "Pay to Public Key (65 bytes)"
-    },
-    "p2pk33": {
-      "id": "p2pk33",
-      "short": "P2PK33",
-      "long": "Pay to Public Key (33 bytes)"
-    },
-    "p2pkh": {
-      "id": "p2pkh",
-      "short": "P2PKH",
-      "long": "Pay to Public Key Hash"
-    },
-    "p2ms": {
-      "id": "p2ms",
-      "short": "P2MS",
-      "long": "Pay to Multisig"
-    },
-    "p2sh": {
-      "id": "p2sh",
-      "short": "P2SH",
-      "long": "Pay to Script Hash"
-    },
-    "p2wpkh": {
-      "id": "p2wpkh",
-      "short": "P2WPKH",
-      "long": "Pay to Witness Public Key Hash"
-    },
-    "p2wsh": {
-      "id": "p2wsh",
-      "short": "P2WSH",
-      "long": "Pay to Witness Script Hash"
-    },
-    "p2tr": {
-      "id": "p2tr",
-      "short": "P2TR",
-      "long": "Pay to Taproot"
-    },
-    "p2a": {
-      "id": "p2a",
-      "short": "P2A",
-      "long": "Pay to Anchor"
-    },
-    "unknown": {
-      "id": "unknown_outputs",
-      "short": "Unknown",
-      "long": "Unknown Output Type"
-    },
-    "empty": {
-      "id": "empty_outputs",
-      "short": "Empty",
-      "long": "Empty Output"
+  SPENDABLE_TYPE_NAMES = /** @type {const} */ (    {
+      "p2pk65": {
+        "id": "p2pk65",
+        "short": "P2PK65",
+        "long": "Pay to Public Key (65 bytes)"
+      },
+      "p2pk33": {
+        "id": "p2pk33",
+        "short": "P2PK33",
+        "long": "Pay to Public Key (33 bytes)"
+      },
+      "p2pkh": {
+        "id": "p2pkh",
+        "short": "P2PKH",
+        "long": "Pay to Public Key Hash"
+      },
+      "p2ms": {
+        "id": "p2ms",
+        "short": "P2MS",
+        "long": "Pay to Multisig"
+      },
+      "p2sh": {
+        "id": "p2sh",
+        "short": "P2SH",
+        "long": "Pay to Script Hash"
+      },
+      "p2wpkh": {
+        "id": "p2wpkh",
+        "short": "P2WPKH",
+        "long": "Pay to Witness Public Key Hash"
+      },
+      "p2wsh": {
+        "id": "p2wsh",
+        "short": "P2WSH",
+        "long": "Pay to Witness Script Hash"
+      },
+      "p2tr": {
+        "id": "p2tr",
+        "short": "P2TR",
+        "long": "Pay to Taproot"
+      },
+      "p2a": {
+        "id": "p2a",
+        "short": "P2A",
+        "long": "Pay to Anchor"
+      },
+      "unknown": {
+        "id": "unknown_outputs",
+        "short": "Unknown",
+        "long": "Unknown Output Type"
+      },
+      "empty": {
+        "id": "empty_outputs",
+        "short": "Empty",
+        "long": "Empty Output"
+      }
     }
-  });
+  );
 
-  AGE_RANGE_NAMES = /** @type {const} */ ({
-    "under1h": {
-      "id": "under_1h_old",
-      "short": "<1h",
-      "long": "Under 1 Hour Old"
-    },
-    "_1hTo1d": {
-      "id": "1h_to_1d_old",
-      "short": "1h-1d",
-      "long": "1 Hour to 1 Day Old"
-    },
-    "_1dTo1w": {
-      "id": "1d_to_1w_old",
-      "short": "1d-1w",
-      "long": "1 Day to 1 Week Old"
-    },
-    "_1wTo1m": {
-      "id": "1w_to_1m_old",
-      "short": "1w-1m",
-      "long": "1 Week to 1 Month Old"
-    },
-    "_1mTo2m": {
-      "id": "1m_to_2m_old",
-      "short": "1m-2m",
-      "long": "1 to 2 Months Old"
-    },
-    "_2mTo3m": {
-      "id": "2m_to_3m_old",
-      "short": "2m-3m",
-      "long": "2 to 3 Months Old"
-    },
-    "_3mTo4m": {
-      "id": "3m_to_4m_old",
-      "short": "3m-4m",
-      "long": "3 to 4 Months Old"
-    },
-    "_4mTo5m": {
-      "id": "4m_to_5m_old",
-      "short": "4m-5m",
-      "long": "4 to 5 Months Old"
-    },
-    "_5mTo6m": {
-      "id": "5m_to_6m_old",
-      "short": "5m-6m",
-      "long": "5 to 6 Months Old"
-    },
-    "_6mTo1y": {
-      "id": "6m_to_1y_old",
-      "short": "6m-1y",
-      "long": "6 Months to 1 Year Old"
-    },
-    "_1yTo2y": {
-      "id": "1y_to_2y_old",
-      "short": "1y-2y",
-      "long": "1 to 2 Years Old"
-    },
-    "_2yTo3y": {
-      "id": "2y_to_3y_old",
-      "short": "2y-3y",
-      "long": "2 to 3 Years Old"
-    },
-    "_3yTo4y": {
-      "id": "3y_to_4y_old",
-      "short": "3y-4y",
-      "long": "3 to 4 Years Old"
-    },
-    "_4yTo5y": {
-      "id": "4y_to_5y_old",
-      "short": "4y-5y",
-      "long": "4 to 5 Years Old"
-    },
-    "_5yTo6y": {
-      "id": "5y_to_6y_old",
-      "short": "5y-6y",
-      "long": "5 to 6 Years Old"
-    },
-    "_6yTo7y": {
-      "id": "6y_to_7y_old",
-      "short": "6y-7y",
-      "long": "6 to 7 Years Old"
-    },
-    "_7yTo8y": {
-      "id": "7y_to_8y_old",
-      "short": "7y-8y",
-      "long": "7 to 8 Years Old"
-    },
-    "_8yTo10y": {
-      "id": "8y_to_10y_old",
-      "short": "8y-10y",
-      "long": "8 to 10 Years Old"
-    },
-    "_10yTo12y": {
-      "id": "10y_to_12y_old",
-      "short": "10y-12y",
-      "long": "10 to 12 Years Old"
-    },
-    "_12yTo15y": {
-      "id": "12y_to_15y_old",
-      "short": "12y-15y",
-      "long": "12 to 15 Years Old"
-    },
-    "over15y": {
-      "id": "over_15y_old",
-      "short": "15y+",
-      "long": "15+ Years Old"
+  AGE_RANGE_NAMES = /** @type {const} */ (    {
+      "under1h": {
+        "id": "under_1h_old",
+        "short": "<1h",
+        "long": "Under 1 Hour Old"
+      },
+      "_1hTo1d": {
+        "id": "1h_to_1d_old",
+        "short": "1h-1d",
+        "long": "1 Hour to 1 Day Old"
+      },
+      "_1dTo1w": {
+        "id": "1d_to_1w_old",
+        "short": "1d-1w",
+        "long": "1 Day to 1 Week Old"
+      },
+      "_1wTo1m": {
+        "id": "1w_to_1m_old",
+        "short": "1w-1m",
+        "long": "1 Week to 1 Month Old"
+      },
+      "_1mTo2m": {
+        "id": "1m_to_2m_old",
+        "short": "1m-2m",
+        "long": "1 to 2 Months Old"
+      },
+      "_2mTo3m": {
+        "id": "2m_to_3m_old",
+        "short": "2m-3m",
+        "long": "2 to 3 Months Old"
+      },
+      "_3mTo4m": {
+        "id": "3m_to_4m_old",
+        "short": "3m-4m",
+        "long": "3 to 4 Months Old"
+      },
+      "_4mTo5m": {
+        "id": "4m_to_5m_old",
+        "short": "4m-5m",
+        "long": "4 to 5 Months Old"
+      },
+      "_5mTo6m": {
+        "id": "5m_to_6m_old",
+        "short": "5m-6m",
+        "long": "5 to 6 Months Old"
+      },
+      "_6mTo1y": {
+        "id": "6m_to_1y_old",
+        "short": "6m-1y",
+        "long": "6 Months to 1 Year Old"
+      },
+      "_1yTo2y": {
+        "id": "1y_to_2y_old",
+        "short": "1y-2y",
+        "long": "1 to 2 Years Old"
+      },
+      "_2yTo3y": {
+        "id": "2y_to_3y_old",
+        "short": "2y-3y",
+        "long": "2 to 3 Years Old"
+      },
+      "_3yTo4y": {
+        "id": "3y_to_4y_old",
+        "short": "3y-4y",
+        "long": "3 to 4 Years Old"
+      },
+      "_4yTo5y": {
+        "id": "4y_to_5y_old",
+        "short": "4y-5y",
+        "long": "4 to 5 Years Old"
+      },
+      "_5yTo6y": {
+        "id": "5y_to_6y_old",
+        "short": "5y-6y",
+        "long": "5 to 6 Years Old"
+      },
+      "_6yTo7y": {
+        "id": "6y_to_7y_old",
+        "short": "6y-7y",
+        "long": "6 to 7 Years Old"
+      },
+      "_7yTo8y": {
+        "id": "7y_to_8y_old",
+        "short": "7y-8y",
+        "long": "7 to 8 Years Old"
+      },
+      "_8yTo10y": {
+        "id": "8y_to_10y_old",
+        "short": "8y-10y",
+        "long": "8 to 10 Years Old"
+      },
+      "_10yTo12y": {
+        "id": "10y_to_12y_old",
+        "short": "10y-12y",
+        "long": "10 to 12 Years Old"
+      },
+      "_12yTo15y": {
+        "id": "12y_to_15y_old",
+        "short": "12y-15y",
+        "long": "12 to 15 Years Old"
+      },
+      "over15y": {
+        "id": "over_15y_old",
+        "short": "15y+",
+        "long": "15+ Years Old"
+      }
     }
-  });
+  );
 
-  UNDER_AGE_NAMES = /** @type {const} */ ({
-    "_1w": {
-      "id": "under_1w_old",
-      "short": "<1w",
-      "long": "Under 1 Week Old"
-    },
-    "_1m": {
-      "id": "under_1m_old",
-      "short": "<1m",
-      "long": "Under 1 Month Old"
-    },
-    "_2m": {
-      "id": "under_2m_old",
-      "short": "<2m",
-      "long": "Under 2 Months Old"
-    },
-    "_3m": {
-      "id": "under_3m_old",
-      "short": "<3m",
-      "long": "Under 3 Months Old"
-    },
-    "_4m": {
-      "id": "under_4m_old",
-      "short": "<4m",
-      "long": "Under 4 Months Old"
-    },
-    "_5m": {
-      "id": "under_5m_old",
-      "short": "<5m",
-      "long": "Under 5 Months Old"
-    },
-    "_6m": {
-      "id": "under_6m_old",
-      "short": "<6m",
-      "long": "Under 6 Months Old"
-    },
-    "_1y": {
-      "id": "under_1y_old",
-      "short": "<1y",
-      "long": "Under 1 Year Old"
-    },
-    "_2y": {
-      "id": "under_2y_old",
-      "short": "<2y",
-      "long": "Under 2 Years Old"
-    },
-    "_3y": {
-      "id": "under_3y_old",
-      "short": "<3y",
-      "long": "Under 3 Years Old"
-    },
-    "_4y": {
-      "id": "under_4y_old",
-      "short": "<4y",
-      "long": "Under 4 Years Old"
-    },
-    "_5y": {
-      "id": "under_5y_old",
-      "short": "<5y",
-      "long": "Under 5 Years Old"
-    },
-    "_6y": {
-      "id": "under_6y_old",
-      "short": "<6y",
-      "long": "Under 6 Years Old"
-    },
-    "_7y": {
-      "id": "under_7y_old",
-      "short": "<7y",
-      "long": "Under 7 Years Old"
-    },
-    "_8y": {
-      "id": "under_8y_old",
-      "short": "<8y",
-      "long": "Under 8 Years Old"
-    },
-    "_10y": {
-      "id": "under_10y_old",
-      "short": "<10y",
-      "long": "Under 10 Years Old"
-    },
-    "_12y": {
-      "id": "under_12y_old",
-      "short": "<12y",
-      "long": "Under 12 Years Old"
-    },
-    "_15y": {
-      "id": "under_15y_old",
-      "short": "<15y",
-      "long": "Under 15 Years Old"
+  UNDER_AGE_NAMES = /** @type {const} */ (    {
+      "_1w": {
+        "id": "under_1w_old",
+        "short": "<1w",
+        "long": "Under 1 Week Old"
+      },
+      "_1m": {
+        "id": "under_1m_old",
+        "short": "<1m",
+        "long": "Under 1 Month Old"
+      },
+      "_2m": {
+        "id": "under_2m_old",
+        "short": "<2m",
+        "long": "Under 2 Months Old"
+      },
+      "_3m": {
+        "id": "under_3m_old",
+        "short": "<3m",
+        "long": "Under 3 Months Old"
+      },
+      "_4m": {
+        "id": "under_4m_old",
+        "short": "<4m",
+        "long": "Under 4 Months Old"
+      },
+      "_5m": {
+        "id": "under_5m_old",
+        "short": "<5m",
+        "long": "Under 5 Months Old"
+      },
+      "_6m": {
+        "id": "under_6m_old",
+        "short": "<6m",
+        "long": "Under 6 Months Old"
+      },
+      "_1y": {
+        "id": "under_1y_old",
+        "short": "<1y",
+        "long": "Under 1 Year Old"
+      },
+      "_2y": {
+        "id": "under_2y_old",
+        "short": "<2y",
+        "long": "Under 2 Years Old"
+      },
+      "_3y": {
+        "id": "under_3y_old",
+        "short": "<3y",
+        "long": "Under 3 Years Old"
+      },
+      "_4y": {
+        "id": "under_4y_old",
+        "short": "<4y",
+        "long": "Under 4 Years Old"
+      },
+      "_5y": {
+        "id": "under_5y_old",
+        "short": "<5y",
+        "long": "Under 5 Years Old"
+      },
+      "_6y": {
+        "id": "under_6y_old",
+        "short": "<6y",
+        "long": "Under 6 Years Old"
+      },
+      "_7y": {
+        "id": "under_7y_old",
+        "short": "<7y",
+        "long": "Under 7 Years Old"
+      },
+      "_8y": {
+        "id": "under_8y_old",
+        "short": "<8y",
+        "long": "Under 8 Years Old"
+      },
+      "_10y": {
+        "id": "under_10y_old",
+        "short": "<10y",
+        "long": "Under 10 Years Old"
+      },
+      "_12y": {
+        "id": "under_12y_old",
+        "short": "<12y",
+        "long": "Under 12 Years Old"
+      },
+      "_15y": {
+        "id": "under_15y_old",
+        "short": "<15y",
+        "long": "Under 15 Years Old"
+      }
     }
-  });
+  );
 
-  OVER_AGE_NAMES = /** @type {const} */ ({
-    "_1d": {
-      "id": "over_1d_old",
-      "short": "1d+",
-      "long": "Over 1 Day Old"
-    },
-    "_1w": {
-      "id": "over_1w_old",
-      "short": "1w+",
-      "long": "Over 1 Week Old"
-    },
-    "_1m": {
-      "id": "over_1m_old",
-      "short": "1m+",
-      "long": "Over 1 Month Old"
-    },
-    "_2m": {
-      "id": "over_2m_old",
-      "short": "2m+",
-      "long": "Over 2 Months Old"
-    },
-    "_3m": {
-      "id": "over_3m_old",
-      "short": "3m+",
-      "long": "Over 3 Months Old"
-    },
-    "_4m": {
-      "id": "over_4m_old",
-      "short": "4m+",
-      "long": "Over 4 Months Old"
-    },
-    "_5m": {
-      "id": "over_5m_old",
-      "short": "5m+",
-      "long": "Over 5 Months Old"
-    },
-    "_6m": {
-      "id": "over_6m_old",
-      "short": "6m+",
-      "long": "Over 6 Months Old"
-    },
-    "_1y": {
-      "id": "over_1y_old",
-      "short": "1y+",
-      "long": "Over 1 Year Old"
-    },
-    "_2y": {
-      "id": "over_2y_old",
-      "short": "2y+",
-      "long": "Over 2 Years Old"
-    },
-    "_3y": {
-      "id": "over_3y_old",
-      "short": "3y+",
-      "long": "Over 3 Years Old"
-    },
-    "_4y": {
-      "id": "over_4y_old",
-      "short": "4y+",
-      "long": "Over 4 Years Old"
-    },
-    "_5y": {
-      "id": "over_5y_old",
-      "short": "5y+",
-      "long": "Over 5 Years Old"
-    },
-    "_6y": {
-      "id": "over_6y_old",
-      "short": "6y+",
-      "long": "Over 6 Years Old"
-    },
-    "_7y": {
-      "id": "over_7y_old",
-      "short": "7y+",
-      "long": "Over 7 Years Old"
-    },
-    "_8y": {
-      "id": "over_8y_old",
-      "short": "8y+",
-      "long": "Over 8 Years Old"
-    },
-    "_10y": {
-      "id": "over_10y_old",
-      "short": "10y+",
-      "long": "Over 10 Years Old"
-    },
-    "_12y": {
-      "id": "over_12y_old",
-      "short": "12y+",
-      "long": "Over 12 Years Old"
+  OVER_AGE_NAMES = /** @type {const} */ (    {
+      "_1d": {
+        "id": "over_1d_old",
+        "short": "1d+",
+        "long": "Over 1 Day Old"
+      },
+      "_1w": {
+        "id": "over_1w_old",
+        "short": "1w+",
+        "long": "Over 1 Week Old"
+      },
+      "_1m": {
+        "id": "over_1m_old",
+        "short": "1m+",
+        "long": "Over 1 Month Old"
+      },
+      "_2m": {
+        "id": "over_2m_old",
+        "short": "2m+",
+        "long": "Over 2 Months Old"
+      },
+      "_3m": {
+        "id": "over_3m_old",
+        "short": "3m+",
+        "long": "Over 3 Months Old"
+      },
+      "_4m": {
+        "id": "over_4m_old",
+        "short": "4m+",
+        "long": "Over 4 Months Old"
+      },
+      "_5m": {
+        "id": "over_5m_old",
+        "short": "5m+",
+        "long": "Over 5 Months Old"
+      },
+      "_6m": {
+        "id": "over_6m_old",
+        "short": "6m+",
+        "long": "Over 6 Months Old"
+      },
+      "_1y": {
+        "id": "over_1y_old",
+        "short": "1y+",
+        "long": "Over 1 Year Old"
+      },
+      "_2y": {
+        "id": "over_2y_old",
+        "short": "2y+",
+        "long": "Over 2 Years Old"
+      },
+      "_3y": {
+        "id": "over_3y_old",
+        "short": "3y+",
+        "long": "Over 3 Years Old"
+      },
+      "_4y": {
+        "id": "over_4y_old",
+        "short": "4y+",
+        "long": "Over 4 Years Old"
+      },
+      "_5y": {
+        "id": "over_5y_old",
+        "short": "5y+",
+        "long": "Over 5 Years Old"
+      },
+      "_6y": {
+        "id": "over_6y_old",
+        "short": "6y+",
+        "long": "Over 6 Years Old"
+      },
+      "_7y": {
+        "id": "over_7y_old",
+        "short": "7y+",
+        "long": "Over 7 Years Old"
+      },
+      "_8y": {
+        "id": "over_8y_old",
+        "short": "8y+",
+        "long": "Over 8 Years Old"
+      },
+      "_10y": {
+        "id": "over_10y_old",
+        "short": "10y+",
+        "long": "Over 10 Years Old"
+      },
+      "_12y": {
+        "id": "over_12y_old",
+        "short": "12y+",
+        "long": "Over 12 Years Old"
+      }
     }
-  });
+  );
 
-  AMOUNT_RANGE_NAMES = /** @type {const} */ ({
-    "_0sats": {
-      "id": "0sats",
-      "short": "0 sats",
-      "long": "0 Sats"
-    },
-    "_1satTo10sats": {
-      "id": "1sat_to_10sats",
-      "short": "1-10 sats",
-      "long": "1-10 Sats"
-    },
-    "_10satsTo100sats": {
-      "id": "10sats_to_100sats",
-      "short": "10-100 sats",
-      "long": "10-100 Sats"
-    },
-    "_100satsTo1kSats": {
-      "id": "100sats_to_1k_sats",
-      "short": "100-1k sats",
-      "long": "100-1K Sats"
-    },
-    "_1kSatsTo10kSats": {
-      "id": "1k_sats_to_10k_sats",
-      "short": "1k-10k sats",
-      "long": "1K-10K Sats"
-    },
-    "_10kSatsTo100kSats": {
-      "id": "10k_sats_to_100k_sats",
-      "short": "10k-100k sats",
-      "long": "10K-100K Sats"
-    },
-    "_100kSatsTo1mSats": {
-      "id": "100k_sats_to_1m_sats",
-      "short": "100k-1M sats",
-      "long": "100K-1M Sats"
-    },
-    "_1mSatsTo10mSats": {
-      "id": "1m_sats_to_10m_sats",
-      "short": "1M-10M sats",
-      "long": "1M-10M Sats"
-    },
-    "_10mSatsTo1btc": {
-      "id": "10m_sats_to_1btc",
-      "short": "0.1-1 BTC",
-      "long": "0.1-1 BTC"
-    },
-    "_1btcTo10btc": {
-      "id": "1btc_to_10btc",
-      "short": "1-10 BTC",
-      "long": "1-10 BTC"
-    },
-    "_10btcTo100btc": {
-      "id": "10btc_to_100btc",
-      "short": "10-100 BTC",
-      "long": "10-100 BTC"
-    },
-    "_100btcTo1kBtc": {
-      "id": "100btc_to_1k_btc",
-      "short": "100-1k BTC",
-      "long": "100-1K BTC"
-    },
-    "_1kBtcTo10kBtc": {
-      "id": "1k_btc_to_10k_btc",
-      "short": "1k-10k BTC",
-      "long": "1K-10K BTC"
-    },
-    "_10kBtcTo100kBtc": {
-      "id": "10k_btc_to_100k_btc",
-      "short": "10k-100k BTC",
-      "long": "10K-100K BTC"
-    },
-    "over100kBtc": {
-      "id": "over_100k_btc",
-      "short": "100k+ BTC",
-      "long": "100K+ BTC"
+  AMOUNT_RANGE_NAMES = /** @type {const} */ (    {
+      "_0sats": {
+        "id": "0sats",
+        "short": "0 litoshis",
+        "long": "0 Litoshis"
+      },
+      "_1satTo10sats": {
+        "id": "1sat_to_10sats",
+        "short": "1-10 lits",
+        "long": "1-10 Lits"
+      },
+      "_10satsTo100sats": {
+        "id": "10sats_to_100sats",
+        "short": "10-100 lits",
+        "long": "10-100 Lits"
+      },
+      "_100satsTo1kSats": {
+        "id": "100sats_to_1k_sats",
+        "short": "100-1k lits",
+        "long": "100-1K Lits"
+      },
+      "_1kSatsTo10kSats": {
+        "id": "1k_sats_to_10k_sats",
+        "short": "1k-10k lits",
+        "long": "1K-10K Lits"
+      },
+      "_10kSatsTo100kSats": {
+        "id": "10k_sats_to_100k_sats",
+        "short": "10k-100k lits",
+        "long": "10K-100K Lits"
+      },
+      "_100kSatsTo1mSats": {
+        "id": "100k_sats_to_1m_sats",
+        "short": "100k-1M lits",
+        "long": "100K-1M Lits"
+      },
+      "_1mSatsTo10mSats": {
+        "id": "1m_sats_to_10m_sats",
+        "short": "1M-10M lits",
+        "long": "1M-10M Lits"
+      },
+      "_10mSatsTo1btc": {
+        "id": "10m_sats_to_1btc",
+        "short": "0.1-1 LTC",
+        "long": "0.1-1 LTC"
+      },
+      "_1btcTo10btc": {
+        "id": "1btc_to_10btc",
+        "short": "1-10 LTC",
+        "long": "1-10 LTC"
+      },
+      "_10btcTo100btc": {
+        "id": "10btc_to_100btc",
+        "short": "10-100 LTC",
+        "long": "10-100 LTC"
+      },
+      "_100btcTo1kBtc": {
+        "id": "100btc_to_1k_btc",
+        "short": "100-1k LTC",
+        "long": "100-1K LTC"
+      },
+      "_1kBtcTo10kBtc": {
+        "id": "1k_btc_to_10k_btc",
+        "short": "1k-10k LTC",
+        "long": "1K-10K LTC"
+      },
+      "_10kBtcTo100kBtc": {
+        "id": "10k_btc_to_100k_btc",
+        "short": "10k-100k LTC",
+        "long": "10K-100K LTC"
+      },
+      "over100kBtc": {
+        "id": "over_100k_btc",
+        "short": "100k+ LTC",
+        "long": "100K+ LTC"
+      }
     }
-  });
+  );
 
-  OVER_AMOUNT_NAMES = /** @type {const} */ ({
-    "_1sat": {
-      "id": "over_1sat",
-      "short": "1+ sats",
-      "long": "Over 1 Sat"
-    },
-    "_10sats": {
-      "id": "over_10sats",
-      "short": "10+ sats",
-      "long": "Over 10 Sats"
-    },
-    "_100sats": {
-      "id": "over_100sats",
-      "short": "100+ sats",
-      "long": "Over 100 Sats"
-    },
-    "_1kSats": {
-      "id": "over_1k_sats",
-      "short": "1k+ sats",
-      "long": "Over 1K Sats"
-    },
-    "_10kSats": {
-      "id": "over_10k_sats",
-      "short": "10k+ sats",
-      "long": "Over 10K Sats"
-    },
-    "_100kSats": {
-      "id": "over_100k_sats",
-      "short": "100k+ sats",
-      "long": "Over 100K Sats"
-    },
-    "_1mSats": {
-      "id": "over_1m_sats",
-      "short": "1M+ sats",
-      "long": "Over 1M Sats"
-    },
-    "_10mSats": {
-      "id": "over_10m_sats",
-      "short": "0.1+ BTC",
-      "long": "Over 0.1 BTC"
-    },
-    "_1btc": {
-      "id": "over_1btc",
-      "short": "1+ BTC",
-      "long": "Over 1 BTC"
-    },
-    "_10btc": {
-      "id": "over_10btc",
-      "short": "10+ BTC",
-      "long": "Over 10 BTC"
-    },
-    "_100btc": {
-      "id": "over_100btc",
-      "short": "100+ BTC",
-      "long": "Over 100 BTC"
-    },
-    "_1kBtc": {
-      "id": "over_1k_btc",
-      "short": "1k+ BTC",
-      "long": "Over 1K BTC"
-    },
-    "_10kBtc": {
-      "id": "over_10k_btc",
-      "short": "10k+ BTC",
-      "long": "Over 10K BTC"
+  OVER_AMOUNT_NAMES = /** @type {const} */ (    {
+      "_1sat": {
+        "id": "over_1sat",
+        "short": "1+ lits",
+        "long": "Over 1 Lit"
+      },
+      "_10sats": {
+        "id": "over_10sats",
+        "short": "10+ lits",
+        "long": "Over 10 Lits"
+      },
+      "_100sats": {
+        "id": "over_100sats",
+        "short": "100+ lits",
+        "long": "Over 100 Lits"
+      },
+      "_1kSats": {
+        "id": "over_1k_sats",
+        "short": "1k+ lits",
+        "long": "Over 1K Lits"
+      },
+      "_10kSats": {
+        "id": "over_10k_sats",
+        "short": "10k+ lits",
+        "long": "Over 10K Lits"
+      },
+      "_100kSats": {
+        "id": "over_100k_sats",
+        "short": "100k+ lits",
+        "long": "Over 100K Lits"
+      },
+      "_1mSats": {
+        "id": "over_1m_sats",
+        "short": "1M+ lits",
+        "long": "Over 1M Lits"
+      },
+      "_10mSats": {
+        "id": "over_10m_sats",
+        "short": "0.1+ LTC",
+        "long": "Over 0.1 LTC"
+      },
+      "_1btc": {
+        "id": "over_1btc",
+        "short": "1+ LTC",
+        "long": "Over 1 LTC"
+      },
+      "_10btc": {
+        "id": "over_10btc",
+        "short": "10+ LTC",
+        "long": "Over 10 LTC"
+      },
+      "_100btc": {
+        "id": "over_100btc",
+        "short": "100+ LTC",
+        "long": "Over 100 LTC"
+      },
+      "_1kBtc": {
+        "id": "over_1k_btc",
+        "short": "1k+ LTC",
+        "long": "Over 1K LTC"
+      },
+      "_10kBtc": {
+        "id": "over_10k_btc",
+        "short": "10k+ LTC",
+        "long": "Over 10K LTC"
+      }
     }
-  });
+  );
 
-  UNDER_AMOUNT_NAMES = /** @type {const} */ ({
-    "_10sats": {
-      "id": "under_10sats",
-      "short": "<10 sats",
-      "long": "Under 10 Sats"
-    },
-    "_100sats": {
-      "id": "under_100sats",
-      "short": "<100 sats",
-      "long": "Under 100 Sats"
-    },
-    "_1kSats": {
-      "id": "under_1k_sats",
-      "short": "<1k sats",
-      "long": "Under 1K Sats"
-    },
-    "_10kSats": {
-      "id": "under_10k_sats",
-      "short": "<10k sats",
-      "long": "Under 10K Sats"
-    },
-    "_100kSats": {
-      "id": "under_100k_sats",
-      "short": "<100k sats",
-      "long": "Under 100K Sats"
-    },
-    "_1mSats": {
-      "id": "under_1m_sats",
-      "short": "<1M sats",
-      "long": "Under 1M Sats"
-    },
-    "_10mSats": {
-      "id": "under_10m_sats",
-      "short": "<0.1 BTC",
-      "long": "Under 0.1 BTC"
-    },
-    "_1btc": {
-      "id": "under_1btc",
-      "short": "<1 BTC",
-      "long": "Under 1 BTC"
-    },
-    "_10btc": {
-      "id": "under_10btc",
-      "short": "<10 BTC",
-      "long": "Under 10 BTC"
-    },
-    "_100btc": {
-      "id": "under_100btc",
-      "short": "<100 BTC",
-      "long": "Under 100 BTC"
-    },
-    "_1kBtc": {
-      "id": "under_1k_btc",
-      "short": "<1k BTC",
-      "long": "Under 1K BTC"
-    },
-    "_10kBtc": {
-      "id": "under_10k_btc",
-      "short": "<10k BTC",
-      "long": "Under 10K BTC"
-    },
-    "_100kBtc": {
-      "id": "under_100k_btc",
-      "short": "<100k BTC",
-      "long": "Under 100K BTC"
+  UNDER_AMOUNT_NAMES = /** @type {const} */ (    {
+      "_10sats": {
+        "id": "under_10sats",
+        "short": "<10 lits",
+        "long": "Under 10 Lits"
+      },
+      "_100sats": {
+        "id": "under_100sats",
+        "short": "<100 lits",
+        "long": "Under 100 Lits"
+      },
+      "_1kSats": {
+        "id": "under_1k_sats",
+        "short": "<1k lits",
+        "long": "Under 1K Lits"
+      },
+      "_10kSats": {
+        "id": "under_10k_sats",
+        "short": "<10k lits",
+        "long": "Under 10K Lits"
+      },
+      "_100kSats": {
+        "id": "under_100k_sats",
+        "short": "<100k lits",
+        "long": "Under 100K Lits"
+      },
+      "_1mSats": {
+        "id": "under_1m_sats",
+        "short": "<1M lits",
+        "long": "Under 1M Lits"
+      },
+      "_10mSats": {
+        "id": "under_10m_sats",
+        "short": "<0.1 LTC",
+        "long": "Under 0.1 LTC"
+      },
+      "_1btc": {
+        "id": "under_1btc",
+        "short": "<1 LTC",
+        "long": "Under 1 LTC"
+      },
+      "_10btc": {
+        "id": "under_10btc",
+        "short": "<10 LTC",
+        "long": "Under 10 LTC"
+      },
+      "_100btc": {
+        "id": "under_100btc",
+        "short": "<100 LTC",
+        "long": "Under 100 LTC"
+      },
+      "_1kBtc": {
+        "id": "under_1k_btc",
+        "short": "<1k LTC",
+        "long": "Under 1K LTC"
+      },
+      "_10kBtc": {
+        "id": "under_10k_btc",
+        "short": "<10k LTC",
+        "long": "Under 10K LTC"
+      },
+      "_100kBtc": {
+        "id": "under_100k_btc",
+        "short": "<100k LTC",
+        "long": "Under 100K LTC"
+      }
     }
-  });
+  );
 
-  PROFITABILITY_RANGE_NAMES = /** @type {const} */ ({
-    "over1000pctInProfit": {
-      "id": "utxos_over_1000pct_in_profit",
-      "short": "+>1000%",
-      "long": "Over 1000% in Profit"
-    },
-    "_500pctTo1000pctInProfit": {
-      "id": "utxos_500pct_to_1000pct_in_profit",
-      "short": "+500-1000%",
-      "long": "500-1000% in Profit"
-    },
-    "_300pctTo500pctInProfit": {
-      "id": "utxos_300pct_to_500pct_in_profit",
-      "short": "+300-500%",
-      "long": "300-500% in Profit"
-    },
-    "_200pctTo300pctInProfit": {
-      "id": "utxos_200pct_to_300pct_in_profit",
-      "short": "+200-300%",
-      "long": "200-300% in Profit"
-    },
-    "_100pctTo200pctInProfit": {
-      "id": "utxos_100pct_to_200pct_in_profit",
-      "short": "+100-200%",
-      "long": "100-200% in Profit"
-    },
-    "_90pctTo100pctInProfit": {
-      "id": "utxos_90pct_to_100pct_in_profit",
-      "short": "+90-100%",
-      "long": "90-100% in Profit"
-    },
-    "_80pctTo90pctInProfit": {
-      "id": "utxos_80pct_to_90pct_in_profit",
-      "short": "+80-90%",
-      "long": "80-90% in Profit"
-    },
-    "_70pctTo80pctInProfit": {
-      "id": "utxos_70pct_to_80pct_in_profit",
-      "short": "+70-80%",
-      "long": "70-80% in Profit"
-    },
-    "_60pctTo70pctInProfit": {
-      "id": "utxos_60pct_to_70pct_in_profit",
-      "short": "+60-70%",
-      "long": "60-70% in Profit"
-    },
-    "_50pctTo60pctInProfit": {
-      "id": "utxos_50pct_to_60pct_in_profit",
-      "short": "+50-60%",
-      "long": "50-60% in Profit"
-    },
-    "_40pctTo50pctInProfit": {
-      "id": "utxos_40pct_to_50pct_in_profit",
-      "short": "+40-50%",
-      "long": "40-50% in Profit"
-    },
-    "_30pctTo40pctInProfit": {
-      "id": "utxos_30pct_to_40pct_in_profit",
-      "short": "+30-40%",
-      "long": "30-40% in Profit"
-    },
-    "_20pctTo30pctInProfit": {
-      "id": "utxos_20pct_to_30pct_in_profit",
-      "short": "+20-30%",
-      "long": "20-30% in Profit"
-    },
-    "_10pctTo20pctInProfit": {
-      "id": "utxos_10pct_to_20pct_in_profit",
-      "short": "+10-20%",
-      "long": "10-20% in Profit"
-    },
-    "_0pctTo10pctInProfit": {
-      "id": "utxos_0pct_to_10pct_in_profit",
-      "short": "+0-10%",
-      "long": "0-10% in Profit"
-    },
-    "_0pctTo10pctInLoss": {
-      "id": "utxos_0pct_to_10pct_in_loss",
-      "short": "-0-10%",
-      "long": "0-10% in Loss"
-    },
-    "_10pctTo20pctInLoss": {
-      "id": "utxos_10pct_to_20pct_in_loss",
-      "short": "-10-20%",
-      "long": "10-20% in Loss"
-    },
-    "_20pctTo30pctInLoss": {
-      "id": "utxos_20pct_to_30pct_in_loss",
-      "short": "-20-30%",
-      "long": "20-30% in Loss"
-    },
-    "_30pctTo40pctInLoss": {
-      "id": "utxos_30pct_to_40pct_in_loss",
-      "short": "-30-40%",
-      "long": "30-40% in Loss"
-    },
-    "_40pctTo50pctInLoss": {
-      "id": "utxos_40pct_to_50pct_in_loss",
-      "short": "-40-50%",
-      "long": "40-50% in Loss"
-    },
-    "_50pctTo60pctInLoss": {
-      "id": "utxos_50pct_to_60pct_in_loss",
-      "short": "-50-60%",
-      "long": "50-60% in Loss"
-    },
-    "_60pctTo70pctInLoss": {
-      "id": "utxos_60pct_to_70pct_in_loss",
-      "short": "-60-70%",
-      "long": "60-70% in Loss"
-    },
-    "_70pctTo80pctInLoss": {
-      "id": "utxos_70pct_to_80pct_in_loss",
-      "short": "-70-80%",
-      "long": "70-80% in Loss"
-    },
-    "_80pctTo90pctInLoss": {
-      "id": "utxos_80pct_to_90pct_in_loss",
-      "short": "-80-90%",
-      "long": "80-90% in Loss"
-    },
-    "_90pctTo100pctInLoss": {
-      "id": "utxos_90pct_to_100pct_in_loss",
-      "short": "-90-100%",
-      "long": "90-100% in Loss"
+  PROFITABILITY_RANGE_NAMES = /** @type {const} */ (    {
+      "over1000pctInProfit": {
+        "id": "utxos_over_1000pct_in_profit",
+        "short": "+>1000%",
+        "long": "Over 1000% in Profit"
+      },
+      "_500pctTo1000pctInProfit": {
+        "id": "utxos_500pct_to_1000pct_in_profit",
+        "short": "+500-1000%",
+        "long": "500-1000% in Profit"
+      },
+      "_300pctTo500pctInProfit": {
+        "id": "utxos_300pct_to_500pct_in_profit",
+        "short": "+300-500%",
+        "long": "300-500% in Profit"
+      },
+      "_200pctTo300pctInProfit": {
+        "id": "utxos_200pct_to_300pct_in_profit",
+        "short": "+200-300%",
+        "long": "200-300% in Profit"
+      },
+      "_100pctTo200pctInProfit": {
+        "id": "utxos_100pct_to_200pct_in_profit",
+        "short": "+100-200%",
+        "long": "100-200% in Profit"
+      },
+      "_90pctTo100pctInProfit": {
+        "id": "utxos_90pct_to_100pct_in_profit",
+        "short": "+90-100%",
+        "long": "90-100% in Profit"
+      },
+      "_80pctTo90pctInProfit": {
+        "id": "utxos_80pct_to_90pct_in_profit",
+        "short": "+80-90%",
+        "long": "80-90% in Profit"
+      },
+      "_70pctTo80pctInProfit": {
+        "id": "utxos_70pct_to_80pct_in_profit",
+        "short": "+70-80%",
+        "long": "70-80% in Profit"
+      },
+      "_60pctTo70pctInProfit": {
+        "id": "utxos_60pct_to_70pct_in_profit",
+        "short": "+60-70%",
+        "long": "60-70% in Profit"
+      },
+      "_50pctTo60pctInProfit": {
+        "id": "utxos_50pct_to_60pct_in_profit",
+        "short": "+50-60%",
+        "long": "50-60% in Profit"
+      },
+      "_40pctTo50pctInProfit": {
+        "id": "utxos_40pct_to_50pct_in_profit",
+        "short": "+40-50%",
+        "long": "40-50% in Profit"
+      },
+      "_30pctTo40pctInProfit": {
+        "id": "utxos_30pct_to_40pct_in_profit",
+        "short": "+30-40%",
+        "long": "30-40% in Profit"
+      },
+      "_20pctTo30pctInProfit": {
+        "id": "utxos_20pct_to_30pct_in_profit",
+        "short": "+20-30%",
+        "long": "20-30% in Profit"
+      },
+      "_10pctTo20pctInProfit": {
+        "id": "utxos_10pct_to_20pct_in_profit",
+        "short": "+10-20%",
+        "long": "10-20% in Profit"
+      },
+      "_0pctTo10pctInProfit": {
+        "id": "utxos_0pct_to_10pct_in_profit",
+        "short": "+0-10%",
+        "long": "0-10% in Profit"
+      },
+      "_0pctTo10pctInLoss": {
+        "id": "utxos_0pct_to_10pct_in_loss",
+        "short": "-0-10%",
+        "long": "0-10% in Loss"
+      },
+      "_10pctTo20pctInLoss": {
+        "id": "utxos_10pct_to_20pct_in_loss",
+        "short": "-10-20%",
+        "long": "10-20% in Loss"
+      },
+      "_20pctTo30pctInLoss": {
+        "id": "utxos_20pct_to_30pct_in_loss",
+        "short": "-20-30%",
+        "long": "20-30% in Loss"
+      },
+      "_30pctTo40pctInLoss": {
+        "id": "utxos_30pct_to_40pct_in_loss",
+        "short": "-30-40%",
+        "long": "30-40% in Loss"
+      },
+      "_40pctTo50pctInLoss": {
+        "id": "utxos_40pct_to_50pct_in_loss",
+        "short": "-40-50%",
+        "long": "40-50% in Loss"
+      },
+      "_50pctTo60pctInLoss": {
+        "id": "utxos_50pct_to_60pct_in_loss",
+        "short": "-50-60%",
+        "long": "50-60% in Loss"
+      },
+      "_60pctTo70pctInLoss": {
+        "id": "utxos_60pct_to_70pct_in_loss",
+        "short": "-60-70%",
+        "long": "60-70% in Loss"
+      },
+      "_70pctTo80pctInLoss": {
+        "id": "utxos_70pct_to_80pct_in_loss",
+        "short": "-70-80%",
+        "long": "70-80% in Loss"
+      },
+      "_80pctTo90pctInLoss": {
+        "id": "utxos_80pct_to_90pct_in_loss",
+        "short": "-80-90%",
+        "long": "80-90% in Loss"
+      },
+      "_90pctTo100pctInLoss": {
+        "id": "utxos_90pct_to_100pct_in_loss",
+        "short": "-90-100%",
+        "long": "90-100% in Loss"
+      }
     }
-  });
+  );
 
-  PROFIT_NAMES = /** @type {const} */ ({
-    "all": {
-      "id": "utxos_in_profit",
-      "short": "All",
-      "long": "In Profit"
-    },
-    "_10pct": {
-      "id": "utxos_over_10pct_in_profit",
-      "short": ">=10%",
-      "long": "Over 10% in Profit"
-    },
-    "_20pct": {
-      "id": "utxos_over_20pct_in_profit",
-      "short": ">=20%",
-      "long": "Over 20% in Profit"
-    },
-    "_30pct": {
-      "id": "utxos_over_30pct_in_profit",
-      "short": ">=30%",
-      "long": "Over 30% in Profit"
-    },
-    "_40pct": {
-      "id": "utxos_over_40pct_in_profit",
-      "short": ">=40%",
-      "long": "Over 40% in Profit"
-    },
-    "_50pct": {
-      "id": "utxos_over_50pct_in_profit",
-      "short": ">=50%",
-      "long": "Over 50% in Profit"
-    },
-    "_60pct": {
-      "id": "utxos_over_60pct_in_profit",
-      "short": ">=60%",
-      "long": "Over 60% in Profit"
-    },
-    "_70pct": {
-      "id": "utxos_over_70pct_in_profit",
-      "short": ">=70%",
-      "long": "Over 70% in Profit"
-    },
-    "_80pct": {
-      "id": "utxos_over_80pct_in_profit",
-      "short": ">=80%",
-      "long": "Over 80% in Profit"
-    },
-    "_90pct": {
-      "id": "utxos_over_90pct_in_profit",
-      "short": ">=90%",
-      "long": "Over 90% in Profit"
-    },
-    "_100pct": {
-      "id": "utxos_over_100pct_in_profit",
-      "short": ">=100%",
-      "long": "Over 100% in Profit"
-    },
-    "_200pct": {
-      "id": "utxos_over_200pct_in_profit",
-      "short": ">=200%",
-      "long": "Over 200% in Profit"
-    },
-    "_300pct": {
-      "id": "utxos_over_300pct_in_profit",
-      "short": ">=300%",
-      "long": "Over 300% in Profit"
-    },
-    "_500pct": {
-      "id": "utxos_over_500pct_in_profit",
-      "short": ">=500%",
-      "long": "Over 500% in Profit"
+  PROFIT_NAMES = /** @type {const} */ (    {
+      "all": {
+        "id": "utxos_in_profit",
+        "short": "All",
+        "long": "In Profit"
+      },
+      "_10pct": {
+        "id": "utxos_over_10pct_in_profit",
+        "short": ">=10%",
+        "long": "Over 10% in Profit"
+      },
+      "_20pct": {
+        "id": "utxos_over_20pct_in_profit",
+        "short": ">=20%",
+        "long": "Over 20% in Profit"
+      },
+      "_30pct": {
+        "id": "utxos_over_30pct_in_profit",
+        "short": ">=30%",
+        "long": "Over 30% in Profit"
+      },
+      "_40pct": {
+        "id": "utxos_over_40pct_in_profit",
+        "short": ">=40%",
+        "long": "Over 40% in Profit"
+      },
+      "_50pct": {
+        "id": "utxos_over_50pct_in_profit",
+        "short": ">=50%",
+        "long": "Over 50% in Profit"
+      },
+      "_60pct": {
+        "id": "utxos_over_60pct_in_profit",
+        "short": ">=60%",
+        "long": "Over 60% in Profit"
+      },
+      "_70pct": {
+        "id": "utxos_over_70pct_in_profit",
+        "short": ">=70%",
+        "long": "Over 70% in Profit"
+      },
+      "_80pct": {
+        "id": "utxos_over_80pct_in_profit",
+        "short": ">=80%",
+        "long": "Over 80% in Profit"
+      },
+      "_90pct": {
+        "id": "utxos_over_90pct_in_profit",
+        "short": ">=90%",
+        "long": "Over 90% in Profit"
+      },
+      "_100pct": {
+        "id": "utxos_over_100pct_in_profit",
+        "short": ">=100%",
+        "long": "Over 100% in Profit"
+      },
+      "_200pct": {
+        "id": "utxos_over_200pct_in_profit",
+        "short": ">=200%",
+        "long": "Over 200% in Profit"
+      },
+      "_300pct": {
+        "id": "utxos_over_300pct_in_profit",
+        "short": ">=300%",
+        "long": "Over 300% in Profit"
+      },
+      "_500pct": {
+        "id": "utxos_over_500pct_in_profit",
+        "short": ">=500%",
+        "long": "Over 500% in Profit"
+      }
     }
-  });
+  );
 
-  LOSS_NAMES = /** @type {const} */ ({
-    "all": {
-      "id": "utxos_in_loss",
-      "short": "All",
-      "long": "In Loss"
-    },
-    "_10pct": {
-      "id": "utxos_over_10pct_in_loss",
-      "short": ">=10%",
-      "long": "Over 10% in Loss"
-    },
-    "_20pct": {
-      "id": "utxos_over_20pct_in_loss",
-      "short": ">=20%",
-      "long": "Over 20% in Loss"
-    },
-    "_30pct": {
-      "id": "utxos_over_30pct_in_loss",
-      "short": ">=30%",
-      "long": "Over 30% in Loss"
-    },
-    "_40pct": {
-      "id": "utxos_over_40pct_in_loss",
-      "short": ">=40%",
-      "long": "Over 40% in Loss"
-    },
-    "_50pct": {
-      "id": "utxos_over_50pct_in_loss",
-      "short": ">=50%",
-      "long": "Over 50% in Loss"
-    },
-    "_60pct": {
-      "id": "utxos_over_60pct_in_loss",
-      "short": ">=60%",
-      "long": "Over 60% in Loss"
-    },
-    "_70pct": {
-      "id": "utxos_over_70pct_in_loss",
-      "short": ">=70%",
-      "long": "Over 70% in Loss"
-    },
-    "_80pct": {
-      "id": "utxos_over_80pct_in_loss",
-      "short": ">=80%",
-      "long": "Over 80% in Loss"
+  LOSS_NAMES = /** @type {const} */ (    {
+      "all": {
+        "id": "utxos_in_loss",
+        "short": "All",
+        "long": "In Loss"
+      },
+      "_10pct": {
+        "id": "utxos_over_10pct_in_loss",
+        "short": ">=10%",
+        "long": "Over 10% in Loss"
+      },
+      "_20pct": {
+        "id": "utxos_over_20pct_in_loss",
+        "short": ">=20%",
+        "long": "Over 20% in Loss"
+      },
+      "_30pct": {
+        "id": "utxos_over_30pct_in_loss",
+        "short": ">=30%",
+        "long": "Over 30% in Loss"
+      },
+      "_40pct": {
+        "id": "utxos_over_40pct_in_loss",
+        "short": ">=40%",
+        "long": "Over 40% in Loss"
+      },
+      "_50pct": {
+        "id": "utxos_over_50pct_in_loss",
+        "short": ">=50%",
+        "long": "Over 50% in Loss"
+      },
+      "_60pct": {
+        "id": "utxos_over_60pct_in_loss",
+        "short": ">=60%",
+        "long": "Over 60% in Loss"
+      },
+      "_70pct": {
+        "id": "utxos_over_70pct_in_loss",
+        "short": ">=70%",
+        "long": "Over 70% in Loss"
+      },
+      "_80pct": {
+        "id": "utxos_over_80pct_in_loss",
+        "short": ">=80%",
+        "long": "Over 80% in Loss"
+      }
     }
-  });
+  );
 
   /**
    * Convert an index value to a Date for date-based indexes.

@@ -16,7 +16,13 @@ pub fn main() -> color_eyre::Result<()> {
     #[cfg(feature = "litecoin")]
     let chain = Chain::Litecoin;
     #[cfg(not(feature = "litecoin"))]
-    let chain = Chain::Bitcoin;
+    let chain = {
+        eprintln!(
+            "warning: bindgen without `litecoin` feature emits Bitcoin labels; \
+             use `cargo run --example bindgen -p brk_server --features bindgen,litecoin`"
+        );
+        Chain::Bitcoin
+    };
 
     let indexer = Indexer::forced_import_with_chain(&tmp, chain)?;
     let computer = Computer::forced_import(&tmp, &indexer)?;
