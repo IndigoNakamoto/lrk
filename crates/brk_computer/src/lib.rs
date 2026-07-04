@@ -48,7 +48,10 @@ pub struct Computer<M: StorageMode = Rw> {
 
 // v8: fixed chain-aware date-index epoch (Day1 date↔index round-trip and the
 // Litecoin index epoch), which changes every date-indexed vec; forces recompute.
-const VERSION: Version = Version::new(8);
+// v9: proper Litecoin MWEB handling — MWEB peg outputs classified as their own
+// unspendable type, transfer_volume excludes the HogEx pool re-spend, and total
+// circulating supply = transparent + MWEB balance (new mweb_* series).
+const VERSION: Version = Version::new(9);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {

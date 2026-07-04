@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use super::{Filter, SpendableType, UnspendableType};
 
 pub const OP_RETURN: &str = "op_return";
+pub const MWEB: &str = "mweb";
 
 #[derive(Default, Clone, Debug, Traversable)]
 pub struct ByType<T> {
@@ -25,6 +26,7 @@ impl<T> ByType<T> {
             spendable: SpendableType::try_new(&mut create)?,
             unspendable: UnspendableType {
                 op_return: create(Filter::Type(OutputType::OpReturn), OP_RETURN)?,
+                mweb: create(Filter::Type(OutputType::MWEB), MWEB)?,
             },
         })
     }
@@ -42,7 +44,8 @@ impl<T> ByType<T> {
             OutputType::P2A => &self.spendable.p2a,
             OutputType::Empty => &self.spendable.empty,
             OutputType::Unknown => &self.spendable.unknown,
-            OutputType::OpReturn | OutputType::MWEB => &self.unspendable.op_return,
+            OutputType::OpReturn => &self.unspendable.op_return,
+            OutputType::MWEB => &self.unspendable.mweb,
         }
     }
 
@@ -59,20 +62,23 @@ impl<T> ByType<T> {
             OutputType::P2A => &mut self.spendable.p2a,
             OutputType::Unknown => &mut self.spendable.unknown,
             OutputType::Empty => &mut self.spendable.empty,
-            OutputType::OpReturn | OutputType::MWEB => &mut self.unspendable.op_return,
+            OutputType::OpReturn => &mut self.unspendable.op_return,
+            OutputType::MWEB => &mut self.unspendable.mweb,
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.spendable
-            .iter()
-            .chain(std::iter::once(&self.unspendable.op_return))
+        self.spendable.iter().chain([
+            &self.unspendable.op_return,
+            &self.unspendable.mweb,
+        ])
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        self.spendable
-            .iter_mut()
-            .chain(std::iter::once(&mut self.unspendable.op_return))
+        self.spendable.iter_mut().chain([
+            &mut self.unspendable.op_return,
+            &mut self.unspendable.mweb,
+        ])
     }
 
     pub fn par_iter_mut(&mut self) -> impl ParallelIterator<Item = &mut T>
@@ -85,21 +91,21 @@ impl<T> ByType<T> {
         } = self;
         spendable
             .par_iter_mut()
-            .chain([&mut unspendable.op_return].into_par_iter())
+            .chain([&mut unspendable.op_return, &mut unspendable.mweb].into_par_iter())
     }
 
     pub fn iter_typed(&self) -> impl Iterator<Item = (OutputType, &T)> {
-        self.spendable.iter_typed().chain(std::iter::once((
-            OutputType::OpReturn,
-            &self.unspendable.op_return,
-        )))
+        self.spendable.iter_typed().chain([
+            (OutputType::OpReturn, &self.unspendable.op_return),
+            (OutputType::MWEB, &self.unspendable.mweb),
+        ])
     }
 
     pub fn iter_typed_mut(&mut self) -> impl Iterator<Item = (OutputType, &mut T)> {
-        self.spendable.iter_typed_mut().chain(std::iter::once((
-            OutputType::OpReturn,
-            &mut self.unspendable.op_return,
-        )))
+        self.spendable.iter_typed_mut().chain([
+            (OutputType::OpReturn, &mut self.unspendable.op_return),
+            (OutputType::MWEB, &mut self.unspendable.mweb),
+        ])
     }
 }
 

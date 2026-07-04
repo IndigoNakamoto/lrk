@@ -17,6 +17,7 @@ impl Vecs {
         let v = version + VERSION;
         Ok(Self {
             input_value: EagerVec::forced_import(db, "input_value", version)?,
+            transfer_input_value: EagerVec::forced_import(db, "transfer_input_value", version)?,
             output_value: EagerVec::forced_import(db, "output_value", version)?,
             fee: PerTxDistribution::forced_import(db, "fee", v, indexes)?,
             fee_rate: EagerVec::forced_import(db, "fee_rate", v)?,

@@ -17,13 +17,13 @@ T = TypeVar('T')
 
 # Type definitions
 
-# Litecoin address string
+# Bitcoin address string
 Addr = str
 # Transaction ID (hash)
 Txid = str
 # US Dollar amount
 Dollars = float
-# Amount in litoshis (1 LTC = 100,000,000 lits)
+# Amount in satoshis (1 BTC = 100,000,000 sats)
 Sats = int
 # Index within its type (e.g., 0 for first P2WPKH address)
 TypeIndex = int
@@ -51,7 +51,7 @@ BasisPointsSigned16 = int
 # Use for unbounded signed values (returns, growth rates, volatility, z-scores, etc.).
 # `i32::MIN` is reserved as a NaN sentinel.
 BasisPointsSigned32 = int
-# Litecoin amount as floating point (1 LTC = 100,000,000 litoshis)
+# Bitcoin amount as floating point (1 BTC = 100,000,000 satoshis)
 Bitcoin = float
 # URL-friendly mining pool identifier
 PoolSlug = Literal["unknown", "blockfills", "ultimuspool", "terrapool", "luxor", "1thash", "btccom", "bitfarms", "huobipool", "wayicn", "canoepool", "btctop", "bitcoincom", "175btc", "gbminers", "axbt", "asicminer", "bitminter", "bitcoinrussia", "btcserv", "simplecoinus", "btcguild", "eligius", "ozcoin", "eclipsemc", "maxbtc", "triplemining", "coinlab", "50btc", "ghashio", "stminingcorp", "bitparking", "mmpool", "polmine", "kncminer", "bitalo", "f2pool", "hhtt", "megabigpower", "mtred", "nmcbit", "yourbtcnet", "givemecoins", "braiinspool", "antpool", "multicoinco", "bcpoolio", "cointerra", "kanopool", "solock", "ckpool", "nicehash", "bitclub", "bitcoinaffiliatenetwork", "btcc", "bwpool", "exxbw", "bitsolo", "bitfury", "21inc", "digitalbtc", "8baochi", "mybtccoinpool", "tbdice", "hashpool", "nexious", "bravomining", "hotpool", "okexpool", "bcmonster", "1hash", "bixin", "tatmaspool", "viabtc", "connectbtc", "batpool", "waterhole", "dcexploration", "dcex", "btpool", "58coin", "bitcoinindia", "shawnp0wers", "phashio", "rigpool", "haozhuzhu", "7pool", "miningkings", "hashbx", "dpool", "rawpool", "haominer", "helix", "bitcoinukraine", "poolin", "secretsuperstar", "tigerpoolnet", "sigmapoolcom", "okpooltop", "hummerpool", "tangpool", "bytepool", "spiderpool", "novablock", "miningcity", "binancepool", "minerium", "lubiancom", "okkong", "aaopool", "emcdpool", "foundryusa", "sbicrypto", "arkpool", "purebtccom", "marapool", "kucoinpool", "entrustcharitypool", "okminer", "titan", "pegapool", "btcnuggets", "cloudhashing", "digitalxmintsy", "telco214", "btcpoolparty", "multipool", "transactioncoinmining", "btcdig", "trickysbtcpool", "btcmp", "eobot", "unomp", "patels", "gogreenlight", "bitcoinindiapool", "ekanembtc", "canoe", "tiger", "1m1x", "zulupool", "secpool", "ocean", "whitepool", "wiz", "wk057", "futurebitapollosolo", "carbonnegative", "portlandhodl", "phoenix", "neopool", "maxipool", "bitfufupool", "gdpool", "miningdutch", "publicpool", "miningsquared", "innopolistech", "btclab", "parasite", "redrockpool", "est3lar", "braiinssolo", "solopoolcom", "noderunners", "kupool", "litecoinpoolorg", "hash700", "lsoftwaredmcc", "hashspace", "dogegogocom", "longpool", "kryptex", "dxpool", "k1pool", "molepool", "solopoolorg", "prohashing", "hashhut", "happychina", "himpool", "p2pspbxyz", "hyperdonkey", "zergpool"]
@@ -88,14 +88,14 @@ Vout = int
 # 
 # Wraps `bitcoin::Witness` (single-buffer layout with offsets, much
 # more compact than `Vec<Vec<u8>>`). Serializes as a JSON array of
-# hex strings - the format used by Litecoin Core REST and mempool.space
+# hex strings - the format used by Bitcoin Core REST and mempool.space
 # and matching brk's `script_sig: ScriptBuf` (bytes internally, hex
 # on the wire).
 Witness = List[str]
 # Chain-wide transaction index (0 = the genesis coinbase). For an
 # in-block position, use `BlockTxIndex` instead.
 TxIndex = int
-# Raw transaction version (i32) from Litecoin protocol.
+# Raw transaction version (i32) from Bitcoin protocol.
 # Unlike TxVersion (u8, indexed), this preserves non-standard values
 # used in coinbase txs for miner signaling/branding.
 TxVersionRaw = int
@@ -267,7 +267,7 @@ Year1 = int
 Year10 = int
 class AddrAfterTxidParam(TypedDict):
     """
-    Litecoin address + last-seen txid path parameters (Esplora-style pagination)
+    Bitcoin address + last-seen txid path parameters (Esplora-style pagination)
 
     Attributes:
         after_txid: Last txid from the previous page (return transactions strictly older than this)
@@ -283,9 +283,9 @@ class AddrChainStats(TypedDict):
 
     Attributes:
         funded_txo_count: Total number of transaction outputs that funded this address
-        funded_txo_sum: Total amount in litoshis received by this address across all funded outputs
+        funded_txo_sum: Total amount in satoshis received by this address across all funded outputs
         spent_txo_count: Total number of transaction outputs spent from this address
-        spent_txo_sum: Total amount in litoshis spent from this address
+        spent_txo_sum: Total amount in satoshis spent from this address
         tx_count: Total number of confirmed transactions involving this address
         type_index: Index of this address within its type on the blockchain
         realized_price: Realized price (average cost basis) in USD
@@ -316,9 +316,9 @@ class AddrMempoolStats(TypedDict):
 
     Attributes:
         funded_txo_count: Number of unconfirmed transaction outputs funding this address
-        funded_txo_sum: Total amount in litoshis being received in unconfirmed transactions
+        funded_txo_sum: Total amount in satoshis being received in unconfirmed transactions
         spent_txo_count: Number of unconfirmed transaction inputs spending from this address
-        spent_txo_sum: Total amount in litoshis being spent in unconfirmed transactions
+        spent_txo_sum: Total amount in satoshis being spent in unconfirmed transactions
         tx_count: Number of unconfirmed transactions involving this address
     """
     funded_txo_count: int
@@ -329,7 +329,7 @@ class AddrMempoolStats(TypedDict):
 
 class AddrParam(TypedDict):
     """
-    Litecoin address path parameter
+    Bitcoin address path parameter
     """
     address: Addr
 
@@ -338,7 +338,7 @@ class AddrStats(TypedDict):
     Address information compatible with mempool.space API format
 
     Attributes:
-        address: Litecoin address string
+        address: Bitcoin address string
         addr_type: Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
         chain_stats: Statistics for confirmed transactions on the blockchain
         mempool_stats: Statistics for unconfirmed transactions in the mempool
@@ -402,12 +402,12 @@ class BlockExtras(TypedDict):
     Extended block data matching mempool.space /api/v1/blocks extras
 
     Attributes:
-        totalFees: Total fees in litoshis
+        totalFees: Total fees in satoshis
         medianFee: Median fee rate in sat/vB
         feeRange: Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
-        reward: Total block reward (subsidy + fees) in litoshis
+        reward: Total block reward (subsidy + fees) in satoshis
         pool: Mining pool that mined this block
-        avgFee: Average fee per transaction in litoshis
+        avgFee: Average fee per transaction in satoshis
         avgFeeRate: Average fee rate in sat/vB
         coinbaseRaw: Raw coinbase transaction scriptsig as hex
         coinbaseAddress: Primary coinbase output address
@@ -417,9 +417,9 @@ class BlockExtras(TypedDict):
         avgTxSize: Average transaction size in bytes
         totalInputs: Total number of inputs (excluding coinbase)
         totalOutputs: Total number of outputs
-        totalOutputAmt: Total output amount in litoshis
-        medianFeeAmt: Median fee amount in litoshis
-        feePercentiles: Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
+        totalOutputAmt: Total output amount in satoshis
+        medianFeeAmt: Median fee amount in satoshis
+        feePercentiles: Fee amount percentiles in satoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
         segwitTotalTxs: Number of segwit transactions
         segwitTotalSize: Total size of segwit transactions in bytes
         segwitTotalWeight: Total weight of segwit transactions
@@ -428,7 +428,7 @@ class BlockExtras(TypedDict):
 Note: intentionally differs from utxo_set_size diff which excludes unspendable outputs.
 Matches mempool.space/bitcoin-cli behavior.
         utxoSetSize: Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
-        totalInputAmt: Total input amount in litoshis
+        totalInputAmt: Total input amount in satoshis
         virtualSize: Virtual size in vbytes
         firstSeen: Timestamp when the block was first seen (always null, not yet supported)
         orphans: Orphaned blocks (always empty)
@@ -496,8 +496,8 @@ class BlockFeesEntry(TypedDict):
     Attributes:
         avgHeight: Average block height in this window
         timestamp: Unix timestamp at the window midpoint
-        avgFees: Average fees per block in this window (lits)
-        USD: LTC/USD price at this height
+        avgFees: Average fees per block in this window (sats)
+        USD: BTC/USD price at this height
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -515,7 +515,7 @@ class BlockHashStartIndex(TypedDict):
     Block hash + starting transaction index path parameters
 
     Attributes:
-        hash: Litecoin block hash
+        hash: Bitcoin block hash
         start_index: Starting transaction index within the block (0-based)
     """
     hash: BlockHash
@@ -526,7 +526,7 @@ class BlockHashTxIndex(TypedDict):
     Block hash + transaction index path parameters
 
     Attributes:
-        hash: Litecoin block hash
+        hash: Bitcoin block hash
         index: Transaction index within the block (0-based)
     """
     hash: BlockHash
@@ -609,8 +609,8 @@ class BlockRewardsEntry(TypedDict):
     Attributes:
         avgHeight: Average block height in this window
         timestamp: Unix timestamp at the window midpoint
-        avgRewards: Average coinbase reward per block (subsidy + fees, lits)
-        USD: LTC/USD price at this height
+        avgRewards: Average coinbase reward per block (subsidy + fees, sats)
+        USD: BTC/USD price at this height
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -675,7 +675,7 @@ class MempoolBlock(TypedDict):
         blockSize: Total serialized block size in bytes (witness + non-witness).
         blockVSize: Total block virtual size in vbytes
         nTx: Number of transactions in the projected block
-        totalFees: Total fees in litoshis
+        totalFees: Total fees in satoshis
         medianFee: Median fee rate in sat/vB
         feeRange: Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
     """
@@ -692,7 +692,7 @@ class TxOut(TypedDict):
 
     Attributes:
         scriptpubkey: Script pubkey (locking script)
-        value: Value of the output in litoshis
+        value: Value of the output in satoshis
     """
     scriptpubkey: str
     value: Sats
@@ -746,14 +746,14 @@ class Transaction(TypedDict):
     Attributes:
         index: Internal transaction index (brk-specific, not in mempool.space)
         txid: Transaction ID
-        version: Transaction version (raw i32 from Litecoin protocol, may contain non-standard values in coinbase txs)
+        version: Transaction version (raw i32 from Bitcoin protocol, may contain non-standard values in coinbase txs)
         locktime: Transaction lock time
         vin: Transaction inputs
         vout: Transaction outputs
         size: Transaction size in bytes
         weight: Transaction weight
         sigops: Number of signature operations
-        fee: Transaction fee in litoshis
+        fee: Transaction fee in satoshis
         status: Confirmation status (confirmed, block height/hash/time)
     """
     index: Union[TxIndex, None]
@@ -770,7 +770,7 @@ class Transaction(TypedDict):
 
 class BlockTemplate(TypedDict):
     """
-    Projected next-block contents from Litecoin Core's `getblocktemplate`
+    Projected next-block contents from Bitcoin Core's `getblocktemplate`
     (block 0 of the snapshot). Returned by
     `GET /api/v1/mempool/block-template`.
 
@@ -892,7 +892,7 @@ This is the seed's chunk feerate after lift-merging, i.e. the
 rate Core/mempool.space would surface for this tx.
         sigops: BIP-141 sigop cost for the seed tx (witness sigops count as 1,
 legacy and P2SH-redeem sigops count as 4).
-        fee: Transaction fee (lits).
+        fee: Transaction fee (sats).
         vsize: Virtual size of the seed tx (vbytes).
         adjustedVsize: Policy-adjusted virtual size: `max(vsize, sigops * 5)`.
         cluster: Cluster the seed belongs to: full tx list, SFL-linearized chunks,
@@ -1127,7 +1127,7 @@ class Health(TypedDict):
         uptime_seconds: Uptime in seconds
         indexed_height: Height of the last indexed block
         computed_height: Height of the last computed block (series)
-        tip_height: Height of the chain tip (from Litecoin node)
+        tip_height: Height of the chain tip (from Bitcoin node)
         blocks_behind: Number of blocks behind the tip
         last_indexed_at: Human-readable timestamp of the last indexed block (ISO 8601)
         last_indexed_at_unix: Unix timestamp of the last indexed block
@@ -1168,7 +1168,7 @@ class HistoricalPriceEntry(TypedDict):
 
     Attributes:
         time: Unix timestamp
-        USD: LTC/USD price
+        USD: BTC/USD price
     """
     time: Timestamp
     USD: Dollars
@@ -1215,7 +1215,7 @@ class MempoolInfo(TypedDict):
     Attributes:
         count: Number of transactions in the mempool
         vsize: Total virtual size of all transactions in the mempool (vbytes)
-        total_fee: Total fees of all transactions in the mempool (litoshis)
+        total_fee: Total fees of all transactions in the mempool (satoshis)
         fee_histogram: Fee histogram: `[[fee_rate, vsize], ...]` sorted by descending fee rate
     """
     count: int
@@ -1229,9 +1229,9 @@ class MempoolRecentTx(TypedDict):
 
     Attributes:
         txid: Transaction ID
-        fee: Transaction fee (lits)
+        fee: Transaction fee (sats)
         vsize: Virtual size (vbytes)
-        value: Total output value (lits)
+        value: Total output value (sats)
     """
     txid: Txid
     fee: Sats
@@ -1475,7 +1475,7 @@ class Prices(TypedDict):
 
     Attributes:
         time: Unix timestamp
-        USD: LTC/USD price
+        USD: BTC/USD price
     """
     time: Timestamp
     USD: Dollars
@@ -1555,8 +1555,8 @@ class RewardStats(TypedDict):
     Attributes:
         startBlock: First block in the range
         endBlock: Last block in the range
-        totalReward: Total coinbase rewards (subsidy + fees) in lits
-        totalFee: Total transaction fees in lits
+        totalReward: Total coinbase rewards (subsidy + fees) in sats
+        totalFee: Total transaction fees in sats
         totalTx: Total number of transactions
     """
     startBlock: Height
@@ -1666,7 +1666,7 @@ class SyncStatus(TypedDict):
     Attributes:
         indexed_height: Height of the last indexed block
         computed_height: Height of the last computed block (series)
-        tip_height: Height of the chain tip (from Litecoin node)
+        tip_height: Height of the chain tip (from Bitcoin node)
         blocks_behind: Number of blocks behind the tip
         last_indexed_at: Human-readable timestamp of the last indexed block (ISO 8601)
         last_indexed_at_unix: Unix timestamp of the last indexed block
@@ -1748,7 +1748,7 @@ class UrpdBucket(TypedDict):
 
     Attributes:
         price_floor: Lower bound of the bucket, in USD. Equals the exact realized price for `Raw`.
-        supply: Supply held with a last-move price inside this bucket, in LTC.
+        supply: Supply held with a last-move price inside this bucket, in BTC.
         realized_cap: Realized cap contribution in USD: sum of `realized_price * supply` over the coins in this bucket.
         unrealized_pnl: Unrealized P&L in USD against the close on the snapshot date: `close * supply - realized_cap`. Can be negative.
     """
@@ -1762,14 +1762,14 @@ class Urpd(TypedDict):
     UTXO Realized Price Distribution for a cohort on a specific date.
     
     Supply is grouped by the close price at which each UTXO was last moved.
-    Each bucket exposes three values: supply in LTC, realized cap contribution
+    Each bucket exposes three values: supply in BTC, realized cap contribution
     in USD (sum of `realized_price * supply` over the coins in the bucket), and
     unrealized P&L in USD (`close * supply - realized_cap`, can be negative).
 
     Attributes:
         aggregation: Aggregation strategy applied to the buckets.
         close: Close price on `date`, in USD. Anchor for `unrealized_pnl`.
-        total_supply: Sum of `supply` across all buckets, in LTC.
+        total_supply: Sum of `supply` across all buckets, in BTC.
     """
     cohort: Cohort
     date: Date
@@ -1808,7 +1808,7 @@ class Utxo(TypedDict):
         txid: Transaction ID of the UTXO
         vout: Output index
         status: Confirmation status
-        value: Output value in litoshis
+        value: Output value in satoshis
     """
     txid: Txid
     vout: Vout
@@ -1818,7 +1818,7 @@ class Utxo(TypedDict):
 class ValidateAddrParam(TypedDict):
     """
     Attributes:
-        address: Litecoin address to validate (can be any string)
+        address: Bitcoin address to validate (can be any string)
     """
     address: str
 
@@ -1919,9 +1919,9 @@ def _p(prefix: str, acc: str) -> str:
 
 
 # Date conversion constants
-_GENESIS = date(2011, 1, 1)  # day1 0, week1 0
-_DAY_ONE = date(2011, 1, 2)  # day1 1
-_EPOCH = datetime(2011, 1, 1, tzinfo=timezone.utc)
+_GENESIS = date(2009, 1, 1)  # day1 0, week1 0
+_DAY_ONE = date(2009, 1, 2)  # day1 1
+_EPOCH = datetime(2009, 1, 1, tzinfo=timezone.utc)
 _DATE_INDEXES = frozenset([
     'minute10', 'minute30',
     'hour1', 'hour4', 'hour12',
@@ -1949,17 +1949,17 @@ def _index_to_date(index: str, i: int) -> Union[date, datetime]:
     elif index == 'week1':
         return _GENESIS + timedelta(weeks=i)
     elif index == 'month1':
-        return date(2011 + (0 + i) // 12, (0 + i) % 12 + 1, 1)
+        return date(2009 + (0 + i) // 12, (0 + i) % 12 + 1, 1)
     elif index == 'month3':
         m = i * 3
-        return date(2011 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
+        return date(2009 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
     elif index == 'month6':
         m = i * 6
-        return date(2011 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
+        return date(2009 + (0 + m) // 12, (0 + m) % 12 + 1, 1)
     elif index == 'year1':
-        return date(2011 + i, 1, 1)
+        return date(2009 + i, 1, 1)
     elif index == 'year10':
-        return date(2011 + i * 10, 1, 1)
+        return date(2009 + i * 10, 1, 1)
     else:
         raise ValueError(f"{index} is not a date-based index")
 
@@ -1985,19 +1985,19 @@ def _date_to_index(index: str, d: Union[date, datetime]) -> int:
             return 0
         return 1 + (dd - _DAY_ONE).days
     elif index == 'day3':
-        return (dd - date(2011, 0, 28)).days // 3
+        return (dd - date(2009, 0, 28)).days // 3
     elif index == 'week1':
         return (dd - _GENESIS).days // 7
     elif index == 'month1':
-        return (dd.year - 2011) * 12 + (dd.month - 1 - 0)
+        return (dd.year - 2009) * 12 + (dd.month - 1 - 0)
     elif index == 'month3':
-        return ((dd.year - 2011) * 12 + (dd.month - 1 - 0)) // 3
+        return ((dd.year - 2009) * 12 + (dd.month - 1 - 0)) // 3
     elif index == 'month6':
-        return ((dd.year - 2011) * 12 + (dd.month - 1 - 0)) // 6
+        return ((dd.year - 2009) * 12 + (dd.month - 1 - 0)) // 6
     elif index == 'year1':
-        return dd.year - 2011
+        return dd.year - 2009
     elif index == 'year10':
-        return (dd.year - 2011) // 10
+        return (dd.year - 2009) // 10
     else:
         raise ValueError(f"{index} is not a date-based index")
 
@@ -2907,13 +2907,14 @@ class _0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern:
     """Pattern struct for repeated tree structure."""
     pass
 
-class AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern:
+class AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern:
     """Pattern struct for repeated tree structure."""
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
         self.all: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'bis'))
         self.empty: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_empty_outputs_output'))
+        self.mweb: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_output'))
         self.op_return: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_op_return_output'))
         self.p2a: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2a_output'))
         self.p2ms: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2ms_output'))
@@ -2925,6 +2926,25 @@ class AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern:
         self.p2wpkh: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2wpkh_output'))
         self.p2wsh: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2wsh_output'))
         self.unknown: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'with_unknown_outputs_output'))
+
+class EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.empty: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'empty_outputs_output'))
+        self.mweb: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_output'))
+        self.op_return: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'op_return_output'))
+        self.p2a: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2a_output'))
+        self.p2ms: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2ms_output'))
+        self.p2pk33: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk33_output'))
+        self.p2pk65: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk65_output'))
+        self.p2pkh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pkh_output'))
+        self.p2sh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2sh_output'))
+        self.p2tr: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2tr_output'))
+        self.p2wpkh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wpkh_output'))
+        self.p2wsh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wsh_output'))
+        self.unknown: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'unknown_outputs_output'))
 
 class _10y1m1w1y2y3m3y4y5y6m6y8yPattern2:
     """Pattern struct for repeated tree structure."""
@@ -2973,24 +2993,6 @@ class CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern:
 class CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2:
     """Pattern struct for repeated tree structure."""
     pass
-
-class EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.empty: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'empty_outputs_output'))
-        self.op_return: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'op_return_output'))
-        self.p2a: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2a_output'))
-        self.p2ms: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2ms_output'))
-        self.p2pk33: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk33_output'))
-        self.p2pk65: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk65_output'))
-        self.p2pkh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pkh_output'))
-        self.p2sh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2sh_output'))
-        self.p2tr: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2tr_output'))
-        self.p2wpkh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wpkh_output'))
-        self.p2wsh: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wsh_output'))
-        self.unknown: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'unknown_outputs_output'))
 
 class AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern:
     """Pattern struct for repeated tree structure."""
@@ -4320,6 +4322,7 @@ class SeriesTree_Transactions_Fees:
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.input_value: SeriesPattern19[Sats] = SeriesPattern19(client, 'input_value')
+        self.transfer_input_value: SeriesPattern19[Sats] = SeriesPattern19(client, 'transfer_input_value')
         self.output_value: SeriesPattern19[Sats] = SeriesPattern19(client, 'output_value')
         self.fee: _6bBlockTxPattern[Sats] = _6bBlockTxPattern(client, 'fee')
         self.fee_rate: SeriesPattern19[FeeRate] = SeriesPattern19(client, 'fee_rate')
@@ -4482,6 +4485,7 @@ class SeriesTree_Outputs_ByType_OutputCount:
         self.unknown: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'unknown_outputs_output_count')
         self.empty: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'empty_outputs_output_count')
         self.op_return: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_output_count')
+        self.mweb: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'mweb_output_count')
 
 class SeriesTree_Outputs_ByType_OutputShare:
     """Series tree node."""
@@ -4499,6 +4503,7 @@ class SeriesTree_Outputs_ByType_OutputShare:
         self.unknown: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, 'unknown_outputs_output_share')
         self.empty: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, 'empty_outputs_output_share')
         self.op_return: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, 'op_return_output_share')
+        self.mweb: _1m1w1y24hBpsPercentRatioPattern = _1m1w1y24hBpsPercentRatioPattern(client, 'mweb_output_share')
 
 class SeriesTree_Outputs_ByType:
     """Series tree node."""
@@ -4507,14 +4512,22 @@ class SeriesTree_Outputs_ByType:
         self.output_count: SeriesTree_Outputs_ByType_OutputCount = SeriesTree_Outputs_ByType_OutputCount(client)
         self.spendable_output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'spendable_output_count')
         self.output_share: SeriesTree_Outputs_ByType_OutputShare = SeriesTree_Outputs_ByType_OutputShare(client)
-        self.tx_count: AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern = AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, 'tx_count')
-        self.tx_share: EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2 = EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2(client, 'tx_share_with')
+        self.tx_count: AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern = AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, 'tx_count')
+        self.tx_share: EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern = EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, 'tx_share_with')
 
 class SeriesTree_Outputs_Value:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.op_return: BlockCumulativePattern = BlockCumulativePattern(client, 'op_return_value')
+
+class SeriesTree_Outputs_Mweb:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.outputs_value: BlockCumulativePattern = BlockCumulativePattern(client, 'mweb_outputs_value')
+        self.inputs_value: BlockCumulativePattern = BlockCumulativePattern(client, 'mweb_inputs_value')
+        self.balance: BtcCentsSatsUsdPattern = BtcCentsSatsUsdPattern(client, 'mweb_balance')
 
 class SeriesTree_Outputs:
     """Series tree node."""
@@ -4527,6 +4540,7 @@ class SeriesTree_Outputs:
         self.unspent: SeriesTree_Outputs_Unspent = SeriesTree_Outputs_Unspent(client)
         self.by_type: SeriesTree_Outputs_ByType = SeriesTree_Outputs_ByType(client)
         self.value: SeriesTree_Outputs_Value = SeriesTree_Outputs_Value(client)
+        self.mweb: SeriesTree_Outputs_Mweb = SeriesTree_Outputs_Mweb(client)
 
 class SeriesTree_Addrs_Raw_P2pk65:
     """Series tree node."""
@@ -5644,42 +5658,173 @@ class SeriesTree_Pools_Major:
         self.unknown: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'unknown')
         self.luxor: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'luxor')
         self.btccom: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btccom')
+        self.btctop: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btctop')
+        self.btcguild: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btcguild')
+        self.eligius: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'eligius')
         self.f2pool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'f2pool')
+        self.braiinspool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'braiinspool')
         self.antpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'antpool')
+        self.btcc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'btcc')
+        self.bwpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'bwpool')
+        self.bitfury: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'bitfury')
         self.viabtc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'viabtc')
         self.poolin: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'poolin')
         self.spiderpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'spiderpool')
         self.binancepool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'binancepool')
+        self.foundryusa: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'foundryusa')
         self.sbicrypto: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'sbicrypto')
-        self.kupool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'kupool')
-        self.litecoinpoolorg: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'litecoinpoolorg')
-        self.hash700: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'hash700')
-        self.lsoftwaredmcc: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'lsoftwaredmcc')
-        self.hashspace: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'hashspace')
+        self.marapool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'marapool')
+        self.secpool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'secpool')
+        self.ocean: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'ocean')
+        self.whitepool: BlocksDominanceRewardsPattern = BlocksDominanceRewardsPattern(client, 'whitepool')
 
 class SeriesTree_Pools_Minor:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
+        self.blockfills: BlocksDominancePattern = BlocksDominancePattern(client, 'blockfills')
+        self.ultimuspool: BlocksDominancePattern = BlocksDominancePattern(client, 'ultimuspool')
+        self.terrapool: BlocksDominancePattern = BlocksDominancePattern(client, 'terrapool')
+        self.onethash: BlocksDominancePattern = BlocksDominancePattern(client, 'onethash')
+        self.bitfarms: BlocksDominancePattern = BlocksDominancePattern(client, 'bitfarms')
+        self.huobipool: BlocksDominancePattern = BlocksDominancePattern(client, 'huobipool')
+        self.wayicn: BlocksDominancePattern = BlocksDominancePattern(client, 'wayicn')
+        self.canoepool: BlocksDominancePattern = BlocksDominancePattern(client, 'canoepool')
+        self.bitcoincom: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoincom')
+        self.pool175btc: BlocksDominancePattern = BlocksDominancePattern(client, 'pool175btc')
+        self.gbminers: BlocksDominancePattern = BlocksDominancePattern(client, 'gbminers')
+        self.axbt: BlocksDominancePattern = BlocksDominancePattern(client, 'axbt')
+        self.asicminer: BlocksDominancePattern = BlocksDominancePattern(client, 'asicminer')
+        self.bitminter: BlocksDominancePattern = BlocksDominancePattern(client, 'bitminter')
+        self.bitcoinrussia: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinrussia')
+        self.btcserv: BlocksDominancePattern = BlocksDominancePattern(client, 'btcserv')
+        self.simplecoinus: BlocksDominancePattern = BlocksDominancePattern(client, 'simplecoinus')
+        self.ozcoin: BlocksDominancePattern = BlocksDominancePattern(client, 'ozcoin')
+        self.eclipsemc: BlocksDominancePattern = BlocksDominancePattern(client, 'eclipsemc')
+        self.maxbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'maxbtc')
+        self.triplemining: BlocksDominancePattern = BlocksDominancePattern(client, 'triplemining')
+        self.coinlab: BlocksDominancePattern = BlocksDominancePattern(client, 'coinlab')
+        self.pool50btc: BlocksDominancePattern = BlocksDominancePattern(client, 'pool50btc')
+        self.ghashio: BlocksDominancePattern = BlocksDominancePattern(client, 'ghashio')
+        self.stminingcorp: BlocksDominancePattern = BlocksDominancePattern(client, 'stminingcorp')
+        self.bitparking: BlocksDominancePattern = BlocksDominancePattern(client, 'bitparking')
+        self.mmpool: BlocksDominancePattern = BlocksDominancePattern(client, 'mmpool')
+        self.polmine: BlocksDominancePattern = BlocksDominancePattern(client, 'polmine')
+        self.kncminer: BlocksDominancePattern = BlocksDominancePattern(client, 'kncminer')
+        self.bitalo: BlocksDominancePattern = BlocksDominancePattern(client, 'bitalo')
+        self.hhtt: BlocksDominancePattern = BlocksDominancePattern(client, 'hhtt')
+        self.megabigpower: BlocksDominancePattern = BlocksDominancePattern(client, 'megabigpower')
+        self.mtred: BlocksDominancePattern = BlocksDominancePattern(client, 'mtred')
+        self.nmcbit: BlocksDominancePattern = BlocksDominancePattern(client, 'nmcbit')
+        self.yourbtcnet: BlocksDominancePattern = BlocksDominancePattern(client, 'yourbtcnet')
+        self.givemecoins: BlocksDominancePattern = BlocksDominancePattern(client, 'givemecoins')
+        self.multicoinco: BlocksDominancePattern = BlocksDominancePattern(client, 'multicoinco')
+        self.bcpoolio: BlocksDominancePattern = BlocksDominancePattern(client, 'bcpoolio')
+        self.cointerra: BlocksDominancePattern = BlocksDominancePattern(client, 'cointerra')
+        self.kanopool: BlocksDominancePattern = BlocksDominancePattern(client, 'kanopool')
+        self.solock: BlocksDominancePattern = BlocksDominancePattern(client, 'solock')
+        self.ckpool: BlocksDominancePattern = BlocksDominancePattern(client, 'ckpool')
         self.nicehash: BlocksDominancePattern = BlocksDominancePattern(client, 'nicehash')
+        self.bitclub: BlocksDominancePattern = BlocksDominancePattern(client, 'bitclub')
+        self.bitcoinaffiliatenetwork: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinaffiliatenetwork')
+        self.exxbw: BlocksDominancePattern = BlocksDominancePattern(client, 'exxbw')
+        self.bitsolo: BlocksDominancePattern = BlocksDominancePattern(client, 'bitsolo')
+        self.twentyoneinc: BlocksDominancePattern = BlocksDominancePattern(client, 'twentyoneinc')
+        self.digitalbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'digitalbtc')
+        self.eightbaochi: BlocksDominancePattern = BlocksDominancePattern(client, 'eightbaochi')
+        self.mybtccoinpool: BlocksDominancePattern = BlocksDominancePattern(client, 'mybtccoinpool')
+        self.tbdice: BlocksDominancePattern = BlocksDominancePattern(client, 'tbdice')
+        self.hashpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hashpool')
+        self.nexious: BlocksDominancePattern = BlocksDominancePattern(client, 'nexious')
+        self.bravomining: BlocksDominancePattern = BlocksDominancePattern(client, 'bravomining')
+        self.hotpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hotpool')
+        self.okexpool: BlocksDominancePattern = BlocksDominancePattern(client, 'okexpool')
+        self.bcmonster: BlocksDominancePattern = BlocksDominancePattern(client, 'bcmonster')
+        self.onehash: BlocksDominancePattern = BlocksDominancePattern(client, 'onehash')
+        self.bixin: BlocksDominancePattern = BlocksDominancePattern(client, 'bixin')
+        self.tatmaspool: BlocksDominancePattern = BlocksDominancePattern(client, 'tatmaspool')
+        self.connectbtc: BlocksDominancePattern = BlocksDominancePattern(client, 'connectbtc')
+        self.batpool: BlocksDominancePattern = BlocksDominancePattern(client, 'batpool')
+        self.waterhole: BlocksDominancePattern = BlocksDominancePattern(client, 'waterhole')
+        self.dcexploration: BlocksDominancePattern = BlocksDominancePattern(client, 'dcexploration')
+        self.dcex: BlocksDominancePattern = BlocksDominancePattern(client, 'dcex')
+        self.btpool: BlocksDominancePattern = BlocksDominancePattern(client, 'btpool')
+        self.fiftyeightcoin: BlocksDominancePattern = BlocksDominancePattern(client, 'fiftyeightcoin')
+        self.bitcoinindia: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinindia')
+        self.shawnp0wers: BlocksDominancePattern = BlocksDominancePattern(client, 'shawnp0wers')
+        self.phashio: BlocksDominancePattern = BlocksDominancePattern(client, 'phashio')
+        self.rigpool: BlocksDominancePattern = BlocksDominancePattern(client, 'rigpool')
+        self.haozhuzhu: BlocksDominancePattern = BlocksDominancePattern(client, 'haozhuzhu')
+        self.sevenpool: BlocksDominancePattern = BlocksDominancePattern(client, 'sevenpool')
+        self.miningkings: BlocksDominancePattern = BlocksDominancePattern(client, 'miningkings')
+        self.hashbx: BlocksDominancePattern = BlocksDominancePattern(client, 'hashbx')
+        self.dpool: BlocksDominancePattern = BlocksDominancePattern(client, 'dpool')
+        self.rawpool: BlocksDominancePattern = BlocksDominancePattern(client, 'rawpool')
+        self.haominer: BlocksDominancePattern = BlocksDominancePattern(client, 'haominer')
+        self.helix: BlocksDominancePattern = BlocksDominancePattern(client, 'helix')
+        self.bitcoinukraine: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinukraine')
+        self.secretsuperstar: BlocksDominancePattern = BlocksDominancePattern(client, 'secretsuperstar')
+        self.tigerpoolnet: BlocksDominancePattern = BlocksDominancePattern(client, 'tigerpoolnet')
         self.sigmapoolcom: BlocksDominancePattern = BlocksDominancePattern(client, 'sigmapoolcom')
+        self.okpooltop: BlocksDominancePattern = BlocksDominancePattern(client, 'okpooltop')
+        self.hummerpool: BlocksDominancePattern = BlocksDominancePattern(client, 'hummerpool')
+        self.tangpool: BlocksDominancePattern = BlocksDominancePattern(client, 'tangpool')
+        self.bytepool: BlocksDominancePattern = BlocksDominancePattern(client, 'bytepool')
+        self.novablock: BlocksDominancePattern = BlocksDominancePattern(client, 'novablock')
+        self.miningcity: BlocksDominancePattern = BlocksDominancePattern(client, 'miningcity')
+        self.minerium: BlocksDominancePattern = BlocksDominancePattern(client, 'minerium')
+        self.lubiancom: BlocksDominancePattern = BlocksDominancePattern(client, 'lubiancom')
+        self.okkong: BlocksDominancePattern = BlocksDominancePattern(client, 'okkong')
+        self.aaopool: BlocksDominancePattern = BlocksDominancePattern(client, 'aaopool')
         self.emcdpool: BlocksDominancePattern = BlocksDominancePattern(client, 'emcdpool')
+        self.arkpool: BlocksDominancePattern = BlocksDominancePattern(client, 'arkpool')
+        self.purebtccom: BlocksDominancePattern = BlocksDominancePattern(client, 'purebtccom')
+        self.kucoinpool: BlocksDominancePattern = BlocksDominancePattern(client, 'kucoinpool')
+        self.entrustcharitypool: BlocksDominancePattern = BlocksDominancePattern(client, 'entrustcharitypool')
+        self.okminer: BlocksDominancePattern = BlocksDominancePattern(client, 'okminer')
+        self.titan: BlocksDominancePattern = BlocksDominancePattern(client, 'titan')
+        self.pegapool: BlocksDominancePattern = BlocksDominancePattern(client, 'pegapool')
+        self.btcnuggets: BlocksDominancePattern = BlocksDominancePattern(client, 'btcnuggets')
+        self.cloudhashing: BlocksDominancePattern = BlocksDominancePattern(client, 'cloudhashing')
+        self.digitalxmintsy: BlocksDominancePattern = BlocksDominancePattern(client, 'digitalxmintsy')
+        self.telco214: BlocksDominancePattern = BlocksDominancePattern(client, 'telco214')
+        self.btcpoolparty: BlocksDominancePattern = BlocksDominancePattern(client, 'btcpoolparty')
+        self.multipool: BlocksDominancePattern = BlocksDominancePattern(client, 'multipool')
+        self.transactioncoinmining: BlocksDominancePattern = BlocksDominancePattern(client, 'transactioncoinmining')
+        self.btcdig: BlocksDominancePattern = BlocksDominancePattern(client, 'btcdig')
+        self.trickysbtcpool: BlocksDominancePattern = BlocksDominancePattern(client, 'trickysbtcpool')
+        self.btcmp: BlocksDominancePattern = BlocksDominancePattern(client, 'btcmp')
+        self.eobot: BlocksDominancePattern = BlocksDominancePattern(client, 'eobot')
+        self.unomp: BlocksDominancePattern = BlocksDominancePattern(client, 'unomp')
+        self.patels: BlocksDominancePattern = BlocksDominancePattern(client, 'patels')
+        self.gogreenlight: BlocksDominancePattern = BlocksDominancePattern(client, 'gogreenlight')
+        self.bitcoinindiapool: BlocksDominancePattern = BlocksDominancePattern(client, 'bitcoinindiapool')
+        self.ekanembtc: BlocksDominancePattern = BlocksDominancePattern(client, 'ekanembtc')
+        self.canoe: BlocksDominancePattern = BlocksDominancePattern(client, 'canoe')
+        self.tiger: BlocksDominancePattern = BlocksDominancePattern(client, 'tiger')
+        self.onem1x: BlocksDominancePattern = BlocksDominancePattern(client, 'onem1x')
         self.zulupool: BlocksDominancePattern = BlocksDominancePattern(client, 'zulupool')
+        self.wiz: BlocksDominancePattern = BlocksDominancePattern(client, 'wiz')
+        self.wk057: BlocksDominancePattern = BlocksDominancePattern(client, 'wk057')
+        self.futurebitapollosolo: BlocksDominancePattern = BlocksDominancePattern(client, 'futurebitapollosolo')
+        self.carbonnegative: BlocksDominancePattern = BlocksDominancePattern(client, 'carbonnegative')
+        self.portlandhodl: BlocksDominancePattern = BlocksDominancePattern(client, 'portlandhodl')
+        self.phoenix: BlocksDominancePattern = BlocksDominancePattern(client, 'phoenix')
+        self.neopool: BlocksDominancePattern = BlocksDominancePattern(client, 'neopool')
+        self.maxipool: BlocksDominancePattern = BlocksDominancePattern(client, 'maxipool')
+        self.bitfufupool: BlocksDominancePattern = BlocksDominancePattern(client, 'bitfufupool')
+        self.gdpool: BlocksDominancePattern = BlocksDominancePattern(client, 'gdpool')
         self.miningdutch: BlocksDominancePattern = BlocksDominancePattern(client, 'miningdutch')
-        self.dogegogocom: BlocksDominancePattern = BlocksDominancePattern(client, 'dogegogocom')
-        self.longpool: BlocksDominancePattern = BlocksDominancePattern(client, 'longpool')
-        self.kryptex: BlocksDominancePattern = BlocksDominancePattern(client, 'kryptex')
-        self.dxpool: BlocksDominancePattern = BlocksDominancePattern(client, 'dxpool')
-        self.k1pool: BlocksDominancePattern = BlocksDominancePattern(client, 'k1pool')
-        self.molepool: BlocksDominancePattern = BlocksDominancePattern(client, 'molepool')
-        self.solopoolorg: BlocksDominancePattern = BlocksDominancePattern(client, 'solopoolorg')
-        self.prohashing: BlocksDominancePattern = BlocksDominancePattern(client, 'prohashing')
-        self.hashhut: BlocksDominancePattern = BlocksDominancePattern(client, 'hashhut')
-        self.happychina: BlocksDominancePattern = BlocksDominancePattern(client, 'happychina')
-        self.himpool: BlocksDominancePattern = BlocksDominancePattern(client, 'himpool')
-        self.p2pspbxyz: BlocksDominancePattern = BlocksDominancePattern(client, 'p2pspbxyz')
-        self.hyperdonkey: BlocksDominancePattern = BlocksDominancePattern(client, 'hyperdonkey')
-        self.zergpool: BlocksDominancePattern = BlocksDominancePattern(client, 'zergpool')
+        self.publicpool: BlocksDominancePattern = BlocksDominancePattern(client, 'publicpool')
+        self.miningsquared: BlocksDominancePattern = BlocksDominancePattern(client, 'miningsquared')
+        self.innopolistech: BlocksDominancePattern = BlocksDominancePattern(client, 'innopolistech')
+        self.btclab: BlocksDominancePattern = BlocksDominancePattern(client, 'btclab')
+        self.parasite: BlocksDominancePattern = BlocksDominancePattern(client, 'parasite')
+        self.redrockpool: BlocksDominancePattern = BlocksDominancePattern(client, 'redrockpool')
+        self.est3lar: BlocksDominancePattern = BlocksDominancePattern(client, 'est3lar')
+        self.braiinssolo: BlocksDominancePattern = BlocksDominancePattern(client, 'braiinssolo')
+        self.solopool: BlocksDominancePattern = BlocksDominancePattern(client, 'solopool')
+        self.noderunners: BlocksDominancePattern = BlocksDominancePattern(client, 'noderunners')
 
 class SeriesTree_Pools:
     """Series tree node."""
@@ -5735,6 +5880,7 @@ class SeriesTree_Supply:
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.state: SeriesPattern18[SupplyState] = SeriesPattern18(client, 'supply_state')
         self.circulating: BtcCentsSatsUsdPattern = BtcCentsSatsUsdPattern(client, 'circulating_supply')
+        self.transparent: BtcCentsSatsUsdPattern = BtcCentsSatsUsdPattern(client, 'transparent_supply')
         self.burned: BlockCumulativePattern = BlockCumulativePattern(client, 'unspendable_supply')
         self.inflation_rate: BpsPercentRatioPattern = BpsPercentRatioPattern(client, 'inflation_rate')
         self.velocity: SeriesTree_Supply_Velocity = SeriesTree_Supply_Velocity(client)
@@ -6927,39 +7073,170 @@ class BrkClient(BrkClientBase):
     ]
 
     POOL_ID_TO_POOL_NAME = {
+      "aaopool": "AAO Pool",
       "antpool": "AntPool",
+      "arkpool": "ArkPool",
+      "asicminer": "ASICMiner",
+      "axbt": "A-XBT",
+      "batpool": "BATPOOL",
+      "bcmonster": "BCMonster",
+      "bcpoolio": "bcpool.io",
       "binancepool": "Binance Pool",
+      "bitalo": "Bitalo",
+      "bitclub": "BitClub",
+      "bitcoinaffiliatenetwork": "Bitcoin Affiliate Network",
+      "bitcoincom": "Bitcoin.com",
+      "bitcoinindia": "Bitcoin India",
+      "bitcoinindiapool": "BitcoinIndia",
+      "bitcoinrussia": "BitcoinRussia",
+      "bitcoinukraine": "Bitcoin-Ukraine",
+      "bitfarms": "Bitfarms",
+      "bitfufupool": "BitFuFuPool",
+      "bitfury": "BitFury",
+      "bitminter": "BitMinter",
+      "bitparking": "Bitparking",
+      "bitsolo": "Bitsolo",
+      "bixin": "Bixin",
+      "blockfills": "BlockFills",
+      "braiinspool": "Braiins Pool",
+      "braiinssolo": "Braiins Solo",
+      "bravomining": "Bravo Mining",
+      "btcc": "BTCC",
       "btccom": "BTC.com",
-      "dogegogocom": "dogegogo.com",
-      "dxpool": "DxPool",
+      "btcdig": "BTCDig",
+      "btcguild": "BTC Guild",
+      "btclab": "BTCLab",
+      "btcmp": "BTCMP",
+      "btcnuggets": "BTC Nuggets",
+      "btcpoolparty": "BTC Pool Party",
+      "btcserv": "BTCServ",
+      "btctop": "BTC.TOP",
+      "btpool": "BTPOOL",
+      "bwpool": "BWPool",
+      "bytepool": "BytePool",
+      "canoe": "CANOE",
+      "canoepool": "CanoePool",
+      "carbonnegative": "Carbon Negative",
+      "ckpool": "CKPool",
+      "cloudhashing": "CloudHashing",
+      "coinlab": "CoinLab",
+      "cointerra": "Cointerra",
+      "connectbtc": "ConnectBTC",
+      "dcex": "DCEX",
+      "dcexploration": "DCExploration",
+      "digitalbtc": "digitalBTC",
+      "digitalxmintsy": "digitalX Mintsy",
+      "dpool": "DPOOL",
+      "eclipsemc": "EclipseMC",
+      "eightbaochi": "8baochi",
+      "ekanembtc": "EkanemBTC",
+      "eligius": "Eligius",
       "emcdpool": "EMCDPool",
+      "entrustcharitypool": "Entrust Charity Pool",
+      "eobot": "Eobot",
+      "est3lar": "Est3lar",
+      "exxbw": "EXX&BW",
       "f2pool": "F2Pool",
-      "happychina": "happychina",
-      "hash700": "Hash700",
-      "hashhut": "hash-hut",
-      "hashspace": "Hash Space",
-      "himpool": "HimPool",
-      "hyperdonkey": "HyperDonkey",
-      "k1pool": "K1Pool",
-      "kryptex": "Kryptex",
-      "kupool": "Kupool",
-      "litecoinpoolorg": "Litecoinpool.org",
-      "longpool": "LongPool",
-      "lsoftwaredmcc": "LSoftware DMCC",
-      "luxor": "Luxor Labs",
-      "miningdutch": "Mining Dutch",
-      "molepool": "molepool",
+      "fiftyeightcoin": "58COIN",
+      "foundryusa": "Foundry USA",
+      "futurebitapollosolo": "FutureBit Apollo Solo",
+      "gbminers": "GBMiners",
+      "gdpool": "GDPool",
+      "ghashio": "GHash.IO",
+      "givemecoins": "Give Me Coins",
+      "gogreenlight": "GoGreenLight",
+      "haominer": "haominer",
+      "haozhuzhu": "HAOZHUZHU",
+      "hashbx": "HashBX",
+      "hashpool": "HASHPOOL",
+      "helix": "Helix",
+      "hhtt": "HHTT",
+      "hotpool": "HotPool",
+      "hummerpool": "Hummerpool",
+      "huobipool": "Huobi.pool",
+      "innopolistech": "Innopolis Tech",
+      "kanopool": "KanoPool",
+      "kncminer": "KnCMiner",
+      "kucoinpool": "KuCoinPool",
+      "lubiancom": "Lubian.com",
+      "luxor": "Luxor",
+      "marapool": "MARA Pool",
+      "maxbtc": "MaxBTC",
+      "maxipool": "MaxiPool",
+      "megabigpower": "MegaBigPower",
+      "minerium": "Minerium",
+      "miningcity": "MiningCity",
+      "miningdutch": "Mining-Dutch",
+      "miningkings": "MiningKings",
+      "miningsquared": "Mining Squared",
+      "mmpool": "mmpool",
+      "mtred": "Mt Red",
+      "multicoinco": "MultiCoin.co",
+      "multipool": "Multipool",
+      "mybtccoinpool": "myBTCcoin Pool",
+      "neopool": "Neopool",
+      "nexious": "Nexious",
       "nicehash": "NiceHash",
-      "p2pspbxyz": "p2p-spb.xyz",
+      "nmcbit": "NMCbit",
+      "noderunners": "Noderunners",
+      "novablock": "NovaBlock",
+      "ocean": "OCEAN",
+      "okexpool": "OKExPool",
+      "okkong": "OKKONG",
+      "okminer": "OKMINER",
+      "okpooltop": "okpool.top",
+      "onehash": "1Hash",
+      "onem1x": "1M1X",
+      "onethash": "1THash",
+      "ozcoin": "OzCoin",
+      "parasite": "Parasite",
+      "patels": "Patels",
+      "pegapool": "PEGA Pool",
+      "phashio": "PHash.IO",
+      "phoenix": "Phoenix",
+      "polmine": "Polmine",
+      "pool175btc": "175btc",
+      "pool50btc": "50BTC",
       "poolin": "Poolin",
-      "prohashing": "Prohashing",
+      "portlandhodl": "Portland.HODL",
+      "publicpool": "Public Pool",
+      "purebtccom": "PureBTC.COM",
+      "rawpool": "Rawpool",
+      "redrockpool": "RedRock Pool",
+      "rigpool": "RigPool",
       "sbicrypto": "SBI Crypto",
+      "secpool": "SECPOOL",
+      "secretsuperstar": "SecretSuperstar",
+      "sevenpool": "7pool",
+      "shawnp0wers": "shawnp0wers",
       "sigmapoolcom": "Sigmapool.com",
-      "solopoolorg": "solopool.org",
-      "spiderpool": "Spiderpool",
+      "simplecoinus": "simplecoin.us",
+      "solock": "Solo CK",
+      "solopool": "SoloPool.com",
+      "spiderpool": "SpiderPool",
+      "stminingcorp": "ST Mining Corp",
+      "tangpool": "Tangpool",
+      "tatmaspool": "TATMAS Pool",
+      "tbdice": "TBDice",
+      "telco214": "Telco 214",
+      "terrapool": "Terra Pool",
+      "tiger": "tiger",
+      "tigerpoolnet": "tigerpool.net",
+      "titan": "Titan",
+      "transactioncoinmining": "transactioncoinmining",
+      "trickysbtcpool": "Tricky's BTC Pool",
+      "triplemining": "TripleMining",
+      "twentyoneinc": "21 Inc.",
+      "ultimuspool": "ULTIMUSPOOL",
       "unknown": "Unknown",
+      "unomp": "UNOMP",
       "viabtc": "ViaBTC",
-      "zergpool": "zergpool",
+      "waterhole": "Waterhole",
+      "wayicn": "WAYI.CN",
+      "whitepool": "WhitePool",
+      "wiz": "wiz",
+      "wk057": "wk057",
+      "yourbtcnet": "Yourbtc.net",
       "zulupool": "Zulupool"
     }
 
@@ -7465,214 +7742,214 @@ class BrkClient(BrkClientBase):
     AMOUNT_RANGE_NAMES = {
       "_0sats": {
         "id": "0sats",
-        "short": "0 litoshis",
-        "long": "0 Litoshis"
+        "short": "0 sats",
+        "long": "0 Sats"
       },
       "_1sat_to_10sats": {
         "id": "1sat_to_10sats",
-        "short": "1-10 lits",
-        "long": "1-10 Lits"
+        "short": "1-10 sats",
+        "long": "1-10 Sats"
       },
       "_10sats_to_100sats": {
         "id": "10sats_to_100sats",
-        "short": "10-100 lits",
-        "long": "10-100 Lits"
+        "short": "10-100 sats",
+        "long": "10-100 Sats"
       },
       "_100sats_to_1k_sats": {
         "id": "100sats_to_1k_sats",
-        "short": "100-1k lits",
-        "long": "100-1K Lits"
+        "short": "100-1k sats",
+        "long": "100-1K Sats"
       },
       "_1k_sats_to_10k_sats": {
         "id": "1k_sats_to_10k_sats",
-        "short": "1k-10k lits",
-        "long": "1K-10K Lits"
+        "short": "1k-10k sats",
+        "long": "1K-10K Sats"
       },
       "_10k_sats_to_100k_sats": {
         "id": "10k_sats_to_100k_sats",
-        "short": "10k-100k lits",
-        "long": "10K-100K Lits"
+        "short": "10k-100k sats",
+        "long": "10K-100K Sats"
       },
       "_100k_sats_to_1m_sats": {
         "id": "100k_sats_to_1m_sats",
-        "short": "100k-1M lits",
-        "long": "100K-1M Lits"
+        "short": "100k-1M sats",
+        "long": "100K-1M Sats"
       },
       "_1m_sats_to_10m_sats": {
         "id": "1m_sats_to_10m_sats",
-        "short": "1M-10M lits",
-        "long": "1M-10M Lits"
+        "short": "1M-10M sats",
+        "long": "1M-10M Sats"
       },
       "_10m_sats_to_1btc": {
         "id": "10m_sats_to_1btc",
-        "short": "0.1-1 LTC",
-        "long": "0.1-1 LTC"
+        "short": "0.1-1 BTC",
+        "long": "0.1-1 BTC"
       },
       "_1btc_to_10btc": {
         "id": "1btc_to_10btc",
-        "short": "1-10 LTC",
-        "long": "1-10 LTC"
+        "short": "1-10 BTC",
+        "long": "1-10 BTC"
       },
       "_10btc_to_100btc": {
         "id": "10btc_to_100btc",
-        "short": "10-100 LTC",
-        "long": "10-100 LTC"
+        "short": "10-100 BTC",
+        "long": "10-100 BTC"
       },
       "_100btc_to_1k_btc": {
         "id": "100btc_to_1k_btc",
-        "short": "100-1k LTC",
-        "long": "100-1K LTC"
+        "short": "100-1k BTC",
+        "long": "100-1K BTC"
       },
       "_1k_btc_to_10k_btc": {
         "id": "1k_btc_to_10k_btc",
-        "short": "1k-10k LTC",
-        "long": "1K-10K LTC"
+        "short": "1k-10k BTC",
+        "long": "1K-10K BTC"
       },
       "_10k_btc_to_100k_btc": {
         "id": "10k_btc_to_100k_btc",
-        "short": "10k-100k LTC",
-        "long": "10K-100K LTC"
+        "short": "10k-100k BTC",
+        "long": "10K-100K BTC"
       },
       "over_100k_btc": {
         "id": "over_100k_btc",
-        "short": "100k+ LTC",
-        "long": "100K+ LTC"
+        "short": "100k+ BTC",
+        "long": "100K+ BTC"
       }
     }
 
     OVER_AMOUNT_NAMES = {
       "_1sat": {
         "id": "over_1sat",
-        "short": "1+ lits",
-        "long": "Over 1 Lit"
+        "short": "1+ sats",
+        "long": "Over 1 Sat"
       },
       "_10sats": {
         "id": "over_10sats",
-        "short": "10+ lits",
-        "long": "Over 10 Lits"
+        "short": "10+ sats",
+        "long": "Over 10 Sats"
       },
       "_100sats": {
         "id": "over_100sats",
-        "short": "100+ lits",
-        "long": "Over 100 Lits"
+        "short": "100+ sats",
+        "long": "Over 100 Sats"
       },
       "_1k_sats": {
         "id": "over_1k_sats",
-        "short": "1k+ lits",
-        "long": "Over 1K Lits"
+        "short": "1k+ sats",
+        "long": "Over 1K Sats"
       },
       "_10k_sats": {
         "id": "over_10k_sats",
-        "short": "10k+ lits",
-        "long": "Over 10K Lits"
+        "short": "10k+ sats",
+        "long": "Over 10K Sats"
       },
       "_100k_sats": {
         "id": "over_100k_sats",
-        "short": "100k+ lits",
-        "long": "Over 100K Lits"
+        "short": "100k+ sats",
+        "long": "Over 100K Sats"
       },
       "_1m_sats": {
         "id": "over_1m_sats",
-        "short": "1M+ lits",
-        "long": "Over 1M Lits"
+        "short": "1M+ sats",
+        "long": "Over 1M Sats"
       },
       "_10m_sats": {
         "id": "over_10m_sats",
-        "short": "0.1+ LTC",
-        "long": "Over 0.1 LTC"
+        "short": "0.1+ BTC",
+        "long": "Over 0.1 BTC"
       },
       "_1btc": {
         "id": "over_1btc",
-        "short": "1+ LTC",
-        "long": "Over 1 LTC"
+        "short": "1+ BTC",
+        "long": "Over 1 BTC"
       },
       "_10btc": {
         "id": "over_10btc",
-        "short": "10+ LTC",
-        "long": "Over 10 LTC"
+        "short": "10+ BTC",
+        "long": "Over 10 BTC"
       },
       "_100btc": {
         "id": "over_100btc",
-        "short": "100+ LTC",
-        "long": "Over 100 LTC"
+        "short": "100+ BTC",
+        "long": "Over 100 BTC"
       },
       "_1k_btc": {
         "id": "over_1k_btc",
-        "short": "1k+ LTC",
-        "long": "Over 1K LTC"
+        "short": "1k+ BTC",
+        "long": "Over 1K BTC"
       },
       "_10k_btc": {
         "id": "over_10k_btc",
-        "short": "10k+ LTC",
-        "long": "Over 10K LTC"
+        "short": "10k+ BTC",
+        "long": "Over 10K BTC"
       }
     }
 
     UNDER_AMOUNT_NAMES = {
       "_10sats": {
         "id": "under_10sats",
-        "short": "<10 lits",
-        "long": "Under 10 Lits"
+        "short": "<10 sats",
+        "long": "Under 10 Sats"
       },
       "_100sats": {
         "id": "under_100sats",
-        "short": "<100 lits",
-        "long": "Under 100 Lits"
+        "short": "<100 sats",
+        "long": "Under 100 Sats"
       },
       "_1k_sats": {
         "id": "under_1k_sats",
-        "short": "<1k lits",
-        "long": "Under 1K Lits"
+        "short": "<1k sats",
+        "long": "Under 1K Sats"
       },
       "_10k_sats": {
         "id": "under_10k_sats",
-        "short": "<10k lits",
-        "long": "Under 10K Lits"
+        "short": "<10k sats",
+        "long": "Under 10K Sats"
       },
       "_100k_sats": {
         "id": "under_100k_sats",
-        "short": "<100k lits",
-        "long": "Under 100K Lits"
+        "short": "<100k sats",
+        "long": "Under 100K Sats"
       },
       "_1m_sats": {
         "id": "under_1m_sats",
-        "short": "<1M lits",
-        "long": "Under 1M Lits"
+        "short": "<1M sats",
+        "long": "Under 1M Sats"
       },
       "_10m_sats": {
         "id": "under_10m_sats",
-        "short": "<0.1 LTC",
-        "long": "Under 0.1 LTC"
+        "short": "<0.1 BTC",
+        "long": "Under 0.1 BTC"
       },
       "_1btc": {
         "id": "under_1btc",
-        "short": "<1 LTC",
-        "long": "Under 1 LTC"
+        "short": "<1 BTC",
+        "long": "Under 1 BTC"
       },
       "_10btc": {
         "id": "under_10btc",
-        "short": "<10 LTC",
-        "long": "Under 10 LTC"
+        "short": "<10 BTC",
+        "long": "Under 10 BTC"
       },
       "_100btc": {
         "id": "under_100btc",
-        "short": "<100 LTC",
-        "long": "Under 100 LTC"
+        "short": "<100 BTC",
+        "long": "Under 100 BTC"
       },
       "_1k_btc": {
         "id": "under_1k_btc",
-        "short": "<1k LTC",
-        "long": "Under 1K LTC"
+        "short": "<1k BTC",
+        "long": "Under 1K BTC"
       },
       "_10k_btc": {
         "id": "under_10k_btc",
-        "short": "<10k LTC",
-        "long": "Under 10K LTC"
+        "short": "<10k BTC",
+        "long": "Under 10K BTC"
       },
       "_100k_btc": {
         "id": "under_100k_btc",
-        "short": "<100k LTC",
-        "long": "Under 100K LTC"
+        "short": "<100k BTC",
+        "long": "Under 100K BTC"
       }
     }
 
@@ -8611,7 +8888,7 @@ class BrkClient(BrkClientBase):
     def get_mempool_blocks(self) -> List[MempoolBlock]:
         """Projected mempool blocks.
 
-        Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+        Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
 
@@ -8699,7 +8976,7 @@ class BrkClient(BrkClientBase):
     def get_block_template(self) -> BlockTemplate:
         """Projected next block template.
 
-        Litecoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+        Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
 
         Endpoint: `GET /api/v1/mempool/block-template`"""
         return self.get_json('/api/v1/mempool/block-template')

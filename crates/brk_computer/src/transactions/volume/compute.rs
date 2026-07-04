@@ -26,7 +26,7 @@ impl Vecs {
                     starting_height,
                     &indexer.vecs.transactions.first_tx_index,
                     &indexes.height.tx_index_count,
-                    &fees_vecs.input_value,
+                    &fees_vecs.transfer_input_value,
                     |sats| !sats.is_max(),
                     exit,
                 )?)

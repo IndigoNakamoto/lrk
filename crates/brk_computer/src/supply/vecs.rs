@@ -5,7 +5,7 @@ use vecdb::{Database, Rw, StorageMode};
 use super::{burned, velocity};
 use crate::internal::{
     LazyFiatPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock, PercentPerBlock,
-    RollingWindows,
+    RollingWindows, ValuePerBlock,
 };
 
 #[derive(Traversable)]
@@ -13,7 +13,12 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub(crate) db: Database,
 
-    pub circulating: LazyValuePerBlock,
+    /// Total circulating supply = transparent UTXO supply + Litecoin MWEB
+    /// pegged balance. On Bitcoin the MWEB balance is always zero, so this
+    /// equals the transparent supply.
+    pub circulating: ValuePerBlock<M>,
+    /// Transparent (on-chain, spendable) supply only, excluding MWEB.
+    pub transparent: LazyValuePerBlock,
     pub burned: burned::Vecs<M>,
     pub inflation_rate: PercentPerBlock<BasisPointsSigned32, M>,
     pub velocity: velocity::Vecs<M>,

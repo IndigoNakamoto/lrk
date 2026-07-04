@@ -3,7 +3,7 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{blocks, distribution, transactions};
+use crate::{blocks, internal::ValuePerBlock, transactions};
 
 impl Vecs {
     pub(crate) fn compute(
@@ -11,13 +11,13 @@ impl Vecs {
         indexer: &Indexer,
         blocks: &blocks::Vecs,
         transactions: &transactions::Vecs,
-        distribution: &distribution::Vecs,
+        circulating_supply: &ValuePerBlock,
         exit: &Exit,
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
         // velocity = rolling_1y_sum(volume) / circulating_supply
-        let circulating_supply = &distribution.utxo_cohorts.all.metrics.supply.total;
+        // `circulating_supply` = transparent UTXO supply + MWEB pegged balance.
 
         // Native velocity at height level
         self.native.height.compute_rolling_ratio(

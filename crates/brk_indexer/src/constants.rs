@@ -5,7 +5,7 @@ use brk_types::{TxIndex, Txid, TxidPrefix, Version};
 
 // One version for all data sources
 // Increment on **change _OR_ addition**
-pub const VERSION: Version = Version::new(27); // bumped: added OutputType::MWEB (index shift)
+pub const VERSION: Version = Version::new(28); // bumped: classify Litecoin MWEB (witness v8/v9) outputs
 pub const SNAPSHOT_BLOCK_RANGE: usize = 1_000;
 
 /// Known duplicate Bitcoin transactions (BIP30)

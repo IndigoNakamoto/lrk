@@ -7,7 +7,7 @@ use crate::{
     cointime, distribution, indexes,
     internal::{
         LazyFiatPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock, PercentPerBlock,
-        RollingWindows, WindowStartVec, Windows,
+        RollingWindows, ValuePerBlock, WindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
     },
     supply::burned,
@@ -31,8 +31,11 @@ impl Vecs {
         let version = parent_version + VERSION;
         let supply_metrics = &distribution.utxo_cohorts.all.metrics.supply;
 
-        let circulating =
-            LazyValuePerBlock::identity("circulating_supply", &supply_metrics.total, version);
+        // Stored combined supply (transparent + MWEB), computed in `compute`.
+        let circulating = ValuePerBlock::forced_import(&db, "circulating_supply", version, indexes)?;
+        // Transparent-only supply exposed as a distinct lazy series.
+        let transparent =
+            LazyValuePerBlock::identity("transparent_supply", &supply_metrics.total, version);
 
         let burned = burned::Vecs::forced_import(&db, version, indexes)?;
 
@@ -43,9 +46,10 @@ impl Vecs {
         // Velocity
         let velocity = super::velocity::Vecs::forced_import(&db, version, indexes)?;
 
-        // Market cap - lazy fiat (cents + usd) from distribution supply
+        // Market cap - lazy fiat (cents + usd) from combined circulating supply
+        // (transparent + MWEB), so MWEB-pegged coins are valued at market.
         let market_cap =
-            LazyFiatPerBlock::from_computed("market_cap", version, &supply_metrics.total.cents);
+            LazyFiatPerBlock::from_computed("market_cap", version, &circulating.cents);
 
         // Market cap delta (change + rate across 4 windows)
         let market_cap_delta = LazyRollingDeltasFiatFromHeight::new(
@@ -69,6 +73,7 @@ impl Vecs {
         let this = Self {
             db,
             circulating,
+            transparent,
             burned,
             inflation_rate,
             velocity,

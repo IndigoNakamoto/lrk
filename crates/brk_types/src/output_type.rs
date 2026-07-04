@@ -159,14 +159,26 @@ impl OutputType {
         ]
     }
 
-    /// Returns `true` if this script looks like a Litecoin MWEB HogEx
-    /// integration script. Not fully decoded; tagged as `OutputType::MWEB`
-    /// so callers know to skip standard address extraction.
+    /// Returns `true` if this is a Litecoin MWEB output script. On the
+    /// canonical chain MWEB appears as two witness-program versions that are
+    /// unique to Litecoin: the HogEx peg-pool output (witness v8, holding the
+    /// entire pegged balance) and peg-in outputs (witness v9). Both carry a
+    /// plaintext `value` but are unspendable by standard (non-MWEB) indexing.
+    ///
+    /// On Bitcoin builds witness v8/v9 programs are not MWEB, so this always
+    /// returns `false` and such outputs fall through to `Unknown`.
+    #[inline]
     pub fn is_mweb_script(script: &ScriptBuf) -> bool {
-        if script.is_op_return() {
-            let bytes = script.as_bytes();
-            bytes.len() >= 2 && bytes[1] >= 0x20
-        } else {
+        #[cfg(feature = "litecoin")]
+        {
+            matches!(
+                script.witness_version(),
+                Some(bitcoin::WitnessVersion::V8 | bitcoin::WitnessVersion::V9)
+            )
+        }
+        #[cfg(not(feature = "litecoin"))]
+        {
+            let _ = script;
             false
         }
     }
@@ -206,6 +218,8 @@ impl From<&ScriptBuf> for OutputType {
             && script.as_bytes()[2..4] == [78, 115]
         {
             Self::P2A
+        } else if Self::is_mweb_script(script) {
+            Self::MWEB
         } else if script.is_empty() {
             Self::Empty
         } else {
@@ -307,3 +321,33 @@ impl Pco for OutputType {
 }
 
 impl TransparentPco<u8> for OutputType {}
+
+#[cfg(all(test, feature = "litecoin"))]
+mod tests {
+    use super::*;
+
+    /// Builds a raw witness-program script: `<version opcode> <push N> <N bytes>`.
+    fn witness_script(version_opcode: u8, program_len: usize) -> ScriptBuf {
+        let mut bytes = vec![version_opcode, program_len as u8];
+        bytes.extend(std::iter::repeat(0u8).take(program_len));
+        ScriptBuf::from_bytes(bytes)
+    }
+
+    #[test]
+    fn litecoin_mweb_outputs_classify_as_mweb() {
+        // OP_PUSHNUM_8 = 0x58 (peg-pool), OP_PUSHNUM_9 = 0x59 (peg-in).
+        let v8 = witness_script(0x58, 32);
+        let v9 = witness_script(0x59, 32);
+        assert_eq!(OutputType::from(&v8), OutputType::MWEB);
+        assert_eq!(OutputType::from(&v9), OutputType::MWEB);
+        assert!(!OutputType::MWEB.is_spendable());
+        assert!(!OutputType::MWEB.is_addr());
+    }
+
+    #[test]
+    fn other_witness_versions_are_not_mweb() {
+        // v2 (0x52) is a plain future witness program, not MWEB.
+        let v2 = witness_script(0x52, 32);
+        assert_ne!(OutputType::from(&v2), OutputType::MWEB);
+    }
+}

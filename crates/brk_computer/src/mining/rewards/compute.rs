@@ -89,10 +89,23 @@ impl Vecs {
         )?;
         self.subsidy.compute_rest(starting_height, prices, exit)?;
 
-        self.output_volume.compute_subtract(
+        // `transfer_volume` excludes MWEB peg inputs (the HogEx pool re-spend),
+        // while `fees` is derived from full per-tx input value. For blocks whose
+        // only non-coinbase tx is the HogEx, the MWEB-excluded transfer volume
+        // can be below the block's fees, so a plain subtract underflows. Output
+        // volume is non-negative, so clamp at zero.
+        self.output_volume.compute_transform2(
             starting_height,
             &transactions.volume.transfer_volume.block.sats,
             &self.fees.block.sats,
+            |(height, transfer_volume, fees, ..)| {
+                let output_volume = if transfer_volume >= fees {
+                    transfer_volume - fees
+                } else {
+                    Sats::ZERO
+                };
+                (height, output_volume)
+            },
             exit,
         )?;
 

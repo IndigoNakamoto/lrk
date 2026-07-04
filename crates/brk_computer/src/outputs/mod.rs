@@ -1,5 +1,6 @@
 pub mod by_type;
 pub mod count;
+pub mod mweb;
 pub mod per_sec;
 pub mod spent;
 pub mod unspent;
@@ -13,6 +14,7 @@ use vecdb::{Database, Rw, StorageMode};
 
 pub use by_type::Vecs as ByTypeVecs;
 pub use count::Vecs as CountVecs;
+pub use mweb::Vecs as MwebVecs;
 pub use per_sec::Vecs as PerSecVecs;
 pub use spent::Vecs as SpentVecs;
 pub use unspent::Vecs as UnspentVecs;
@@ -31,4 +33,5 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub unspent: UnspentVecs<M>,
     pub by_type: ByTypeVecs<M>,
     pub value: ValueVecs<M>,
+    pub mweb: MwebVecs<M>,
 }

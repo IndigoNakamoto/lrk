@@ -23,6 +23,7 @@ impl Vecs {
         self.count.compute(indexer, indexes, blocks, exit)?;
         self.per_sec.compute(&self.count, &starting_lengths, exit)?;
         self.value.compute(indexer, prices, exit)?;
+        self.mweb.compute(indexer, inputs, prices, exit)?;
         self.by_type.compute(indexer, exit)?;
         self.unspent.compute(
             &self.count,

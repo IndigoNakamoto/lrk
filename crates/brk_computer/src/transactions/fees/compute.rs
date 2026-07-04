@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{FeeRate, OutPoint, Sats, TxInIndex, TxIndex, VSize};
+use brk_types::{FeeRate, OutPoint, OutputType, Sats, TxInIndex, TxIndex, VSize};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec, unlikely};
 
 use super::super::size;
@@ -34,6 +34,8 @@ impl Vecs {
             exit,
         )?;
 
+        self.compute_transfer_input_value(indexer, spent, exit)?;
+
         self.compute_fees(indexer, indexes, size_vecs, exit)?;
 
         let vsize_source = &size_vecs.vsize.tx_index;
@@ -55,6 +57,108 @@ impl Vecs {
         );
         r1?;
         r2?;
+
+        Ok(())
+    }
+
+    /// Per-tx sum of input values, excluding inputs whose prevout is a
+    /// Litecoin MWEB output (peg-pool / peg-in). Coinbase txs are left as the
+    /// `Sats::MAX` sentinel so downstream volume aggregation still skips them.
+    fn compute_transfer_input_value(
+        &mut self,
+        indexer: &Indexer,
+        spent: &inputs::SpentVecs,
+        exit: &Exit,
+    ) -> Result<()> {
+        let starting_lengths = indexer.safe_lengths();
+
+        let dep_version = indexer.vecs.transactions.first_txin_index.version()
+            + indexer.vecs.inputs.output_type.version()
+            + spent.value.version();
+        self.transfer_input_value
+            .validate_computed_version_or_reset(dep_version)?;
+
+        let target_tx = indexer.vecs.transactions.first_txin_index.len();
+        let start = self
+            .transfer_input_value
+            .len()
+            .min(starting_lengths.tx_index.to_usize());
+        if start >= target_tx {
+            return Ok(());
+        }
+
+        self.transfer_input_value
+            .truncate_if_needed(TxIndex::from(start))?;
+
+        let total_txin = spent.value.len();
+        let output_type = &indexer.vecs.inputs.output_type;
+        let first_txin_index = &indexer.vecs.transactions.first_txin_index;
+
+        // Process many txs per batch so each input-vec chunk is read (and
+        // pco-decompressed) exactly once. Reading one small per-tx range at a
+        // time re-decompresses the chunk shared by every tx in it, turning this
+        // into an O(txs × chunk_size) pass over ~400M txs (hours instead of
+        // minutes). Batching reads each txin exactly once, matching the cost of
+        // the streaming `input_value`/`output_value` sums above.
+        const TX_BATCH: usize = 4_000_000;
+
+        let mut type_buf: Vec<OutputType> = Vec::new();
+        let mut value_buf: Vec<Sats> = Vec::new();
+
+        let mut tx = start;
+        while tx < target_tx {
+            let tx_end = (tx + TX_BATCH).min(target_tx);
+
+            // `firsts` spans [tx, tx_end]: the trailing entry (when present) is
+            // the exclusive txin bound of the batch's last tx.
+            let firsts: Vec<TxInIndex> =
+                first_txin_index.collect_range_at(tx, (tx_end + 1).min(target_tx));
+            let batch_txin_start = firsts[0].to_usize();
+            let batch_txin_end = if tx_end < target_tx {
+                firsts[tx_end - tx].to_usize()
+            } else {
+                total_txin
+            };
+
+            output_type.collect_range_into_at(batch_txin_start, batch_txin_end, &mut type_buf);
+            spent
+                .value
+                .collect_range_into_at(batch_txin_start, batch_txin_end, &mut value_buf);
+
+            for t in tx..tx_end {
+                let fi = firsts[t - tx].to_usize();
+                let next = if t + 1 < target_tx {
+                    firsts[t + 1 - tx].to_usize()
+                } else {
+                    total_txin
+                };
+                let lo = fi - batch_txin_start;
+                let hi = next - batch_txin_start;
+
+                let mut sum = Sats::ZERO;
+                for k in lo..hi {
+                    let val = value_buf[k];
+                    // Coinbase inputs carry `Sats::MAX`; keeping them makes the
+                    // whole tx sum saturate to the sentinel (coinbase txs have a
+                    // single input), which downstream volume filters skip.
+                    if val.is_max() {
+                        sum = Sats::MAX;
+                        break;
+                    }
+                    if type_buf[k] != OutputType::MWEB {
+                        sum += val;
+                    }
+                }
+
+                self.transfer_input_value.push(sum);
+            }
+
+            let _lock = exit.lock();
+            self.transfer_input_value.write()?;
+            drop(_lock);
+
+            tx = tx_end;
+        }
 
         Ok(())
     }

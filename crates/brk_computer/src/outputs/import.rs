@@ -11,7 +11,9 @@ use crate::{
     },
 };
 
-use super::{ByTypeVecs, CountVecs, PerSecVecs, SpentVecs, UnspentVecs, ValueVecs, Vecs};
+use super::{
+    ByTypeVecs, CountVecs, MwebVecs, PerSecVecs, SpentVecs, UnspentVecs, ValueVecs, Vecs,
+};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -29,6 +31,7 @@ impl Vecs {
         let unspent = UnspentVecs::forced_import(&db, version, indexes)?;
         let by_type = ByTypeVecs::forced_import(&db, version, indexes, cached_starts)?;
         let value = ValueVecs::forced_import(&db, version, indexes)?;
+        let mweb = MwebVecs::forced_import(&db, version, indexes)?;
 
         let this = Self {
             db,
@@ -38,6 +41,7 @@ impl Vecs {
             unspent,
             by_type,
             value,
+            mweb,
         };
         finalize_db(&this.db, &this)?;
         Ok(this)

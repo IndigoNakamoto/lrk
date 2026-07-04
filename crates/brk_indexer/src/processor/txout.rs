@@ -185,7 +185,9 @@ pub(super) fn finalize_outputs(
                         .checked_push(lengths.empty_output_index, tx_index)?;
                     lengths.empty_output_index.copy_then_increment()
                 }
-                OutputType::Unknown => {
+                // MWEB (Litecoin peg-pool v8 / peg-in v9) shares the `unknown`
+                // script index space, matching `Lengths::to_type_index`.
+                OutputType::Unknown | OutputType::MWEB => {
                     scripts
                         .unknown
                         .to_tx_index
@@ -200,9 +202,8 @@ pub(super) fn finalize_outputs(
         outputs.output_type.checked_push(txout_index, output_type)?;
         outputs.type_index.checked_push(txout_index, type_index)?;
 
-        if output_type.is_unspendable() {
-            continue;
-        } else if output_type.is_addr() {
+        // Address activity index: only for address-type outputs.
+        if output_type.is_addr() {
             let addr_type = output_type;
             let addr_index = type_index;
 
@@ -213,6 +214,12 @@ pub(super) fn finalize_outputs(
 
         let outpoint = OutPoint::new(tx_index, vout);
 
+        // Same-block spend resolution must cover ALL outputs, including
+        // unspendable ones: the Litecoin HogEx integration tx spends MWEB
+        // peg-in (witness v9) outputs within the same block, so those
+        // outpoints must be resolvable even though they never enter the
+        // UTXO/address set. Provably-unspendable op_return outputs are never
+        // spent, so this branch is simply never taken for them.
         if same_block_spent_outpoints.contains(&outpoint) {
             same_block_output_info.insert(
                 outpoint,

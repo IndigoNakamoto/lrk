@@ -25,6 +25,11 @@ impl Vecs {
 
         let bip30_dups = indexer.chain.constants().bip30_duplicate_heights;
 
+        // Note: unspendable Litecoin MWEB outputs are naturally kept out of the
+        // spendable UTXO set here because every MWEB output that gets spent
+        // (peg-ins consumed same-block, peg-pool re-spent each block) is
+        // captured by `input_count`, leaving only the single currently-unspent
+        // peg-pool output uncorrected — negligible in a UTXO-count estimate.
         self.count.height.compute_transform3(
             starting_lengths.height,
             &count.total.cumulative.height,
