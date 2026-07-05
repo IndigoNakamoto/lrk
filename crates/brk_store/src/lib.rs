@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, fmt::Debug, fs, hash::Hash, mem, ops::Range, path::Path};
 
-use brk_error::Result;
+use brk_error::{Error, Result};
 use brk_types::{Height, Version};
 use byteview::ByteView;
 use fjall::{Database, Keyspace, KeyspaceCreateOptions, config::*};
@@ -211,19 +211,20 @@ where
         V: Send + 'static,
         for<'a> ByteView: From<&'a K> + From<&'a V>,
     {
-        self.export_meta_if_needed(height)?;
-
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
 
         if puts.is_empty() && dels.is_empty() {
+            self.export_meta_if_needed(height)?;
             return Ok(None);
         }
 
         let keyspace = self.keyspace.clone();
+        let mut meta = self.meta.clone();
 
         Ok(Some(Box::new(move || {
-            Self::ingest(&keyspace, puts.iter(), dels.iter())
+            Self::ingest(&keyspace, puts.iter(), dels.iter())?;
+            meta.export(height).map_err(Error::from)
         })))
     }
 
@@ -360,12 +361,11 @@ where
     }
 
     fn commit(&mut self, height: Height) -> Result<()> {
-        self.export_meta_if_needed(height)?;
-
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
 
         if puts.is_empty() && dels.is_empty() {
+            self.export_meta_if_needed(height)?;
             return Ok(());
         }
 
@@ -375,6 +375,10 @@ where
             self.caches.pop();
             self.caches.insert(0, puts);
         }
+
+        // Meta must reflect on-disk keys; exporting before ingest leaves a
+        // crash window where resume thinks the store is current but lookups fail.
+        self.export_meta(height)?;
 
         Ok(())
     }

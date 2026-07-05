@@ -4,18 +4,19 @@ use std::{
     fs,
     path::{Path, PathBuf},
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use brk_chain::Chain;
 use brk_error::Result;
 use brk_reader::{Reader, XORBytes};
 use brk_rpc::Client;
-use brk_types::{BlockHash, Height};
+use brk_types::{BlockHash, Height, TxidPrefix};
 use fjall::PersistMode;
 use tracing::{debug, error, info};
 use vecdb::{
-    Exit, RawDBError, ReadOnlyClone, ReadableVec, Ro, Rw, StorageMode, WritableVec, unlikely,
+    Exit, RawDBError, ReadOnlyClone, ReadableVec, Ro, Rw, StorageMode, VecIndex, WritableVec,
+    unlikely,
 };
 mod constants;
 mod lengths;
@@ -173,7 +174,7 @@ impl Indexer {
         //     .collect_one_at(self.vecs.blocks.blockhash.len() - 2);
         debug!("Last block hash found.");
 
-        let (starting_lengths, prev_hash) = if let Some(hash) = last_blockhash {
+        let (mut starting_lengths, mut prev_hash) = if let Some(hash) = last_blockhash {
             let (height, hash) = client.get_closest_valid_height(hash)?;
             match Lengths::resume_at(height.incremented(), &self.vecs, &self.stores) {
                 Some(starting_lengths) => {
@@ -202,6 +203,8 @@ impl Indexer {
         self.vecs.rollback_if_needed(&starting_lengths)?;
         debug!("Rollback vecs done.");
         drop(lock);
+
+        self.recover_incomplete_store(&mut starting_lengths, &mut prev_hash)?;
 
         let mut lengths = starting_lengths;
 
@@ -328,39 +331,104 @@ impl Indexer {
         drop(readers);
 
         let lock = exit.lock();
-        let tasks = self.stores.take_all_pending_ingests(lengths.height)?;
+        // Commit stores before stamping vecs so a restart cannot observe a
+        // higher vec bound with store meta/data still from the prior block.
+        self.stores.commit(lengths.height)?;
         self.vecs.stamped_write(lengths.height)?;
         let fjall_db = self.stores.db.clone();
 
         self.vecs.db.run_bg(move |db| {
             let _lock = lock;
 
-            db.bg_sleep(Duration::from_secs(3));
-
-            info!("Exporting...");
+            info!("Compacting...");
             let i = Instant::now();
-
-            if !tasks.is_empty() {
-                let i = Instant::now();
-                for task in tasks {
-                    task().map_err(vecdb::RawDBError::other)?;
-                }
-                debug!("Stores committed in {:?}", i.elapsed());
-
-                let i = Instant::now();
-                fjall_db
-                    .persist(PersistMode::SyncData)
-                    .map_err(RawDBError::other)?;
-                debug!("Stores persisted in {:?}", i.elapsed());
-            }
-
+            fjall_db
+                .persist(PersistMode::SyncData)
+                .map_err(RawDBError::other)?;
             db.compact()?;
-
-            info!("Exported in {:?}", i.elapsed());
+            info!("Compacted in {:?}", i.elapsed());
             Ok(())
         });
 
         Ok(())
+    }
+
+    /// If indexed blocks' txids are absent from the store (e.g. the process
+    /// restarted after store meta was exported but before ingest), roll back
+    /// until the last complete block so the next `index` pass can re-process.
+    fn recover_incomplete_store(
+        &mut self,
+        starting_lengths: &mut Lengths,
+        prev_hash: &mut Option<BlockHash>,
+    ) -> Result<()> {
+        let mut rolled_back = 0_u32;
+
+        while self.last_block_txids_missing_from_store(starting_lengths)? {
+            let Some(last_height) = starting_lengths.height.decremented() else {
+                break;
+            };
+
+            info!(
+                "Store missing txids for block {last_height}; rolling back one block to re-index"
+            );
+
+            *starting_lengths = Lengths::collect_at(last_height, &self.vecs)
+                .ok_or(brk_error::Error::Internal("Cannot roll back lengths"))?;
+            self.safe_lengths.lower_before(starting_lengths);
+            self.stores
+                .rollback_if_needed(&mut self.vecs, starting_lengths)?;
+            self.vecs.rollback_if_needed(starting_lengths)?;
+
+            *prev_hash = if last_height.is_zero() {
+                None
+            } else {
+                Some(
+                    self.vecs
+                        .blocks
+                        .blockhash
+                        .collect_one(last_height.decremented().unwrap())
+                        .ok_or(brk_error::Error::Internal("Missing rollback blockhash"))?,
+                )
+            };
+
+            rolled_back += 1;
+        }
+
+        if rolled_back > 0 {
+            info!("Store recovery: rolled back {rolled_back} block(s), resuming at {}", starting_lengths.height);
+        }
+
+        Ok(())
+    }
+
+    fn last_block_txids_missing_from_store(&self, lengths: &Lengths) -> Result<bool> {
+        let Some(last_height) = lengths.height.decremented() else {
+            return Ok(false);
+        };
+
+        let start_tx = self
+            .vecs
+            .transactions
+            .first_tx_index
+            .collect_one(last_height)
+            .ok_or(brk_error::Error::Internal("Missing first_tx_index"))?;
+        let end_tx = lengths.tx_index.to_usize();
+        let txid_reader = self.vecs.transactions.txid.reader();
+
+        for tx_index in start_tx.to_usize()..end_tx {
+            let txid = txid_reader.get(tx_index);
+            let prefix = TxidPrefix::from(&txid);
+            if self
+                .stores
+                .txid_prefix_to_tx_index
+                .get(&prefix)?
+                .is_none()
+            {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     fn check_xor_bytes(&mut self, reader: &Reader) -> Result<()> {

@@ -163,7 +163,7 @@ impl Lengths {
         Self::collect_at(height, vecs)
     }
 
-    fn collect_at(height: Height, vecs: &Vecs) -> Option<Self> {
+    pub(crate) fn collect_at(height: Height, vecs: &Vecs) -> Option<Self> {
         Some(Self {
             empty_output_index: next_index(
                 &vecs.scripts.empty.first_index,
