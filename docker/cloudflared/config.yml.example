@@ -1,0 +1,24 @@
+# Cloudflare Tunnel — LRK local demo
+#
+# 1. cp config.yml.example config.yml
+# 2. Fill in tunnel + credentials-file (see README.md)
+# 3. ./start.sh
+
+# UUID from: cloudflared tunnel list
+# (or the filename cloudflared created under ~/.cloudflared/)
+tunnel: 00000000-0000-0000-0000-000000000000
+
+# Option A (recommended): copy credentials into this folder
+#   cp ~/.cloudflared/<UUID>.json ./credentials.json
+credentials-file: ./credentials.json
+
+# Option B: point at cloudflared's default location
+# credentials-file: /Users/YOU/.cloudflared/00000000-0000-0000-0000-000000000000.json
+
+ingress:
+  # LRK Docker maps host 7070 → container 3110 (see docker-compose.yml)
+  - hostname: litview.space
+    service: http://localhost:7070
+  - hostname: www.litview.space
+    service: http://localhost:7070
+  - service: http_status:404

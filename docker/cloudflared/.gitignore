@@ -1,0 +1,5 @@
+# Local tunnel config and secrets — never commit these
+config.yml
+credentials.json
+*.json
+!credentials.json.example
