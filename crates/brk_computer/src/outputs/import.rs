@@ -31,7 +31,7 @@ impl Vecs {
         let unspent = UnspentVecs::forced_import(&db, version, indexes)?;
         let by_type = ByTypeVecs::forced_import(&db, version, indexes, cached_starts)?;
         let value = ValueVecs::forced_import(&db, version, indexes)?;
-        let mweb = MwebVecs::forced_import(&db, version, indexes)?;
+        let mweb = MwebVecs::forced_import(&db, version, indexes, cached_starts)?;
 
         let this = Self {
             db,

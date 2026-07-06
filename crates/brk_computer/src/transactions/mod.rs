@@ -1,5 +1,6 @@
 pub mod count;
 pub mod fees;
+pub mod hogex;
 pub mod size;
 pub mod versions;
 pub mod volume;
@@ -12,6 +13,7 @@ use vecdb::{Database, Rw, StorageMode};
 
 pub use count::Vecs as CountVecs;
 pub use fees::Vecs as FeesVecs;
+pub use hogex::Vecs as HogexVecs;
 pub use size::Vecs as SizeVecs;
 pub use versions::Vecs as VersionsVecs;
 pub use volume::Vecs as VolumeVecs;
@@ -26,6 +28,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub count: CountVecs<M>,
     pub size: SizeVecs<M>,
     pub fees: FeesVecs<M>,
+    pub hogex: HogexVecs<M>,
     pub versions: VersionsVecs<M>,
     pub volume: VolumeVecs<M>,
 }

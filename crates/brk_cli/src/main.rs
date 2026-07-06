@@ -13,6 +13,7 @@ use brk_indexer::Indexer;
 use brk_mempool::Mempool;
 use brk_query::AsyncQuery;
 use brk_reader::Reader;
+use brk_rpc::Client;
 use brk_server::{Server, ServerConfig};
 use tracing::info;
 use vecdb::Exit;
@@ -60,6 +61,16 @@ pub fn main() -> anyhow::Result<()> {
 
     let mut computer = Computer::forced_import(&config.brkdir(), &indexer)?;
 
+    client.wait_for_synced_node()?;
+    info!("Running initial index/compute before starting server...");
+    sync_once(
+        &mut indexer,
+        &mut computer,
+        &reader,
+        &client,
+        &exit,
+    )?;
+
     let mempool = Mempool::new(&client);
 
     let query = AsyncQuery::build(&reader, &indexer, &computer, Some(mempool.clone()));
@@ -97,31 +108,49 @@ pub fn main() -> anyhow::Result<()> {
     let _handle = runtime.spawn(future);
 
     loop {
-        client.wait_for_synced_node()?;
-
         let last_height = client.get_last_height()?;
-
-        info!("{} blocks found.", u32::from(last_height) + 1);
-
-        let total_start = Instant::now();
-
-        if cfg!(debug_assertions) {
-            indexer.checked_index(&reader, &client, &exit)?;
-        } else {
-            indexer.index(&reader, &client, &exit)?;
-        }
-
-        Mimalloc::collect();
-
-        computer.compute(&indexer, &exit)?;
-
-        indexer.advance_safe_lengths()?;
-
-        info!("Total time: {:?}", total_start.elapsed());
-        info!("Waiting for new blocks...");
 
         while last_height == client.get_last_height()? {
             sleep(Duration::from_secs(1))
         }
+
+        sync_once(
+            &mut indexer,
+            &mut computer,
+            &reader,
+            &client,
+            &exit,
+        )?;
     }
+}
+
+fn sync_once(
+    indexer: &mut Indexer,
+    computer: &mut Computer,
+    reader: &Reader,
+    client: &Client,
+    exit: &Exit,
+) -> Result<()> {
+    let last_height = client.get_last_height()?;
+
+    info!("{} blocks found.", u32::from(last_height) + 1);
+
+    let total_start = Instant::now();
+
+    if cfg!(debug_assertions) {
+        indexer.checked_index(reader, client, exit)?;
+    } else {
+        indexer.index(reader, client, exit)?;
+    }
+
+    Mimalloc::collect();
+
+    computer.compute(indexer, exit)?;
+
+    indexer.advance_safe_lengths()?;
+
+    info!("Total time: {:?}", total_start.elapsed());
+    info!("Waiting for new blocks...");
+
+    Ok(())
 }

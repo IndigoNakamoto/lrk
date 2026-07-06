@@ -149,7 +149,7 @@ fn legacy_sigops_for_output(output_type: OutputType, script_pubkey: &Script) -> 
         | OutputType::P2TR
         | OutputType::P2A
         | OutputType::Empty => 0,
-        OutputType::OpReturn | OutputType::Unknown | OutputType::MWEB => {
+        OutputType::OpReturn | OutputType::Unknown | OutputType::MWEBPegPool | OutputType::MWEBPegIn => {
             script_pubkey.count_sigops_legacy()
         }
     }

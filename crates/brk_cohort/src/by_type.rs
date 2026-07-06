@@ -7,7 +7,8 @@ use rayon::prelude::*;
 use super::{Filter, SpendableType, UnspendableType};
 
 pub const OP_RETURN: &str = "op_return";
-pub const MWEB: &str = "mweb";
+pub const MWEB_PEG_POOL: &str = "mweb_peg_pool";
+pub const MWEB_PEGIN: &str = "mweb_pegin";
 
 #[derive(Default, Clone, Debug, Traversable)]
 pub struct ByType<T> {
@@ -26,7 +27,11 @@ impl<T> ByType<T> {
             spendable: SpendableType::try_new(&mut create)?,
             unspendable: UnspendableType {
                 op_return: create(Filter::Type(OutputType::OpReturn), OP_RETURN)?,
-                mweb: create(Filter::Type(OutputType::MWEB), MWEB)?,
+                mweb_peg_pool: create(
+                    Filter::Type(OutputType::MWEBPegPool),
+                    MWEB_PEG_POOL,
+                )?,
+                mweb_pegin: create(Filter::Type(OutputType::MWEBPegIn), MWEB_PEGIN)?,
             },
         })
     }
@@ -45,7 +50,8 @@ impl<T> ByType<T> {
             OutputType::Empty => &self.spendable.empty,
             OutputType::Unknown => &self.spendable.unknown,
             OutputType::OpReturn => &self.unspendable.op_return,
-            OutputType::MWEB => &self.unspendable.mweb,
+            OutputType::MWEBPegPool => &self.unspendable.mweb_peg_pool,
+            OutputType::MWEBPegIn => &self.unspendable.mweb_pegin,
         }
     }
 
@@ -63,21 +69,24 @@ impl<T> ByType<T> {
             OutputType::Unknown => &mut self.spendable.unknown,
             OutputType::Empty => &mut self.spendable.empty,
             OutputType::OpReturn => &mut self.unspendable.op_return,
-            OutputType::MWEB => &mut self.unspendable.mweb,
+            OutputType::MWEBPegPool => &mut self.unspendable.mweb_peg_pool,
+            OutputType::MWEBPegIn => &mut self.unspendable.mweb_pegin,
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.spendable.iter().chain([
             &self.unspendable.op_return,
-            &self.unspendable.mweb,
+            &self.unspendable.mweb_peg_pool,
+            &self.unspendable.mweb_pegin,
         ])
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.spendable.iter_mut().chain([
             &mut self.unspendable.op_return,
-            &mut self.unspendable.mweb,
+            &mut self.unspendable.mweb_peg_pool,
+            &mut self.unspendable.mweb_pegin,
         ])
     }
 
@@ -89,22 +98,29 @@ impl<T> ByType<T> {
             spendable,
             unspendable,
         } = self;
-        spendable
-            .par_iter_mut()
-            .chain([&mut unspendable.op_return, &mut unspendable.mweb].into_par_iter())
+        spendable.par_iter_mut().chain(
+            [
+                &mut unspendable.op_return,
+                &mut unspendable.mweb_peg_pool,
+                &mut unspendable.mweb_pegin,
+            ]
+            .into_par_iter(),
+        )
     }
 
     pub fn iter_typed(&self) -> impl Iterator<Item = (OutputType, &T)> {
         self.spendable.iter_typed().chain([
             (OutputType::OpReturn, &self.unspendable.op_return),
-            (OutputType::MWEB, &self.unspendable.mweb),
+            (OutputType::MWEBPegPool, &self.unspendable.mweb_peg_pool),
+            (OutputType::MWEBPegIn, &self.unspendable.mweb_pegin),
         ])
     }
 
     pub fn iter_typed_mut(&mut self) -> impl Iterator<Item = (OutputType, &mut T)> {
         self.spendable.iter_typed_mut().chain([
             (OutputType::OpReturn, &mut self.unspendable.op_return),
-            (OutputType::MWEB, &mut self.unspendable.mweb),
+            (OutputType::MWEBPegPool, &mut self.unspendable.mweb_peg_pool),
+            (OutputType::MWEBPegIn, &mut self.unspendable.mweb_pegin),
         ])
     }
 }

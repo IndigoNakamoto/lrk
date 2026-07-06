@@ -21,6 +21,8 @@ pub struct TransactionsVecs<M: StorageMode = Rw> {
     pub total_size: M::Stored<PcoVec<TxIndex, StoredU32>>,
     pub total_sigop_cost: M::Stored<PcoVec<TxIndex, SigOps>>,
     pub is_explicitly_rbf: M::Stored<PcoVec<TxIndex, StoredBool>>,
+    pub is_hog_ex: M::Stored<PcoVec<TxIndex, StoredBool>>,
+    pub has_mw_tx: M::Stored<PcoVec<TxIndex, StoredBool>>,
     pub first_txin_index: M::Stored<PcoVec<TxIndex, TxInIndex>>,
     pub first_txout_index: M::Stored<BytesVec<TxIndex, TxOutIndex>>,
     #[traversable(hidden)]
@@ -35,6 +37,8 @@ pub struct TxMetadataVecs<'a> {
     pub total_size: &'a mut PcoVec<TxIndex, StoredU32>,
     pub total_sigop_cost: &'a mut PcoVec<TxIndex, SigOps>,
     pub is_explicitly_rbf: &'a mut PcoVec<TxIndex, StoredBool>,
+    pub is_hog_ex: &'a mut PcoVec<TxIndex, StoredBool>,
+    pub has_mw_tx: &'a mut PcoVec<TxIndex, StoredBool>,
 }
 
 impl TransactionsVecs {
@@ -56,6 +60,8 @@ impl TransactionsVecs {
                 total_size: &mut self.total_size,
                 total_sigop_cost: &mut self.total_sigop_cost,
                 is_explicitly_rbf: &mut self.is_explicitly_rbf,
+                is_hog_ex: &mut self.is_hog_ex,
+                has_mw_tx: &mut self.has_mw_tx,
             },
         )
     }
@@ -70,6 +76,8 @@ impl TransactionsVecs {
             total_size,
             total_sigop_cost,
             is_explicitly_rbf,
+            is_hog_ex,
+            has_mw_tx,
             first_txin_index,
             first_txout_index,
             position,
@@ -82,6 +90,8 @@ impl TransactionsVecs {
             total_size = PcoVec::forced_import(db, "total_size", version),
             total_sigop_cost = PcoVec::forced_import(db, "total_sigop_cost", version),
             is_explicitly_rbf = PcoVec::forced_import(db, "is_explicitly_rbf", version),
+            is_hog_ex = PcoVec::forced_import(db, "is_hog_ex", version),
+            has_mw_tx = PcoVec::forced_import(db, "has_mw_tx", version),
             first_txin_index = PcoVec::forced_import(db, "first_txin_index", version),
             first_txout_index = BytesVec::forced_import(db, "first_txout_index", version),
             position = PcoVec::forced_import(db, "tx_position", version),
@@ -95,6 +105,8 @@ impl TransactionsVecs {
             total_size,
             total_sigop_cost,
             is_explicitly_rbf,
+            is_hog_ex,
+            has_mw_tx,
             first_txin_index,
             first_txout_index,
             position,
@@ -117,6 +129,10 @@ impl TransactionsVecs {
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.is_explicitly_rbf
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
+        self.is_hog_ex
+            .truncate_if_needed_with_stamp(tx_index, stamp)?;
+        self.has_mw_tx
+            .truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.first_txin_index
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.first_txout_index
@@ -136,6 +152,8 @@ impl TransactionsVecs {
             &mut self.total_size,
             &mut self.total_sigop_cost,
             &mut self.is_explicitly_rbf,
+            &mut self.is_hog_ex,
+            &mut self.has_mw_tx,
             &mut self.first_txin_index,
             &mut self.first_txout_index,
             &mut self.position,
@@ -153,6 +171,8 @@ impl TransactionsVecs {
             &self.total_size,
             &self.total_sigop_cost,
             &self.is_explicitly_rbf,
+            &self.is_hog_ex,
+            &self.has_mw_tx,
             &self.first_txin_index,
             &self.first_txout_index,
             &self.position,

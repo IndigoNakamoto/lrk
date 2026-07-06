@@ -4,12 +4,12 @@
 // Type definitions
 
 /**
- * Bitcoin address string
+ * Litecoin address string
  *
  * @typedef {string} Addr
  */
 /**
- * Bitcoin address + last-seen txid path parameters (Esplora-style pagination)
+ * Litecoin address + last-seen txid path parameters (Esplora-style pagination)
  *
  * @typedef {Object} AddrAfterTxidParam
  * @property {Addr} address
@@ -22,9 +22,9 @@
  *
  * @typedef {Object} AddrChainStats
  * @property {number} fundedTxoCount - Total number of transaction outputs that funded this address
- * @property {Sats} fundedTxoSum - Total amount in satoshis received by this address across all funded outputs
+ * @property {Sats} fundedTxoSum - Total amount in litoshis received by this address across all funded outputs
  * @property {number} spentTxoCount - Total number of transaction outputs spent from this address
- * @property {Sats} spentTxoSum - Total amount in satoshis spent from this address
+ * @property {Sats} spentTxoSum - Total amount in litoshis spent from this address
  * @property {number} txCount - Total number of confirmed transactions involving this address
  * @property {TypeIndex} typeIndex - Index of this address within its type on the blockchain
  * @property {Dollars} realizedPrice - Realized price (average cost basis) in USD
@@ -48,13 +48,13 @@
  *
  * @typedef {Object} AddrMempoolStats
  * @property {number} fundedTxoCount - Number of unconfirmed transaction outputs funding this address
- * @property {Sats} fundedTxoSum - Total amount in satoshis being received in unconfirmed transactions
+ * @property {Sats} fundedTxoSum - Total amount in litoshis being received in unconfirmed transactions
  * @property {number} spentTxoCount - Number of unconfirmed transaction inputs spending from this address
- * @property {Sats} spentTxoSum - Total amount in satoshis being spent in unconfirmed transactions
+ * @property {Sats} spentTxoSum - Total amount in litoshis being spent in unconfirmed transactions
  * @property {number} txCount - Number of unconfirmed transactions involving this address
  */
 /**
- * Bitcoin address path parameter
+ * Litecoin address path parameter
  *
  * @typedef {Object} AddrParam
  * @property {Addr} address
@@ -63,7 +63,7 @@
  * Address information compatible with mempool.space API format
  *
  * @typedef {Object} AddrStats
- * @property {Addr} address - Bitcoin address string
+ * @property {Addr} address - Litecoin address string
  * @property {OutputType} addrType - Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
  * @property {AddrChainStats} chainStats - Statistics for confirmed transactions on the blockchain
  * @property {AddrMempoolStats} mempoolStats - Statistics for unconfirmed transactions in the mempool
@@ -120,7 +120,7 @@
  * @typedef {number} BasisPointsSigned32
  */
 /**
- * Bitcoin amount as floating point (1 BTC = 100,000,000 satoshis)
+ * Litecoin amount as floating point (1 LTC = 100,000,000 litoshis)
  *
  * @typedef {number} Bitcoin
  */
@@ -134,12 +134,12 @@
  * Extended block data matching mempool.space /api/v1/blocks extras
  *
  * @typedef {Object} BlockExtras
- * @property {Sats} totalFees - Total fees in satoshis
+ * @property {Sats} totalFees - Total fees in litoshis
  * @property {FeeRate} medianFee - Median fee rate in sat/vB
  * @property {FeeRate[]} feeRange - Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
- * @property {Sats} reward - Total block reward (subsidy + fees) in satoshis
+ * @property {Sats} reward - Total block reward (subsidy + fees) in litoshis
  * @property {BlockPool} pool - Mining pool that mined this block
- * @property {Sats} avgFee - Average fee per transaction in satoshis
+ * @property {Sats} avgFee - Average fee per transaction in litoshis
  * @property {FeeRate} avgFeeRate - Average fee rate in sat/vB
  * @property {string} coinbaseRaw - Raw coinbase transaction scriptsig as hex
  * @property {?string=} coinbaseAddress - Primary coinbase output address
@@ -149,9 +149,9 @@
  * @property {number} avgTxSize - Average transaction size in bytes
  * @property {number} totalInputs - Total number of inputs (excluding coinbase)
  * @property {number} totalOutputs - Total number of outputs
- * @property {Sats} totalOutputAmt - Total output amount in satoshis
- * @property {Sats} medianFeeAmt - Median fee amount in satoshis
- * @property {Sats[]} feePercentiles - Fee amount percentiles in satoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
+ * @property {Sats} totalOutputAmt - Total output amount in litoshis
+ * @property {Sats} medianFeeAmt - Median fee amount in litoshis
+ * @property {Sats[]} feePercentiles - Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
  * @property {number} segwitTotalTxs - Number of segwit transactions
  * @property {number} segwitTotalSize - Total size of segwit transactions in bytes
  * @property {Weight} segwitTotalWeight - Total weight of segwit transactions
@@ -160,7 +160,7 @@
 Note: intentionally differs from utxo_set_size diff which excludes unspendable outputs.
 Matches mempool.space/bitcoin-cli behavior.
  * @property {number} utxoSetSize - Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
- * @property {Sats} totalInputAmt - Total input amount in satoshis
+ * @property {Sats} totalInputAmt - Total input amount in litoshis
  * @property {number} virtualSize - Virtual size in vbytes
  * @property {?number=} firstSeen - Timestamp when the block was first seen (always null, not yet supported)
  * @property {string[]} orphans - Orphaned blocks (always empty)
@@ -186,8 +186,8 @@ Matches mempool.space/bitcoin-cli behavior.
  * @typedef {Object} BlockFeesEntry
  * @property {Height} avgHeight - Average block height in this window
  * @property {Timestamp} timestamp - Unix timestamp at the window midpoint
- * @property {Sats} avgFees - Average fees per block in this window (sats)
- * @property {Dollars} uSD - BTC/USD price at this height
+ * @property {Sats} avgFees - Average fees per block in this window (lits)
+ * @property {Dollars} uSD - LTC/USD price at this height
  */
 /**
  * Block hash
@@ -204,14 +204,14 @@ Matches mempool.space/bitcoin-cli behavior.
  * Block hash + starting transaction index path parameters
  *
  * @typedef {Object} BlockHashStartIndex
- * @property {BlockHash} hash - Bitcoin block hash
+ * @property {BlockHash} hash - Litecoin block hash
  * @property {BlockTxIndex} startIndex - Starting transaction index within the block (0-based)
  */
 /**
  * Block hash + transaction index path parameters
  *
  * @typedef {Object} BlockHashTxIndex
- * @property {BlockHash} hash - Bitcoin block hash
+ * @property {BlockHash} hash - Litecoin block hash
  * @property {BlockTxIndex} index - Transaction index within the block (0-based)
  */
 /**
@@ -267,8 +267,8 @@ Matches mempool.space/bitcoin-cli behavior.
  * @typedef {Object} BlockRewardsEntry
  * @property {Height} avgHeight - Average block height in this window
  * @property {Timestamp} timestamp - Unix timestamp at the window midpoint
- * @property {Sats} avgRewards - Average coinbase reward per block (subsidy + fees, sats)
- * @property {Dollars} uSD - BTC/USD price at this height
+ * @property {Sats} avgRewards - Average coinbase reward per block (subsidy + fees, lits)
+ * @property {Dollars} uSD - LTC/USD price at this height
  */
 /**
  * A single block size data point.
@@ -294,7 +294,7 @@ Matches mempool.space/bitcoin-cli behavior.
  * @property {(BlockHash|null)=} nextBest - Hash of the next block in the best chain (null if tip)
  */
 /**
- * Projected next-block contents from Bitcoin Core's `getblocktemplate`
+ * Projected next-block contents from Litecoin Core's `getblocktemplate`
  * (block 0 of the snapshot). Returned by
  * `GET /api/v1/mempool/block-template`.
  *
@@ -485,7 +485,7 @@ This is the seed's chunk feerate after lift-merging, i.e. the
 rate Core/mempool.space would surface for this tx.
  * @property {SigOps} sigops - BIP-141 sigop cost for the seed tx (witness sigops count as 1,
 legacy and P2SH-redeem sigops count as 4).
- * @property {Sats} fee - Transaction fee (sats).
+ * @property {Sats} fee - Transaction fee (lits).
  * @property {VSize} vsize - Virtual size of the seed tx (vbytes).
  * @property {VSize} adjustedVsize - Policy-adjusted virtual size: `max(vsize, sigops * 5)`.
  * @property {(CpfpCluster|null)=} cluster - Cluster the seed belongs to: full tx list, SFL-linearized chunks,
@@ -651,7 +651,7 @@ ancestors and no descendants (matches mempool.space).
  * @property {number} uptimeSeconds - Uptime in seconds
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the chain tip (from Bitcoin node)
+ * @property {Height} tipHeight - Height of the chain tip (from Litecoin node)
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
  * @property {Timestamp} lastIndexedAtUnix - Unix timestamp of the last indexed block
@@ -699,7 +699,7 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} HistoricalPriceEntry
  * @property {Timestamp} time - Unix timestamp
- * @property {Dollars} uSD - BTC/USD price
+ * @property {Dollars} uSD - LTC/USD price
  */
 /** @typedef {number} Hour1 */
 /** @typedef {number} Hour12 */
@@ -747,7 +747,7 @@ ancestors and no descendants (matches mempool.space).
  * @property {number} blockSize - Total serialized block size in bytes (witness + non-witness).
  * @property {number} blockVSize - Total block virtual size in vbytes
  * @property {number} nTx - Number of transactions in the projected block
- * @property {Sats} totalFees - Total fees in satoshis
+ * @property {Sats} totalFees - Total fees in litoshis
  * @property {FeeRate} medianFee - Median fee rate in sat/vB
  * @property {FeeRate[]} feeRange - Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
  */
@@ -757,7 +757,7 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {Object} MempoolInfo
  * @property {number} count - Number of transactions in the mempool
  * @property {VSize} vsize - Total virtual size of all transactions in the mempool (vbytes)
- * @property {Sats} totalFee - Total fees of all transactions in the mempool (satoshis)
+ * @property {Sats} totalFee - Total fees of all transactions in the mempool (litoshis)
  * @property {{ [key: string]: VSize }} feeHistogram - Fee histogram: `[[fee_rate, vsize], ...]` sorted by descending fee rate
  */
 /**
@@ -765,9 +765,9 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} MempoolRecentTx
  * @property {Txid} txid - Transaction ID
- * @property {Sats} fee - Transaction fee (sats)
+ * @property {Sats} fee - Transaction fee (lits)
  * @property {VSize} vsize - Virtual size (vbytes)
- * @property {Sats} value - Total output value (sats)
+ * @property {Sats} value - Total output value (lits)
  */
 /**
  * Merkle inclusion proof for a transaction
@@ -839,7 +839,7 @@ ancestors and no descendants (matches mempool.space).
 /**
  * Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
  *
- * @typedef {(("p2pk"|"p2pk"|"p2pkh"|"multisig"|"p2sh"|"op_return"|"v0_p2wpkh"|"v0_p2wsh"|"v1_p2tr"|"p2a"|"empty"|"unknown")|string)} OutputType
+ * @typedef {(("p2pk"|"p2pk"|"p2pkh"|"multisig"|"p2sh"|"op_return"|"v0_p2wpkh"|"v0_p2wsh"|"v1_p2tr"|"p2a"|"empty"|"unknown")|string|string)} OutputType
  */
 /** @typedef {TypeIndex} P2AAddrIndex */
 /** @typedef {U8x2} P2ABytes */
@@ -979,7 +979,7 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} Prices
  * @property {Timestamp} time - Unix timestamp
- * @property {Dollars} uSD - BTC/USD price
+ * @property {Dollars} uSD - LTC/USD price
  */
 /**
  * A range boundary: integer index, date, or timestamp.
@@ -1047,12 +1047,12 @@ on serialization otherwise.
  * @typedef {Object} RewardStats
  * @property {Height} startBlock - First block in the range
  * @property {Height} endBlock - Last block in the range
- * @property {Sats} totalReward - Total coinbase rewards (subsidy + fees) in sats
- * @property {Sats} totalFee - Total transaction fees in sats
+ * @property {Sats} totalReward - Total coinbase rewards (subsidy + fees) in lits
+ * @property {Sats} totalFee - Total transaction fees in lits
  * @property {number} totalTx - Total number of transactions
  */
 /**
- * Amount in satoshis (1 BTC = 100,000,000 sats)
+ * Amount in litoshis (1 LTC = 100,000,000 lits)
  *
  * @typedef {number} Sats
  */
@@ -1196,7 +1196,7 @@ on serialization otherwise.
  * @typedef {Object} SyncStatus
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the chain tip (from Bitcoin node)
+ * @property {Height} tipHeight - Height of the chain tip (from Litecoin node)
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
  * @property {Timestamp} lastIndexedAtUnix - Unix timestamp of the last indexed block
@@ -1232,14 +1232,14 @@ on serialization otherwise.
  * @typedef {Object} Transaction
  * @property {(TxIndex|null)=} index - Internal transaction index (brk-specific, not in mempool.space)
  * @property {Txid} txid - Transaction ID
- * @property {TxVersionRaw} version - Transaction version (raw i32 from Bitcoin protocol, may contain non-standard values in coinbase txs)
+ * @property {TxVersionRaw} version - Transaction version (raw i32 from Litecoin protocol, may contain non-standard values in coinbase txs)
  * @property {RawLockTime} locktime - Transaction lock time
  * @property {TxIn[]} vin - Transaction inputs
  * @property {TxOut[]} vout - Transaction outputs
  * @property {number} size - Transaction size in bytes
  * @property {Weight} weight - Transaction weight
  * @property {SigOps} sigops - Number of signature operations
- * @property {Sats} fee - Transaction fee in satoshis
+ * @property {Sats} fee - Transaction fee in litoshis
  * @property {TxStatus} status - Confirmation status (confirmed, block height/hash/time)
  */
 /**
@@ -1280,7 +1280,7 @@ on serialization otherwise.
  *
  * @typedef {Object} TxOut
  * @property {string} scriptpubkey - Script pubkey (locking script)
- * @property {Sats} value - Value of the output in satoshis
+ * @property {Sats} value - Value of the output in litoshis
  */
 /** @typedef {number} TxOutIndex */
 /**
@@ -1307,7 +1307,7 @@ on serialization otherwise.
  * @typedef {number} TxVersion
  */
 /**
- * Raw transaction version (i32) from Bitcoin protocol.
+ * Raw transaction version (i32) from Litecoin protocol.
  * Unlike TxVersion (u8, indexed), this preserves non-standard values
  * used in coinbase txs for miner signaling/branding.
  *
@@ -1357,7 +1357,7 @@ on serialization otherwise.
  * UTXO Realized Price Distribution for a cohort on a specific date.
  *
  * Supply is grouped by the close price at which each UTXO was last moved.
- * Each bucket exposes three values: supply in BTC, realized cap contribution
+ * Each bucket exposes three values: supply in LTC, realized cap contribution
  * in USD (sum of `realized_price * supply` over the coins in the bucket), and
  * unrealized P&L in USD (`close * supply - realized_cap`, can be negative).
  *
@@ -1366,7 +1366,7 @@ on serialization otherwise.
  * @property {Date} date
  * @property {UrpdAggregation} aggregation - Aggregation strategy applied to the buckets.
  * @property {Dollars} close - Close price on `date`, in USD. Anchor for `unrealized_pnl`.
- * @property {Bitcoin} totalSupply - Sum of `supply` across all buckets, in BTC.
+ * @property {Bitcoin} totalSupply - Sum of `supply` across all buckets, in LTC.
  * @property {UrpdBucket[]} buckets
  */
 /**
@@ -1381,7 +1381,7 @@ on serialization otherwise.
  *
  * @typedef {Object} UrpdBucket
  * @property {Dollars} priceFloor - Lower bound of the bucket, in USD. Equals the exact realized price for `Raw`.
- * @property {Bitcoin} supply - Supply held with a last-move price inside this bucket, in BTC.
+ * @property {Bitcoin} supply - Supply held with a last-move price inside this bucket, in LTC.
  * @property {Dollars} realizedCap - Realized cap contribution in USD: sum of `realized_price * supply` over the coins in this bucket.
  * @property {Dollars} unrealizedPnl - Unrealized P&L in USD against the close on the snapshot date: `close * supply - realized_cap`. Can be negative.
  */
@@ -1411,7 +1411,7 @@ on serialization otherwise.
  * @property {Txid} txid - Transaction ID of the UTXO
  * @property {Vout} vout - Output index
  * @property {TxStatus} status - Confirmation status
- * @property {Sats} value - Output value in satoshis
+ * @property {Sats} value - Output value in litoshis
  */
 /**
  * Virtual size in vbytes (weight / 4, rounded up). Max block vsize is ~1,000,000 vB.
@@ -1420,7 +1420,7 @@ on serialization otherwise.
  */
 /**
  * @typedef {Object} ValidateAddrParam
- * @property {string} address - Bitcoin address to validate (can be any string)
+ * @property {string} address - Litecoin address to validate (can be any string)
  */
 /**
  * Version tracking for data schema and computed values.
@@ -1452,7 +1452,7 @@ on serialization otherwise.
  *
  * Wraps `bitcoin::Witness` (single-buffer layout with offsets, much
  * more compact than `Vec<Vec<u8>>`). Serializes as a JSON array of
- * hex strings - the format used by Bitcoin Core REST and mempool.space
+ * hex strings - the format used by Litecoin Core REST and mempool.space
  * and matching brk's `script_sig: ScriptBuf` (bytes internally, hex
  * on the wire).
  *
@@ -1522,11 +1522,11 @@ class BrkError extends Error {
 }
 
 // Date conversion constants and helpers
-const _GENESIS = new Date(2009, 0, 1);  // day1 0, week1 0
-const _DAY_ONE = new Date(2009, 0, 2);  // day1 1
+const _GENESIS = new Date(2011, 0, 1);  // day1 0, week1 0
+const _DAY_ONE = new Date(2011, 0, 2);  // day1 1
 const _MS_PER_DAY = 86400000;
 const _MS_PER_WEEK = 7 * _MS_PER_DAY;
-const _EPOCH_MS = 1230768000000;
+const _EPOCH_MS = 1293840000000;
 const _DATE_INDEXES = new Set([
   'minute10', 'minute30',
   'hour1', 'hour4', 'hour12',
@@ -1536,7 +1536,7 @@ const _DATE_INDEXES = new Set([
 ]);
 
 /** @param {number} months @returns {globalThis.Date} */
-const _addMonths = (months) => new Date(2009, 0 + months, 1);
+const _addMonths = (months) => new Date(2011, 0 + months, 1);
 
 /**
  * Convert an index value to a Date for date-based indexes.
@@ -1557,8 +1557,8 @@ function indexToDate(index, i) {
     case 'month1': return _addMonths(i);
     case 'month3': return _addMonths(i * 3);
     case 'month6': return _addMonths(i * 6);
-    case 'year1': return new Date(2009 + i, 0, 1);
-    case 'year10': return new Date(2009 + i * 10, 0, 1);
+    case 'year1': return new Date(2011 + i, 0, 1);
+    case 'year10': return new Date(2011 + i * 10, 0, 1);
     default: throw new Error(`${index} is not a date-based index`);
   }
 }
@@ -1584,11 +1584,11 @@ function dateToIndex(index, d) {
     }
     case 'day3': return Math.floor((ms - _EPOCH_MS + 86400000) / 259200000);
     case 'week1': return Math.floor((ms - _GENESIS.getTime()) / _MS_PER_WEEK);
-    case 'month1': return (d.getFullYear() - 2009) * 12 + (d.getMonth() - 0);
-    case 'month3': return (d.getFullYear() - 2009) * 4 + Math.floor((d.getMonth() - 0) / 3);
-    case 'month6': return (d.getFullYear() - 2009) * 2 + Math.floor((d.getMonth() - 0) / 6);
-    case 'year1': return d.getFullYear() - 2009;
-    case 'year10': return Math.floor((d.getFullYear() - 2009) / 10);
+    case 'month1': return (d.getFullYear() - 2011) * 12 + (d.getMonth() - 0);
+    case 'month3': return (d.getFullYear() - 2011) * 4 + Math.floor((d.getMonth() - 0) / 3);
+    case 'month6': return (d.getFullYear() - 2011) * 2 + Math.floor((d.getMonth() - 0) / 6);
+    case 'year1': return d.getFullYear() - 2011;
+    case 'year10': return Math.floor((d.getFullYear() - 2011) / 10);
     default: throw new Error(`${index} is not a date-based index`);
   }
 }
@@ -2383,7 +2383,8 @@ function createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65
  * @typedef {Object} AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} all
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} empty
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mweb
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegPool
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegin
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} opReturn
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} p2a
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} p2ms
@@ -2407,7 +2408,8 @@ function createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownP
   return {
     all: createAverageBlockCumulativeSumPattern(client, _m(acc, 'bis')),
     empty: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_empty_outputs_output')),
-    mweb: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_output')),
+    mwebPegPool: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_peg_pool_output')),
+    mwebPegin: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_pegin_output')),
     opReturn: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_op_return_output')),
     p2a: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2a_output')),
     p2ms: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2ms_output')),
@@ -2425,7 +2427,8 @@ function createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownP
 /**
  * @typedef {Object} EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
  * @property {_1m1w1y24hBpsPercentRatioPattern} empty
- * @property {_1m1w1y24hBpsPercentRatioPattern} mweb
+ * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegPool
+ * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegin
  * @property {_1m1w1y24hBpsPercentRatioPattern} opReturn
  * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
  * @property {_1m1w1y24hBpsPercentRatioPattern} p2ms
@@ -2448,7 +2451,8 @@ function createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownP
 function createEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, acc) {
   return {
     empty: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'empty_outputs_output')),
-    mweb: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_output')),
+    mwebPegPool: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_peg_pool_output')),
+    mwebPegin: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_pegin_output')),
     opReturn: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'op_return_output')),
     p2a: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2a_output')),
     p2ms: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2ms_output')),
@@ -4253,6 +4257,27 @@ function createAdjustedRatioValuePattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} BalanceInputsOutputsPattern
+ * @property {BtcCentsSatsUsdPattern} balance
+ * @property {BlockCumulativePattern} inputsValue
+ * @property {BlockCumulativePattern} outputsValue
+ */
+
+/**
+ * Create a BalanceInputsOutputsPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {BalanceInputsOutputsPattern}
+ */
+function createBalanceInputsOutputsPattern(client, acc) {
+  return {
+    balance: createBtcCentsSatsUsdPattern(client, _m(acc, 'balance')),
+    inputsValue: createBlockCumulativePattern(client, _m(acc, 'inputs_value')),
+    outputsValue: createBlockCumulativePattern(client, _m(acc, 'outputs_value')),
+  };
+}
+
+/**
  * @typedef {Object} BlockCumulativeSumPattern
  * @property {CentsUsdPattern2} block
  * @property {CentsUsdPattern3} cumulative
@@ -5403,6 +5428,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Transactions_Count} count
  * @property {SeriesTree_Transactions_Size} size
  * @property {SeriesTree_Transactions_Fees} fees
+ * @property {SeriesTree_Transactions_Hogex} hogex
  * @property {SeriesTree_Transactions_Versions} versions
  * @property {SeriesTree_Transactions_Volume} volume
  */
@@ -5417,6 +5443,8 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern19<StoredU32>} totalSize
  * @property {SeriesPattern19<SigOps>} totalSigopCost
  * @property {SeriesPattern19<StoredBool>} isExplicitlyRbf
+ * @property {SeriesPattern19<StoredBool>} isHogEx
+ * @property {SeriesPattern19<StoredBool>} hasMwTx
  * @property {SeriesPattern19<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern19<TxOutIndex>} firstTxoutIndex
  */
@@ -5447,6 +5475,12 @@ function createTransferPattern(client, acc) {
  * @property {_6bBlockTxPattern<Sats>} fee
  * @property {SeriesPattern19<FeeRate>} feeRate
  * @property {_6bBlockTxPattern<FeeRate>} effectiveFeeRate
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Hogex
+ * @property {AverageBlockCumulativeSumPattern2} txCount
+ * @property {AverageBlockCumulativeSumPattern3} rawInputVolume
  */
 
 /**
@@ -5601,7 +5635,8 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} unknown
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} empty
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} opReturn
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mweb
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegPool
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegin
  */
 
 /**
@@ -5618,7 +5653,8 @@ function createTransferPattern(client, acc) {
  * @property {_1m1w1y24hBpsPercentRatioPattern} unknown
  * @property {_1m1w1y24hBpsPercentRatioPattern} empty
  * @property {_1m1w1y24hBpsPercentRatioPattern} opReturn
- * @property {_1m1w1y24hBpsPercentRatioPattern} mweb
+ * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegPool
+ * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegin
  */
 
 /**
@@ -5631,6 +5667,11 @@ function createTransferPattern(client, acc) {
  * @property {BlockCumulativePattern} outputsValue
  * @property {BlockCumulativePattern} inputsValue
  * @property {BtcCentsSatsUsdPattern} balance
+ * @property {BalanceInputsOutputsPattern} pegPool
+ * @property {BalanceInputsOutputsPattern} pegin
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} peginCount
+ * @property {AverageBlockCumulativeSumPattern3} pegoutValue
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} pegoutCount
  */
 
 /**
@@ -6641,172 +6682,41 @@ function createTransferPattern(client, acc) {
  * @property {BlocksDominanceRewardsPattern} unknown
  * @property {BlocksDominanceRewardsPattern} luxor
  * @property {BlocksDominanceRewardsPattern} btccom
- * @property {BlocksDominanceRewardsPattern} btctop
- * @property {BlocksDominanceRewardsPattern} btcguild
- * @property {BlocksDominanceRewardsPattern} eligius
  * @property {BlocksDominanceRewardsPattern} f2pool
- * @property {BlocksDominanceRewardsPattern} braiinspool
  * @property {BlocksDominanceRewardsPattern} antpool
- * @property {BlocksDominanceRewardsPattern} btcc
- * @property {BlocksDominanceRewardsPattern} bwpool
- * @property {BlocksDominanceRewardsPattern} bitfury
  * @property {BlocksDominanceRewardsPattern} viabtc
  * @property {BlocksDominanceRewardsPattern} poolin
  * @property {BlocksDominanceRewardsPattern} spiderpool
  * @property {BlocksDominanceRewardsPattern} binancepool
- * @property {BlocksDominanceRewardsPattern} foundryusa
  * @property {BlocksDominanceRewardsPattern} sbicrypto
- * @property {BlocksDominanceRewardsPattern} marapool
- * @property {BlocksDominanceRewardsPattern} secpool
- * @property {BlocksDominanceRewardsPattern} ocean
- * @property {BlocksDominanceRewardsPattern} whitepool
+ * @property {BlocksDominanceRewardsPattern} kupool
+ * @property {BlocksDominanceRewardsPattern} litecoinpoolorg
+ * @property {BlocksDominanceRewardsPattern} hash700
+ * @property {BlocksDominanceRewardsPattern} lsoftwaredmcc
+ * @property {BlocksDominanceRewardsPattern} hashspace
  */
 
 /**
  * @typedef {Object} SeriesTree_Pools_Minor
- * @property {BlocksDominancePattern} blockfills
- * @property {BlocksDominancePattern} ultimuspool
- * @property {BlocksDominancePattern} terrapool
- * @property {BlocksDominancePattern} onethash
- * @property {BlocksDominancePattern} bitfarms
- * @property {BlocksDominancePattern} huobipool
- * @property {BlocksDominancePattern} wayicn
- * @property {BlocksDominancePattern} canoepool
- * @property {BlocksDominancePattern} bitcoincom
- * @property {BlocksDominancePattern} pool175btc
- * @property {BlocksDominancePattern} gbminers
- * @property {BlocksDominancePattern} axbt
- * @property {BlocksDominancePattern} asicminer
- * @property {BlocksDominancePattern} bitminter
- * @property {BlocksDominancePattern} bitcoinrussia
- * @property {BlocksDominancePattern} btcserv
- * @property {BlocksDominancePattern} simplecoinus
- * @property {BlocksDominancePattern} ozcoin
- * @property {BlocksDominancePattern} eclipsemc
- * @property {BlocksDominancePattern} maxbtc
- * @property {BlocksDominancePattern} triplemining
- * @property {BlocksDominancePattern} coinlab
- * @property {BlocksDominancePattern} pool50btc
- * @property {BlocksDominancePattern} ghashio
- * @property {BlocksDominancePattern} stminingcorp
- * @property {BlocksDominancePattern} bitparking
- * @property {BlocksDominancePattern} mmpool
- * @property {BlocksDominancePattern} polmine
- * @property {BlocksDominancePattern} kncminer
- * @property {BlocksDominancePattern} bitalo
- * @property {BlocksDominancePattern} hhtt
- * @property {BlocksDominancePattern} megabigpower
- * @property {BlocksDominancePattern} mtred
- * @property {BlocksDominancePattern} nmcbit
- * @property {BlocksDominancePattern} yourbtcnet
- * @property {BlocksDominancePattern} givemecoins
- * @property {BlocksDominancePattern} multicoinco
- * @property {BlocksDominancePattern} bcpoolio
- * @property {BlocksDominancePattern} cointerra
- * @property {BlocksDominancePattern} kanopool
- * @property {BlocksDominancePattern} solock
- * @property {BlocksDominancePattern} ckpool
  * @property {BlocksDominancePattern} nicehash
- * @property {BlocksDominancePattern} bitclub
- * @property {BlocksDominancePattern} bitcoinaffiliatenetwork
- * @property {BlocksDominancePattern} exxbw
- * @property {BlocksDominancePattern} bitsolo
- * @property {BlocksDominancePattern} twentyoneinc
- * @property {BlocksDominancePattern} digitalbtc
- * @property {BlocksDominancePattern} eightbaochi
- * @property {BlocksDominancePattern} mybtccoinpool
- * @property {BlocksDominancePattern} tbdice
- * @property {BlocksDominancePattern} hashpool
- * @property {BlocksDominancePattern} nexious
- * @property {BlocksDominancePattern} bravomining
- * @property {BlocksDominancePattern} hotpool
- * @property {BlocksDominancePattern} okexpool
- * @property {BlocksDominancePattern} bcmonster
- * @property {BlocksDominancePattern} onehash
- * @property {BlocksDominancePattern} bixin
- * @property {BlocksDominancePattern} tatmaspool
- * @property {BlocksDominancePattern} connectbtc
- * @property {BlocksDominancePattern} batpool
- * @property {BlocksDominancePattern} waterhole
- * @property {BlocksDominancePattern} dcexploration
- * @property {BlocksDominancePattern} dcex
- * @property {BlocksDominancePattern} btpool
- * @property {BlocksDominancePattern} fiftyeightcoin
- * @property {BlocksDominancePattern} bitcoinindia
- * @property {BlocksDominancePattern} shawnp0wers
- * @property {BlocksDominancePattern} phashio
- * @property {BlocksDominancePattern} rigpool
- * @property {BlocksDominancePattern} haozhuzhu
- * @property {BlocksDominancePattern} sevenpool
- * @property {BlocksDominancePattern} miningkings
- * @property {BlocksDominancePattern} hashbx
- * @property {BlocksDominancePattern} dpool
- * @property {BlocksDominancePattern} rawpool
- * @property {BlocksDominancePattern} haominer
- * @property {BlocksDominancePattern} helix
- * @property {BlocksDominancePattern} bitcoinukraine
- * @property {BlocksDominancePattern} secretsuperstar
- * @property {BlocksDominancePattern} tigerpoolnet
  * @property {BlocksDominancePattern} sigmapoolcom
- * @property {BlocksDominancePattern} okpooltop
- * @property {BlocksDominancePattern} hummerpool
- * @property {BlocksDominancePattern} tangpool
- * @property {BlocksDominancePattern} bytepool
- * @property {BlocksDominancePattern} novablock
- * @property {BlocksDominancePattern} miningcity
- * @property {BlocksDominancePattern} minerium
- * @property {BlocksDominancePattern} lubiancom
- * @property {BlocksDominancePattern} okkong
- * @property {BlocksDominancePattern} aaopool
  * @property {BlocksDominancePattern} emcdpool
- * @property {BlocksDominancePattern} arkpool
- * @property {BlocksDominancePattern} purebtccom
- * @property {BlocksDominancePattern} kucoinpool
- * @property {BlocksDominancePattern} entrustcharitypool
- * @property {BlocksDominancePattern} okminer
- * @property {BlocksDominancePattern} titan
- * @property {BlocksDominancePattern} pegapool
- * @property {BlocksDominancePattern} btcnuggets
- * @property {BlocksDominancePattern} cloudhashing
- * @property {BlocksDominancePattern} digitalxmintsy
- * @property {BlocksDominancePattern} telco214
- * @property {BlocksDominancePattern} btcpoolparty
- * @property {BlocksDominancePattern} multipool
- * @property {BlocksDominancePattern} transactioncoinmining
- * @property {BlocksDominancePattern} btcdig
- * @property {BlocksDominancePattern} trickysbtcpool
- * @property {BlocksDominancePattern} btcmp
- * @property {BlocksDominancePattern} eobot
- * @property {BlocksDominancePattern} unomp
- * @property {BlocksDominancePattern} patels
- * @property {BlocksDominancePattern} gogreenlight
- * @property {BlocksDominancePattern} bitcoinindiapool
- * @property {BlocksDominancePattern} ekanembtc
- * @property {BlocksDominancePattern} canoe
- * @property {BlocksDominancePattern} tiger
- * @property {BlocksDominancePattern} onem1x
  * @property {BlocksDominancePattern} zulupool
- * @property {BlocksDominancePattern} wiz
- * @property {BlocksDominancePattern} wk057
- * @property {BlocksDominancePattern} futurebitapollosolo
- * @property {BlocksDominancePattern} carbonnegative
- * @property {BlocksDominancePattern} portlandhodl
- * @property {BlocksDominancePattern} phoenix
- * @property {BlocksDominancePattern} neopool
- * @property {BlocksDominancePattern} maxipool
- * @property {BlocksDominancePattern} bitfufupool
- * @property {BlocksDominancePattern} gdpool
  * @property {BlocksDominancePattern} miningdutch
- * @property {BlocksDominancePattern} publicpool
- * @property {BlocksDominancePattern} miningsquared
- * @property {BlocksDominancePattern} innopolistech
- * @property {BlocksDominancePattern} btclab
- * @property {BlocksDominancePattern} parasite
- * @property {BlocksDominancePattern} redrockpool
- * @property {BlocksDominancePattern} est3lar
- * @property {BlocksDominancePattern} braiinssolo
- * @property {BlocksDominancePattern} solopool
- * @property {BlocksDominancePattern} noderunners
+ * @property {BlocksDominancePattern} dogegogocom
+ * @property {BlocksDominancePattern} longpool
+ * @property {BlocksDominancePattern} kryptex
+ * @property {BlocksDominancePattern} dxpool
+ * @property {BlocksDominancePattern} k1pool
+ * @property {BlocksDominancePattern} molepool
+ * @property {BlocksDominancePattern} solopoolorg
+ * @property {BlocksDominancePattern} prohashing
+ * @property {BlocksDominancePattern} hashhut
+ * @property {BlocksDominancePattern} happychina
+ * @property {BlocksDominancePattern} himpool
+ * @property {BlocksDominancePattern} p2pspbxyz
+ * @property {BlocksDominancePattern} hyperdonkey
+ * @property {BlocksDominancePattern} zergpool
  */
 
 /**
@@ -7951,1148 +7861,1003 @@ class BrkClient extends BrkClientBase {
   ]);
 
   POOL_ID_TO_POOL_NAME = /** @type {const} */ ({
-    "aaopool": "AAO Pool",
     "antpool": "AntPool",
-    "arkpool": "ArkPool",
-    "asicminer": "ASICMiner",
-    "axbt": "A-XBT",
-    "batpool": "BATPOOL",
-    "bcmonster": "BCMonster",
-    "bcpoolio": "bcpool.io",
     "binancepool": "Binance Pool",
-    "bitalo": "Bitalo",
-    "bitclub": "BitClub",
-    "bitcoinaffiliatenetwork": "Bitcoin Affiliate Network",
-    "bitcoincom": "Bitcoin.com",
-    "bitcoinindia": "Bitcoin India",
-    "bitcoinindiapool": "BitcoinIndia",
-    "bitcoinrussia": "BitcoinRussia",
-    "bitcoinukraine": "Bitcoin-Ukraine",
-    "bitfarms": "Bitfarms",
-    "bitfufupool": "BitFuFuPool",
-    "bitfury": "BitFury",
-    "bitminter": "BitMinter",
-    "bitparking": "Bitparking",
-    "bitsolo": "Bitsolo",
-    "bixin": "Bixin",
-    "blockfills": "BlockFills",
-    "braiinspool": "Braiins Pool",
-    "braiinssolo": "Braiins Solo",
-    "bravomining": "Bravo Mining",
-    "btcc": "BTCC",
     "btccom": "BTC.com",
-    "btcdig": "BTCDig",
-    "btcguild": "BTC Guild",
-    "btclab": "BTCLab",
-    "btcmp": "BTCMP",
-    "btcnuggets": "BTC Nuggets",
-    "btcpoolparty": "BTC Pool Party",
-    "btcserv": "BTCServ",
-    "btctop": "BTC.TOP",
-    "btpool": "BTPOOL",
-    "bwpool": "BWPool",
-    "bytepool": "BytePool",
-    "canoe": "CANOE",
-    "canoepool": "CanoePool",
-    "carbonnegative": "Carbon Negative",
-    "ckpool": "CKPool",
-    "cloudhashing": "CloudHashing",
-    "coinlab": "CoinLab",
-    "cointerra": "Cointerra",
-    "connectbtc": "ConnectBTC",
-    "dcex": "DCEX",
-    "dcexploration": "DCExploration",
-    "digitalbtc": "digitalBTC",
-    "digitalxmintsy": "digitalX Mintsy",
-    "dpool": "DPOOL",
-    "eclipsemc": "EclipseMC",
-    "eightbaochi": "8baochi",
-    "ekanembtc": "EkanemBTC",
-    "eligius": "Eligius",
+    "dogegogocom": "dogegogo.com",
+    "dxpool": "DxPool",
     "emcdpool": "EMCDPool",
-    "entrustcharitypool": "Entrust Charity Pool",
-    "eobot": "Eobot",
-    "est3lar": "Est3lar",
-    "exxbw": "EXX&BW",
     "f2pool": "F2Pool",
-    "fiftyeightcoin": "58COIN",
-    "foundryusa": "Foundry USA",
-    "futurebitapollosolo": "FutureBit Apollo Solo",
-    "gbminers": "GBMiners",
-    "gdpool": "GDPool",
-    "ghashio": "GHash.IO",
-    "givemecoins": "Give Me Coins",
-    "gogreenlight": "GoGreenLight",
-    "haominer": "haominer",
-    "haozhuzhu": "HAOZHUZHU",
-    "hashbx": "HashBX",
-    "hashpool": "HASHPOOL",
-    "helix": "Helix",
-    "hhtt": "HHTT",
-    "hotpool": "HotPool",
-    "hummerpool": "Hummerpool",
-    "huobipool": "Huobi.pool",
-    "innopolistech": "Innopolis Tech",
-    "kanopool": "KanoPool",
-    "kncminer": "KnCMiner",
-    "kucoinpool": "KuCoinPool",
-    "lubiancom": "Lubian.com",
-    "luxor": "Luxor",
-    "marapool": "MARA Pool",
-    "maxbtc": "MaxBTC",
-    "maxipool": "MaxiPool",
-    "megabigpower": "MegaBigPower",
-    "minerium": "Minerium",
-    "miningcity": "MiningCity",
-    "miningdutch": "Mining-Dutch",
-    "miningkings": "MiningKings",
-    "miningsquared": "Mining Squared",
-    "mmpool": "mmpool",
-    "mtred": "Mt Red",
-    "multicoinco": "MultiCoin.co",
-    "multipool": "Multipool",
-    "mybtccoinpool": "myBTCcoin Pool",
-    "neopool": "Neopool",
-    "nexious": "Nexious",
+    "happychina": "happychina",
+    "hash700": "Hash700",
+    "hashhut": "hash-hut",
+    "hashspace": "Hash Space",
+    "himpool": "HimPool",
+    "hyperdonkey": "HyperDonkey",
+    "k1pool": "K1Pool",
+    "kryptex": "Kryptex",
+    "kupool": "Kupool",
+    "litecoinpoolorg": "Litecoinpool.org",
+    "longpool": "LongPool",
+    "lsoftwaredmcc": "LSoftware DMCC",
+    "luxor": "Luxor Labs",
+    "miningdutch": "Mining Dutch",
+    "molepool": "molepool",
     "nicehash": "NiceHash",
-    "nmcbit": "NMCbit",
-    "noderunners": "Noderunners",
-    "novablock": "NovaBlock",
-    "ocean": "OCEAN",
-    "okexpool": "OKExPool",
-    "okkong": "OKKONG",
-    "okminer": "OKMINER",
-    "okpooltop": "okpool.top",
-    "onehash": "1Hash",
-    "onem1x": "1M1X",
-    "onethash": "1THash",
-    "ozcoin": "OzCoin",
-    "parasite": "Parasite",
-    "patels": "Patels",
-    "pegapool": "PEGA Pool",
-    "phashio": "PHash.IO",
-    "phoenix": "Phoenix",
-    "polmine": "Polmine",
-    "pool175btc": "175btc",
-    "pool50btc": "50BTC",
+    "p2pspbxyz": "p2p-spb.xyz",
     "poolin": "Poolin",
-    "portlandhodl": "Portland.HODL",
-    "publicpool": "Public Pool",
-    "purebtccom": "PureBTC.COM",
-    "rawpool": "Rawpool",
-    "redrockpool": "RedRock Pool",
-    "rigpool": "RigPool",
+    "prohashing": "Prohashing",
     "sbicrypto": "SBI Crypto",
-    "secpool": "SECPOOL",
-    "secretsuperstar": "SecretSuperstar",
-    "sevenpool": "7pool",
-    "shawnp0wers": "shawnp0wers",
     "sigmapoolcom": "Sigmapool.com",
-    "simplecoinus": "simplecoin.us",
-    "solock": "Solo CK",
-    "solopool": "SoloPool.com",
-    "spiderpool": "SpiderPool",
-    "stminingcorp": "ST Mining Corp",
-    "tangpool": "Tangpool",
-    "tatmaspool": "TATMAS Pool",
-    "tbdice": "TBDice",
-    "telco214": "Telco 214",
-    "terrapool": "Terra Pool",
-    "tiger": "tiger",
-    "tigerpoolnet": "tigerpool.net",
-    "titan": "Titan",
-    "transactioncoinmining": "transactioncoinmining",
-    "trickysbtcpool": "Tricky's BTC Pool",
-    "triplemining": "TripleMining",
-    "twentyoneinc": "21 Inc.",
-    "ultimuspool": "ULTIMUSPOOL",
+    "solopoolorg": "solopool.org",
+    "spiderpool": "Spiderpool",
     "unknown": "Unknown",
-    "unomp": "UNOMP",
     "viabtc": "ViaBTC",
-    "waterhole": "Waterhole",
-    "wayicn": "WAYI.CN",
-    "whitepool": "WhitePool",
-    "wiz": "wiz",
-    "wk057": "wk057",
-    "yourbtcnet": "Yourbtc.net",
+    "zergpool": "zergpool",
     "zulupool": "Zulupool"
   });
 
-  TERM_NAMES = /** @type {const} */ (    {
-      "short": {
-        "id": "sth",
-        "short": "STH",
-        "long": "Short Term Holders"
-      },
-      "long": {
-        "id": "lth",
-        "short": "LTH",
-        "long": "Long Term Holders"
-      }
+  TERM_NAMES = /** @type {const} */ ({
+    "short": {
+      "id": "sth",
+      "short": "STH",
+      "long": "Short Term Holders"
+    },
+    "long": {
+      "id": "lth",
+      "short": "LTH",
+      "long": "Long Term Holders"
     }
-  );
+  });
 
-  EPOCH_NAMES = /** @type {const} */ (    {
-      "_0": {
-        "id": "epoch_0",
-        "short": "0",
-        "long": "Epoch 0"
-      },
-      "_1": {
-        "id": "epoch_1",
-        "short": "1",
-        "long": "Epoch 1"
-      },
-      "_2": {
-        "id": "epoch_2",
-        "short": "2",
-        "long": "Epoch 2"
-      },
-      "_3": {
-        "id": "epoch_3",
-        "short": "3",
-        "long": "Epoch 3"
-      },
-      "_4": {
-        "id": "epoch_4",
-        "short": "4",
-        "long": "Epoch 4"
-      }
+  EPOCH_NAMES = /** @type {const} */ ({
+    "_0": {
+      "id": "epoch_0",
+      "short": "0",
+      "long": "Epoch 0"
+    },
+    "_1": {
+      "id": "epoch_1",
+      "short": "1",
+      "long": "Epoch 1"
+    },
+    "_2": {
+      "id": "epoch_2",
+      "short": "2",
+      "long": "Epoch 2"
+    },
+    "_3": {
+      "id": "epoch_3",
+      "short": "3",
+      "long": "Epoch 3"
+    },
+    "_4": {
+      "id": "epoch_4",
+      "short": "4",
+      "long": "Epoch 4"
     }
-  );
+  });
 
-  CLASS_NAMES = /** @type {const} */ (    {
-      "_2009": {
-        "id": "class_2009",
-        "short": "2009",
-        "long": "Class 2009"
-      },
-      "_2010": {
-        "id": "class_2010",
-        "short": "2010",
-        "long": "Class 2010"
-      },
-      "_2011": {
-        "id": "class_2011",
-        "short": "2011",
-        "long": "Class 2011"
-      },
-      "_2012": {
-        "id": "class_2012",
-        "short": "2012",
-        "long": "Class 2012"
-      },
-      "_2013": {
-        "id": "class_2013",
-        "short": "2013",
-        "long": "Class 2013"
-      },
-      "_2014": {
-        "id": "class_2014",
-        "short": "2014",
-        "long": "Class 2014"
-      },
-      "_2015": {
-        "id": "class_2015",
-        "short": "2015",
-        "long": "Class 2015"
-      },
-      "_2016": {
-        "id": "class_2016",
-        "short": "2016",
-        "long": "Class 2016"
-      },
-      "_2017": {
-        "id": "class_2017",
-        "short": "2017",
-        "long": "Class 2017"
-      },
-      "_2018": {
-        "id": "class_2018",
-        "short": "2018",
-        "long": "Class 2018"
-      },
-      "_2019": {
-        "id": "class_2019",
-        "short": "2019",
-        "long": "Class 2019"
-      },
-      "_2020": {
-        "id": "class_2020",
-        "short": "2020",
-        "long": "Class 2020"
-      },
-      "_2021": {
-        "id": "class_2021",
-        "short": "2021",
-        "long": "Class 2021"
-      },
-      "_2022": {
-        "id": "class_2022",
-        "short": "2022",
-        "long": "Class 2022"
-      },
-      "_2023": {
-        "id": "class_2023",
-        "short": "2023",
-        "long": "Class 2023"
-      },
-      "_2024": {
-        "id": "class_2024",
-        "short": "2024",
-        "long": "Class 2024"
-      },
-      "_2025": {
-        "id": "class_2025",
-        "short": "2025",
-        "long": "Class 2025"
-      },
-      "_2026": {
-        "id": "class_2026",
-        "short": "2026",
-        "long": "Class 2026"
-      }
+  CLASS_NAMES = /** @type {const} */ ({
+    "_2009": {
+      "id": "class_2009",
+      "short": "2009",
+      "long": "Class 2009"
+    },
+    "_2010": {
+      "id": "class_2010",
+      "short": "2010",
+      "long": "Class 2010"
+    },
+    "_2011": {
+      "id": "class_2011",
+      "short": "2011",
+      "long": "Class 2011"
+    },
+    "_2012": {
+      "id": "class_2012",
+      "short": "2012",
+      "long": "Class 2012"
+    },
+    "_2013": {
+      "id": "class_2013",
+      "short": "2013",
+      "long": "Class 2013"
+    },
+    "_2014": {
+      "id": "class_2014",
+      "short": "2014",
+      "long": "Class 2014"
+    },
+    "_2015": {
+      "id": "class_2015",
+      "short": "2015",
+      "long": "Class 2015"
+    },
+    "_2016": {
+      "id": "class_2016",
+      "short": "2016",
+      "long": "Class 2016"
+    },
+    "_2017": {
+      "id": "class_2017",
+      "short": "2017",
+      "long": "Class 2017"
+    },
+    "_2018": {
+      "id": "class_2018",
+      "short": "2018",
+      "long": "Class 2018"
+    },
+    "_2019": {
+      "id": "class_2019",
+      "short": "2019",
+      "long": "Class 2019"
+    },
+    "_2020": {
+      "id": "class_2020",
+      "short": "2020",
+      "long": "Class 2020"
+    },
+    "_2021": {
+      "id": "class_2021",
+      "short": "2021",
+      "long": "Class 2021"
+    },
+    "_2022": {
+      "id": "class_2022",
+      "short": "2022",
+      "long": "Class 2022"
+    },
+    "_2023": {
+      "id": "class_2023",
+      "short": "2023",
+      "long": "Class 2023"
+    },
+    "_2024": {
+      "id": "class_2024",
+      "short": "2024",
+      "long": "Class 2024"
+    },
+    "_2025": {
+      "id": "class_2025",
+      "short": "2025",
+      "long": "Class 2025"
+    },
+    "_2026": {
+      "id": "class_2026",
+      "short": "2026",
+      "long": "Class 2026"
     }
-  );
+  });
 
-  ENTRY_NAMES = /** @type {const} */ (    {
-      "discount": {
-        "id": "veteran",
-        "short": "Veteran",
-        "long": "Veteran Coins"
-      },
-      "premium": {
-        "id": "rookie",
-        "short": "Rookie",
-        "long": "Rookie Coins"
-      }
+  ENTRY_NAMES = /** @type {const} */ ({
+    "discount": {
+      "id": "veteran",
+      "short": "Veteran",
+      "long": "Veteran Coins"
+    },
+    "premium": {
+      "id": "rookie",
+      "short": "Rookie",
+      "long": "Rookie Coins"
     }
-  );
+  });
 
-  SPENDABLE_TYPE_NAMES = /** @type {const} */ (    {
-      "p2pk65": {
-        "id": "p2pk65",
-        "short": "P2PK65",
-        "long": "Pay to Public Key (65 bytes)"
-      },
-      "p2pk33": {
-        "id": "p2pk33",
-        "short": "P2PK33",
-        "long": "Pay to Public Key (33 bytes)"
-      },
-      "p2pkh": {
-        "id": "p2pkh",
-        "short": "P2PKH",
-        "long": "Pay to Public Key Hash"
-      },
-      "p2ms": {
-        "id": "p2ms",
-        "short": "P2MS",
-        "long": "Pay to Multisig"
-      },
-      "p2sh": {
-        "id": "p2sh",
-        "short": "P2SH",
-        "long": "Pay to Script Hash"
-      },
-      "p2wpkh": {
-        "id": "p2wpkh",
-        "short": "P2WPKH",
-        "long": "Pay to Witness Public Key Hash"
-      },
-      "p2wsh": {
-        "id": "p2wsh",
-        "short": "P2WSH",
-        "long": "Pay to Witness Script Hash"
-      },
-      "p2tr": {
-        "id": "p2tr",
-        "short": "P2TR",
-        "long": "Pay to Taproot"
-      },
-      "p2a": {
-        "id": "p2a",
-        "short": "P2A",
-        "long": "Pay to Anchor"
-      },
-      "unknown": {
-        "id": "unknown_outputs",
-        "short": "Unknown",
-        "long": "Unknown Output Type"
-      },
-      "empty": {
-        "id": "empty_outputs",
-        "short": "Empty",
-        "long": "Empty Output"
-      }
+  SPENDABLE_TYPE_NAMES = /** @type {const} */ ({
+    "p2pk65": {
+      "id": "p2pk65",
+      "short": "P2PK65",
+      "long": "Pay to Public Key (65 bytes)"
+    },
+    "p2pk33": {
+      "id": "p2pk33",
+      "short": "P2PK33",
+      "long": "Pay to Public Key (33 bytes)"
+    },
+    "p2pkh": {
+      "id": "p2pkh",
+      "short": "P2PKH",
+      "long": "Pay to Public Key Hash"
+    },
+    "p2ms": {
+      "id": "p2ms",
+      "short": "P2MS",
+      "long": "Pay to Multisig"
+    },
+    "p2sh": {
+      "id": "p2sh",
+      "short": "P2SH",
+      "long": "Pay to Script Hash"
+    },
+    "p2wpkh": {
+      "id": "p2wpkh",
+      "short": "P2WPKH",
+      "long": "Pay to Witness Public Key Hash"
+    },
+    "p2wsh": {
+      "id": "p2wsh",
+      "short": "P2WSH",
+      "long": "Pay to Witness Script Hash"
+    },
+    "p2tr": {
+      "id": "p2tr",
+      "short": "P2TR",
+      "long": "Pay to Taproot"
+    },
+    "p2a": {
+      "id": "p2a",
+      "short": "P2A",
+      "long": "Pay to Anchor"
+    },
+    "unknown": {
+      "id": "unknown_outputs",
+      "short": "Unknown",
+      "long": "Unknown Output Type"
+    },
+    "empty": {
+      "id": "empty_outputs",
+      "short": "Empty",
+      "long": "Empty Output"
     }
-  );
+  });
 
-  AGE_RANGE_NAMES = /** @type {const} */ (    {
-      "under1h": {
-        "id": "under_1h_old",
-        "short": "<1h",
-        "long": "Under 1 Hour Old"
-      },
-      "_1hTo1d": {
-        "id": "1h_to_1d_old",
-        "short": "1h-1d",
-        "long": "1 Hour to 1 Day Old"
-      },
-      "_1dTo1w": {
-        "id": "1d_to_1w_old",
-        "short": "1d-1w",
-        "long": "1 Day to 1 Week Old"
-      },
-      "_1wTo1m": {
-        "id": "1w_to_1m_old",
-        "short": "1w-1m",
-        "long": "1 Week to 1 Month Old"
-      },
-      "_1mTo2m": {
-        "id": "1m_to_2m_old",
-        "short": "1m-2m",
-        "long": "1 to 2 Months Old"
-      },
-      "_2mTo3m": {
-        "id": "2m_to_3m_old",
-        "short": "2m-3m",
-        "long": "2 to 3 Months Old"
-      },
-      "_3mTo4m": {
-        "id": "3m_to_4m_old",
-        "short": "3m-4m",
-        "long": "3 to 4 Months Old"
-      },
-      "_4mTo5m": {
-        "id": "4m_to_5m_old",
-        "short": "4m-5m",
-        "long": "4 to 5 Months Old"
-      },
-      "_5mTo6m": {
-        "id": "5m_to_6m_old",
-        "short": "5m-6m",
-        "long": "5 to 6 Months Old"
-      },
-      "_6mTo1y": {
-        "id": "6m_to_1y_old",
-        "short": "6m-1y",
-        "long": "6 Months to 1 Year Old"
-      },
-      "_1yTo2y": {
-        "id": "1y_to_2y_old",
-        "short": "1y-2y",
-        "long": "1 to 2 Years Old"
-      },
-      "_2yTo3y": {
-        "id": "2y_to_3y_old",
-        "short": "2y-3y",
-        "long": "2 to 3 Years Old"
-      },
-      "_3yTo4y": {
-        "id": "3y_to_4y_old",
-        "short": "3y-4y",
-        "long": "3 to 4 Years Old"
-      },
-      "_4yTo5y": {
-        "id": "4y_to_5y_old",
-        "short": "4y-5y",
-        "long": "4 to 5 Years Old"
-      },
-      "_5yTo6y": {
-        "id": "5y_to_6y_old",
-        "short": "5y-6y",
-        "long": "5 to 6 Years Old"
-      },
-      "_6yTo7y": {
-        "id": "6y_to_7y_old",
-        "short": "6y-7y",
-        "long": "6 to 7 Years Old"
-      },
-      "_7yTo8y": {
-        "id": "7y_to_8y_old",
-        "short": "7y-8y",
-        "long": "7 to 8 Years Old"
-      },
-      "_8yTo10y": {
-        "id": "8y_to_10y_old",
-        "short": "8y-10y",
-        "long": "8 to 10 Years Old"
-      },
-      "_10yTo12y": {
-        "id": "10y_to_12y_old",
-        "short": "10y-12y",
-        "long": "10 to 12 Years Old"
-      },
-      "_12yTo15y": {
-        "id": "12y_to_15y_old",
-        "short": "12y-15y",
-        "long": "12 to 15 Years Old"
-      },
-      "over15y": {
-        "id": "over_15y_old",
-        "short": "15y+",
-        "long": "15+ Years Old"
-      }
+  AGE_RANGE_NAMES = /** @type {const} */ ({
+    "under1h": {
+      "id": "under_1h_old",
+      "short": "<1h",
+      "long": "Under 1 Hour Old"
+    },
+    "_1hTo1d": {
+      "id": "1h_to_1d_old",
+      "short": "1h-1d",
+      "long": "1 Hour to 1 Day Old"
+    },
+    "_1dTo1w": {
+      "id": "1d_to_1w_old",
+      "short": "1d-1w",
+      "long": "1 Day to 1 Week Old"
+    },
+    "_1wTo1m": {
+      "id": "1w_to_1m_old",
+      "short": "1w-1m",
+      "long": "1 Week to 1 Month Old"
+    },
+    "_1mTo2m": {
+      "id": "1m_to_2m_old",
+      "short": "1m-2m",
+      "long": "1 to 2 Months Old"
+    },
+    "_2mTo3m": {
+      "id": "2m_to_3m_old",
+      "short": "2m-3m",
+      "long": "2 to 3 Months Old"
+    },
+    "_3mTo4m": {
+      "id": "3m_to_4m_old",
+      "short": "3m-4m",
+      "long": "3 to 4 Months Old"
+    },
+    "_4mTo5m": {
+      "id": "4m_to_5m_old",
+      "short": "4m-5m",
+      "long": "4 to 5 Months Old"
+    },
+    "_5mTo6m": {
+      "id": "5m_to_6m_old",
+      "short": "5m-6m",
+      "long": "5 to 6 Months Old"
+    },
+    "_6mTo1y": {
+      "id": "6m_to_1y_old",
+      "short": "6m-1y",
+      "long": "6 Months to 1 Year Old"
+    },
+    "_1yTo2y": {
+      "id": "1y_to_2y_old",
+      "short": "1y-2y",
+      "long": "1 to 2 Years Old"
+    },
+    "_2yTo3y": {
+      "id": "2y_to_3y_old",
+      "short": "2y-3y",
+      "long": "2 to 3 Years Old"
+    },
+    "_3yTo4y": {
+      "id": "3y_to_4y_old",
+      "short": "3y-4y",
+      "long": "3 to 4 Years Old"
+    },
+    "_4yTo5y": {
+      "id": "4y_to_5y_old",
+      "short": "4y-5y",
+      "long": "4 to 5 Years Old"
+    },
+    "_5yTo6y": {
+      "id": "5y_to_6y_old",
+      "short": "5y-6y",
+      "long": "5 to 6 Years Old"
+    },
+    "_6yTo7y": {
+      "id": "6y_to_7y_old",
+      "short": "6y-7y",
+      "long": "6 to 7 Years Old"
+    },
+    "_7yTo8y": {
+      "id": "7y_to_8y_old",
+      "short": "7y-8y",
+      "long": "7 to 8 Years Old"
+    },
+    "_8yTo10y": {
+      "id": "8y_to_10y_old",
+      "short": "8y-10y",
+      "long": "8 to 10 Years Old"
+    },
+    "_10yTo12y": {
+      "id": "10y_to_12y_old",
+      "short": "10y-12y",
+      "long": "10 to 12 Years Old"
+    },
+    "_12yTo15y": {
+      "id": "12y_to_15y_old",
+      "short": "12y-15y",
+      "long": "12 to 15 Years Old"
+    },
+    "over15y": {
+      "id": "over_15y_old",
+      "short": "15y+",
+      "long": "15+ Years Old"
     }
-  );
+  });
 
-  UNDER_AGE_NAMES = /** @type {const} */ (    {
-      "_1w": {
-        "id": "under_1w_old",
-        "short": "<1w",
-        "long": "Under 1 Week Old"
-      },
-      "_1m": {
-        "id": "under_1m_old",
-        "short": "<1m",
-        "long": "Under 1 Month Old"
-      },
-      "_2m": {
-        "id": "under_2m_old",
-        "short": "<2m",
-        "long": "Under 2 Months Old"
-      },
-      "_3m": {
-        "id": "under_3m_old",
-        "short": "<3m",
-        "long": "Under 3 Months Old"
-      },
-      "_4m": {
-        "id": "under_4m_old",
-        "short": "<4m",
-        "long": "Under 4 Months Old"
-      },
-      "_5m": {
-        "id": "under_5m_old",
-        "short": "<5m",
-        "long": "Under 5 Months Old"
-      },
-      "_6m": {
-        "id": "under_6m_old",
-        "short": "<6m",
-        "long": "Under 6 Months Old"
-      },
-      "_1y": {
-        "id": "under_1y_old",
-        "short": "<1y",
-        "long": "Under 1 Year Old"
-      },
-      "_2y": {
-        "id": "under_2y_old",
-        "short": "<2y",
-        "long": "Under 2 Years Old"
-      },
-      "_3y": {
-        "id": "under_3y_old",
-        "short": "<3y",
-        "long": "Under 3 Years Old"
-      },
-      "_4y": {
-        "id": "under_4y_old",
-        "short": "<4y",
-        "long": "Under 4 Years Old"
-      },
-      "_5y": {
-        "id": "under_5y_old",
-        "short": "<5y",
-        "long": "Under 5 Years Old"
-      },
-      "_6y": {
-        "id": "under_6y_old",
-        "short": "<6y",
-        "long": "Under 6 Years Old"
-      },
-      "_7y": {
-        "id": "under_7y_old",
-        "short": "<7y",
-        "long": "Under 7 Years Old"
-      },
-      "_8y": {
-        "id": "under_8y_old",
-        "short": "<8y",
-        "long": "Under 8 Years Old"
-      },
-      "_10y": {
-        "id": "under_10y_old",
-        "short": "<10y",
-        "long": "Under 10 Years Old"
-      },
-      "_12y": {
-        "id": "under_12y_old",
-        "short": "<12y",
-        "long": "Under 12 Years Old"
-      },
-      "_15y": {
-        "id": "under_15y_old",
-        "short": "<15y",
-        "long": "Under 15 Years Old"
-      }
+  UNDER_AGE_NAMES = /** @type {const} */ ({
+    "_1w": {
+      "id": "under_1w_old",
+      "short": "<1w",
+      "long": "Under 1 Week Old"
+    },
+    "_1m": {
+      "id": "under_1m_old",
+      "short": "<1m",
+      "long": "Under 1 Month Old"
+    },
+    "_2m": {
+      "id": "under_2m_old",
+      "short": "<2m",
+      "long": "Under 2 Months Old"
+    },
+    "_3m": {
+      "id": "under_3m_old",
+      "short": "<3m",
+      "long": "Under 3 Months Old"
+    },
+    "_4m": {
+      "id": "under_4m_old",
+      "short": "<4m",
+      "long": "Under 4 Months Old"
+    },
+    "_5m": {
+      "id": "under_5m_old",
+      "short": "<5m",
+      "long": "Under 5 Months Old"
+    },
+    "_6m": {
+      "id": "under_6m_old",
+      "short": "<6m",
+      "long": "Under 6 Months Old"
+    },
+    "_1y": {
+      "id": "under_1y_old",
+      "short": "<1y",
+      "long": "Under 1 Year Old"
+    },
+    "_2y": {
+      "id": "under_2y_old",
+      "short": "<2y",
+      "long": "Under 2 Years Old"
+    },
+    "_3y": {
+      "id": "under_3y_old",
+      "short": "<3y",
+      "long": "Under 3 Years Old"
+    },
+    "_4y": {
+      "id": "under_4y_old",
+      "short": "<4y",
+      "long": "Under 4 Years Old"
+    },
+    "_5y": {
+      "id": "under_5y_old",
+      "short": "<5y",
+      "long": "Under 5 Years Old"
+    },
+    "_6y": {
+      "id": "under_6y_old",
+      "short": "<6y",
+      "long": "Under 6 Years Old"
+    },
+    "_7y": {
+      "id": "under_7y_old",
+      "short": "<7y",
+      "long": "Under 7 Years Old"
+    },
+    "_8y": {
+      "id": "under_8y_old",
+      "short": "<8y",
+      "long": "Under 8 Years Old"
+    },
+    "_10y": {
+      "id": "under_10y_old",
+      "short": "<10y",
+      "long": "Under 10 Years Old"
+    },
+    "_12y": {
+      "id": "under_12y_old",
+      "short": "<12y",
+      "long": "Under 12 Years Old"
+    },
+    "_15y": {
+      "id": "under_15y_old",
+      "short": "<15y",
+      "long": "Under 15 Years Old"
     }
-  );
+  });
 
-  OVER_AGE_NAMES = /** @type {const} */ (    {
-      "_1d": {
-        "id": "over_1d_old",
-        "short": "1d+",
-        "long": "Over 1 Day Old"
-      },
-      "_1w": {
-        "id": "over_1w_old",
-        "short": "1w+",
-        "long": "Over 1 Week Old"
-      },
-      "_1m": {
-        "id": "over_1m_old",
-        "short": "1m+",
-        "long": "Over 1 Month Old"
-      },
-      "_2m": {
-        "id": "over_2m_old",
-        "short": "2m+",
-        "long": "Over 2 Months Old"
-      },
-      "_3m": {
-        "id": "over_3m_old",
-        "short": "3m+",
-        "long": "Over 3 Months Old"
-      },
-      "_4m": {
-        "id": "over_4m_old",
-        "short": "4m+",
-        "long": "Over 4 Months Old"
-      },
-      "_5m": {
-        "id": "over_5m_old",
-        "short": "5m+",
-        "long": "Over 5 Months Old"
-      },
-      "_6m": {
-        "id": "over_6m_old",
-        "short": "6m+",
-        "long": "Over 6 Months Old"
-      },
-      "_1y": {
-        "id": "over_1y_old",
-        "short": "1y+",
-        "long": "Over 1 Year Old"
-      },
-      "_2y": {
-        "id": "over_2y_old",
-        "short": "2y+",
-        "long": "Over 2 Years Old"
-      },
-      "_3y": {
-        "id": "over_3y_old",
-        "short": "3y+",
-        "long": "Over 3 Years Old"
-      },
-      "_4y": {
-        "id": "over_4y_old",
-        "short": "4y+",
-        "long": "Over 4 Years Old"
-      },
-      "_5y": {
-        "id": "over_5y_old",
-        "short": "5y+",
-        "long": "Over 5 Years Old"
-      },
-      "_6y": {
-        "id": "over_6y_old",
-        "short": "6y+",
-        "long": "Over 6 Years Old"
-      },
-      "_7y": {
-        "id": "over_7y_old",
-        "short": "7y+",
-        "long": "Over 7 Years Old"
-      },
-      "_8y": {
-        "id": "over_8y_old",
-        "short": "8y+",
-        "long": "Over 8 Years Old"
-      },
-      "_10y": {
-        "id": "over_10y_old",
-        "short": "10y+",
-        "long": "Over 10 Years Old"
-      },
-      "_12y": {
-        "id": "over_12y_old",
-        "short": "12y+",
-        "long": "Over 12 Years Old"
-      }
+  OVER_AGE_NAMES = /** @type {const} */ ({
+    "_1d": {
+      "id": "over_1d_old",
+      "short": "1d+",
+      "long": "Over 1 Day Old"
+    },
+    "_1w": {
+      "id": "over_1w_old",
+      "short": "1w+",
+      "long": "Over 1 Week Old"
+    },
+    "_1m": {
+      "id": "over_1m_old",
+      "short": "1m+",
+      "long": "Over 1 Month Old"
+    },
+    "_2m": {
+      "id": "over_2m_old",
+      "short": "2m+",
+      "long": "Over 2 Months Old"
+    },
+    "_3m": {
+      "id": "over_3m_old",
+      "short": "3m+",
+      "long": "Over 3 Months Old"
+    },
+    "_4m": {
+      "id": "over_4m_old",
+      "short": "4m+",
+      "long": "Over 4 Months Old"
+    },
+    "_5m": {
+      "id": "over_5m_old",
+      "short": "5m+",
+      "long": "Over 5 Months Old"
+    },
+    "_6m": {
+      "id": "over_6m_old",
+      "short": "6m+",
+      "long": "Over 6 Months Old"
+    },
+    "_1y": {
+      "id": "over_1y_old",
+      "short": "1y+",
+      "long": "Over 1 Year Old"
+    },
+    "_2y": {
+      "id": "over_2y_old",
+      "short": "2y+",
+      "long": "Over 2 Years Old"
+    },
+    "_3y": {
+      "id": "over_3y_old",
+      "short": "3y+",
+      "long": "Over 3 Years Old"
+    },
+    "_4y": {
+      "id": "over_4y_old",
+      "short": "4y+",
+      "long": "Over 4 Years Old"
+    },
+    "_5y": {
+      "id": "over_5y_old",
+      "short": "5y+",
+      "long": "Over 5 Years Old"
+    },
+    "_6y": {
+      "id": "over_6y_old",
+      "short": "6y+",
+      "long": "Over 6 Years Old"
+    },
+    "_7y": {
+      "id": "over_7y_old",
+      "short": "7y+",
+      "long": "Over 7 Years Old"
+    },
+    "_8y": {
+      "id": "over_8y_old",
+      "short": "8y+",
+      "long": "Over 8 Years Old"
+    },
+    "_10y": {
+      "id": "over_10y_old",
+      "short": "10y+",
+      "long": "Over 10 Years Old"
+    },
+    "_12y": {
+      "id": "over_12y_old",
+      "short": "12y+",
+      "long": "Over 12 Years Old"
     }
-  );
+  });
 
-  AMOUNT_RANGE_NAMES = /** @type {const} */ (    {
-      "_0sats": {
-        "id": "0sats",
-        "short": "0 litoshis",
-        "long": "0 Litoshis"
-      },
-      "_1satTo10sats": {
-        "id": "1sat_to_10sats",
-        "short": "1-10 lits",
-        "long": "1-10 Lits"
-      },
-      "_10satsTo100sats": {
-        "id": "10sats_to_100sats",
-        "short": "10-100 lits",
-        "long": "10-100 Lits"
-      },
-      "_100satsTo1kSats": {
-        "id": "100sats_to_1k_sats",
-        "short": "100-1k lits",
-        "long": "100-1K Lits"
-      },
-      "_1kSatsTo10kSats": {
-        "id": "1k_sats_to_10k_sats",
-        "short": "1k-10k lits",
-        "long": "1K-10K Lits"
-      },
-      "_10kSatsTo100kSats": {
-        "id": "10k_sats_to_100k_sats",
-        "short": "10k-100k lits",
-        "long": "10K-100K Lits"
-      },
-      "_100kSatsTo1mSats": {
-        "id": "100k_sats_to_1m_sats",
-        "short": "100k-1M lits",
-        "long": "100K-1M Lits"
-      },
-      "_1mSatsTo10mSats": {
-        "id": "1m_sats_to_10m_sats",
-        "short": "1M-10M lits",
-        "long": "1M-10M Lits"
-      },
-      "_10mSatsTo1btc": {
-        "id": "10m_sats_to_1btc",
-        "short": "0.1-1 LTC",
-        "long": "0.1-1 LTC"
-      },
-      "_1btcTo10btc": {
-        "id": "1btc_to_10btc",
-        "short": "1-10 LTC",
-        "long": "1-10 LTC"
-      },
-      "_10btcTo100btc": {
-        "id": "10btc_to_100btc",
-        "short": "10-100 LTC",
-        "long": "10-100 LTC"
-      },
-      "_100btcTo1kBtc": {
-        "id": "100btc_to_1k_btc",
-        "short": "100-1k LTC",
-        "long": "100-1K LTC"
-      },
-      "_1kBtcTo10kBtc": {
-        "id": "1k_btc_to_10k_btc",
-        "short": "1k-10k LTC",
-        "long": "1K-10K LTC"
-      },
-      "_10kBtcTo100kBtc": {
-        "id": "10k_btc_to_100k_btc",
-        "short": "10k-100k LTC",
-        "long": "10K-100K LTC"
-      },
-      "over100kBtc": {
-        "id": "over_100k_btc",
-        "short": "100k+ LTC",
-        "long": "100K+ LTC"
-      }
+  AMOUNT_RANGE_NAMES = /** @type {const} */ ({
+    "_0sats": {
+      "id": "0sats",
+      "short": "0 litoshis",
+      "long": "0 Litoshis"
+    },
+    "_1satTo10sats": {
+      "id": "1sat_to_10sats",
+      "short": "1-10 lits",
+      "long": "1-10 Lits"
+    },
+    "_10satsTo100sats": {
+      "id": "10sats_to_100sats",
+      "short": "10-100 lits",
+      "long": "10-100 Lits"
+    },
+    "_100satsTo1kSats": {
+      "id": "100sats_to_1k_sats",
+      "short": "100-1k lits",
+      "long": "100-1K Lits"
+    },
+    "_1kSatsTo10kSats": {
+      "id": "1k_sats_to_10k_sats",
+      "short": "1k-10k lits",
+      "long": "1K-10K Lits"
+    },
+    "_10kSatsTo100kSats": {
+      "id": "10k_sats_to_100k_sats",
+      "short": "10k-100k lits",
+      "long": "10K-100K Lits"
+    },
+    "_100kSatsTo1mSats": {
+      "id": "100k_sats_to_1m_sats",
+      "short": "100k-1M lits",
+      "long": "100K-1M Lits"
+    },
+    "_1mSatsTo10mSats": {
+      "id": "1m_sats_to_10m_sats",
+      "short": "1M-10M lits",
+      "long": "1M-10M Lits"
+    },
+    "_10mSatsTo1btc": {
+      "id": "10m_sats_to_1btc",
+      "short": "0.1-1 LTC",
+      "long": "0.1-1 LTC"
+    },
+    "_1btcTo10btc": {
+      "id": "1btc_to_10btc",
+      "short": "1-10 LTC",
+      "long": "1-10 LTC"
+    },
+    "_10btcTo100btc": {
+      "id": "10btc_to_100btc",
+      "short": "10-100 LTC",
+      "long": "10-100 LTC"
+    },
+    "_100btcTo1kBtc": {
+      "id": "100btc_to_1k_btc",
+      "short": "100-1k LTC",
+      "long": "100-1K LTC"
+    },
+    "_1kBtcTo10kBtc": {
+      "id": "1k_btc_to_10k_btc",
+      "short": "1k-10k LTC",
+      "long": "1K-10K LTC"
+    },
+    "_10kBtcTo100kBtc": {
+      "id": "10k_btc_to_100k_btc",
+      "short": "10k-100k LTC",
+      "long": "10K-100K LTC"
+    },
+    "over100kBtc": {
+      "id": "over_100k_btc",
+      "short": "100k+ LTC",
+      "long": "100K+ LTC"
     }
-  );
+  });
 
-  OVER_AMOUNT_NAMES = /** @type {const} */ (    {
-      "_1sat": {
-        "id": "over_1sat",
-        "short": "1+ lits",
-        "long": "Over 1 Lit"
-      },
-      "_10sats": {
-        "id": "over_10sats",
-        "short": "10+ lits",
-        "long": "Over 10 Lits"
-      },
-      "_100sats": {
-        "id": "over_100sats",
-        "short": "100+ lits",
-        "long": "Over 100 Lits"
-      },
-      "_1kSats": {
-        "id": "over_1k_sats",
-        "short": "1k+ lits",
-        "long": "Over 1K Lits"
-      },
-      "_10kSats": {
-        "id": "over_10k_sats",
-        "short": "10k+ lits",
-        "long": "Over 10K Lits"
-      },
-      "_100kSats": {
-        "id": "over_100k_sats",
-        "short": "100k+ lits",
-        "long": "Over 100K Lits"
-      },
-      "_1mSats": {
-        "id": "over_1m_sats",
-        "short": "1M+ lits",
-        "long": "Over 1M Lits"
-      },
-      "_10mSats": {
-        "id": "over_10m_sats",
-        "short": "0.1+ LTC",
-        "long": "Over 0.1 LTC"
-      },
-      "_1btc": {
-        "id": "over_1btc",
-        "short": "1+ LTC",
-        "long": "Over 1 LTC"
-      },
-      "_10btc": {
-        "id": "over_10btc",
-        "short": "10+ LTC",
-        "long": "Over 10 LTC"
-      },
-      "_100btc": {
-        "id": "over_100btc",
-        "short": "100+ LTC",
-        "long": "Over 100 LTC"
-      },
-      "_1kBtc": {
-        "id": "over_1k_btc",
-        "short": "1k+ LTC",
-        "long": "Over 1K LTC"
-      },
-      "_10kBtc": {
-        "id": "over_10k_btc",
-        "short": "10k+ LTC",
-        "long": "Over 10K LTC"
-      }
+  OVER_AMOUNT_NAMES = /** @type {const} */ ({
+    "_1sat": {
+      "id": "over_1sat",
+      "short": "1+ lits",
+      "long": "Over 1 Lit"
+    },
+    "_10sats": {
+      "id": "over_10sats",
+      "short": "10+ lits",
+      "long": "Over 10 Lits"
+    },
+    "_100sats": {
+      "id": "over_100sats",
+      "short": "100+ lits",
+      "long": "Over 100 Lits"
+    },
+    "_1kSats": {
+      "id": "over_1k_sats",
+      "short": "1k+ lits",
+      "long": "Over 1K Lits"
+    },
+    "_10kSats": {
+      "id": "over_10k_sats",
+      "short": "10k+ lits",
+      "long": "Over 10K Lits"
+    },
+    "_100kSats": {
+      "id": "over_100k_sats",
+      "short": "100k+ lits",
+      "long": "Over 100K Lits"
+    },
+    "_1mSats": {
+      "id": "over_1m_sats",
+      "short": "1M+ lits",
+      "long": "Over 1M Lits"
+    },
+    "_10mSats": {
+      "id": "over_10m_sats",
+      "short": "0.1+ LTC",
+      "long": "Over 0.1 LTC"
+    },
+    "_1btc": {
+      "id": "over_1btc",
+      "short": "1+ LTC",
+      "long": "Over 1 LTC"
+    },
+    "_10btc": {
+      "id": "over_10btc",
+      "short": "10+ LTC",
+      "long": "Over 10 LTC"
+    },
+    "_100btc": {
+      "id": "over_100btc",
+      "short": "100+ LTC",
+      "long": "Over 100 LTC"
+    },
+    "_1kBtc": {
+      "id": "over_1k_btc",
+      "short": "1k+ LTC",
+      "long": "Over 1K LTC"
+    },
+    "_10kBtc": {
+      "id": "over_10k_btc",
+      "short": "10k+ LTC",
+      "long": "Over 10K LTC"
     }
-  );
+  });
 
-  UNDER_AMOUNT_NAMES = /** @type {const} */ (    {
-      "_10sats": {
-        "id": "under_10sats",
-        "short": "<10 lits",
-        "long": "Under 10 Lits"
-      },
-      "_100sats": {
-        "id": "under_100sats",
-        "short": "<100 lits",
-        "long": "Under 100 Lits"
-      },
-      "_1kSats": {
-        "id": "under_1k_sats",
-        "short": "<1k lits",
-        "long": "Under 1K Lits"
-      },
-      "_10kSats": {
-        "id": "under_10k_sats",
-        "short": "<10k lits",
-        "long": "Under 10K Lits"
-      },
-      "_100kSats": {
-        "id": "under_100k_sats",
-        "short": "<100k lits",
-        "long": "Under 100K Lits"
-      },
-      "_1mSats": {
-        "id": "under_1m_sats",
-        "short": "<1M lits",
-        "long": "Under 1M Lits"
-      },
-      "_10mSats": {
-        "id": "under_10m_sats",
-        "short": "<0.1 LTC",
-        "long": "Under 0.1 LTC"
-      },
-      "_1btc": {
-        "id": "under_1btc",
-        "short": "<1 LTC",
-        "long": "Under 1 LTC"
-      },
-      "_10btc": {
-        "id": "under_10btc",
-        "short": "<10 LTC",
-        "long": "Under 10 LTC"
-      },
-      "_100btc": {
-        "id": "under_100btc",
-        "short": "<100 LTC",
-        "long": "Under 100 LTC"
-      },
-      "_1kBtc": {
-        "id": "under_1k_btc",
-        "short": "<1k LTC",
-        "long": "Under 1K LTC"
-      },
-      "_10kBtc": {
-        "id": "under_10k_btc",
-        "short": "<10k LTC",
-        "long": "Under 10K LTC"
-      },
-      "_100kBtc": {
-        "id": "under_100k_btc",
-        "short": "<100k LTC",
-        "long": "Under 100K LTC"
-      }
+  UNDER_AMOUNT_NAMES = /** @type {const} */ ({
+    "_10sats": {
+      "id": "under_10sats",
+      "short": "<10 lits",
+      "long": "Under 10 Lits"
+    },
+    "_100sats": {
+      "id": "under_100sats",
+      "short": "<100 lits",
+      "long": "Under 100 Lits"
+    },
+    "_1kSats": {
+      "id": "under_1k_sats",
+      "short": "<1k lits",
+      "long": "Under 1K Lits"
+    },
+    "_10kSats": {
+      "id": "under_10k_sats",
+      "short": "<10k lits",
+      "long": "Under 10K Lits"
+    },
+    "_100kSats": {
+      "id": "under_100k_sats",
+      "short": "<100k lits",
+      "long": "Under 100K Lits"
+    },
+    "_1mSats": {
+      "id": "under_1m_sats",
+      "short": "<1M lits",
+      "long": "Under 1M Lits"
+    },
+    "_10mSats": {
+      "id": "under_10m_sats",
+      "short": "<0.1 LTC",
+      "long": "Under 0.1 LTC"
+    },
+    "_1btc": {
+      "id": "under_1btc",
+      "short": "<1 LTC",
+      "long": "Under 1 LTC"
+    },
+    "_10btc": {
+      "id": "under_10btc",
+      "short": "<10 LTC",
+      "long": "Under 10 LTC"
+    },
+    "_100btc": {
+      "id": "under_100btc",
+      "short": "<100 LTC",
+      "long": "Under 100 LTC"
+    },
+    "_1kBtc": {
+      "id": "under_1k_btc",
+      "short": "<1k LTC",
+      "long": "Under 1K LTC"
+    },
+    "_10kBtc": {
+      "id": "under_10k_btc",
+      "short": "<10k LTC",
+      "long": "Under 10K LTC"
+    },
+    "_100kBtc": {
+      "id": "under_100k_btc",
+      "short": "<100k LTC",
+      "long": "Under 100K LTC"
     }
-  );
+  });
 
-  PROFITABILITY_RANGE_NAMES = /** @type {const} */ (    {
-      "over1000pctInProfit": {
-        "id": "utxos_over_1000pct_in_profit",
-        "short": "+>1000%",
-        "long": "Over 1000% in Profit"
-      },
-      "_500pctTo1000pctInProfit": {
-        "id": "utxos_500pct_to_1000pct_in_profit",
-        "short": "+500-1000%",
-        "long": "500-1000% in Profit"
-      },
-      "_300pctTo500pctInProfit": {
-        "id": "utxos_300pct_to_500pct_in_profit",
-        "short": "+300-500%",
-        "long": "300-500% in Profit"
-      },
-      "_200pctTo300pctInProfit": {
-        "id": "utxos_200pct_to_300pct_in_profit",
-        "short": "+200-300%",
-        "long": "200-300% in Profit"
-      },
-      "_100pctTo200pctInProfit": {
-        "id": "utxos_100pct_to_200pct_in_profit",
-        "short": "+100-200%",
-        "long": "100-200% in Profit"
-      },
-      "_90pctTo100pctInProfit": {
-        "id": "utxos_90pct_to_100pct_in_profit",
-        "short": "+90-100%",
-        "long": "90-100% in Profit"
-      },
-      "_80pctTo90pctInProfit": {
-        "id": "utxos_80pct_to_90pct_in_profit",
-        "short": "+80-90%",
-        "long": "80-90% in Profit"
-      },
-      "_70pctTo80pctInProfit": {
-        "id": "utxos_70pct_to_80pct_in_profit",
-        "short": "+70-80%",
-        "long": "70-80% in Profit"
-      },
-      "_60pctTo70pctInProfit": {
-        "id": "utxos_60pct_to_70pct_in_profit",
-        "short": "+60-70%",
-        "long": "60-70% in Profit"
-      },
-      "_50pctTo60pctInProfit": {
-        "id": "utxos_50pct_to_60pct_in_profit",
-        "short": "+50-60%",
-        "long": "50-60% in Profit"
-      },
-      "_40pctTo50pctInProfit": {
-        "id": "utxos_40pct_to_50pct_in_profit",
-        "short": "+40-50%",
-        "long": "40-50% in Profit"
-      },
-      "_30pctTo40pctInProfit": {
-        "id": "utxos_30pct_to_40pct_in_profit",
-        "short": "+30-40%",
-        "long": "30-40% in Profit"
-      },
-      "_20pctTo30pctInProfit": {
-        "id": "utxos_20pct_to_30pct_in_profit",
-        "short": "+20-30%",
-        "long": "20-30% in Profit"
-      },
-      "_10pctTo20pctInProfit": {
-        "id": "utxos_10pct_to_20pct_in_profit",
-        "short": "+10-20%",
-        "long": "10-20% in Profit"
-      },
-      "_0pctTo10pctInProfit": {
-        "id": "utxos_0pct_to_10pct_in_profit",
-        "short": "+0-10%",
-        "long": "0-10% in Profit"
-      },
-      "_0pctTo10pctInLoss": {
-        "id": "utxos_0pct_to_10pct_in_loss",
-        "short": "-0-10%",
-        "long": "0-10% in Loss"
-      },
-      "_10pctTo20pctInLoss": {
-        "id": "utxos_10pct_to_20pct_in_loss",
-        "short": "-10-20%",
-        "long": "10-20% in Loss"
-      },
-      "_20pctTo30pctInLoss": {
-        "id": "utxos_20pct_to_30pct_in_loss",
-        "short": "-20-30%",
-        "long": "20-30% in Loss"
-      },
-      "_30pctTo40pctInLoss": {
-        "id": "utxos_30pct_to_40pct_in_loss",
-        "short": "-30-40%",
-        "long": "30-40% in Loss"
-      },
-      "_40pctTo50pctInLoss": {
-        "id": "utxos_40pct_to_50pct_in_loss",
-        "short": "-40-50%",
-        "long": "40-50% in Loss"
-      },
-      "_50pctTo60pctInLoss": {
-        "id": "utxos_50pct_to_60pct_in_loss",
-        "short": "-50-60%",
-        "long": "50-60% in Loss"
-      },
-      "_60pctTo70pctInLoss": {
-        "id": "utxos_60pct_to_70pct_in_loss",
-        "short": "-60-70%",
-        "long": "60-70% in Loss"
-      },
-      "_70pctTo80pctInLoss": {
-        "id": "utxos_70pct_to_80pct_in_loss",
-        "short": "-70-80%",
-        "long": "70-80% in Loss"
-      },
-      "_80pctTo90pctInLoss": {
-        "id": "utxos_80pct_to_90pct_in_loss",
-        "short": "-80-90%",
-        "long": "80-90% in Loss"
-      },
-      "_90pctTo100pctInLoss": {
-        "id": "utxos_90pct_to_100pct_in_loss",
-        "short": "-90-100%",
-        "long": "90-100% in Loss"
-      }
+  PROFITABILITY_RANGE_NAMES = /** @type {const} */ ({
+    "over1000pctInProfit": {
+      "id": "utxos_over_1000pct_in_profit",
+      "short": "+>1000%",
+      "long": "Over 1000% in Profit"
+    },
+    "_500pctTo1000pctInProfit": {
+      "id": "utxos_500pct_to_1000pct_in_profit",
+      "short": "+500-1000%",
+      "long": "500-1000% in Profit"
+    },
+    "_300pctTo500pctInProfit": {
+      "id": "utxos_300pct_to_500pct_in_profit",
+      "short": "+300-500%",
+      "long": "300-500% in Profit"
+    },
+    "_200pctTo300pctInProfit": {
+      "id": "utxos_200pct_to_300pct_in_profit",
+      "short": "+200-300%",
+      "long": "200-300% in Profit"
+    },
+    "_100pctTo200pctInProfit": {
+      "id": "utxos_100pct_to_200pct_in_profit",
+      "short": "+100-200%",
+      "long": "100-200% in Profit"
+    },
+    "_90pctTo100pctInProfit": {
+      "id": "utxos_90pct_to_100pct_in_profit",
+      "short": "+90-100%",
+      "long": "90-100% in Profit"
+    },
+    "_80pctTo90pctInProfit": {
+      "id": "utxos_80pct_to_90pct_in_profit",
+      "short": "+80-90%",
+      "long": "80-90% in Profit"
+    },
+    "_70pctTo80pctInProfit": {
+      "id": "utxos_70pct_to_80pct_in_profit",
+      "short": "+70-80%",
+      "long": "70-80% in Profit"
+    },
+    "_60pctTo70pctInProfit": {
+      "id": "utxos_60pct_to_70pct_in_profit",
+      "short": "+60-70%",
+      "long": "60-70% in Profit"
+    },
+    "_50pctTo60pctInProfit": {
+      "id": "utxos_50pct_to_60pct_in_profit",
+      "short": "+50-60%",
+      "long": "50-60% in Profit"
+    },
+    "_40pctTo50pctInProfit": {
+      "id": "utxos_40pct_to_50pct_in_profit",
+      "short": "+40-50%",
+      "long": "40-50% in Profit"
+    },
+    "_30pctTo40pctInProfit": {
+      "id": "utxos_30pct_to_40pct_in_profit",
+      "short": "+30-40%",
+      "long": "30-40% in Profit"
+    },
+    "_20pctTo30pctInProfit": {
+      "id": "utxos_20pct_to_30pct_in_profit",
+      "short": "+20-30%",
+      "long": "20-30% in Profit"
+    },
+    "_10pctTo20pctInProfit": {
+      "id": "utxos_10pct_to_20pct_in_profit",
+      "short": "+10-20%",
+      "long": "10-20% in Profit"
+    },
+    "_0pctTo10pctInProfit": {
+      "id": "utxos_0pct_to_10pct_in_profit",
+      "short": "+0-10%",
+      "long": "0-10% in Profit"
+    },
+    "_0pctTo10pctInLoss": {
+      "id": "utxos_0pct_to_10pct_in_loss",
+      "short": "-0-10%",
+      "long": "0-10% in Loss"
+    },
+    "_10pctTo20pctInLoss": {
+      "id": "utxos_10pct_to_20pct_in_loss",
+      "short": "-10-20%",
+      "long": "10-20% in Loss"
+    },
+    "_20pctTo30pctInLoss": {
+      "id": "utxos_20pct_to_30pct_in_loss",
+      "short": "-20-30%",
+      "long": "20-30% in Loss"
+    },
+    "_30pctTo40pctInLoss": {
+      "id": "utxos_30pct_to_40pct_in_loss",
+      "short": "-30-40%",
+      "long": "30-40% in Loss"
+    },
+    "_40pctTo50pctInLoss": {
+      "id": "utxos_40pct_to_50pct_in_loss",
+      "short": "-40-50%",
+      "long": "40-50% in Loss"
+    },
+    "_50pctTo60pctInLoss": {
+      "id": "utxos_50pct_to_60pct_in_loss",
+      "short": "-50-60%",
+      "long": "50-60% in Loss"
+    },
+    "_60pctTo70pctInLoss": {
+      "id": "utxos_60pct_to_70pct_in_loss",
+      "short": "-60-70%",
+      "long": "60-70% in Loss"
+    },
+    "_70pctTo80pctInLoss": {
+      "id": "utxos_70pct_to_80pct_in_loss",
+      "short": "-70-80%",
+      "long": "70-80% in Loss"
+    },
+    "_80pctTo90pctInLoss": {
+      "id": "utxos_80pct_to_90pct_in_loss",
+      "short": "-80-90%",
+      "long": "80-90% in Loss"
+    },
+    "_90pctTo100pctInLoss": {
+      "id": "utxos_90pct_to_100pct_in_loss",
+      "short": "-90-100%",
+      "long": "90-100% in Loss"
     }
-  );
+  });
 
-  PROFIT_NAMES = /** @type {const} */ (    {
-      "all": {
-        "id": "utxos_in_profit",
-        "short": "All",
-        "long": "In Profit"
-      },
-      "_10pct": {
-        "id": "utxos_over_10pct_in_profit",
-        "short": ">=10%",
-        "long": "Over 10% in Profit"
-      },
-      "_20pct": {
-        "id": "utxos_over_20pct_in_profit",
-        "short": ">=20%",
-        "long": "Over 20% in Profit"
-      },
-      "_30pct": {
-        "id": "utxos_over_30pct_in_profit",
-        "short": ">=30%",
-        "long": "Over 30% in Profit"
-      },
-      "_40pct": {
-        "id": "utxos_over_40pct_in_profit",
-        "short": ">=40%",
-        "long": "Over 40% in Profit"
-      },
-      "_50pct": {
-        "id": "utxos_over_50pct_in_profit",
-        "short": ">=50%",
-        "long": "Over 50% in Profit"
-      },
-      "_60pct": {
-        "id": "utxos_over_60pct_in_profit",
-        "short": ">=60%",
-        "long": "Over 60% in Profit"
-      },
-      "_70pct": {
-        "id": "utxos_over_70pct_in_profit",
-        "short": ">=70%",
-        "long": "Over 70% in Profit"
-      },
-      "_80pct": {
-        "id": "utxos_over_80pct_in_profit",
-        "short": ">=80%",
-        "long": "Over 80% in Profit"
-      },
-      "_90pct": {
-        "id": "utxos_over_90pct_in_profit",
-        "short": ">=90%",
-        "long": "Over 90% in Profit"
-      },
-      "_100pct": {
-        "id": "utxos_over_100pct_in_profit",
-        "short": ">=100%",
-        "long": "Over 100% in Profit"
-      },
-      "_200pct": {
-        "id": "utxos_over_200pct_in_profit",
-        "short": ">=200%",
-        "long": "Over 200% in Profit"
-      },
-      "_300pct": {
-        "id": "utxos_over_300pct_in_profit",
-        "short": ">=300%",
-        "long": "Over 300% in Profit"
-      },
-      "_500pct": {
-        "id": "utxos_over_500pct_in_profit",
-        "short": ">=500%",
-        "long": "Over 500% in Profit"
-      }
+  PROFIT_NAMES = /** @type {const} */ ({
+    "all": {
+      "id": "utxos_in_profit",
+      "short": "All",
+      "long": "In Profit"
+    },
+    "_10pct": {
+      "id": "utxos_over_10pct_in_profit",
+      "short": ">=10%",
+      "long": "Over 10% in Profit"
+    },
+    "_20pct": {
+      "id": "utxos_over_20pct_in_profit",
+      "short": ">=20%",
+      "long": "Over 20% in Profit"
+    },
+    "_30pct": {
+      "id": "utxos_over_30pct_in_profit",
+      "short": ">=30%",
+      "long": "Over 30% in Profit"
+    },
+    "_40pct": {
+      "id": "utxos_over_40pct_in_profit",
+      "short": ">=40%",
+      "long": "Over 40% in Profit"
+    },
+    "_50pct": {
+      "id": "utxos_over_50pct_in_profit",
+      "short": ">=50%",
+      "long": "Over 50% in Profit"
+    },
+    "_60pct": {
+      "id": "utxos_over_60pct_in_profit",
+      "short": ">=60%",
+      "long": "Over 60% in Profit"
+    },
+    "_70pct": {
+      "id": "utxos_over_70pct_in_profit",
+      "short": ">=70%",
+      "long": "Over 70% in Profit"
+    },
+    "_80pct": {
+      "id": "utxos_over_80pct_in_profit",
+      "short": ">=80%",
+      "long": "Over 80% in Profit"
+    },
+    "_90pct": {
+      "id": "utxos_over_90pct_in_profit",
+      "short": ">=90%",
+      "long": "Over 90% in Profit"
+    },
+    "_100pct": {
+      "id": "utxos_over_100pct_in_profit",
+      "short": ">=100%",
+      "long": "Over 100% in Profit"
+    },
+    "_200pct": {
+      "id": "utxos_over_200pct_in_profit",
+      "short": ">=200%",
+      "long": "Over 200% in Profit"
+    },
+    "_300pct": {
+      "id": "utxos_over_300pct_in_profit",
+      "short": ">=300%",
+      "long": "Over 300% in Profit"
+    },
+    "_500pct": {
+      "id": "utxos_over_500pct_in_profit",
+      "short": ">=500%",
+      "long": "Over 500% in Profit"
     }
-  );
+  });
 
-  LOSS_NAMES = /** @type {const} */ (    {
-      "all": {
-        "id": "utxos_in_loss",
-        "short": "All",
-        "long": "In Loss"
-      },
-      "_10pct": {
-        "id": "utxos_over_10pct_in_loss",
-        "short": ">=10%",
-        "long": "Over 10% in Loss"
-      },
-      "_20pct": {
-        "id": "utxos_over_20pct_in_loss",
-        "short": ">=20%",
-        "long": "Over 20% in Loss"
-      },
-      "_30pct": {
-        "id": "utxos_over_30pct_in_loss",
-        "short": ">=30%",
-        "long": "Over 30% in Loss"
-      },
-      "_40pct": {
-        "id": "utxos_over_40pct_in_loss",
-        "short": ">=40%",
-        "long": "Over 40% in Loss"
-      },
-      "_50pct": {
-        "id": "utxos_over_50pct_in_loss",
-        "short": ">=50%",
-        "long": "Over 50% in Loss"
-      },
-      "_60pct": {
-        "id": "utxos_over_60pct_in_loss",
-        "short": ">=60%",
-        "long": "Over 60% in Loss"
-      },
-      "_70pct": {
-        "id": "utxos_over_70pct_in_loss",
-        "short": ">=70%",
-        "long": "Over 70% in Loss"
-      },
-      "_80pct": {
-        "id": "utxos_over_80pct_in_loss",
-        "short": ">=80%",
-        "long": "Over 80% in Loss"
-      }
+  LOSS_NAMES = /** @type {const} */ ({
+    "all": {
+      "id": "utxos_in_loss",
+      "short": "All",
+      "long": "In Loss"
+    },
+    "_10pct": {
+      "id": "utxos_over_10pct_in_loss",
+      "short": ">=10%",
+      "long": "Over 10% in Loss"
+    },
+    "_20pct": {
+      "id": "utxos_over_20pct_in_loss",
+      "short": ">=20%",
+      "long": "Over 20% in Loss"
+    },
+    "_30pct": {
+      "id": "utxos_over_30pct_in_loss",
+      "short": ">=30%",
+      "long": "Over 30% in Loss"
+    },
+    "_40pct": {
+      "id": "utxos_over_40pct_in_loss",
+      "short": ">=40%",
+      "long": "Over 40% in Loss"
+    },
+    "_50pct": {
+      "id": "utxos_over_50pct_in_loss",
+      "short": ">=50%",
+      "long": "Over 50% in Loss"
+    },
+    "_60pct": {
+      "id": "utxos_over_60pct_in_loss",
+      "short": ">=60%",
+      "long": "Over 60% in Loss"
+    },
+    "_70pct": {
+      "id": "utxos_over_70pct_in_loss",
+      "short": ">=70%",
+      "long": "Over 70% in Loss"
+    },
+    "_80pct": {
+      "id": "utxos_over_80pct_in_loss",
+      "short": ">=80%",
+      "long": "Over 80% in Loss"
     }
-  );
+  });
 
   /**
    * Convert an index value to a Date for date-based indexes.
@@ -9239,6 +9004,8 @@ class BrkClient extends BrkClientBase {
           totalSize: createSeriesPattern19(this, 'total_size'),
           totalSigopCost: createSeriesPattern19(this, 'total_sigop_cost'),
           isExplicitlyRbf: createSeriesPattern19(this, 'is_explicitly_rbf'),
+          isHogEx: createSeriesPattern19(this, 'is_hog_ex'),
+          hasMwTx: createSeriesPattern19(this, 'has_mw_tx'),
           firstTxinIndex: createSeriesPattern19(this, 'first_txin_index'),
           firstTxoutIndex: createSeriesPattern19(this, 'first_txout_index'),
         },
@@ -9260,6 +9027,10 @@ class BrkClient extends BrkClientBase {
           fee: create_6bBlockTxPattern(this, 'fee'),
           feeRate: createSeriesPattern19(this, 'fee_rate'),
           effectiveFeeRate: create_6bBlockTxPattern(this, 'effective_fee_rate'),
+        },
+        hogex: {
+          txCount: createAverageBlockCumulativeSumPattern2(this, 'hogex_tx_count'),
+          rawInputVolume: createAverageBlockCumulativeSumPattern3(this, 'raw_input_volume'),
         },
         versions: {
           v1: createAverageBlockCumulativeSumPattern(this, 'tx_v1'),
@@ -9363,7 +9134,8 @@ class BrkClient extends BrkClientBase {
             unknown: createAverageBlockCumulativeSumPattern(this, 'unknown_outputs_output_count'),
             empty: createAverageBlockCumulativeSumPattern(this, 'empty_outputs_output_count'),
             opReturn: createAverageBlockCumulativeSumPattern(this, 'op_return_output_count'),
-            mweb: createAverageBlockCumulativeSumPattern(this, 'mweb_output_count'),
+            mwebPegPool: createAverageBlockCumulativeSumPattern(this, 'mweb_peg_pool_output_count'),
+            mwebPegin: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_output_count'),
           },
           spendableOutputCount: createAverageBlockCumulativeSumPattern(this, 'spendable_output_count'),
           outputShare: {
@@ -9379,7 +9151,8 @@ class BrkClient extends BrkClientBase {
             unknown: create_1m1w1y24hBpsPercentRatioPattern(this, 'unknown_outputs_output_share'),
             empty: create_1m1w1y24hBpsPercentRatioPattern(this, 'empty_outputs_output_share'),
             opReturn: create_1m1w1y24hBpsPercentRatioPattern(this, 'op_return_output_share'),
-            mweb: create_1m1w1y24hBpsPercentRatioPattern(this, 'mweb_output_share'),
+            mwebPegPool: create_1m1w1y24hBpsPercentRatioPattern(this, 'mweb_peg_pool_output_share'),
+            mwebPegin: create_1m1w1y24hBpsPercentRatioPattern(this, 'mweb_pegin_output_share'),
           },
           txCount: createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_count'),
           txShare: createEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_share_with'),
@@ -9391,6 +9164,11 @@ class BrkClient extends BrkClientBase {
           outputsValue: createBlockCumulativePattern(this, 'mweb_outputs_value'),
           inputsValue: createBlockCumulativePattern(this, 'mweb_inputs_value'),
           balance: createBtcCentsSatsUsdPattern(this, 'mweb_balance'),
+          pegPool: createBalanceInputsOutputsPattern(this, 'mweb_peg_pool'),
+          pegin: createBalanceInputsOutputsPattern(this, 'mweb_pegin'),
+          peginCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_count'),
+          pegoutValue: createAverageBlockCumulativeSumPattern3(this, 'mweb_pegout_value'),
+          pegoutCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegout_count'),
         },
       },
       addrs: {
@@ -10065,170 +9843,39 @@ class BrkClient extends BrkClientBase {
           unknown: createBlocksDominanceRewardsPattern(this, 'unknown'),
           luxor: createBlocksDominanceRewardsPattern(this, 'luxor'),
           btccom: createBlocksDominanceRewardsPattern(this, 'btccom'),
-          btctop: createBlocksDominanceRewardsPattern(this, 'btctop'),
-          btcguild: createBlocksDominanceRewardsPattern(this, 'btcguild'),
-          eligius: createBlocksDominanceRewardsPattern(this, 'eligius'),
           f2pool: createBlocksDominanceRewardsPattern(this, 'f2pool'),
-          braiinspool: createBlocksDominanceRewardsPattern(this, 'braiinspool'),
           antpool: createBlocksDominanceRewardsPattern(this, 'antpool'),
-          btcc: createBlocksDominanceRewardsPattern(this, 'btcc'),
-          bwpool: createBlocksDominanceRewardsPattern(this, 'bwpool'),
-          bitfury: createBlocksDominanceRewardsPattern(this, 'bitfury'),
           viabtc: createBlocksDominanceRewardsPattern(this, 'viabtc'),
           poolin: createBlocksDominanceRewardsPattern(this, 'poolin'),
           spiderpool: createBlocksDominanceRewardsPattern(this, 'spiderpool'),
           binancepool: createBlocksDominanceRewardsPattern(this, 'binancepool'),
-          foundryusa: createBlocksDominanceRewardsPattern(this, 'foundryusa'),
           sbicrypto: createBlocksDominanceRewardsPattern(this, 'sbicrypto'),
-          marapool: createBlocksDominanceRewardsPattern(this, 'marapool'),
-          secpool: createBlocksDominanceRewardsPattern(this, 'secpool'),
-          ocean: createBlocksDominanceRewardsPattern(this, 'ocean'),
-          whitepool: createBlocksDominanceRewardsPattern(this, 'whitepool'),
+          kupool: createBlocksDominanceRewardsPattern(this, 'kupool'),
+          litecoinpoolorg: createBlocksDominanceRewardsPattern(this, 'litecoinpoolorg'),
+          hash700: createBlocksDominanceRewardsPattern(this, 'hash700'),
+          lsoftwaredmcc: createBlocksDominanceRewardsPattern(this, 'lsoftwaredmcc'),
+          hashspace: createBlocksDominanceRewardsPattern(this, 'hashspace'),
         },
         minor: {
-          blockfills: createBlocksDominancePattern(this, 'blockfills'),
-          ultimuspool: createBlocksDominancePattern(this, 'ultimuspool'),
-          terrapool: createBlocksDominancePattern(this, 'terrapool'),
-          onethash: createBlocksDominancePattern(this, 'onethash'),
-          bitfarms: createBlocksDominancePattern(this, 'bitfarms'),
-          huobipool: createBlocksDominancePattern(this, 'huobipool'),
-          wayicn: createBlocksDominancePattern(this, 'wayicn'),
-          canoepool: createBlocksDominancePattern(this, 'canoepool'),
-          bitcoincom: createBlocksDominancePattern(this, 'bitcoincom'),
-          pool175btc: createBlocksDominancePattern(this, 'pool175btc'),
-          gbminers: createBlocksDominancePattern(this, 'gbminers'),
-          axbt: createBlocksDominancePattern(this, 'axbt'),
-          asicminer: createBlocksDominancePattern(this, 'asicminer'),
-          bitminter: createBlocksDominancePattern(this, 'bitminter'),
-          bitcoinrussia: createBlocksDominancePattern(this, 'bitcoinrussia'),
-          btcserv: createBlocksDominancePattern(this, 'btcserv'),
-          simplecoinus: createBlocksDominancePattern(this, 'simplecoinus'),
-          ozcoin: createBlocksDominancePattern(this, 'ozcoin'),
-          eclipsemc: createBlocksDominancePattern(this, 'eclipsemc'),
-          maxbtc: createBlocksDominancePattern(this, 'maxbtc'),
-          triplemining: createBlocksDominancePattern(this, 'triplemining'),
-          coinlab: createBlocksDominancePattern(this, 'coinlab'),
-          pool50btc: createBlocksDominancePattern(this, 'pool50btc'),
-          ghashio: createBlocksDominancePattern(this, 'ghashio'),
-          stminingcorp: createBlocksDominancePattern(this, 'stminingcorp'),
-          bitparking: createBlocksDominancePattern(this, 'bitparking'),
-          mmpool: createBlocksDominancePattern(this, 'mmpool'),
-          polmine: createBlocksDominancePattern(this, 'polmine'),
-          kncminer: createBlocksDominancePattern(this, 'kncminer'),
-          bitalo: createBlocksDominancePattern(this, 'bitalo'),
-          hhtt: createBlocksDominancePattern(this, 'hhtt'),
-          megabigpower: createBlocksDominancePattern(this, 'megabigpower'),
-          mtred: createBlocksDominancePattern(this, 'mtred'),
-          nmcbit: createBlocksDominancePattern(this, 'nmcbit'),
-          yourbtcnet: createBlocksDominancePattern(this, 'yourbtcnet'),
-          givemecoins: createBlocksDominancePattern(this, 'givemecoins'),
-          multicoinco: createBlocksDominancePattern(this, 'multicoinco'),
-          bcpoolio: createBlocksDominancePattern(this, 'bcpoolio'),
-          cointerra: createBlocksDominancePattern(this, 'cointerra'),
-          kanopool: createBlocksDominancePattern(this, 'kanopool'),
-          solock: createBlocksDominancePattern(this, 'solock'),
-          ckpool: createBlocksDominancePattern(this, 'ckpool'),
           nicehash: createBlocksDominancePattern(this, 'nicehash'),
-          bitclub: createBlocksDominancePattern(this, 'bitclub'),
-          bitcoinaffiliatenetwork: createBlocksDominancePattern(this, 'bitcoinaffiliatenetwork'),
-          exxbw: createBlocksDominancePattern(this, 'exxbw'),
-          bitsolo: createBlocksDominancePattern(this, 'bitsolo'),
-          twentyoneinc: createBlocksDominancePattern(this, 'twentyoneinc'),
-          digitalbtc: createBlocksDominancePattern(this, 'digitalbtc'),
-          eightbaochi: createBlocksDominancePattern(this, 'eightbaochi'),
-          mybtccoinpool: createBlocksDominancePattern(this, 'mybtccoinpool'),
-          tbdice: createBlocksDominancePattern(this, 'tbdice'),
-          hashpool: createBlocksDominancePattern(this, 'hashpool'),
-          nexious: createBlocksDominancePattern(this, 'nexious'),
-          bravomining: createBlocksDominancePattern(this, 'bravomining'),
-          hotpool: createBlocksDominancePattern(this, 'hotpool'),
-          okexpool: createBlocksDominancePattern(this, 'okexpool'),
-          bcmonster: createBlocksDominancePattern(this, 'bcmonster'),
-          onehash: createBlocksDominancePattern(this, 'onehash'),
-          bixin: createBlocksDominancePattern(this, 'bixin'),
-          tatmaspool: createBlocksDominancePattern(this, 'tatmaspool'),
-          connectbtc: createBlocksDominancePattern(this, 'connectbtc'),
-          batpool: createBlocksDominancePattern(this, 'batpool'),
-          waterhole: createBlocksDominancePattern(this, 'waterhole'),
-          dcexploration: createBlocksDominancePattern(this, 'dcexploration'),
-          dcex: createBlocksDominancePattern(this, 'dcex'),
-          btpool: createBlocksDominancePattern(this, 'btpool'),
-          fiftyeightcoin: createBlocksDominancePattern(this, 'fiftyeightcoin'),
-          bitcoinindia: createBlocksDominancePattern(this, 'bitcoinindia'),
-          shawnp0wers: createBlocksDominancePattern(this, 'shawnp0wers'),
-          phashio: createBlocksDominancePattern(this, 'phashio'),
-          rigpool: createBlocksDominancePattern(this, 'rigpool'),
-          haozhuzhu: createBlocksDominancePattern(this, 'haozhuzhu'),
-          sevenpool: createBlocksDominancePattern(this, 'sevenpool'),
-          miningkings: createBlocksDominancePattern(this, 'miningkings'),
-          hashbx: createBlocksDominancePattern(this, 'hashbx'),
-          dpool: createBlocksDominancePattern(this, 'dpool'),
-          rawpool: createBlocksDominancePattern(this, 'rawpool'),
-          haominer: createBlocksDominancePattern(this, 'haominer'),
-          helix: createBlocksDominancePattern(this, 'helix'),
-          bitcoinukraine: createBlocksDominancePattern(this, 'bitcoinukraine'),
-          secretsuperstar: createBlocksDominancePattern(this, 'secretsuperstar'),
-          tigerpoolnet: createBlocksDominancePattern(this, 'tigerpoolnet'),
           sigmapoolcom: createBlocksDominancePattern(this, 'sigmapoolcom'),
-          okpooltop: createBlocksDominancePattern(this, 'okpooltop'),
-          hummerpool: createBlocksDominancePattern(this, 'hummerpool'),
-          tangpool: createBlocksDominancePattern(this, 'tangpool'),
-          bytepool: createBlocksDominancePattern(this, 'bytepool'),
-          novablock: createBlocksDominancePattern(this, 'novablock'),
-          miningcity: createBlocksDominancePattern(this, 'miningcity'),
-          minerium: createBlocksDominancePattern(this, 'minerium'),
-          lubiancom: createBlocksDominancePattern(this, 'lubiancom'),
-          okkong: createBlocksDominancePattern(this, 'okkong'),
-          aaopool: createBlocksDominancePattern(this, 'aaopool'),
           emcdpool: createBlocksDominancePattern(this, 'emcdpool'),
-          arkpool: createBlocksDominancePattern(this, 'arkpool'),
-          purebtccom: createBlocksDominancePattern(this, 'purebtccom'),
-          kucoinpool: createBlocksDominancePattern(this, 'kucoinpool'),
-          entrustcharitypool: createBlocksDominancePattern(this, 'entrustcharitypool'),
-          okminer: createBlocksDominancePattern(this, 'okminer'),
-          titan: createBlocksDominancePattern(this, 'titan'),
-          pegapool: createBlocksDominancePattern(this, 'pegapool'),
-          btcnuggets: createBlocksDominancePattern(this, 'btcnuggets'),
-          cloudhashing: createBlocksDominancePattern(this, 'cloudhashing'),
-          digitalxmintsy: createBlocksDominancePattern(this, 'digitalxmintsy'),
-          telco214: createBlocksDominancePattern(this, 'telco214'),
-          btcpoolparty: createBlocksDominancePattern(this, 'btcpoolparty'),
-          multipool: createBlocksDominancePattern(this, 'multipool'),
-          transactioncoinmining: createBlocksDominancePattern(this, 'transactioncoinmining'),
-          btcdig: createBlocksDominancePattern(this, 'btcdig'),
-          trickysbtcpool: createBlocksDominancePattern(this, 'trickysbtcpool'),
-          btcmp: createBlocksDominancePattern(this, 'btcmp'),
-          eobot: createBlocksDominancePattern(this, 'eobot'),
-          unomp: createBlocksDominancePattern(this, 'unomp'),
-          patels: createBlocksDominancePattern(this, 'patels'),
-          gogreenlight: createBlocksDominancePattern(this, 'gogreenlight'),
-          bitcoinindiapool: createBlocksDominancePattern(this, 'bitcoinindiapool'),
-          ekanembtc: createBlocksDominancePattern(this, 'ekanembtc'),
-          canoe: createBlocksDominancePattern(this, 'canoe'),
-          tiger: createBlocksDominancePattern(this, 'tiger'),
-          onem1x: createBlocksDominancePattern(this, 'onem1x'),
           zulupool: createBlocksDominancePattern(this, 'zulupool'),
-          wiz: createBlocksDominancePattern(this, 'wiz'),
-          wk057: createBlocksDominancePattern(this, 'wk057'),
-          futurebitapollosolo: createBlocksDominancePattern(this, 'futurebitapollosolo'),
-          carbonnegative: createBlocksDominancePattern(this, 'carbonnegative'),
-          portlandhodl: createBlocksDominancePattern(this, 'portlandhodl'),
-          phoenix: createBlocksDominancePattern(this, 'phoenix'),
-          neopool: createBlocksDominancePattern(this, 'neopool'),
-          maxipool: createBlocksDominancePattern(this, 'maxipool'),
-          bitfufupool: createBlocksDominancePattern(this, 'bitfufupool'),
-          gdpool: createBlocksDominancePattern(this, 'gdpool'),
           miningdutch: createBlocksDominancePattern(this, 'miningdutch'),
-          publicpool: createBlocksDominancePattern(this, 'publicpool'),
-          miningsquared: createBlocksDominancePattern(this, 'miningsquared'),
-          innopolistech: createBlocksDominancePattern(this, 'innopolistech'),
-          btclab: createBlocksDominancePattern(this, 'btclab'),
-          parasite: createBlocksDominancePattern(this, 'parasite'),
-          redrockpool: createBlocksDominancePattern(this, 'redrockpool'),
-          est3lar: createBlocksDominancePattern(this, 'est3lar'),
-          braiinssolo: createBlocksDominancePattern(this, 'braiinssolo'),
-          solopool: createBlocksDominancePattern(this, 'solopool'),
-          noderunners: createBlocksDominancePattern(this, 'noderunners'),
+          dogegogocom: createBlocksDominancePattern(this, 'dogegogocom'),
+          longpool: createBlocksDominancePattern(this, 'longpool'),
+          kryptex: createBlocksDominancePattern(this, 'kryptex'),
+          dxpool: createBlocksDominancePattern(this, 'dxpool'),
+          k1pool: createBlocksDominancePattern(this, 'k1pool'),
+          molepool: createBlocksDominancePattern(this, 'molepool'),
+          solopoolorg: createBlocksDominancePattern(this, 'solopoolorg'),
+          prohashing: createBlocksDominancePattern(this, 'prohashing'),
+          hashhut: createBlocksDominancePattern(this, 'hashhut'),
+          happychina: createBlocksDominancePattern(this, 'happychina'),
+          himpool: createBlocksDominancePattern(this, 'himpool'),
+          p2pspbxyz: createBlocksDominancePattern(this, 'p2pspbxyz'),
+          hyperdonkey: createBlocksDominancePattern(this, 'hyperdonkey'),
+          zergpool: createBlocksDominancePattern(this, 'zergpool'),
         },
       },
       price: {
@@ -11674,7 +11321,7 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/v1/validate-address/{address}`
    *
-   * @param {string} address - Bitcoin address to validate (can be any string)
+   * @param {string} address - Litecoin address to validate (can be any string)
    * @param {{ signal?: AbortSignal, onValue?: (value: AddrValidation) => void, cache?: boolean }} [options]
    * @returns {Promise<AddrValidation>}
    */
@@ -11850,7 +11497,7 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/block/{hash}/txid/{index}`
    *
-   * @param {BlockHash} hash - Bitcoin block hash
+   * @param {BlockHash} hash - Litecoin block hash
    * @param {BlockTxIndex} index - Transaction index within the block (0-based)
    * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void, cache?: boolean }} [options]
    * @returns {Promise<Txid>}
@@ -11905,7 +11552,7 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/block/{hash}/txs/{start_index}`
    *
-   * @param {BlockHash} hash - Bitcoin block hash
+   * @param {BlockHash} hash - Litecoin block hash
    * @param {BlockTxIndex} start_index - Starting transaction index within the block (0-based)
    * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
@@ -12285,7 +11932,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Projected mempool blocks
    *
-   * Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+   * Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
    *
@@ -12427,7 +12074,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Projected next block template
    *
-   * Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+   * Litecoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
    *
    * Endpoint: `GET /api/v1/mempool/block-template`
    * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplate) => void, cache?: boolean }} [options]

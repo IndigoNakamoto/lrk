@@ -187,7 +187,7 @@ pub(super) fn finalize_outputs(
                 }
                 // MWEB (Litecoin peg-pool v8 / peg-in v9) shares the `unknown`
                 // script index space, matching `Lengths::to_type_index`.
-                OutputType::Unknown | OutputType::MWEB => {
+                OutputType::Unknown | OutputType::MWEBPegPool | OutputType::MWEBPegIn => {
                     scripts
                         .unknown
                         .to_tx_index

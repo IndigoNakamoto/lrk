@@ -34,6 +34,9 @@ impl Vecs {
         self.fees
             .compute(indexer, indexes, &inputs.spent, &self.size, exit)?;
 
+        self.hogex
+            .compute(indexer, indexes, &self.fees, prices, exit)?;
+
         self.volume
             .compute(indexer, indexes, prices, &self.count, &self.fees, exit)?;
 

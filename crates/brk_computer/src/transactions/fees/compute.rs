@@ -145,7 +145,7 @@ impl Vecs {
                         sum = Sats::MAX;
                         break;
                     }
-                    if type_buf[k] != OutputType::MWEB {
+                    if !type_buf[k].is_mweb() {
                         sum += val;
                     }
                 }

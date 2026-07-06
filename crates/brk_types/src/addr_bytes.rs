@@ -139,7 +139,8 @@ impl TryFrom<(&ScriptBuf, OutputType)> for AddrBytes {
             | OutputType::Unknown
             | OutputType::Empty
             | OutputType::OpReturn
-            | OutputType::MWEB => Err(Error::WrongAddrType),
+            | OutputType::MWEBPegPool
+            | OutputType::MWEBPegIn => Err(Error::WrongAddrType),
         }
     }
 }

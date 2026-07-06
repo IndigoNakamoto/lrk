@@ -73,7 +73,8 @@ impl Vecs {
                     push_block(&mut self.tx_count, agg.txs_all, &agg.txs_per_type);
                     let spendable_total = agg.entries_all
                         - agg.entries_per_type[OutputType::OpReturn as usize]
-                        - agg.entries_per_type[OutputType::MWEB as usize];
+                        - agg.entries_per_type[OutputType::MWEBPegPool as usize]
+                        - agg.entries_per_type[OutputType::MWEBPegIn as usize];
                     self.spendable_output_count
                         .block
                         .push(StoredU64::from(spendable_total));

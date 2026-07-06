@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-use super::{CountVecs, FeesVecs, SizeVecs, Vecs, VersionsVecs, VolumeVecs};
+use super::{CountVecs, FeesVecs, HogexVecs, SizeVecs, Vecs, VersionsVecs, VolumeVecs};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -28,6 +28,7 @@ impl Vecs {
         let count = CountVecs::forced_import(&db, version, indexes, cached_starts)?;
         let size = SizeVecs::forced_import(&db, version, indexer, indexes)?;
         let fees = FeesVecs::forced_import(&db, version, indexes)?;
+        let hogex = HogexVecs::forced_import(&db, version, indexes, cached_starts)?;
         let versions = VersionsVecs::forced_import(&db, version, indexes, cached_starts)?;
         let volume = VolumeVecs::forced_import(&db, version, indexes, cached_starts)?;
 
@@ -36,6 +37,7 @@ impl Vecs {
             count,
             size,
             fees,
+            hogex,
             versions,
             volume,
         };

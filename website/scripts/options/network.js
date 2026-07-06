@@ -65,7 +65,8 @@ export function createNetworkSection() {
       color: st.opReturn,
       defaultActive: true,
     },
-    { key: "mweb", name: "MWEB", color: st.mweb, defaultActive: true },
+    { key: "mwebPegPool", name: "MWEB Peg Pool", color: st.mwebPegPool, defaultActive: true },
+    { key: "mwebPegin", name: "MWEB Peg-In", color: st.mwebPegIn, defaultActive: true },
     { key: "p2ms", name: "P2MS", color: st.p2ms, defaultActive: false },
     {
       key: "empty",
@@ -87,7 +88,10 @@ export function createNetworkSection() {
   const inputTypes = [
     ...addressTypes,
     ...nonAddressableTypes.filter(
-      (t) => t.key !== "opReturn" && t.key !== "mweb",
+      (t) =>
+        t.key !== "opReturn" &&
+        t.key !== "mwebPegPool" &&
+        t.key !== "mwebPegin",
     ),
   ];
 
@@ -1448,47 +1452,158 @@ export function createNetworkSection() {
         tree: [
           {
             name: "Balance",
-            title: "MWEB Pegged Balance",
+            title: "MWEB Pegged Balance (Combined)",
             bottom: satsBtcUsd({
               pattern: outputs.mweb.balance,
               name: "Balance",
             }),
           },
           {
+            name: "Peg Pool",
+            title: "MWEB Peg Pool Balance (v8)",
+            bottom: satsBtcUsd({
+              pattern: outputs.mweb.pegPool.balance,
+              name: "Peg Pool",
+            }),
+          },
+          {
             name: "Peg Flow",
             tree: [
               {
-                name: "Per Block",
-                title: "MWEB Peg In / Out per Block",
+                name: "Combined Per Block",
+                title: "Canonical MWEB Peg Credits / Debits per Block",
                 bottom: [
                   line({
                     series: outputs.mweb.outputsValue.block.btc,
-                    name: "Peg In",
+                    name: "Canonical Peg Credits",
                     color: st.mweb,
                     unit: Unit.btc,
                   }),
                   line({
                     series: outputs.mweb.inputsValue.block.btc,
-                    name: "Peg Out",
+                    name: "Canonical Peg Debits",
                     color: colors.gray,
                     unit: Unit.btc,
                   }),
                 ],
               },
               {
-                name: "Cumulative",
-                title: "Cumulative MWEB Peg In / Out",
+                name: "Combined Cumulative",
+                title: "Cumulative Canonical MWEB Peg Credits / Debits",
                 bottom: [
                   line({
                     series: outputs.mweb.outputsValue.cumulative.btc,
-                    name: "Peg In",
+                    name: "Canonical Peg Credits",
                     color: st.mweb,
                     unit: Unit.btc,
                   }),
                   line({
                     series: outputs.mweb.inputsValue.cumulative.btc,
-                    name: "Peg Out",
+                    name: "Canonical Peg Debits",
                     color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+              {
+                name: "Split Per Block",
+                title: "Peg Pool vs Peg-In Output Value per Block",
+                bottom: [
+                  line({
+                    series: outputs.mweb.pegPool.outputsValue.block.btc,
+                    name: "Peg Pool Out",
+                    color: st.mwebPegPool,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.pegin.outputsValue.block.btc,
+                    name: "Peg-In Out",
+                    color: st.mwebPegIn,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.pegPool.inputsValue.block.btc,
+                    name: "Peg Pool In",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.pegin.inputsValue.block.btc,
+                    name: "Peg-In In",
+                    color: colors.default,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+            ],
+          },
+          {
+            name: "Peg-In Count",
+            tree: chartsFromCount({
+              pattern: outputs.mweb.peginCount,
+              metric: "MWEB Peg-In Outputs",
+              unit: Unit.count,
+              color: st.mwebPegIn,
+            }),
+          },
+          {
+            name: "Peg-Out",
+            tree: [
+              {
+                name: "Value",
+                title: "HogEx Transparent Peg-Out Value",
+                bottom: [
+                  line({
+                    series: outputs.mweb.pegoutValue.block.btc,
+                    name: "Peg-Out Value",
+                    color: st.mweb,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.pegoutValue.cumulative.btc,
+                    name: "Cumulative Peg-Out",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+              {
+                name: "Count",
+                tree: chartsFromCount({
+                  pattern: outputs.mweb.pegoutCount,
+                  metric: "HogEx Peg-Out Outputs",
+                  unit: Unit.count,
+                  color: st.mweb,
+                }),
+              },
+            ],
+          },
+          {
+            name: "HogEx",
+            tree: [
+              {
+                name: "Maintenance",
+                tree: chartsFromCount({
+                  pattern: transactions.hogex.txCount,
+                  metric: "HogEx Transactions",
+                  unit: Unit.count,
+                  color: st.mweb,
+                }),
+              },
+              {
+                name: "Volume Distortion",
+                title: "Raw Input Volume vs Transfer Volume",
+                bottom: [
+                  line({
+                    series: transactions.hogex.rawInputVolume.block.btc,
+                    name: "Raw Input Volume",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: transactions.volume.transferVolume.block.btc,
+                    name: "Transfer Volume",
+                    color: st.mweb,
                     unit: Unit.btc,
                   }),
                 ],
@@ -1497,21 +1612,37 @@ export function createNetworkSection() {
           },
           {
             name: "Output Count",
-            tree: chartsFromCount({
-              pattern: outputs.byType.outputCount.mweb,
-              metric: "MWEB Output Count",
-              unit: Unit.count,
-              color: st.mweb,
-            }),
+            tree: [
+              ...chartsFromCount({
+                pattern: outputs.byType.outputCount.mwebPegPool,
+                metric: "MWEB Peg Pool Outputs",
+                unit: Unit.count,
+                color: st.mwebPegPool,
+              }),
+              ...chartsFromCount({
+                pattern: outputs.byType.outputCount.mwebPegin,
+                metric: "MWEB Peg-In Outputs",
+                unit: Unit.count,
+                color: st.mwebPegIn,
+              }),
+            ],
           },
           {
             name: "Transaction Count",
-            tree: chartsFromCount({
-              pattern: outputs.byType.txCount.mweb,
-              metric: "Transactions with MWEB Outputs",
-              unit: Unit.count,
-              color: st.mweb,
-            }),
+            tree: [
+              ...chartsFromCount({
+                pattern: outputs.byType.txCount.mwebPegPool,
+                metric: "Transactions with Peg Pool Outputs",
+                unit: Unit.count,
+                color: st.mwebPegPool,
+              }),
+              ...chartsFromCount({
+                pattern: outputs.byType.txCount.mwebPegin,
+                metric: "Transactions with Peg-In Outputs",
+                unit: Unit.count,
+                color: st.mwebPegIn,
+              }),
+            ],
           },
           {
             name: "Supply Composition",

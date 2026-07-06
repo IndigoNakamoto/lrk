@@ -144,6 +144,12 @@ function renderOutput(vout) {
   if (type === "op_return") {
     addr.textContent = "OP_RETURN";
     addr.classList.add("op-return");
+  } else if (type === "mweb_peg_pool" || type === "mwebPegPool") {
+    addr.textContent = "MWEB Peg Pool";
+    addr.classList.add("mweb", "mweb-peg-pool");
+  } else if (type === "mweb_pegin" || type === "mwebPegIn") {
+    addr.textContent = "MWEB Peg-In";
+    addr.classList.add("mweb", "mweb-pegin");
   } else if (type === "mweb") {
     addr.textContent = "MWEB";
     addr.classList.add("mweb");

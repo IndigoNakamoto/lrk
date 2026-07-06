@@ -532,6 +532,10 @@
             &.mweb {
               color: var(--emerald);
             }
+
+            &.mweb-pegin {
+              color: var(--off-color);
+            }
           }
 
           .amount {

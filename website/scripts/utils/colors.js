@@ -269,6 +269,8 @@ export const colors = {
     p2a: palette.indigo,
     opReturn: palette.purple,
     mweb: palette.emerald,
+    mwebPegPool: palette.emerald,
+    mwebPegIn: createColor(() => getColor("gray")),
     unknown: palette.violet,
     empty: palette.fuchsia,
   },

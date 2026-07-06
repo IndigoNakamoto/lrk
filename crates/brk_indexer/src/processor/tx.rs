@@ -113,6 +113,22 @@ pub(super) fn store_tx_metadata(
         md.total_sigop_cost.checked_push(ct.tx_index, sigops)?;
         md.is_explicitly_rbf
             .checked_push(ct.tx_index, StoredBool::from(ct.tx.is_explicitly_rbf()))?;
+        #[cfg(feature = "litecoin")]
+        {
+            md.is_hog_ex
+                .checked_push(ct.tx_index, StoredBool::from(ct.tx.is_hog_ex))?;
+            md.has_mw_tx.checked_push(
+                ct.tx_index,
+                StoredBool::from(ct.tx.mw_tx.is_some()),
+            )?;
+        }
+        #[cfg(not(feature = "litecoin"))]
+        {
+            md.is_hog_ex
+                .checked_push(ct.tx_index, StoredBool::from(false))?;
+            md.has_mw_tx
+                .checked_push(ct.tx_index, StoredBool::from(false))?;
+        }
     }
     Ok(())
 }

@@ -57,12 +57,14 @@ pub enum OutputType {
     P2TR,
     P2A,
     Empty,
-    /// MimbleWimble Extension Block output (Litecoin MWEB). Not decoded;
-    /// treated as unspendable by standard indexing. Full MWEB support is
-    /// future work.
-    #[serde(rename = "mweb")]
-    #[strum(serialize = "mweb")]
-    MWEB,
+    /// Litecoin MWEB peg-pool output (witness v8 / HogAddr macro balance).
+    #[serde(rename = "mweb_peg_pool")]
+    #[strum(serialize = "mweb_peg_pool")]
+    MWEBPegPool,
+    /// Litecoin MWEB peg-in output (witness v9).
+    #[serde(rename = "mweb_pegin")]
+    #[strum(serialize = "mweb_pegin")]
+    MWEBPegIn,
     Unknown,
 }
 
@@ -101,9 +103,13 @@ impl OutputType {
             Self::P2TR => true,
             Self::P2A => true,
             Self::Empty => true,
-            Self::MWEB => false,
+            Self::MWEBPegPool | Self::MWEBPegIn => false,
             Self::Unknown => true,
         }
+    }
+
+    pub fn is_mweb(self) -> bool {
+        matches!(self, Self::MWEBPegPool | Self::MWEBPegIn)
     }
 
     pub fn is_addr(&self) -> bool {
@@ -119,7 +125,7 @@ impl OutputType {
             Self::P2TR => true,
             Self::P2A => true,
             Self::Empty => false,
-            Self::MWEB => false,
+            Self::MWEBPegPool | Self::MWEBPegIn => false,
             Self::Unknown => false,
         }
     }
@@ -154,33 +160,44 @@ impl OutputType {
             Self::P2TR,
             Self::P2A,
             Self::Empty,
-            Self::MWEB,
+            Self::MWEBPegPool,
+            Self::MWEBPegIn,
             Self::Unknown,
         ]
     }
 
-    /// Returns `true` if this is a Litecoin MWEB output script. On the
-    /// canonical chain MWEB appears as two witness-program versions that are
-    /// unique to Litecoin: the HogEx peg-pool output (witness v8, holding the
-    /// entire pegged balance) and peg-in outputs (witness v9). Both carry a
-    /// plaintext `value` but are unspendable by standard (non-MWEB) indexing.
-    ///
-    /// On Bitcoin builds witness v8/v9 programs are not MWEB, so this always
-    /// returns `false` and such outputs fall through to `Unknown`.
+    /// Returns `true` if this is a Litecoin MWEB peg-pool script (witness v8).
     #[inline]
-    pub fn is_mweb_script(script: &ScriptBuf) -> bool {
+    pub fn is_mweb_peg_pool_script(script: &ScriptBuf) -> bool {
         #[cfg(feature = "litecoin")]
         {
-            matches!(
-                script.witness_version(),
-                Some(bitcoin::WitnessVersion::V8 | bitcoin::WitnessVersion::V9)
-            )
+            script.witness_version() == Some(bitcoin::WitnessVersion::V8)
         }
         #[cfg(not(feature = "litecoin"))]
         {
             let _ = script;
             false
         }
+    }
+
+    /// Returns `true` if this is a Litecoin MWEB peg-in script (witness v9).
+    #[inline]
+    pub fn is_mweb_pegin_script(script: &ScriptBuf) -> bool {
+        #[cfg(feature = "litecoin")]
+        {
+            script.witness_version() == Some(bitcoin::WitnessVersion::V9)
+        }
+        #[cfg(not(feature = "litecoin"))]
+        {
+            let _ = script;
+            false
+        }
+    }
+
+    /// Returns `true` if this is any Litecoin MWEB output script (witness v8 or v9).
+    #[inline]
+    pub fn is_mweb_script(script: &ScriptBuf) -> bool {
+        Self::is_mweb_peg_pool_script(script) || Self::is_mweb_pegin_script(script)
     }
 }
 
@@ -218,8 +235,10 @@ impl From<&ScriptBuf> for OutputType {
             && script.as_bytes()[2..4] == [78, 115]
         {
             Self::P2A
-        } else if Self::is_mweb_script(script) {
-            Self::MWEB
+        } else if Self::is_mweb_peg_pool_script(script) {
+            Self::MWEBPegPool
+        } else if Self::is_mweb_pegin_script(script) {
+            Self::MWEBPegIn
         } else if script.is_empty() {
             Self::Empty
         } else {
@@ -269,7 +288,10 @@ impl TryFrom<OutputType> for AddressType {
             OutputType::P2TR => Self::P2tr,
             OutputType::P2WPKH => Self::P2wpkh,
             OutputType::P2WSH => Self::P2wsh,
-            OutputType::MWEB => return Err(Error::UnsupportedType("mweb".into())),
+            OutputType::MWEBPegPool => {
+                return Err(Error::UnsupportedType("mweb_peg_pool".into()))
+            }
+            OutputType::MWEBPegIn => return Err(Error::UnsupportedType("mweb_pegin".into())),
             _ => return Err(Error::UnsupportedType(format!("{:?}", value))),
         })
     }
@@ -334,20 +356,22 @@ mod tests {
     }
 
     #[test]
-    fn litecoin_mweb_outputs_classify_as_mweb() {
+    fn litecoin_mweb_outputs_classify_by_witness_version() {
         // OP_PUSHNUM_8 = 0x58 (peg-pool), OP_PUSHNUM_9 = 0x59 (peg-in).
         let v8 = witness_script(0x58, 32);
         let v9 = witness_script(0x59, 32);
-        assert_eq!(OutputType::from(&v8), OutputType::MWEB);
-        assert_eq!(OutputType::from(&v9), OutputType::MWEB);
-        assert!(!OutputType::MWEB.is_spendable());
-        assert!(!OutputType::MWEB.is_addr());
+        assert_eq!(OutputType::from(&v8), OutputType::MWEBPegPool);
+        assert_eq!(OutputType::from(&v9), OutputType::MWEBPegIn);
+        assert!(OutputType::MWEBPegPool.is_mweb());
+        assert!(OutputType::MWEBPegIn.is_mweb());
+        assert!(!OutputType::MWEBPegPool.is_spendable());
+        assert!(!OutputType::MWEBPegIn.is_addr());
     }
 
     #[test]
     fn other_witness_versions_are_not_mweb() {
         // v2 (0x52) is a plain future witness program, not MWEB.
         let v2 = witness_script(0x52, 32);
-        assert_ne!(OutputType::from(&v2), OutputType::MWEB);
+        assert!(!OutputType::from(&v2).is_mweb());
     }
 }
