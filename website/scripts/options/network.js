@@ -65,6 +65,7 @@ export function createNetworkSection() {
       color: st.opReturn,
       defaultActive: true,
     },
+    { key: "mweb", name: "MWEB", color: st.mweb, defaultActive: true },
     { key: "p2ms", name: "P2MS", color: st.p2ms, defaultActive: false },
     {
       key: "empty",
@@ -80,12 +81,14 @@ export function createNetworkSection() {
     },
   ]);
 
-  // All output types = addressable + non-addressable (12 total)
+  // All output types = addressable + non-addressable (13 total)
   const outputTypes = [...addressTypes, ...nonAddressableTypes];
-  // Spendable input types: every output type can fund an input *except* OP_RETURN
+  // Spendable input types: every output type can fund an input *except* OP_RETURN and MWEB
   const inputTypes = [
     ...addressTypes,
-    ...nonAddressableTypes.filter((t) => t.key !== "opReturn"),
+    ...nonAddressableTypes.filter(
+      (t) => t.key !== "opReturn" && t.key !== "mweb",
+    ),
   ];
 
   // Transacting types (transaction participation)
@@ -1049,6 +1052,14 @@ export function createNetworkSection() {
                   name: "All Time",
                 }),
               },
+              {
+                name: "MWEB",
+                title: "MWEB Pegged Balance",
+                bottom: satsBtcUsd({
+                  pattern: outputs.mweb.balance,
+                  name: "Balance",
+                }),
+              },
             ],
           },
         ],
@@ -1429,6 +1440,104 @@ export function createNetworkSection() {
             }),
           ],
         })),
+      },
+
+      // MWEB
+      {
+        name: "MWEB",
+        tree: [
+          {
+            name: "Balance",
+            title: "MWEB Pegged Balance",
+            bottom: satsBtcUsd({
+              pattern: outputs.mweb.balance,
+              name: "Balance",
+            }),
+          },
+          {
+            name: "Peg Flow",
+            tree: [
+              {
+                name: "Per Block",
+                title: "MWEB Peg In / Out per Block",
+                bottom: [
+                  line({
+                    series: outputs.mweb.outputsValue.block.btc,
+                    name: "Peg In",
+                    color: st.mweb,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.inputsValue.block.btc,
+                    name: "Peg Out",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+              {
+                name: "Cumulative",
+                title: "Cumulative MWEB Peg In / Out",
+                bottom: [
+                  line({
+                    series: outputs.mweb.outputsValue.cumulative.btc,
+                    name: "Peg In",
+                    color: st.mweb,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.inputsValue.cumulative.btc,
+                    name: "Peg Out",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+            ],
+          },
+          {
+            name: "Output Count",
+            tree: chartsFromCount({
+              pattern: outputs.byType.outputCount.mweb,
+              metric: "MWEB Output Count",
+              unit: Unit.count,
+              color: st.mweb,
+            }),
+          },
+          {
+            name: "Transaction Count",
+            tree: chartsFromCount({
+              pattern: outputs.byType.txCount.mweb,
+              metric: "Transactions with MWEB Outputs",
+              unit: Unit.count,
+              color: st.mweb,
+            }),
+          },
+          {
+            name: "Supply Composition",
+            title: "Transparent vs Circulating vs MWEB",
+            bottom: [
+              line({
+                series: supply.transparent.btc,
+                name: "Transparent",
+                color: colors.gray,
+                unit: Unit.btc,
+              }),
+              line({
+                series: supply.circulating.btc,
+                name: "Circulating",
+                color: colors.coin,
+                unit: Unit.btc,
+              }),
+              line({
+                series: outputs.mweb.balance.btc,
+                name: "MWEB",
+                color: st.mweb,
+                unit: Unit.btc,
+              }),
+            ],
+          },
+        ],
       },
 
       // Addresses

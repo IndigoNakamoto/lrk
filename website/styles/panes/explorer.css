@@ -528,6 +528,10 @@
             &.op-return {
               color: var(--off-color);
             }
+
+            &.mweb {
+              color: var(--emerald);
+            }
           }
 
           .amount {

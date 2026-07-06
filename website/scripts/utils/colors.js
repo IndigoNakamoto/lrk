@@ -268,6 +268,7 @@ export const colors = {
     p2tr: palette.cyan,
     p2a: palette.indigo,
     opReturn: palette.purple,
+    mweb: palette.emerald,
     unknown: palette.violet,
     empty: palette.fuchsia,
   },

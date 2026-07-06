@@ -70,6 +70,7 @@ export const outputTypes = /** @type {const} */ ([
   ["P2PK33", "p2pk33"],
   ["P2PKH", "p2pkh"],
   ["OP_RETURN", "opReturn"],
+  ["MWEB", "mweb"],
   ["P2MS", "p2ms"],
   ["P2SH", "p2sh"],
   ["P2WPKH", "p2wpkh"],

@@ -144,6 +144,9 @@ function renderOutput(vout) {
   if (type === "op_return") {
     addr.textContent = "OP_RETURN";
     addr.classList.add("op-return");
+  } else if (type === "mweb") {
+    addr.textContent = "MWEB";
+    addr.classList.add("mweb");
   } else if (a) {
     const link = document.createElement("a");
     link.href = `/address/${a}`;

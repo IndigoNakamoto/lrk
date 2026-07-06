@@ -25,9 +25,7 @@ services:
       - 7070:3110
     volumes:
       - ${CHAIN_DATA_DIR:-/path/to/litecoin}:/chaindata:ro
-      - ${BRK_DATA_VOLUME:-brk-data}:/home/brk/.brk
-      # Bind mount alternative (uncomment and set BRK_DATA_DIR in .env):
-      # - ${BRK_DATA_DIR:-./brk-data}:/home/brk/.brk
+      - ${BRK_DATA_DIR:-./brk-data}:/home/brk/.brk
     command:
       - --chaindir
       - /chaindata
