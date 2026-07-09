@@ -15,13 +15,24 @@ const offline = () =>
 
 /**
  * @param {Request | string} req
+ * @param {Response} res
+ */
+function cacheResponse(req, res) {
+  const clone = res.clone();
+
+  void caches
+    .open(CACHE)
+    .then((cache) => cache.put(req, clone))
+    .catch(() => {});
+}
+
+/**
+ * @param {Request | string} req
  */
 function fetchAndCache(req) {
   return fetch(req).then((res) => {
-    if (res.ok) {
-      const clone = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, clone));
-    }
+    if (res.ok) cacheResponse(req, res);
+
     return res;
   });
 }

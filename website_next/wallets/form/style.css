@@ -1,4 +1,4 @@
-main.wallets {
+main[data-page="wallets"] {
   label {
     display: grid;
     gap: 0.375rem;

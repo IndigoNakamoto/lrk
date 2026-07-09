@@ -30,7 +30,7 @@ function renderButtons(walletList, wallets, options) {
   const remove = createHoldButton({
     label: "DELETE",
     title: "Hold to delete",
-    className: "delete",
+    variant: "delete",
     onHold: options.onDelete,
   });
 

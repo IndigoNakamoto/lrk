@@ -1,4 +1,4 @@
-main.learn {
+main[data-page="learn"] {
   > nav {
     --nav-offset: calc(var(--offset) + 2rem);
     --line-gap: 0.5rem;
@@ -9,9 +9,7 @@ main.learn {
     position: sticky;
     top: 0;
     max-height: 100dvh;
-    margin-left: -1rem;
     padding-block: var(--nav-offset) var(--offset);
-    padding-left: 0.5rem;
     overflow: auto;
     overscroll-behavior: contain;
     scroll-snap-type: y proximity;
@@ -49,6 +47,8 @@ main.learn {
       margin-inline: 0 1rem;
       padding: 0.25rem;
       padding-inline-start: calc(var(--line-width) + var(--line-gap));
+      -webkit-user-select: none;
+      user-select: none;
 
       &::after {
         content: "";
@@ -66,14 +66,21 @@ main.learn {
         color: var(--white);
       }
 
-      &:hover {
-        color: var(--black);
-        background-color: var(--white);
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--black);
+          background-color: var(--white);
+        }
       }
 
       &:active {
         color: var(--black);
         background-color: var(--orange);
+      }
+
+      &[data-press] {
+        color: var(--black);
+        background-color: var(--white);
       }
     }
 

@@ -18,6 +18,10 @@ pub struct BlockPool {
     /// URL-friendly pool identifier
     pub slug: PoolSlug,
 
+    /// This block's ordinal among blocks attributed to this pool
+    #[schemars(example = 215_000)]
+    pub block_number: u64,
+
     /// Miner name tags found in coinbase scriptsig
     pub miner_names: Option<Vec<String>>,
 }

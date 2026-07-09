@@ -6,6 +6,7 @@ import {
   getOutputDescriptorBranchIds,
   isOutputDescriptor,
 } from "../derive/index.js";
+import { isUsedAddress } from "./activity.js";
 
 const keyBranches = /** @type {const} */ ([
   { id: "receive", label: "Receive", path: [0] },
@@ -25,15 +26,8 @@ const descriptorBranches = /** @type {const} */ ([
 
 /**
  * @typedef {import("../derive/address.js").AddressScript} AddressScript
- * @typedef {import("../derive/index.js").AddressType} AddressType
+ * @typedef {import("../lookup/index.js").AddressClient} AddressClient
  * @typedef {import("./branch.js").WalletAddress} WalletAddress
- */
-
-/**
- * @typedef {Object} AddressClient
- * @property {string} domain
- * @property {(address: string, options?: { cache?: boolean }) => Promise<unknown>} getAddress
- * @property {(addrType: AddressType, prefix: string, options?: { cache?: boolean }) => Promise<unknown>} getAddressHashPrefixMatches
  */
 
 /**
@@ -64,13 +58,6 @@ const descriptorBranches = /** @type {const} */ ([
  * @property {number} gapLimit
  * @property {boolean} maxed
  */
-
-/**
- * @param {WalletAddress} address
- */
-function isUsedAddress(address) {
-  return address.received > 0 || address.sent > 0 || address.txCount > 0;
-}
 
 /**
  * @param {ScannedAddress} a

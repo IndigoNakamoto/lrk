@@ -1,22 +1,34 @@
 import { mapConcurrent } from "../../concurrent.js";
+import { createBucketKey } from "../bucket-key.js";
 
 const UTXO_CONCURRENCY = 4;
 
 const utxosByBucketKey =
-  /** @type {Map<string, Promise<Map<string, unknown[]>>>} */ (new Map());
+  /** @type {Map<string, Promise<Map<string, ApiUtxo[]>>>} */ (new Map());
 
 /**
  * @typedef {import("../../scan/index.js").WalletAddress} WalletAddress
  */
 
 /**
+ * @typedef {Object} ApiUtxoStatus
+ * @property {boolean} confirmed
+ *
+ * @typedef {Object} ApiUtxo
+ * @property {string} txid
+ * @property {number} vout
+ * @property {number} value
+ * @property {ApiUtxoStatus} status
+ */
+
+/**
  * @typedef {Object} UtxoClient
- * @property {(address: string, options?: { cache?: boolean }) => Promise<unknown>} getAddressUtxos
+ * @property {(address: string, options?: { cache?: boolean }) => Promise<ApiUtxo[]>} getAddressUtxos
  */
 
 /**
  * @typedef {Object} AddressUtxos
- * @property {unknown[]} utxos
+ * @property {ApiUtxo[]} utxos
  */
 
 /**
@@ -30,21 +42,13 @@ function isNotFound(error) {
 }
 
 /**
- * @param {readonly string[]} addresses
- */
-function createBucketKey(addresses) {
-  return [...addresses].sort().join("\n");
-}
-
-/**
  * @param {UtxoClient} client
  * @param {string} address
+ * @returns {Promise<ApiUtxo[]>}
  */
 async function fetchAddressUtxos(client, address) {
   try {
-    return /** @type {unknown[]} */ (
-      await client.getAddressUtxos(address, { cache: false })
-    );
+    return await client.getAddressUtxos(address, { cache: false });
   } catch (error) {
     if (isNotFound(error)) return [];
 
@@ -55,7 +59,7 @@ async function fetchAddressUtxos(client, address) {
 /**
  * @param {UtxoClient} client
  * @param {readonly string[]} addresses
- * @returns {Promise<Map<string, unknown[]>>}
+ * @returns {Promise<Map<string, ApiUtxo[]>>}
  */
 async function fetchBucketUtxos(client, addresses) {
   const entries = await mapConcurrent(

@@ -9,17 +9,24 @@ const localDomains = new Set([
 /**
  * @param {string} domain
  */
+function isIpv4Octet(domain) {
+  return /^\d+$/.test(domain);
+}
+
+/**
+ * @param {string} domain
+ */
 function isPrivateIpv4(domain) {
-  const parts = domain.split(".").map(Number);
+  const parts = domain.split(".");
 
   if (
     parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+    parts.some((part) => !isIpv4Octet(part) || Number(part) > 255)
   ) {
     return false;
   }
 
-  const [a, b] = parts;
+  const [a, b] = parts.map(Number);
 
   return (
     a === 10 ||

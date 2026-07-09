@@ -1,0 +1,6 @@
+figure[data-chart="series"] {
+  path[data-chart="bar"] {
+    fill: var(--color, var(--orange));
+    stroke: none;
+  }
+}

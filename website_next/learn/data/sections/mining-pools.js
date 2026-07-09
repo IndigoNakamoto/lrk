@@ -10,7 +10,7 @@ import {
   majorPoolRewardsSeries,
   minorPools,
 } from "../mining-pools.js";
-import { units } from "../../charts/units.js";
+import { units } from "../../../chart/units.js";
 
 const line = /** @type {const} */ ("line");
 

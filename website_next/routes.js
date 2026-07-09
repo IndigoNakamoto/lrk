@@ -4,14 +4,15 @@ import { createHomePage } from "./home/index.js";
 import { createLearnPage } from "./learn/index.js";
 import { createWalletsPage } from "./wallets/index.js";
 
-/** @type {Record<string, () => HTMLElement>} */
-const routes = {
+const routes = /** @type {const} */ ({
   "/": createHomePage,
   "/explore": createExplorePage,
   "/learn": createLearnPage,
   "/build": createBuildPage,
   "/wallets": createWalletsPage,
-};
+});
+
+/** @typedef {keyof typeof routes} RoutePath */
 
 /** @param {string} pathname */
 function canonicalPath(pathname) {
@@ -20,19 +21,25 @@ function canonicalPath(pathname) {
     : pathname;
 }
 
-/** @param {string} pathname */
+/**
+ * @param {string} pathname
+ * @returns {RoutePath | undefined}
+ */
 export function resolvePath(pathname) {
   const path = canonicalPath(pathname);
 
-  return path in routes ? path : undefined;
+  return path in routes ? /** @type {RoutePath} */ (path) : undefined;
 }
 
-/** @param {string} pathname */
+/**
+ * @param {string} pathname
+ * @returns {RoutePath}
+ */
 export function normalizePath(pathname) {
   return resolvePath(pathname) ?? "/";
 }
 
-/** @param {string} pathname */
+/** @param {RoutePath} pathname */
 export function createRoutePage(pathname) {
   return routes[pathname]();
 }

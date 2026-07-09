@@ -18,6 +18,8 @@ ALWAYS
 - light (memory)
 - KISS
 - DRY
+- lean
+- YAGNI
 - very well organized
 - contained
 - colocated

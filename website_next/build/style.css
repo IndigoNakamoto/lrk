@@ -1,4 +1,4 @@
-main.build {
+main[data-page="build"] {
   display: grid;
   place-items: center;
   font-size: 4rem;

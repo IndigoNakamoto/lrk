@@ -1,18 +1,21 @@
 import { createHeader } from "./header/index.js";
 import { createRoutePage, normalizePath, resolvePath } from "./routes.js";
+import "./utils/press.js";
 import { getEventAnchor, isPlainLeftClick } from "./utils/event.js";
 import { revealPage, transitionPage } from "./utils/transition.js";
+
+/** @typedef {import("./routes.js").RoutePath} RoutePath */
 
 /** @type {HTMLElement | undefined} */
 let currentPage;
 
-/** @type {Map<string, HTMLElement>} */
+/** @type {Map<RoutePath, HTMLElement>} */
 const pageByPath = new Map();
 
 const header = createHeader();
 document.body.append(header);
 
-/** @param {string} pathname */
+/** @param {RoutePath} pathname */
 function getPage(pathname) {
   let page = pageByPath.get(pathname);
 

@@ -1,5 +1,23 @@
-main.explore {
+main[data-page="explore"] {
+  --explore-max-width: 80rem;
+  --explore-gap: 2rem;
+  --chain-width: calc(4.5rem * sqrt(3));
+
   display: grid;
-  place-items: center;
-  font-size: 4rem;
+  grid-template-columns: var(--chain-width) minmax(0, 1fr);
+  gap: var(--explore-gap);
+  width: min(100%, var(--explore-max-width));
+  height: 100dvh;
+  margin-inline: auto;
+  overflow: hidden;
+  padding: 0;
+}
+
+@media (max-width: 48rem) {
+  main[data-page="explore"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+  }
 }

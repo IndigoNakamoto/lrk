@@ -1,4 +1,4 @@
-main.wallets {
+main[data-page="wallets"] {
   --offset: 4rem;
   --content-width: 72rem;
 
@@ -20,7 +20,7 @@ main.wallets {
     line-height: var(--line-height-sm);
   }
 
-  .results {
+  [data-wallet="results"] {
     min-width: 0;
   }
 

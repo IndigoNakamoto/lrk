@@ -17,7 +17,7 @@ import {
   totalSeries,
   typeSeries,
 } from "../utxo-set.js";
-import { units } from "../../charts/units.js";
+import { units } from "../../../chart/units.js";
 
 const line = /** @type {const} */ ("line");
 

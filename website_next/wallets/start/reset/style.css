@@ -1,6 +1,6 @@
-main.wallets {
-  .start {
-    .reset {
+main[data-page="wallets"] {
+  [data-wallet="start"] {
+    [data-variant="reset"] {
       justify-self: start;
       width: 100%;
     }

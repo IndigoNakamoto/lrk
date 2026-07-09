@@ -1,4 +1,4 @@
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 import { formatNumber } from "../../format.js";
 import { redaction } from "../../redaction/index.js";
 
@@ -10,7 +10,7 @@ import { redaction } from "../../redaction/index.js";
  * @param {string} text
  */
 export function createGroupedAddress(text) {
-  const element = createElement("code", "address");
+  const element = createWalletPart("code", "address");
   const groups = text.match(/.{1,4}/g) ?? [];
 
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
@@ -65,7 +65,7 @@ function createAddressBadge(row) {
  * @param {WalletAddress} row
  */
 export function createAddressCellContent(row) {
-  const element = createElement("div", "address-cell");
+  const element = createWalletPart("div", "address-cell");
   const anonSet = document.createElement("small");
 
   anonSet.append(`anon set: ${formatNumber(row.historyBucketSize)}`);

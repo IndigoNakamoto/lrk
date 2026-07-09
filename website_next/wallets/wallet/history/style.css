@@ -1,5 +1,5 @@
-main.wallets {
-  .activity {
+main[data-page="wallets"] {
+  [data-wallet="activity"] {
     display: grid;
     gap: 1.25rem;
 
@@ -10,14 +10,14 @@ main.wallets {
     h2 {
       color: var(--white);
       font-size: var(--font-size-lg);
-      font-weight: 400;
+      font-weight: var(--font-weight-regular);
       line-height: var(--line-height-lg);
     }
 
     h3 {
       color: var(--gray);
       font-size: var(--font-size-xs);
-      font-weight: 400;
+      font-weight: var(--font-weight-regular);
       line-height: var(--line-height-xs);
       text-transform: uppercase;
     }
@@ -68,18 +68,18 @@ main.wallets {
 
                 strong {
                   color: var(--white);
-                  font-weight: 500;
+                  font-weight: var(--font-weight-strong);
                 }
 
                 > span {
                   color: var(--white);
                   white-space: nowrap;
 
-                  &.positive {
+                  &[data-tone="positive"] {
                     color: var(--green);
                   }
 
-                  &.negative {
+                  &[data-tone="negative"] {
                     color: var(--red);
                   }
                 }

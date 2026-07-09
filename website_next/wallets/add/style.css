@@ -1,5 +1,5 @@
-main.wallets {
-  .add {
+main[data-page="wallets"] {
+  [data-wallet="add"] {
     display: grid;
     gap: 1.25rem;
 

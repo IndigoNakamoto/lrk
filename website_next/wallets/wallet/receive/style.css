@@ -1,5 +1,5 @@
-main.wallets {
-  dialog.receive {
+main[data-page="wallets"] {
+  dialog[data-wallet="receive"] {
     width: min(100% - 2rem, 32rem);
 
     > article {
@@ -9,7 +9,7 @@ main.wallets {
       > h2 {
         margin: 0;
         font-size: var(--font-size-lg);
-        font-weight: 400;
+        font-weight: var(--font-weight-regular);
         line-height: var(--line-height-lg);
       }
 

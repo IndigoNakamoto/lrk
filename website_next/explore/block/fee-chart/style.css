@@ -1,0 +1,5 @@
+#block-details section[data-group="fees"] {
+  figure[data-fee-chart] {
+    --chart-xy-height: 7.5rem;
+  }
+}

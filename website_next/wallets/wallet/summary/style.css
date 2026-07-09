@@ -1,5 +1,5 @@
-main.wallets {
-  .summary {
+main[data-page="wallets"] {
+  [data-wallet="summary"] {
     display: flex;
     gap: 1rem;
     align-items: end;
@@ -25,7 +25,7 @@ main.wallets {
         overflow-wrap: anywhere;
         color: var(--white);
         font-size: 4rem;
-        font-weight: 400;
+        font-weight: var(--font-weight-regular);
         line-height: 1;
       }
 

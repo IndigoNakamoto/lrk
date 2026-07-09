@@ -1,5 +1,5 @@
 import { createBtcAmount } from "../../amount/index.js";
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 import { formatNumber } from "../../format.js";
 import { createAddressCellContent } from "../address/index.js";
 
@@ -31,7 +31,7 @@ function createAddressRow(address) {
  * @param {readonly WalletAddress[]} addresses
  */
 function renderAddresses(panel, addresses) {
-  const section = createElement("section", "addresses");
+  const section = createWalletPart("section", "addresses");
   const title = document.createElement("h2");
   const list = document.createElement("ol");
 

@@ -1,30 +1,12 @@
-import * as leanQr from "../../../modules/lean-qr/2.7.1/index.mjs";
+import { createQrDataUrl } from "../../../qr/index.js";
+import { openDialog } from "../../../dialog/index.js";
 import { createGroupedAddress } from "../address/index.js";
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 import { formatNumber } from "../../format.js";
 
 /**
  * @typedef {import("../../scan/index.js").WalletAddress} ReceiveAddress
  */
-
-/**
- * @typedef {Object} QrCode
- * @property {(options?: { scale?: number }) => string} toDataURL
- */
-
-const generateQr =
-  /** @type {(value: string) => QrCode | undefined} */ (
-    /** @type {unknown} */ (leanQr.generate)
-  );
-
-/**
- * @param {string} value
- */
-function createQrDataUrl(value) {
-  const qr = generateQr(value);
-
-  return qr?.toDataURL({ scale: 8 }) ?? "";
-}
 
 /**
  * @param {ReceiveAddress} receiveAddress
@@ -47,7 +29,7 @@ function createReceiveQr(receiveAddress) {
   const uri = `bitcoin:${receiveAddress.address}`;
 
   image.alt = `QR code for ${receiveAddress.address}`;
-  image.src = createQrDataUrl(uri);
+  image.src = createQrDataUrl(uri, { scale: 8 });
 
   return image;
 }
@@ -77,7 +59,7 @@ async function copyReceiveAddress(receiveAddress, copy) {
  * @param {ReceiveAddress} receiveAddress
  */
 function openReceiveDialog(host, receiveAddress) {
-  const dialog = createElement("dialog", "receive");
+  const dialog = createWalletPart("dialog", "receive");
   const content = document.createElement("article");
   const actions = document.createElement("footer");
   const copy = document.createElement("button");
@@ -98,22 +80,13 @@ function openReceiveDialog(host, receiveAddress) {
     actions,
   );
   dialog.append(content);
-  host.append(dialog);
 
   copy.addEventListener("click", () => {
     void copyReceiveAddress(receiveAddress, copy).catch(() => {
       copy.textContent = "Copy failed";
     });
   });
-  dialog.addEventListener("close", () => {
-    dialog.remove();
-  });
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) {
-      dialog.close();
-    }
-  });
-  dialog.showModal();
+  openDialog(dialog, host);
 }
 
 /**

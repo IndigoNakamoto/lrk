@@ -132,6 +132,7 @@ function toggle(button) {
 export const redaction = /** @type {const} */ ({
   isHidden,
   createText,
+  addEffect,
   setValue,
   setTitle,
   setAddress,

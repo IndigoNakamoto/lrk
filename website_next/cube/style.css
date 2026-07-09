@@ -1,9 +1,8 @@
-.cube {
+[data-cube="mark"] {
   --size: 1rem;
-  --iso-scale: calc(sqrt(3) / 2);
   --empty-alpha: 0.4;
   --step: 0.033;
-  --width: calc(var(--size) * 2 * var(--iso-scale));
+  --width: calc(var(--size) * sqrt(3));
   --height: calc(var(--size) * 2);
   --face-base: currentColor;
   --face-top: var(--face-base);
@@ -17,84 +16,52 @@
   flex-shrink: 0;
   width: var(--width);
   height: var(--height);
-  overflow: visible;
+  overflow: hidden;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 
-  .face {
+  [data-face] {
     position: absolute;
-    transform-origin: 0 0;
-    width: var(--size);
-    height: var(--size);
-    transform: translateY(50%) var(--orient)
-      translate(calc(var(--size) * var(--x)), calc(var(--size) * var(--y)))
-      scale(var(--scale-x, 1), var(--scale-y));
+    inset: 0;
   }
 
-  .liquid {
+  [data-role="liquid"] {
     background: var(--face-color);
+    transform: translateY(calc((1 - var(--fill)) * 50%));
     opacity: calc(1 - var(--is-empty));
-    --scale-y: calc(var(--iso-scale) * var(--fill));
-    --stack-shift: calc(var(--iso-scale) * (1 - var(--fill)));
   }
 
-  .glass {
+  [data-role="glass"] {
     background: oklch(from var(--face-color) l c h / var(--empty-alpha));
-    --scale-y: calc(var(--iso-scale) * (1 - var(--fill)));
-    --stack-shift: 0;
   }
 
-  .front {
-    &.top,
-    &.bottom {
-      --orient: rotate(30deg) skewX(-30deg);
-      --scale-y: var(--iso-scale);
-    }
-
-    &.right {
-      --orient: rotate(-30deg) skewX(-30deg);
-      --face-color: var(--face-right);
-      --x: 1;
-      --y: calc(var(--stack-shift) + var(--iso-scale));
-    }
-
-    &.left {
-      --orient: rotate(30deg) skewX(30deg);
-      --face-color: var(--face-left);
-      --x: 0;
-      --y: var(--stack-shift);
-    }
-
-    &.top {
-      --face-color: var(--face-top);
-      --x: 0;
-      --y: calc(var(--stack-shift) - var(--iso-scale));
-    }
-
-    &.bottom {
-      --face-color: var(--face-bottom);
-      --x: 1;
-      --y: 0;
-    }
+  [data-side="bottom"] {
+    --face-color: var(--face-bottom);
+    clip-path: polygon(50% 50%, 100% 75%, 50% 100%, 0 75%);
   }
 
-  .rear {
-    &.right {
-      --orient: rotate(30deg) skewX(30deg);
-      --face-color: var(--face-left);
-      --x: 1;
-      --y: calc(var(--stack-shift) - var(--iso-scale));
-    }
-
-    &.left {
-      --orient: rotate(-30deg) skewX(-30deg);
-      --face-color: var(--face-top);
-      --x: 1;
-      --y: var(--stack-shift);
-      --scale-x: -1;
-    }
+  [data-side="top"] {
+    --face-color: var(--face-top);
+    clip-path: polygon(50% 0, 100% 25%, 50% 50%, 0 25%);
   }
 
-  .liquid.front.top {
-    --x: calc(1 - var(--fill));
+  [data-side="right"] {
+    --face-color: var(--face-right);
+    clip-path: polygon(100% 25%, 100% 75%, 50% 100%, 50% 50%);
+  }
+
+  [data-side="left"] {
+    --face-color: var(--face-left);
+    clip-path: polygon(0 25%, 50% 50%, 50% 100%, 0 75%);
+  }
+
+  [data-side="rear-right"] {
+    --face-color: var(--face-left);
+    clip-path: polygon(50% 50%, 100% 75%, 100% 25%, 50% 0);
+  }
+
+  [data-side="rear-left"] {
+    --face-color: var(--face-top);
+    clip-path: polygon(50% 50%, 0 75%, 0 25%, 50% 0);
   }
 }
 

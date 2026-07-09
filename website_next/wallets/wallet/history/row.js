@@ -61,10 +61,10 @@ export function createTransactionRow(transaction) {
 
   label.append(typeLabels[transaction.type]);
   if (transaction.amount > 0) {
-    amount.classList.add("positive");
+    amount.dataset.tone = "positive";
   }
   if (transaction.amount < 0) {
-    amount.classList.add("negative");
+    amount.dataset.tone = "negative";
   }
   redaction.setTitle(txid, transaction.txid);
   redaction.setValue(txid, formatTxid(transaction.txid));

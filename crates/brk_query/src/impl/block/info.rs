@@ -209,6 +209,7 @@ impl Query {
         let computer = self.computer();
         let reader = self.reader();
         let all_pools = pools_for_chain(indexer.chain);
+        let pool_heights = computer.pools.pool_heights.read();
 
         // Bulk read all indexed data
         let blockhashes = indexer.vecs.blocks.blockhash.collect_range_at(begin, end);
@@ -399,6 +400,11 @@ impl Query {
 
             let pool_slug = pool_slugs[i];
             let pool = all_pools.get(pool_slug);
+            let height = begin + i;
+            let block_number = pool_heights
+                .get(&pool_slug)
+                .map(|heights| heights.partition_point(|h| h.to_usize() <= height) as u64)
+                .unwrap_or(0);
 
             let miner_names = if pool_slug == PoolSlug::Ocean {
                 Self::parse_datum_miner_names(&scriptsig_bytes)
@@ -411,7 +417,7 @@ impl Query {
 
             let info = BlockInfo {
                 id: blockhashes[i],
-                height: Height::from(begin + i),
+                height: Height::from(height),
                 version: header.version,
                 timestamp: timestamps[i],
                 bits: header.bits,
@@ -445,6 +451,7 @@ impl Query {
                     id: pool.mempool_unique_id(),
                     name: pool.name.to_string(),
                     slug: pool_slug,
+                    block_number,
                     miner_names,
                 },
                 avg_fee: Sats::from(total_fees_u64.checked_div(non_coinbase).unwrap_or(0)),

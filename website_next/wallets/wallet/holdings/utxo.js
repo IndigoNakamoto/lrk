@@ -1,3 +1,5 @@
+import { readNumber, readObject, readString } from "../../read.js";
+
 /**
  * @typedef {import("../../scan/index.js").WalletAddress} WalletAddress
  *
@@ -8,31 +10,6 @@
  * @property {number} value
  * @property {boolean} confirmed
  */
-
-/**
- * @param {unknown} value
- */
-function readObject(value) {
-  return value && typeof value === "object"
-    ? /** @type {Record<string, unknown>} */ (value)
-    : undefined;
-}
-
-/**
- * @param {unknown} value
- */
-function readNumber(value) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-/**
- * @param {unknown} value
- */
-function readString(value) {
-  return typeof value === "string" ? value : undefined;
-}
 
 /**
  * @param {unknown} utxo

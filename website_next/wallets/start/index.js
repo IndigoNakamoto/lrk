@@ -1,4 +1,4 @@
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 import { createPersistentVault } from "./persistent.js";
 import { createStartStory } from "./story.js";
 import { createTemporaryVault } from "./temporary.js";
@@ -15,12 +15,11 @@ import { createTemporaryVault } from "./temporary.js";
  * @property {() => void} [onReset]
  */
 
-
 /**
  * @param {StartOptions} options
  */
 export function createStart(options) {
-  const section = createElement("section", "start");
+  const section = createWalletPart("section", "start");
   const modes = document.createElement("div");
   const divider = document.createElement("p");
   const persistent = createPersistentVault({

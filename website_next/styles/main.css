@@ -12,6 +12,17 @@ body > main {
   color: var(--white);
 }
 
+a,
+button,
+input,
+label,
+select,
+summary,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
 button,
 input,
 select,
@@ -41,14 +52,22 @@ button,
   background: var(--button-background);
   text-decoration: none;
   text-transform: uppercase;
+  -webkit-user-select: none;
+  user-select: none;
   cursor: pointer;
 
-  &:hover {
-    background: var(--button-hover-background);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--button-hover-background);
+    }
   }
 
   &:active {
     background: var(--button-active-background);
+  }
+
+  &[data-press] {
+    background: var(--button-hover-background);
   }
 
   &:disabled {
@@ -64,14 +83,21 @@ textarea {
   color: var(--field-color);
   background: transparent;
 
-  &:hover {
-    border-color: var(--field-color);
-    color: var(--field-color);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--field-color);
+      color: var(--field-color);
+    }
   }
 
   &:active {
     border-color: var(--field-active-color);
     color: var(--field-active-color);
+  }
+
+  &[data-press] {
+    border-color: var(--field-color);
+    color: var(--field-color);
   }
 
   &[aria-invalid="true"] {

@@ -79,8 +79,25 @@ async fn main() -> std::io::Result<()> {
         ))
         .layer(CorsLayer::permissive());
 
-    let port = 3111;
-    let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    let mut last_error = None;
+    let (port, listener) = {
+        let mut bound = None;
+
+        for port in [3110, 3111] {
+            match TcpListener::bind(("0.0.0.0", port)).await {
+                Ok(listener) => {
+                    bound = Some((port, listener));
+                    break;
+                }
+                Err(error) => {
+                    info!(port, ?error, "website server port unavailable");
+                    last_error = Some(error);
+                }
+            }
+        }
+
+        bound.ok_or_else(|| last_error.expect("at least one port was attempted"))?
+    };
 
     info!("website server listening on port {port}");
 

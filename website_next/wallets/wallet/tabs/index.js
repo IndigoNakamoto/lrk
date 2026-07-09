@@ -1,4 +1,4 @@
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 
 /**
  * @typedef {Object} WalletTab
@@ -36,7 +36,7 @@ function setupTabPanel(tab) {
  * @param {readonly WalletTab[]} tabs
  */
 export function createWalletTabs(tabs) {
-  const element = createElement("section", "tabs");
+  const element = createWalletPart("section", "tabs");
   const nav = document.createElement("nav");
   const panels = document.createElement("div");
   const buttons = tabs.map(createTabButton);

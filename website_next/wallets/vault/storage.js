@@ -1,3 +1,4 @@
+import { readArray, readObject } from "../read.js";
 import { encryption } from "./encryption.js";
 
 const STORAGE_KEY = "litview.wallets.v3";
@@ -31,9 +32,9 @@ const STORAGE_KEY = "litview.wallets.v3";
  * @returns {EncryptedSecret | undefined}
  */
 function readEncryptedVault(value) {
-  return value && typeof value === "object"
-    ? /** @type {EncryptedSecret} */ (value)
-    : undefined;
+  const vault = readObject(value);
+
+  return vault ? /** @type {EncryptedSecret} */ (vault) : undefined;
 }
 
 /**
@@ -41,13 +42,9 @@ function readEncryptedVault(value) {
  * @returns {WalletVault}
  */
 function readVault(value) {
-  if (!value || typeof value !== "object" || !("wallets" in value)) {
-    return { wallets: [] };
-  }
-
-  return Array.isArray(value.wallets)
-    ? /** @type {WalletVault} */ (value)
-    : { wallets: [] };
+  return {
+    wallets: /** @type {StoredWallet[]} */ (readArray(value, "wallets")),
+  };
 }
 
 function createWalletId() {

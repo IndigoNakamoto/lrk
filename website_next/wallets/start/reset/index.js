@@ -7,7 +7,7 @@ export function createResetButton(onReset) {
   return createHoldButton({
     label: "Reset vault",
     title: "Hold to reset",
-    className: "reset",
+    variant: "reset",
     onHold: onReset,
   });
 }

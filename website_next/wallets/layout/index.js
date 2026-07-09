@@ -1,4 +1,4 @@
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 
 /**
  * @typedef {Object} WalletsLayout
@@ -16,15 +16,16 @@ import { createElement } from "../dom.js";
  * @returns {WalletsLayout}
  */
 export function createLayout() {
-  const main = createElement("main", "wallets");
+  const main = document.createElement("main");
   const utilities = document.createElement("footer");
   const privacyButton = document.createElement("button");
   const sessionButton = document.createElement("button");
-  const selector = createElement("section", "selector");
+  const selector = createWalletPart("section", "selector");
   const walletList = document.createElement("nav");
   const content = document.createElement("article");
   const addDialog = document.createElement("dialog");
 
+  main.dataset.page = "wallets";
   privacyButton.type = "button";
   sessionButton.type = "button";
   sessionButton.append("Lock");

@@ -1,16 +1,8 @@
-import { createCube } from "../cube/index.js";
+import { createBrand } from "../brand/index.js";
 
 export function createHeader() {
   const header = document.createElement("header");
 
-  const home = document.createElement("a");
-  const cube = document.createElement("span");
-
-  home.href = "/";
-  home.setAttribute("aria-label", "litview home");
-  cube.append(createCube());
-  home.append(cube, "litview");
-
-  header.append(home);
+  header.append(createBrand({ href: "/" }));
   return header;
 }

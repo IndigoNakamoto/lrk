@@ -13,7 +13,7 @@ import {
   stateSeries,
   typeSeries,
 } from "../address-count.js";
-import { units } from "../../charts/units.js";
+import { units } from "../../../chart/units.js";
 
 const line = /** @type {const} */ ("line");
 

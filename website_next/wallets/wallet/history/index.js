@@ -1,4 +1,4 @@
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 import { historyCache } from "./cache.js";
 import { createTransactionSection } from "./section.js";
 
@@ -29,7 +29,7 @@ function groupTransactionsByDate(transactions) {
  * @param {readonly WalletTransaction[]} transactions
  */
 function renderHistory(element, transactions) {
-  const activity = createElement("section", "activity");
+  const activity = createWalletPart("section", "activity");
   const title = document.createElement("h2");
   const groups = groupTransactionsByDate(transactions);
 

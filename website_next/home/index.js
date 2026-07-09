@@ -7,7 +7,7 @@ const links = [
 
 export function createHomePage() {
   const main = document.createElement("main");
-  main.className = "home";
+  main.dataset.page = "home";
 
   const title = document.createElement("h1");
   const nav = document.createElement("nav");

@@ -1,5 +1,5 @@
-main.wallets {
-  .empty {
+main[data-page="wallets"] {
+  [data-wallet="empty"] {
     display: grid;
     gap: 1rem;
     place-content: center;
@@ -9,7 +9,7 @@ main.wallets {
     h1 {
       margin: 0;
       font-size: 4rem;
-      font-weight: 400;
+      font-weight: var(--font-weight-regular);
       line-height: 1;
     }
 

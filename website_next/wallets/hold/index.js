@@ -1,4 +1,4 @@
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 
 const FILL_MS = 2_000;
 const DRAIN_MS = 600;
@@ -24,7 +24,7 @@ function bindHold(button, onHold) {
   function render() {
     button.style.setProperty("--hold-progress", String(progress));
     button.style.setProperty("--hold-progress-width", `${progress * 100}%`);
-    button.classList.toggle("active", progress > 0);
+    button.toggleAttribute("data-active", progress > 0);
   }
 
   function stop() {
@@ -49,7 +49,7 @@ function bindHold(button, onHold) {
       stop();
       holding = false;
       progress = 0;
-      button.classList.remove("holding");
+      button.removeAttribute("data-holding");
       render();
       onHold();
       return;
@@ -74,7 +74,7 @@ function bindHold(button, onHold) {
     if (!holding) return;
 
     holding = false;
-    button.classList.remove("holding");
+    button.removeAttribute("data-holding");
     run();
   }
 
@@ -82,7 +82,7 @@ function bindHold(button, onHold) {
     stop();
 
     holding = true;
-    button.classList.add("holding");
+    button.dataset.holding = "";
     run();
   }
 
@@ -115,16 +115,14 @@ function bindHold(button, onHold) {
  * @param {Object} options
  * @param {string} options.label
  * @param {string} options.title
- * @param {string} [options.className]
+ * @param {string} [options.variant]
  * @param {() => void} options.onHold
  */
 export function createHoldButton(options) {
-  const button = createElement("button", "hold");
+  const button = createWalletPart("button", "hold");
   const label = document.createElement("span");
 
-  if (options.className) {
-    button.classList.add(options.className);
-  }
+  if (options.variant) button.dataset.variant = options.variant;
   button.type = "button";
   button.dataset.label = options.label;
   button.title = options.title;

@@ -18,7 +18,6 @@ import {
 } from "./wallet/index.js";
 import { createVault } from "./vault/index.js";
 import { generateAddressesFromWalletSource } from "./derive/index.js";
-import { syncBtcAmounts } from "./amount/index.js";
 
 /**
  * @typedef {import("./scan/index.js").WalletScan} WalletScan
@@ -106,7 +105,6 @@ export function createWalletsPage() {
 
   privacyButton.addEventListener("click", () => {
     redaction.toggle(privacyButton);
-    syncBtcAmounts();
   });
 
   sessionButton.addEventListener("click", () => {

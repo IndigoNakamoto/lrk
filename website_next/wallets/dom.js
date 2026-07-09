@@ -1,12 +1,12 @@
 /**
  * @template {keyof HTMLElementTagNameMap} Tag
  * @param {Tag} tag
- * @param {string} className
+ * @param {string} part
  */
-export function createElement(tag, className) {
+export function createWalletPart(tag, part) {
   const element = document.createElement(tag);
 
-  element.className = className;
+  element.dataset.wallet = part;
 
   return element;
 }

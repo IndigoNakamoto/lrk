@@ -1,5 +1,5 @@
-main.wallets {
-  .holdings {
+main[data-page="wallets"] {
+  [data-wallet="holdings"] {
     display: grid;
     gap: 1rem;
 
@@ -10,7 +10,7 @@ main.wallets {
     h2 {
       color: var(--white);
       font-size: var(--font-size-lg);
-      font-weight: 400;
+      font-weight: var(--font-weight-regular);
       line-height: var(--line-height-lg);
     }
 
@@ -52,7 +52,7 @@ main.wallets {
 
           strong {
             color: var(--white);
-            font-weight: 500;
+            font-weight: var(--font-weight-strong);
           }
         }
 
@@ -68,7 +68,7 @@ main.wallets {
           }
         }
 
-        > .address-cell {
+        > [data-wallet="address-cell"] {
           grid-column: 1 / -1;
         }
       }

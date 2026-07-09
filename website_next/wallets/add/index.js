@@ -1,5 +1,5 @@
 import { createField } from "../form/index.js";
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 import { redaction } from "../redaction/index.js";
 
 /**
@@ -34,7 +34,7 @@ function createSourceInput() {
  * @param {AddWalletFormOptions} options
  */
 export function createAddForm(options) {
-  const form = createElement("form", "add");
+  const form = createWalletPart("form", "add");
   const title = document.createElement("h2");
   const description = document.createElement("p");
   const name = document.createElement("input");

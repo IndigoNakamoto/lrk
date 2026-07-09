@@ -1,5 +1,5 @@
-main.wallets {
-  .selector {
+main[data-page="wallets"] {
+  [data-wallet="selector"] {
     min-width: 0;
 
     > nav {
@@ -18,16 +18,18 @@ main.wallets {
         background: var(--gray);
         color: var(--white);
         font-size: var(--font-size-lg);
-        font-weight: 400;
+        font-weight: var(--font-weight-regular);
         line-height: 1;
 
         @media (max-width: 56rem) {
           font-size: var(--font-size-base);
         }
 
-        &:hover {
-          color: var(--black);
-          background: var(--white);
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            color: var(--black);
+            background: var(--white);
+          }
         }
 
         &:active {
@@ -35,17 +37,33 @@ main.wallets {
           background: var(--orange);
         }
 
+        &[data-press] {
+          color: var(--black);
+          background: var(--white);
+        }
+
         &[aria-pressed="true"] {
           color: var(--black);
           background: var(--white);
         }
 
-        &.delete {
+        &[data-variant="delete"] {
           color: color-mix(in oklch, var(--gray) 76%, transparent);
           background: transparent;
 
-          &:hover,
+          @media (hover: hover) and (pointer: fine) {
+            &:hover {
+              color: var(--red);
+              background: transparent;
+            }
+          }
+
           &:active {
+            color: var(--red);
+            background: transparent;
+          }
+
+          &[data-press] {
             color: var(--red);
             background: transparent;
           }

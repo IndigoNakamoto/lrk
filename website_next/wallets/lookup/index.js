@@ -16,6 +16,7 @@ const LOOKUP_CONCURRENCY = 8;
 
 /**
  * @typedef {import("./stats.js").AddressStats} AddressStats
+ * @typedef {import("./bucket.js").AddrHashPrefixMatches} AddrHashPrefixMatches
  */
 
 /**
@@ -37,8 +38,8 @@ const LOOKUP_CONCURRENCY = 8;
 /**
  * @typedef {Object} AddressClient
  * @property {string} domain
- * @property {(address: string, options?: { cache?: boolean }) => Promise<unknown>} getAddress
- * @property {(addrType: AddressType, prefix: string, options?: { cache?: boolean }) => Promise<unknown>} getAddressHashPrefixMatches
+ * @property {(address: string, options?: { cache?: boolean }) => Promise<AddressStats>} getAddress
+ * @property {(addrType: AddressType, payload: Uint8Array, nibbles: number, options?: { cache?: boolean }) => Promise<AddrHashPrefixMatches>} getAddressPayloadHashPrefixMatches
  */
 
 /**
@@ -107,22 +108,29 @@ function isNotFound(error) {
 
 /**
  * @param {AddressClient} client
+ * @param {string} address
+ * @param {Map<string, Promise<AddressStats>>} cache
+ */
+function getBucketMetadata(client, address, cache) {
+  let metadata = cache.get(address);
+
+  if (!metadata) {
+    metadata = client.getAddress(address, { cache: false });
+    cache.set(address, metadata);
+  }
+
+  return metadata;
+}
+
+/**
+ * @param {AddressClient} client
  * @param {readonly string[]} addresses
  * @param {Map<string, Promise<AddressStats>>} cache
  */
 async function fetchBucketMetadata(client, addresses, cache) {
-  for (const address of addresses) {
-    if (!cache.has(address)) {
-      cache.set(
-        address,
-        client.getAddress(address, { cache: false }).then(
-          (stats) => /** @type {AddressStats} */ (stats),
-        ),
-      );
-    }
-  }
-
-  await Promise.all(addresses.map((address) => cache.get(address)));
+  await Promise.all(
+    addresses.map((address) => getBucketMetadata(client, address, cache)),
+  );
 }
 
 /**
@@ -132,9 +140,7 @@ async function fetchBucketMetadata(client, addresses, cache) {
  */
 async function fetchDirectWalletAddress(client, generated) {
   try {
-    const stats = /** @type {AddressStats} */ (
-      await client.getAddress(generated.address, { cache: false })
-    );
+    const stats = await client.getAddress(generated.address, { cache: false });
     const historyAddresses =
       getAddressTxCount(stats) > 0 ? [generated.address] : [];
 
@@ -163,18 +169,18 @@ async function fetchWalletAddress(client, generated, metadataCache) {
 
   await fetchBucketMetadata(client, matches.addresses, metadataCache);
 
-  const stats = await metadataCache.get(generated.address);
-
-  if (!stats) {
-    return createEmptyWalletAddress(generated);
-  }
+  const stats = await getBucketMetadata(
+    client,
+    generated.address,
+    metadataCache,
+  );
 
   const historyAddresses = [];
 
   for (const address of matches.addresses) {
-    const bucketStats = await metadataCache.get(address);
+    const bucketStats = await getBucketMetadata(client, address, metadataCache);
 
-    if (bucketStats && getAddressTxCount(bucketStats) > 0) {
+    if (getAddressTxCount(bucketStats) > 0) {
       historyAddresses.push(address);
     }
   }

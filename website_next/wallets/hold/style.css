@@ -1,5 +1,5 @@
-main.wallets {
-  .hold {
+main[data-page="wallets"] {
+  [data-wallet="hold"] {
     position: relative;
     isolation: isolate;
     overflow: hidden;
@@ -39,17 +39,24 @@ main.wallets {
       color: inherit;
     }
 
-    &:is(:hover, :focus-visible, :active):not(.holding) {
+    @media (hover: hover) and (pointer: fine) {
+      &:hover:not([data-holding]) {
+        color: var(--red);
+        background: transparent;
+      }
+    }
+
+    &:is(:focus-visible, :active, [data-press]):not([data-holding]) {
       color: var(--red);
       background: transparent;
     }
 
-    &.active {
+    &[data-active] {
       color: var(--red);
     }
 
-    &.active::before,
-    &.active::after {
+    &[data-active]::before,
+    &[data-active]::after {
       opacity: 1;
     }
   }

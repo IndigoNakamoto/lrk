@@ -1,4 +1,4 @@
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 import { createAddressesTab } from "./addresses/index.js";
 import { createHistoryTab } from "./history/index.js";
 import { createHoldingsTab } from "./holdings/index.js";
@@ -21,9 +21,9 @@ import { createWalletTabs } from "./tabs/index.js";
  * @returns {WalletPanel}
  */
 export function createWalletPanel() {
-  const summary = createElement("section", "summary");
+  const summary = createWalletPart("section", "summary");
   const status = document.createElement("output");
-  const results = createElement("section", "results");
+  const results = createWalletPart("section", "results");
 
   summary.setAttribute("aria-label", "Wallets summary");
   results.setAttribute("aria-label", "Wallets results");

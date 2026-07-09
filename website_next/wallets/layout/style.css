@@ -1,4 +1,4 @@
-main.wallets {
+main[data-page="wallets"] {
   > footer {
     position: fixed;
     right: var(--page-x);

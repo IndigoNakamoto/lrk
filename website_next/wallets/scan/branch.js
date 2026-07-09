@@ -1,5 +1,6 @@
 import { fetchWalletAddresses } from "../lookup/index.js";
 import { generateAddressesFromWalletSource } from "../derive/index.js";
+import { isUsedAddress } from "./activity.js";
 
 export const GAP_LIMIT = 10;
 
@@ -8,15 +9,8 @@ const MAX_SCANNED_ADDRESSES = 1_000;
 
 /**
  * @typedef {import("../derive/address.js").AddressScript} AddressScript
- * @typedef {import("../derive/index.js").AddressType} AddressType
+ * @typedef {import("../lookup/index.js").AddressClient} AddressClient
  * @typedef {import("../lookup/index.js").WalletAddress} WalletAddress
- */
-
-/**
- * @typedef {Object} AddressClient
- * @property {string} domain
- * @property {(address: string, options?: { cache?: boolean }) => Promise<unknown>} getAddress
- * @property {(addrType: AddressType, prefix: string, options?: { cache?: boolean }) => Promise<unknown>} getAddressHashPrefixMatches
  */
 
 /**
@@ -40,13 +34,6 @@ const MAX_SCANNED_ADDRESSES = 1_000;
  * @property {number} gapLimit
  * @property {boolean} maxed
  */
-
-/**
- * @param {WalletAddress} address
- */
-function isUsedAddress(address) {
-  return address.received > 0 || address.sent > 0 || address.txCount > 0;
-}
 
 /**
  * @param {AddressClient} client

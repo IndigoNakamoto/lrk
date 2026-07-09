@@ -1,4 +1,4 @@
-main.learn {
+main[data-page="learn"] {
   --offset: 4rem;
   --content-width: 52rem;
   --heading-padding-bottom: 0.5rem;
@@ -115,18 +115,31 @@ main.learn {
             text-decoration: none;
           }
 
-          &:hover::before {
-            opacity: 0.5;
-          }
+          @media (hover: hover) and (pointer: fine) {
+            &:hover::before {
+              opacity: 0.5;
+            }
 
-          &:hover {
-            text-decoration: underline;
-            text-decoration-thickness: 1px;
-            text-underline-offset: 0.125em;
+            &:hover {
+              text-decoration: underline;
+              text-decoration-thickness: 1px;
+              text-underline-offset: 0.125em;
+            }
           }
 
           &:active {
             color: var(--orange);
+          }
+
+          &[data-press]::before {
+            opacity: 0.5;
+          }
+
+          &[data-press] {
+            color: var(--white);
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 0.125em;
           }
         }
       }

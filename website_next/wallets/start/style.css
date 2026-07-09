@@ -1,5 +1,5 @@
-main.wallets {
-  .start {
+main[data-page="wallets"] {
+  [data-wallet="start"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(19rem, 26rem);
     gap: 4rem;
@@ -24,7 +24,7 @@ main.wallets {
     h1 {
       margin: 0;
       font-size: 4.5rem;
-      font-weight: 400;
+      font-weight: var(--font-weight-regular);
       line-height: 0.95;
 
       span {
@@ -126,7 +126,7 @@ main.wallets {
         color: var(--white);
         font-family: var(--font-mono);
         font-size: var(--font-size-sm);
-        font-weight: 400;
+        font-weight: var(--font-weight-regular);
         line-height: var(--line-height-sm);
       }
 

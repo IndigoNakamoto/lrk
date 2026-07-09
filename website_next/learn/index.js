@@ -1,6 +1,6 @@
 import { createContents } from "./contents/index.js";
 import { sections } from "./data/index.js";
-import { createChart } from "./charts/index.js";
+import { createChart } from "../chart/index.js";
 import { initSectionDetails } from "./details.js";
 import { initHashLinks } from "./hash-links.js";
 import { initScrollSpy } from "./scroll-spy.js";
@@ -50,7 +50,7 @@ function createSection(section, path = []) {
 
 export function createLearnPage() {
   const main = document.createElement("main");
-  main.className = "learn";
+  main.dataset.page = "learn";
   const article = document.createElement("article");
 
   for (const section of sections) {

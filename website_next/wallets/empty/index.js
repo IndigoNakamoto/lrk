@@ -1,4 +1,4 @@
-import { createElement } from "../dom.js";
+import { createWalletPart } from "../dom.js";
 
 /**
  * @typedef {Object} EmptyOptions
@@ -10,7 +10,7 @@ import { createElement } from "../dom.js";
  * @param {EmptyOptions} options
  */
 export function createEmpty(options) {
-  const empty = createElement("section", "empty");
+  const empty = createWalletPart("section", "empty");
   const title = document.createElement("h1");
   const text = document.createElement("p");
   const actions = document.createElement("menu");

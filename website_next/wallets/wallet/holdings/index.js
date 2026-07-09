@@ -1,5 +1,5 @@
 import { createBtcAmount } from "../../amount/index.js";
-import { createElement } from "../../dom.js";
+import { createWalletPart } from "../../dom.js";
 import { redaction } from "../../redaction/index.js";
 import { createAddressCellContent } from "../address/index.js";
 import { utxoCache } from "./cache.js";
@@ -75,7 +75,7 @@ async function loadWalletUtxos(client, addresses) {
  * @param {readonly WalletUtxo[]} utxos
  */
 function renderHoldings(panel, utxos) {
-  const section = createElement("section", "holdings");
+  const section = createWalletPart("section", "holdings");
   const title = document.createElement("h2");
   const list = document.createElement("ol");
 

@@ -58,6 +58,15 @@ function openSection(main, section) {
   }
 }
 
+/** @param {Event} event */
+function getSectionDetailsEventTarget(event) {
+  if (!(event.target instanceof HTMLDetailsElement)) return null;
+
+  const section = event.target.parentElement;
+
+  return section?.matches("article section[id]") ? event.target : null;
+}
+
 /** @param {HTMLElement} main */
 export function initSectionDetails(main) {
   const sections = [
@@ -72,9 +81,10 @@ export function initSectionDetails(main) {
   }
 
   main.addEventListener("toggle", (event) => {
-    const details = /** @type {HTMLDetailsElement} */ (event.target);
+    const details = getSectionDetailsEventTarget(event);
+    if (!details) return;
+
     const section = /** @type {HTMLElement} */ (details.parentElement);
-    if (!section.matches("article section[id]")) return;
 
     localStorage.setItem(getStorageKey(section.id), details.open ? "1" : "0");
     syncNavSection(main, section);
