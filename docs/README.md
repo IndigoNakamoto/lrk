@@ -50,7 +50,7 @@ brk --chain litecoin
 
 Run your own website and API. All you need is Litecoin Core with `server=1`.
 
-> **Note:** LRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file). Tools like `ls -l` or Finder report the logical file size, not actual disk usage (~100 GB for Litecoin). Use `du -sh` to see real usage.
+> **Disk space:** Plan for ~375 GB total — ~250 GB for a full Litecoin Core node plus ~125 GB for LRK's index and computed metrics. LRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file); tools like `ls -l` or Finder report the logical file size, not actual disk usage. Use `du -sh` to see real usage.
 
 [Guide](https://github.com/IndigoNakamoto/lrk/blob/main/crates/brk_cli/README.md) · [Professional hosting](./PROFESSIONAL_HOSTING.md)
 

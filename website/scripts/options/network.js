@@ -1452,19 +1452,57 @@ export function createNetworkSection() {
         tree: [
           {
             name: "Balance",
-            title: "MWEB Pegged Balance (Combined)",
-            bottom: satsBtcUsd({
-              pattern: outputs.mweb.balance,
-              name: "Balance",
-            }),
-          },
-          {
-            name: "Peg Pool",
-            title: "MWEB Peg Pool Balance (v8)",
-            bottom: satsBtcUsd({
-              pattern: outputs.mweb.pegPool.balance,
-              name: "Peg Pool",
-            }),
+            tree: [
+              {
+                name: "Compare",
+                title: "MWEB Pegged Balance",
+                bottom: [
+                  ...satsBtcUsd({
+                    pattern: outputs.mweb.balance,
+                    name: "Combined",
+                    color: st.mweb,
+                  }),
+                  ...satsBtcUsd({
+                    pattern: outputs.mweb.pegPool.balance,
+                    name: "Peg Pool",
+                    color: st.mwebPegPool,
+                  }),
+                  ...satsBtcUsd({
+                    pattern: outputs.mweb.pegin.balance,
+                    name: "Peg-In",
+                    color: st.mwebPegIn,
+                    defaultActive: false,
+                  }),
+                ],
+              },
+              {
+                name: "Combined",
+                title: "MWEB Pegged Balance (Combined)",
+                bottom: satsBtcUsd({
+                  pattern: outputs.mweb.balance,
+                  name: "Balance",
+                  color: st.mweb,
+                }),
+              },
+              {
+                name: "Peg Pool",
+                title: "MWEB Peg Pool Balance (v8)",
+                bottom: satsBtcUsd({
+                  pattern: outputs.mweb.pegPool.balance,
+                  name: "Peg Pool",
+                  color: st.mwebPegPool,
+                }),
+              },
+              {
+                name: "Peg-In",
+                title: "MWEB Peg-In Balance (v9)",
+                bottom: satsBtcUsd({
+                  pattern: outputs.mweb.pegin.balance,
+                  name: "Peg-In",
+                  color: st.mwebPegIn,
+                }),
+              },
+            ],
           },
           {
             name: "Peg Flow",
@@ -1613,35 +1651,47 @@ export function createNetworkSection() {
           {
             name: "Output Count",
             tree: [
-              ...chartsFromCount({
-                pattern: outputs.byType.outputCount.mwebPegPool,
-                metric: "MWEB Peg Pool Outputs",
-                unit: Unit.count,
-                color: st.mwebPegPool,
-              }),
-              ...chartsFromCount({
-                pattern: outputs.byType.outputCount.mwebPegin,
-                metric: "MWEB Peg-In Outputs",
-                unit: Unit.count,
-                color: st.mwebPegIn,
-              }),
+              {
+                name: "Peg Pool",
+                tree: chartsFromCount({
+                  pattern: outputs.byType.outputCount.mwebPegPool,
+                  metric: "MWEB Peg Pool Outputs",
+                  unit: Unit.count,
+                  color: st.mwebPegPool,
+                }),
+              },
+              {
+                name: "Peg-In",
+                tree: chartsFromCount({
+                  pattern: outputs.byType.outputCount.mwebPegin,
+                  metric: "MWEB Peg-In Outputs",
+                  unit: Unit.count,
+                  color: st.mwebPegIn,
+                }),
+              },
             ],
           },
           {
             name: "Transaction Count",
             tree: [
-              ...chartsFromCount({
-                pattern: outputs.byType.txCount.mwebPegPool,
-                metric: "Transactions with Peg Pool Outputs",
-                unit: Unit.count,
-                color: st.mwebPegPool,
-              }),
-              ...chartsFromCount({
-                pattern: outputs.byType.txCount.mwebPegin,
-                metric: "Transactions with Peg-In Outputs",
-                unit: Unit.count,
-                color: st.mwebPegIn,
-              }),
+              {
+                name: "Peg Pool",
+                tree: chartsFromCount({
+                  pattern: outputs.byType.txCount.mwebPegPool,
+                  metric: "Transactions with Peg Pool Outputs",
+                  unit: Unit.count,
+                  color: st.mwebPegPool,
+                }),
+              },
+              {
+                name: "Peg-In",
+                tree: chartsFromCount({
+                  pattern: outputs.byType.txCount.mwebPegin,
+                  metric: "Transactions with Peg-In Outputs",
+                  unit: Unit.count,
+                  color: st.mwebPegIn,
+                }),
+              },
             ],
           },
           {

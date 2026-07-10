@@ -9,12 +9,12 @@ Run your own Bitcoin (or Litecoin) Research Kit instance. One binary, one comman
 - Linux or macOS
 - Bitcoin Core with `server=1` in `bitcoin.conf` **or** Litecoin Core with `server=1` in `litecoin.conf`
 - Access to `blk*.dat` files
-- [~400 GB disk space](https://bitview.space/api/server/disk) for Bitcoin (see [Disk usage](#disk-usage)); ~100 GB for Litecoin
+- [~400 GB disk space](https://bitview.space/api/server/disk) for Bitcoin (see [Disk usage](#disk-usage)); ~375 GB for Litecoin (~250 GB node + ~125 GB LRK)
 - [12+ GB RAM](https://github.com/bitcoinresearchkit/benches#benchmarks)
 
 ## Disk usage
 
-BRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file). Tools like `ls -l` or Finder report the logical file size (>1 TB), not actual disk usage (~350 GB). Use `du -sh` to see real usage.
+BRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file). Tools like `ls -l` or Finder report the logical file size (>1 TB), not actual disk usage (~350 GB Bitcoin / ~125 GB Litecoin for BRK data alone; plus the chain). Use `du -sh` to see real usage.
 
 ## Install
 
