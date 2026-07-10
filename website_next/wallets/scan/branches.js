@@ -2,11 +2,14 @@ import {
   scanBranch,
   GAP_LIMIT,
 } from "./branch.js";
+import { mapConcurrent } from "../concurrent.js";
 import {
   getOutputDescriptorBranchIds,
   isOutputDescriptor,
 } from "../derive/index.js";
 import { isUsedAddress } from "./activity.js";
+
+const BRANCH_SCAN_CONCURRENCY = 2;
 
 const keyBranches = /** @type {const} */ ([
   { id: "receive", label: "Receive", path: [0] },
@@ -85,9 +88,10 @@ function addBranch(address, branch) {
 
 /**
  * @param {string} source
+ * @returns {WalletBranch[]}
  */
 function getWalletBranches(source) {
-  if (!isOutputDescriptor(source)) return keyBranches;
+  if (!isOutputDescriptor(source)) return [...keyBranches];
 
   const branchIds = new Set(getOutputDescriptorBranchIds(source));
   const branches = descriptorBranches.filter((branch) => {
@@ -110,23 +114,29 @@ export async function scanBranches(client, source, options) {
     branches.find((branch) => branch.id === "receive") ?? branches[0];
   /** @type {ScannedAddress | undefined} */
   let receiveAddress;
-  let maxed = false;
+  const scans = await mapConcurrent(
+    branches,
+    BRANCH_SCAN_CONCURRENCY,
+    async (branch) => {
+      const scan = await scanBranch(client, source, {
+        script: options.script,
+        path: branch.path,
+        branchId: branch.id,
+        onProgress(progress) {
+          options.onProgress?.({
+            branchId: branch.id,
+            branchLabel: branch.label,
+            scannedCount: progress.scannedCount,
+            unusedInRow: progress.unusedInRow,
+          });
+        },
+      });
 
-  for (const branch of branches) {
-    const scan = await scanBranch(client, source, {
-      script: options.script,
-      path: branch.path,
-      branchId: branch.id,
-      onProgress(progress) {
-        options.onProgress?.({
-          branchId: branch.id,
-          branchLabel: branch.label,
-          scannedCount: progress.scannedCount,
-          unusedInRow: progress.unusedInRow,
-        });
-      },
-    });
+      return { branch, scan };
+    },
+  );
 
+  for (const { branch, scan } of scans) {
     for (const address of scan.addresses) {
       const branchedAddress = addBranch(address, branch);
 
@@ -139,14 +149,12 @@ export async function scanBranches(client, source, options) {
 
       addresses.push(branchedAddress);
     }
-
-    maxed = maxed || scan.maxed;
   }
 
   return {
     addresses: addresses.sort(compareWalletAddresses),
     receiveAddress,
     gapLimit: GAP_LIMIT,
-    maxed,
+    maxed: scans.some(({ scan }) => scan.maxed),
   };
 }

@@ -26,6 +26,7 @@ export function createLayout() {
   const addDialog = document.createElement("dialog");
 
   main.dataset.page = "wallets";
+  addDialog.dataset.dialog = "";
   privacyButton.type = "button";
   sessionButton.type = "button";
   sessionButton.append("Lock");

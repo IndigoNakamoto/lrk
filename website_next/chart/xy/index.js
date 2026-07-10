@@ -2,6 +2,7 @@ import { createSeriesHighlight } from "../highlight.js";
 import { createLegend } from "../legend/index.js";
 import { getChartPointRadius, layoutChartMarker } from "../marker.js";
 import { createLinePathData } from "../path.js";
+import { createChartPointer } from "../pointer.js";
 import { createSvgElement } from "../svg.js";
 import { createChartFrame, VIEWBOX_WIDTH } from "../viewbox.js";
 
@@ -45,10 +46,24 @@ export function createXyChart({
   let currentSeries = [];
   /** @type {ChartFrame | undefined} */
   let currentFrame;
-  let rect = svg.getBoundingClientRect();
-  let pointerX = 0;
-  let pointerY = 0;
-  let pointerFrame = 0;
+  let renderFrame = 0;
+  const pointer = createChartPointer(
+    svg,
+    () => currentFrame?.height,
+    ({ x, y }) => {
+      const frame = currentFrame;
+      if (!frame) return;
+
+      const closest = findClosestPoint(series, currentSeries, x, y);
+
+      if (!closest) {
+        hideMarker();
+        return;
+      }
+
+      showMarker(closest, frame);
+    },
+  );
 
   figure.dataset.chart = "xy";
   figure.dataset.chartLegend = "";
@@ -61,10 +76,6 @@ export function createXyChart({
   svg.append(guide, group);
   plotElement.append(svg, markerElement);
   figure.append(legend, plotElement);
-
-  function measure() {
-    rect = svg.getBoundingClientRect();
-  }
 
   function render() {
     const frame = createChartFrame(svg, fallbackHeight, frameOptions);
@@ -87,29 +98,6 @@ export function createXyChart({
       } else {
         appendPoints(group, highlight, item, plotted, index, radius);
       }
-    });
-  }
-
-  /** @param {PointerEvent} event */
-  function updateFromPointer(event) {
-    pointerX = event.clientX;
-    pointerY = event.clientY;
-    if (pointerFrame) return;
-
-    pointerFrame = requestAnimationFrame(() => {
-      pointerFrame = 0;
-      if (!currentFrame) return;
-
-      const x = ((pointerX - rect.left) / rect.width) * VIEWBOX_WIDTH;
-      const y = ((pointerY - rect.top) / rect.height) * currentFrame.height;
-      const closest = findClosestPoint(series, currentSeries, x, y);
-
-      if (!closest) {
-        hideMarker();
-        return;
-      }
-
-      showMarker(closest, currentFrame);
     });
   }
 
@@ -145,28 +133,30 @@ export function createXyChart({
     highlight.clearPreview();
   }
 
-  function cancelPointerFrame() {
-    if (pointerFrame) cancelAnimationFrame(pointerFrame);
-    pointerFrame = 0;
-  }
-
   function disconnect() {
-    cancelPointerFrame();
+    cancelAnimationFrame(renderFrame);
+    renderFrame = 0;
+    pointer.cancel();
     resizeObserver.disconnect();
   }
 
   render();
-  requestAnimationFrame(render);
+  renderFrame = requestAnimationFrame(() => {
+    renderFrame = 0;
+    render();
+  });
   resizeObserver.observe(svg);
-  svg.addEventListener("pointerenter", measure);
-  svg.addEventListener("pointermove", updateFromPointer);
+  svg.addEventListener("pointerenter", pointer.measure);
+  svg.addEventListener("pointermove", pointer.update);
   svg.addEventListener("pointerleave", () => {
-    cancelPointerFrame();
+    pointer.cancel();
     hideMarker();
   });
-  figure.addEventListener("chart:destroy", disconnect, { once: true });
 
-  return figure;
+  return /** @type {const} */ ({
+    destroy: disconnect,
+    element: figure,
+  });
 }
 
 /**

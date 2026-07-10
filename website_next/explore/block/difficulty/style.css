@@ -1,11 +1,9 @@
-#block-details section[data-group="difficulty"] {
+[data-metric-list] {
   --section-color: var(--orange);
 
-  [data-metric-list] {
-    display: grid;
-    gap: 0.5rem;
-    min-width: 0;
-  }
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
 
   [data-metric-stat] {
     display: grid;

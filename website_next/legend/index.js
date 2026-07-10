@@ -34,6 +34,7 @@ export function createLegendItem(args) {
  * @param {Object} [args]
  * @param {boolean} [args.fill]
  * @param {boolean} [args.scroll]
+ * @param {boolean} [args.tight]
  */
 export function createLegendList(args = {}) {
   const list = document.createElement("menu");
@@ -41,6 +42,7 @@ export function createLegendList(args = {}) {
   list.dataset.legendList = "";
   if (args.fill) list.dataset.legendFill = "";
   if (args.scroll) list.dataset.legendScroll = "";
+  if (args.tight) list.dataset.legendTight = "";
 
   return list;
 }

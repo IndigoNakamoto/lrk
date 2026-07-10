@@ -16,7 +16,7 @@ function readCssDuration(name) {
   return Number.parseFloat(value) * (value.endsWith("ms") ? 1 : 1000);
 }
 
-function waitForTransition() {
+export function waitForTransition() {
   return wait(readCssDuration("--transition-duration"));
 }
 

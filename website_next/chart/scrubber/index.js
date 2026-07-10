@@ -3,8 +3,9 @@ import {
   getChartPointRadius,
   layoutChartMarker,
 } from "../marker.js";
+import { createChartPointer } from "../pointer.js";
 import { createSvgElement } from "../svg.js";
-import { getPlotBottom, VIEWBOX_WIDTH } from "../viewbox.js";
+import { getPlotBottom } from "../viewbox.js";
 
 const dateFormat = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
@@ -77,10 +78,16 @@ export function createScrubber(svg, readout, highlight, format) {
   let currentStep = -1;
   /** @type {ChartPoint[]} */
   let currentPoints = [];
-  let rect = svg.getBoundingClientRect();
-  let pointerX = 0;
-  let pointerY = 0;
-  let pointerFrame = 0;
+  const pointer = createChartPointer(
+    svg,
+    () => frame?.height,
+    ({ x, y }) => {
+      const currentFrame = frame;
+      if (!currentFrame) return;
+
+      update((x - currentFrame.left) / currentFrame.plotWidth, x, y);
+    },
+  );
 
   group.dataset.scrubber = "root";
   shade.dataset.scrubber = "shade";
@@ -89,10 +96,6 @@ export function createScrubber(svg, readout, highlight, format) {
   group.append(shade, guide);
   svg.append(group);
   plot.append(dateMarker);
-
-  function measure() {
-    rect = svg.getBoundingClientRect();
-  }
 
   /** @param {number} step */
   function getPointsAtStep(step) {
@@ -160,13 +163,8 @@ export function createScrubber(svg, readout, highlight, format) {
     update(1, undefined, undefined, false);
   }
 
-  function cancelPointerUpdate() {
-    if (pointerFrame) cancelAnimationFrame(pointerFrame);
-    pointerFrame = 0;
-  }
-
   function clear() {
-    cancelPointerUpdate();
+    pointer.cancel();
     series = [];
     markers = [];
     currentStep = -1;
@@ -188,9 +186,9 @@ export function createScrubber(svg, readout, highlight, format) {
     frame = nextFrame;
     currentStep = -1;
     stepCount = Math.max(...series.map(({ points }) => points.length - 1));
-    measure();
+    const { width } = pointer.measure();
     dateMarker.style.display = "";
-    const radius = getChartPointRadius(rect.width);
+    const radius = getChartPointRadius(width);
     markers = series.map(({ color }, index) => {
       const marker = createSvgElement("circle");
 
@@ -207,33 +205,16 @@ export function createScrubber(svg, readout, highlight, format) {
     update(1, undefined, undefined, false);
   }
 
-  /** @param {PointerEvent} event */
-  function updateFromPointer(event) {
-    pointerX = event.clientX;
-    pointerY = event.clientY;
-    if (pointerFrame) return;
-
-    pointerFrame = requestAnimationFrame(() => {
-      pointerFrame = 0;
-      if (!frame) return;
-
-      const x = ((pointerX - rect.left) / rect.width) * VIEWBOX_WIDTH;
-      const y = ((pointerY - rect.top) / rect.height) * frame.height;
-
-      update((x - frame.left) / frame.plotWidth, x, y);
-    });
-  }
-
-  svg.addEventListener("pointerenter", measure);
-  svg.addEventListener("pointermove", updateFromPointer);
+  svg.addEventListener("pointerenter", pointer.measure);
+  svg.addEventListener("pointermove", pointer.update);
   svg.addEventListener("pointerleave", () => {
-    cancelPointerUpdate();
+    pointer.cancel();
     highlight.clearPreview();
     hide();
   });
   svg.addEventListener("focus", () => update(1));
   svg.addEventListener("blur", () => {
-    cancelPointerUpdate();
+    pointer.cancel();
     highlight.clearPreview();
     hide();
   });

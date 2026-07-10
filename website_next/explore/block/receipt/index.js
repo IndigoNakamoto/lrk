@@ -1,13 +1,13 @@
-import { createBrand } from "../../brand/index.js";
-import { openDialog } from "../../dialog/index.js";
-import { getCoinbaseMessage } from "./format.js";
-import { createBlockUrl, getReceiptSections } from "./receipt/data.js";
-import { createReceiptQr } from "./receipt/qr.js";
-import { createBlockTitle } from "./title.js";
+import { createBrand } from "../../../brand/index.js";
+import { openDialog } from "../../../dialog/index.js";
+import { getCoinbaseMessage } from "../format.js";
+import { createBlockUrl, getReceiptSections } from "./data.js";
+import { createReceiptQr } from "./qr.js";
+import { createBlockTitle } from "../title/index.js";
 
-/** @typedef {import("../../modules/brk-client/index.js").BlockInfoV1} Block */
-/** @typedef {import("./receipt/data.js").ReceiptRow} ReceiptRow */
-/** @typedef {import("./receipt/data.js").ReceiptSection} ReceiptSection */
+/** @typedef {import("../../../modules/brk-client/index.js").BlockInfoV1} Block */
+/** @typedef {import("./data.js").ReceiptRow} ReceiptRow */
+/** @typedef {import("./data.js").ReceiptSection} ReceiptSection */
 
 /** @param {ReceiptRow} data */
 function createReceiptRow(data) {
@@ -57,6 +57,7 @@ function createReceiptHead(block) {
   const title = document.createElement("h2");
 
   head.dataset.receiptHead = "";
+  title.dataset.blockTitleText = "";
   title.append(...createBlockTitle(block.height));
   head.append(title);
 

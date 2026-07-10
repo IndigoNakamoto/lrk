@@ -1,6 +1,7 @@
 export const colors = {
   orange: () => "var(--orange)",
   white: () => "var(--white)",
+  gray: () => "var(--gray)",
   sky: () => "var(--sky)",
   cyan: () => "var(--cyan)",
   teal: () => "var(--teal)",
@@ -19,3 +20,26 @@ export const colors = {
   blue: () => "var(--blue)",
   red: () => "var(--red)",
 };
+
+export const txColors = /** @type {const} */ ({
+  v1: colors.blue(),
+  v2: colors.violet(),
+  v3: colors.fuchsia(),
+  rbf: colors.orange(),
+  noRbf: colors.gray(),
+  oneInput: colors.yellow(),
+  multiInput: colors.amber(),
+  oneOutput: colors.emerald(),
+  multiOutput: colors.green(),
+  p2pk: colors.yellow(),
+  p2pkh: colors.amber(),
+  p2sh: colors.orange(),
+  p2wpkh: colors.emerald(),
+  p2wsh: colors.green(),
+  taproot: colors.violet(),
+  p2a: colors.cyan(),
+  baremult: colors.fuchsia(),
+  opReturn: colors.red(),
+  empty: colors.gray(),
+  unknown: colors.gray(),
+});

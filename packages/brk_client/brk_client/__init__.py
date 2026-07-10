@@ -390,11 +390,13 @@ class BlockPool(TypedDict):
         id: Unique pool identifier
         name: Pool name
         slug: URL-friendly pool identifier
+        blockNumber: This block's ordinal among blocks attributed to this pool
         minerNames: Miner name tags found in coinbase scriptsig
     """
     id: int
     name: str
     slug: PoolSlug
+    blockNumber: int
     minerNames: Optional[List[str]]
 
 class BlockExtras(TypedDict):
@@ -9083,3 +9085,4 @@ class BrkClient(BrkClientBase):
 
         Endpoint: `GET /api.json`"""
         return self.get_json('/api.json')
+

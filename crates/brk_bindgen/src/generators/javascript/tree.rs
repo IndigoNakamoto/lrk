@@ -128,7 +128,7 @@ pub fn generate_main_client(
    * @param {OutputType} addrType
    * @param {Uint8Array | ArrayBuffer | ArrayBufferView | number[]} payload - Raw payload bytes matching addrType length
    * @param {number} nibbles
-   * @param {{ signal?: AbortSignal, onValue?: (value: AddrHashPrefixMatches) => void, cache?: boolean }} [options]
+   * @param {{ signal?: AbortSignal, onValue?: (value: AddrHashPrefixMatches) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<AddrHashPrefixMatches>}
    */
   getAddressPayloadHashPrefixMatches(addrType, payload, nibbles, options = {}) {

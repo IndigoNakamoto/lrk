@@ -20,9 +20,9 @@ dialog[data-block-receipt] {
   font-family: var(--font-mono);
   overscroll-behavior: contain;
   scrollbar-width: none;
+  translate: none;
 
   :is(
-    [data-receipt-head] > h2,
     [data-receipt-section] > h3,
     [data-receipt-row] > span,
     [data-receipt-row] > strong,
@@ -59,9 +59,11 @@ dialog[data-block-receipt] {
   }
 
   [data-receipt-head] {
+    --block-title-color: var(--black);
     --block-title-height-color: color-mix(in oklch, var(--black) 62%, transparent);
     --block-title-height-line-height: var(--line-height-base);
     --block-title-height-size: var(--font-size-base);
+    --block-title-justify: center;
     --block-title-label-size: 1.375rem;
 
     display: grid;
@@ -70,19 +72,6 @@ dialog[data-block-receipt] {
     justify-items: center;
     margin-block-start: 0.5rem;
     text-align: center;
-
-    > h2 {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35em;
-      align-items: baseline;
-      justify-content: center;
-      min-width: 0;
-      color: var(--black);
-      font-family: var(--font-mono);
-      font-weight: var(--font-weight-regular);
-      line-height: 1;
-    }
   }
 
   [data-receipt-section] {
@@ -302,7 +291,6 @@ dialog[data-block-receipt] {
   }
 
   dialog[data-block-receipt] :is(
-    [data-receipt-head] > h2,
     [data-receipt-row] > span,
     [data-receipt-row] > strong,
     [data-receipt-row] small,

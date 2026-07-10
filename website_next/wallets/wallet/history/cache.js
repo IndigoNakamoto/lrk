@@ -1,5 +1,9 @@
 import { addressHistory } from "./address.js";
+import { mapConcurrent } from "../../concurrent.js";
+import { createBucketKey } from "../bucket-key.js";
 import { readWalletTransaction } from "./transaction.js";
+
+const HISTORY_BUCKET_CONCURRENCY = 2;
 
 /**
  * @typedef {import("../../scan/index.js").WalletAddress} WalletAddress
@@ -17,6 +21,24 @@ import { readWalletTransaction } from "./transaction.js";
  */
 function isUsedAddress(address) {
   return address.txCount > 0;
+}
+
+/**
+ * @param {readonly WalletAddress[]} addresses
+ * @returns {WalletAddress[][]}
+ */
+function groupAddressesByBucket(addresses) {
+  const groups = /** @type {Map<string, WalletAddress[]>} */ (new Map());
+
+  for (const address of addresses) {
+    const key = createBucketKey(address.historyAddresses);
+    const group = groups.get(key) ?? [];
+
+    group.push(address);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()];
 }
 
 /**
@@ -44,15 +66,23 @@ async function load(client, addresses) {
     new Map()
   );
   const usedAddresses = addresses.filter(isUsedAddress);
+  const histories = await mapConcurrent(
+    groupAddressesByBucket(usedAddresses),
+    HISTORY_BUCKET_CONCURRENCY,
+    (group) => addressHistory.loadBucket(client, group),
+  );
 
-  for (const address of usedAddresses) {
-    const history = await addressHistory.load(client, address);
+  for (const history of histories) {
+    for (const transactions of history.values()) {
+      for (const transaction of transactions) {
+        const walletTransaction = readWalletTransaction(
+          transaction,
+          usedAddresses,
+        );
 
-    for (const transaction of history.transactions) {
-      const walletTransaction = readWalletTransaction(transaction, usedAddresses);
-
-      if (walletTransaction.txid) {
-        transactionsById.set(walletTransaction.txid, walletTransaction);
+        if (walletTransaction.txid) {
+          transactionsById.set(walletTransaction.txid, walletTransaction);
+        }
       }
     }
   }

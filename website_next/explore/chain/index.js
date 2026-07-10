@@ -1,36 +1,24 @@
 import { brk } from "../../utils/client.js";
-import {
-  createEnteringConfirmedCube,
-  createPlaceholderCube,
-  createProjectedCube,
-  setConfirmedInterval,
-  updateProjectedCube,
-  updateProjectedTime,
-} from "./block-cube.js";
+import { createConfirmedBlocks } from "./confirmed.js";
 import { createEdgeButton } from "./edge.js";
 import {
   distanceFromViewport,
   findVisibleConfirmedHeight,
   isHorizontalLayout,
-  olderRemaining,
-  olderRunway,
   olderWheelDelta,
   preserveScrollPosition,
-  scrollToElement,
 } from "./scroll.js";
 import { createJumpController } from "./jump.js";
+import { createOlderBlocks } from "./older.js";
+import { createProjectedBlocks } from "./projected.js";
+import { createTipVisibility } from "./tip.js";
 
 const BLOCK_BATCH_SIZE = 15;
 const EDGE_LOAD_DISTANCE = 50;
-const OLDER_RESERVE_VIEWPORTS = 6;
 const POLL_INTERVAL = 1_000;
-const PROJECTED_LIMIT = 8;
-const TARGET_BLOCK_SECONDS = 600;
-const TIP_BLOCK_THRESHOLD = 10;
 
 /** @typedef {Awaited<ReturnType<typeof brk.getBlocksV1>>[number]} Block */
 /** @typedef {Awaited<ReturnType<typeof brk.getMempoolBlocks>>[number]} MempoolBlock */
-/** @typedef {{ generation: number, startHeight: number, placeholders: HTMLElement[] }} OlderBatch */
 
 /** @param {string | number | null | undefined} hashOrHeight */
 function normalizeTarget(hashOrHeight) {
@@ -53,47 +41,63 @@ export function createChain({ onSelect = () => {} } = {}) {
     jumpToTip();
   });
   const jump = createJumpController(element, () => {
-    if (tipCube) selectCube(tipCube, { scroll: "instant" });
+    const tipCube = confirmed.tipCube();
+    if (tipCube) confirmed.select(tipCube, { scroll: "instant" });
   });
 
   element.id = "chain";
-  setTipVisible(false);
   scrollElement.dataset.chainScroll = "";
   blocksElement.dataset.chainBlocks = "";
   scrollElement.append(blocksElement);
   element.append(tipButton, scrollElement);
 
-  /** @type {HTMLButtonElement | null} */
-  let selectedCube = null;
-  /** @type {HTMLButtonElement | null} */
-  let tipCube = null;
-
-  /** @type {Map<string, Block>} */
-  const blocksByHash = new Map();
-
-  /** @type {ReturnType<typeof createProjectedCube>[]} */
-  const projectedCubes = [];
+  const projected = createProjectedBlocks({
+    blocksElement,
+    isLayoutFrozen: () => tipButton.hasAttribute("data-visible"),
+    isElementVisible,
+  });
+  const confirmed = createConfirmedBlocks({
+    blocksElement,
+    firstProjectedElement: projected.firstElement,
+    onSelect,
+    onScrollSelect: () => tip.schedule(),
+  });
+  const tip = createTipVisibility({
+    button: tipButton,
+    reachedTip: () => reachedTip,
+    newestHeight: () => newestHeight,
+    tipCube: confirmed.tipCube,
+    visibleConfirmedHeight: () =>
+      findVisibleConfirmedHeight(scrollElement, blocksElement),
+    hasVisibleProjected: () => projected.hasVisibleElement(),
+    isElementVisible,
+  });
 
   let active = false;
   let newestHeight = -1;
-  let oldestHeight = Infinity;
-  let oldestReservedHeight = -1;
   let newestTimestamp = 0;
-  let hydratingOlder = false;
   let loadingNewer = false;
   let polling = false;
   let reachedTip = false;
-  let olderGeneration = 0;
-
-  /** @type {OlderBatch[]} */
-  const olderBatches = [];
 
   /** @type {number | undefined} */
   let pollId;
-  let tipSyncFrame = 0;
 
   /** @type {AbortController} */
   let controller = new AbortController();
+
+  const older = createOlderBlocks({
+    scrollElement,
+    blocksElement,
+    batchSize: BLOCK_BATCH_SIZE,
+    isActive: () => active,
+    isHorizontal,
+    fetchBlocks: (startHeight) =>
+      brk.getBlocksV1FromHeight(startHeight, { signal: controller.signal }),
+    createCube: confirmed.create,
+    isAborted: () => controller.signal.aborted,
+    onError: (error) => logChainError("explore older:", error),
+  });
 
   /**
    * @param {string} label
@@ -106,180 +110,57 @@ export function createChain({ onSelect = () => {} } = {}) {
   /** @param {string | number | null | undefined} hashOrHeight */
   function findCube(hashOrHeight) {
     if (hashOrHeight == null) {
-      return reachedTip && newestHeight >= 0 ? newestConfirmedCube() : null;
+      return reachedTip && newestHeight >= 0 ? confirmed.newest() : null;
     }
 
-    const attribute = typeof hashOrHeight === "number" ? "height" : "hash";
-
-    return /** @type {HTMLButtonElement | null} */ (
-      blocksElement.querySelector(`[data-${attribute}="${hashOrHeight}"]`)
-    );
-  }
-
-  function firstProjectedCube() {
-    return projectedCubes[0]?.element ?? null;
-  }
-
-  function newestConfirmedCube() {
-    const firstProjected = firstProjectedCube();
-
-    return /** @type {HTMLButtonElement | null} */ (
-      firstProjected
-        ? firstProjected.previousElementSibling
-        : blocksElement.lastElementChild
-    );
-  }
-
-  function deselectCube() {
-    if (selectedCube) delete selectedCube.dataset.selected;
-    selectedCube = null;
-  }
-
-  function updateTipCube() {
-    tipCube?.removeAttribute("data-tip");
-    tipCube = newestConfirmedCube();
-    tipCube?.setAttribute("data-tip", "");
+    return confirmed.find(hashOrHeight);
   }
 
   function jumpToTip() {
-    if (tipCube) jump.jump();
-  }
-
-  /**
-   * @param {HTMLButtonElement} cube
-   * @param {{ scroll?: "smooth" | "instant" }} [options]
-   */
-  function selectCube(cube, { scroll } = {}) {
-    if (cube !== selectedCube) {
-      deselectCube();
-      selectedCube = cube;
-      cube.dataset.selected = "";
-    }
-
-    const hash = cube.dataset.hash;
-    const block = hash ? blocksByHash.get(hash) : undefined;
-    if (block) onSelect(block);
-
-    if (scroll) {
-      scrollToElement(cube, scroll);
-      scheduleTipVisibilitySync();
-    }
-  }
-
-  function markConfirmedSkeletons() {
-    for (const cube of blocksElement.children) {
-      if (!cube.hasAttribute("data-projected")) {
-        cube.setAttribute("data-skeleton", "");
-      }
-    }
+    if (confirmed.tipCube()) jump.jump();
   }
 
   function isHorizontal() {
     return isHorizontalLayout(blocksElement);
   }
 
-  /** @param {number} [delta] */
-  function reserveOlderRunway(delta = 0) {
-    if (!active || oldestReservedHeight <= 0) return;
-
-    const horizontal = isHorizontal();
-    const runway =
-      olderRunway(scrollElement, horizontal, OLDER_RESERVE_VIEWPORTS) + delta;
-    let remaining = olderRemaining(scrollElement, horizontal);
-
-    while (remaining < runway) {
-      if (!reserveOlderBatch()) return;
-      remaining = olderRemaining(scrollElement, horizontal);
-    }
-  }
-
   function clear() {
     newestHeight = -1;
-    oldestHeight = Infinity;
-    oldestReservedHeight = -1;
     newestTimestamp = 0;
-    hydratingOlder = false;
     loadingNewer = false;
     reachedTip = false;
-    olderGeneration++;
-    selectedCube = null;
-    tipCube = null;
-    blocksByHash.clear();
+    confirmed.clear();
     blocksElement.textContent = "";
-    projectedCubes.length = 0;
-    olderBatches.length = 0;
-    setTipVisible(false);
-  }
-
-  /**
-   * @param {Element | null} anchor
-   * @param {number} count
-   */
-  function prependOlderPlaceholders(anchor, count) {
-    const fragment = document.createDocumentFragment();
-    const placeholders = /** @type {HTMLElement[]} */ ([]);
-
-    for (let i = 0; i < count; i++) {
-      const cube = createPlaceholderCube();
-
-      placeholders.push(cube);
-      fragment.append(cube);
-    }
-
-    blocksElement.insertBefore(fragment, anchor);
-
-    return placeholders;
-  }
-
-  function reserveOlderBatch() {
-    if (!active || oldestReservedHeight <= 0) return false;
-
-    const anchor = blocksElement.firstElementChild;
-    const count = Math.min(BLOCK_BATCH_SIZE, oldestReservedHeight);
-    const startHeight = oldestReservedHeight - 1;
-    const placeholders = prependOlderPlaceholders(anchor, count);
-
-    if (!placeholders.length) return false;
-
-    oldestReservedHeight -= placeholders.length;
-    olderBatches.push({ generation: olderGeneration, startHeight, placeholders });
-    void hydrateOlderBatches();
-
-    return true;
-  }
-
-  /** @param {Block} block */
-  function createKnownEnteringConfirmedCube(block) {
-    blocksByHash.set(block.id, block);
-
-    return createEnteringConfirmedCube(block, selectCube);
+    projected.clear();
+    older.reset();
+    tip.setVisible(false);
   }
 
   /** @param {Block[]} blocks */
   function appendNewerBlocks(blocks) {
     if (!blocks.length) return false;
 
-    const anchor = newestConfirmedCube();
+    const anchor = confirmed.newest();
     const anchorRect = anchor?.getBoundingClientRect();
 
     for (let i = blocks.length - 1; i >= 0; i--) {
       const block = blocks[i];
 
       if (block.height > newestHeight) {
-        appendConfirmed(createKnownEnteringConfirmedCube(block));
+        confirmed.append(block);
       } else {
-        blocksByHash.set(block.id, block);
+        confirmed.cache(block);
       }
     }
 
     newestHeight = Math.max(newestHeight, blocks[0].height);
     newestTimestamp = blocks[0].timestamp;
-    updateTipCube();
+    confirmed.markTip();
     refreshProjected();
 
     preserveScrollPosition(scrollElement, anchor, anchorRect);
 
-    syncTipVisibility();
+    tip.sync();
 
     return true;
   }
@@ -294,16 +175,15 @@ export function createChain({ onSelect = () => {} } = {}) {
     clear();
 
     for (const block of blocks) {
-      prependConfirmed(createKnownEnteringConfirmedCube(block));
+      confirmed.prepend(block);
     }
 
     newestHeight = blocks[0].height;
-    oldestHeight = blocks[blocks.length - 1].height;
-    oldestReservedHeight = oldestHeight;
+    older.setOldestHeight(blocks[blocks.length - 1].height);
     newestTimestamp = blocks[0].timestamp;
     reachedTip = height == null;
-    updateTipCube();
-    reserveOlderRunway();
+    confirmed.markTip();
+    older.reserve();
 
     if (reachedTip) await pollProjected();
     else await loadNewer();
@@ -316,13 +196,13 @@ export function createChain({ onSelect = () => {} } = {}) {
     if (typeof hashOrHeight === "number") return hashOrHeight;
 
     if (typeof hashOrHeight === "string") {
-      const cached = blocksByHash.get(hashOrHeight);
+      const cached = confirmed.get(hashOrHeight);
       if (cached) return cached.height;
 
       const block = await brk.getBlockV1(hashOrHeight, {
         signal: controller.signal,
       });
-      blocksByHash.set(hashOrHeight, block);
+      confirmed.cache(block);
 
       return block.height;
     }
@@ -338,18 +218,18 @@ export function createChain({ onSelect = () => {} } = {}) {
 
     const existing = findCube(hashOrHeight);
     if (existing) {
-      selectCube(existing, { scroll: "smooth" });
+      confirmed.select(existing, { scroll: "smooth" });
       return;
     }
 
-    markConfirmedSkeletons();
+    confirmed.markSkeletons();
     element.dataset.loading = "";
 
     try {
       const height = await resolveHeight(hashOrHeight);
       const startHash = await loadInitial(height);
       const cube = findCube(startHash);
-      if (cube) selectCube(cube, { scroll: "instant" });
+      if (cube) confirmed.select(cube, { scroll: "instant" });
     } catch (error) {
       logChainError("explore chain load:", error);
     } finally {
@@ -382,68 +262,6 @@ export function createChain({ onSelect = () => {} } = {}) {
     }
   }
 
-  async function hydrateOlderBatches() {
-    if (hydratingOlder) return;
-
-    const generation = olderGeneration;
-
-    hydratingOlder = true;
-
-    try {
-      while (
-        active &&
-        generation === olderGeneration &&
-        olderBatches[0]?.generation === generation
-      ) {
-        await hydrateOlderBatch(olderBatches[0]);
-        if (olderBatches[0]?.generation === generation) olderBatches.shift();
-      }
-    } finally {
-      if (generation === olderGeneration) hydratingOlder = false;
-    }
-  }
-
-  /** @param {OlderBatch} batch */
-  async function hydrateOlderBatch(batch) {
-    try {
-      const blocks = await brk.getBlocksV1FromHeight(batch.startHeight, {
-        signal: controller.signal,
-      });
-
-      if (!batch.placeholders.some((placeholder) => placeholder.isConnected)) {
-        return;
-      }
-
-      const cubes = [...blocks].reverse().map(createKnownEnteringConfirmedCube);
-
-      for (let i = 0; i < batch.placeholders.length; i++) {
-        const cube = cubes[i];
-
-        if (cube) batch.placeholders[i].replaceWith(cube);
-        else batch.placeholders[i].remove();
-      }
-
-      for (const cube of cubes) setConfirmedInterval(cube);
-
-      const next = cubes.at(-1)?.nextElementSibling;
-      if (next instanceof HTMLElement) setConfirmedInterval(next);
-
-      if (blocks.length) {
-        oldestHeight = blocks[blocks.length - 1].height;
-      } else {
-        oldestReservedHeight = oldestHeight;
-      }
-
-      reserveOlderRunway();
-    } catch (error) {
-      if (controller.signal.aborted) return;
-
-      for (const placeholder of batch.placeholders) placeholder.remove();
-      oldestReservedHeight = oldestHeight;
-      logChainError("explore older:", error);
-    }
-  }
-
   async function loadNewer() {
     if (!active || loadingNewer || newestHeight === -1 || reachedTip) return;
 
@@ -467,104 +285,15 @@ export function createChain({ onSelect = () => {} } = {}) {
     }
   }
 
-  /** @param {HTMLButtonElement} cube */
-  function prependConfirmed(cube) {
-    const oldFirst = /** @type {HTMLElement | null} */ (
-      blocksElement.firstElementChild
-    );
-
-    blocksElement.insertBefore(cube, oldFirst);
-    if (oldFirst) setConfirmedInterval(oldFirst);
-  }
-
-  /** @param {HTMLButtonElement} cube */
-  function appendConfirmed(cube) {
-    blocksElement.insertBefore(cube, firstProjectedCube());
-    setConfirmedInterval(cube);
-  }
-
   /** @param {MempoolBlock[]} blocks */
   function renderProjected(blocks) {
-    const want = Math.min(blocks.length, PROJECTED_LIMIT);
-
-    while (projectedCubes.length > want) {
-      projectedCubes.pop()?.element.remove();
-    }
-
-    while (projectedCubes.length < want) {
-      const cube = createProjectedCube();
-      projectedCubes.push(cube);
-      blocksElement.append(cube.element);
-    }
-
-    for (let i = 0; i < want; i++) {
-      updateProjectedCube(projectedCubes[i], blocks[i]);
-    }
-
-    updateTipCube();
+    projected.render(blocks);
+    confirmed.markTip();
     refreshProjected();
   }
 
   function refreshProjected() {
-    if (!projectedCubes.length || !newestTimestamp) return;
-
-    const now = Math.floor(Date.now() / 1_000);
-    const elapsed = Math.max(0, now - newestTimestamp);
-    const updateLayout = !tipButton.hasAttribute("data-visible");
-
-    for (let i = 0; i < projectedCubes.length; i++) {
-      const cube = projectedCubes[i];
-      const interval = i === 0 ? elapsed : TARGET_BLOCK_SECONDS;
-      const timestamp = now + i * TARGET_BLOCK_SECONDS;
-
-      if (updateLayout) {
-        cube.element.style.setProperty("--block-interval", String(interval));
-      }
-
-      updateProjectedTime(cube, timestamp);
-    }
-  }
-
-  function scheduleTipVisibilitySync() {
-    if (tipSyncFrame) return;
-
-    tipSyncFrame = window.requestAnimationFrame(() => {
-      tipSyncFrame = 0;
-      syncTipVisibility();
-    });
-  }
-
-  function cancelTipVisibilitySync() {
-    if (!tipSyncFrame) return;
-
-    window.cancelAnimationFrame(tipSyncFrame);
-    tipSyncFrame = 0;
-  }
-
-  /** @param {boolean} visible */
-  function setTipVisible(visible) {
-    tipButton.toggleAttribute("data-visible", visible);
-    tipButton.setAttribute("aria-hidden", String(!visible));
-    tipButton.tabIndex = visible ? 0 : -1;
-  }
-
-  function syncTipVisibility() {
-    if (!reachedTip || newestHeight < 0 || !tipCube) {
-      setTipVisible(false);
-      return;
-    }
-
-    const visibleHeight = findVisibleConfirmedHeight(scrollElement, blocksElement);
-    if (projectedCubes.some(({ element }) => isElementVisible(element))) {
-      setTipVisible(false);
-      return;
-    }
-
-    setTipVisible(
-      visibleHeight != null
-        ? newestHeight - visibleHeight > TIP_BLOCK_THRESHOLD
-        : !isElementVisible(tipCube),
-    );
+    projected.refresh(newestTimestamp);
   }
 
   /** @param {Element} element */
@@ -578,7 +307,7 @@ export function createChain({ onSelect = () => {} } = {}) {
   }
 
   function shouldLoadNewer() {
-    const cube = newestConfirmedCube();
+    const cube = confirmed.newest();
 
     return cube != null && cubeDistanceFromViewport(cube) <= EDGE_LOAD_DISTANCE;
   }
@@ -586,7 +315,7 @@ export function createChain({ onSelect = () => {} } = {}) {
   scrollElement.addEventListener(
     "wheel",
     (event) => {
-      reserveOlderRunway(olderWheelDelta(event, isHorizontal()));
+      older.reserve(olderWheelDelta(event, isHorizontal()));
     },
     { passive: true },
   );
@@ -594,8 +323,8 @@ export function createChain({ onSelect = () => {} } = {}) {
   scrollElement.addEventListener(
     "scroll",
     () => {
-      scheduleTipVisibilitySync();
-      reserveOlderRunway();
+      tip.schedule();
+      older.reserve();
 
       if (reachedTip || loadingNewer) return;
       if (shouldLoadNewer()) void loadNewer();
@@ -624,7 +353,7 @@ export function createChain({ onSelect = () => {} } = {}) {
       pollId = undefined;
     }
 
-    cancelTipVisibilitySync();
+    tip.cancel();
     jump.cancel();
     controller.abort();
   }

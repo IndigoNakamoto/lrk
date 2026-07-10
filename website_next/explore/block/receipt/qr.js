@@ -16,7 +16,7 @@ export function createReceiptQr(block, url) {
   section.dataset.receiptQr = "";
   label.textContent = "Scan to verify";
   image.alt = `QR code for block ${block.height}`;
-  image.src = createQrDataUrl(url, { padX: 0, padY: 0, scale: 8 });
+  image.src = createQrDataUrl(url, { scale: 8 });
   link.href = url;
   link.textContent = formatDisplayUrl(url);
   section.append(label, image, link);

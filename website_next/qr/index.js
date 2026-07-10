@@ -22,5 +22,5 @@ const generateQr =
  * @param {QrDataUrlOptions} [options]
  */
 export function createQrDataUrl(value, options) {
-  return generateQr(value)?.toDataURL(options) ?? "";
+  return generateQr(value)?.toDataURL({ padX: 0, padY: 0, ...options }) ?? "";
 }

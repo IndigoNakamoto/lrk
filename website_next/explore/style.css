@@ -16,8 +16,11 @@ main[data-page="explore"] {
 @media (max-width: 48rem) {
   main[data-page="explore"] {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     gap: 0;
     width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
   }
 }

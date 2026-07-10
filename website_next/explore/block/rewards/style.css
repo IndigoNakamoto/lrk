@@ -1,11 +1,9 @@
-#block-details section[data-group="rewards"] {
+[data-rewards-pane] {
   --section-color: var(--orange);
 
-  [data-rewards-pane] {
-    display: grid;
-    gap: 0.5rem;
-    min-width: 0;
-  }
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
 
   [data-reward-total] {
     display: grid;

@@ -1,8 +1,8 @@
-import { createUsdAmount, renderUsdAmount } from "../../usd/index.js";
-import { formatDateTime } from "./format.js";
-import { createBlockTitle } from "./title.js";
+import { createUsdAmount, renderUsdAmount } from "../../../usd/index.js";
+import { formatDateTime } from "../format.js";
+import { createBlockTitle } from "../title/index.js";
 
-/** @typedef {import("../../modules/brk-client/index.js").BlockInfoV1} Block */
+/** @typedef {import("../../../modules/brk-client/index.js").BlockInfoV1} Block */
 
 /** @param {string} hash */
 function createHashElement(hash) {
@@ -35,6 +35,8 @@ export function createBlockHeader(actions = []) {
     tone: "positive",
   });
 
+  element.dataset.blockHeader = "";
+  title.dataset.blockTitleText = "";
   main.dataset.blockMain = "";
   titleRow.dataset.blockTitle = "";
   side.dataset.blockSide = "";

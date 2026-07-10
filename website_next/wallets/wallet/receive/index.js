@@ -2,24 +2,10 @@ import { createQrDataUrl } from "../../../qr/index.js";
 import { openDialog } from "../../../dialog/index.js";
 import { createGroupedAddress } from "../address/index.js";
 import { createWalletPart } from "../../dom.js";
-import { formatNumber } from "../../format.js";
 
 /**
  * @typedef {import("../../scan/index.js").WalletAddress} ReceiveAddress
  */
-
-/**
- * @param {ReceiveAddress} receiveAddress
- */
-function createReceiveTitle(receiveAddress) {
-  const title = document.createElement("h2");
-
-  title.append(
-    `${receiveAddress.branchLabel.toLowerCase()} #${formatNumber(receiveAddress.index)}`,
-  );
-
-  return title;
-}
 
 /**
  * @param {ReceiveAddress} receiveAddress
@@ -29,7 +15,7 @@ function createReceiveQr(receiveAddress) {
   const uri = `bitcoin:${receiveAddress.address}`;
 
   image.alt = `QR code for ${receiveAddress.address}`;
-  image.src = createQrDataUrl(uri, { scale: 8 });
+  image.src = createQrDataUrl(uri, { scale: 6 });
 
   return image;
 }
@@ -47,11 +33,13 @@ function createReceiveAddress(receiveAddress) {
 
 /**
  * @param {ReceiveAddress} receiveAddress
- * @param {HTMLButtonElement} copy
+ * @param {HTMLElement} content
+ * @param {() => void} onCopied
  */
-async function copyReceiveAddress(receiveAddress, copy) {
+async function copyReceiveAddress(receiveAddress, content, onCopied) {
   await navigator.clipboard.writeText(receiveAddress.address);
-  copy.textContent = "Copied";
+  content.dataset.copied = "";
+  onCopied();
 }
 
 /**
@@ -61,30 +49,31 @@ async function copyReceiveAddress(receiveAddress, copy) {
 function openReceiveDialog(host, receiveAddress) {
   const dialog = createWalletPart("dialog", "receive");
   const content = document.createElement("article");
-  const actions = document.createElement("footer");
-  const copy = document.createElement("button");
-  const closeForm = document.createElement("form");
-  const close = document.createElement("button");
+  let copiedTimeout = 0;
 
-  copy.type = "button";
-  copy.append("Copy");
-  closeForm.method = "dialog";
-  close.type = "submit";
-  close.append("Close");
-  closeForm.append(close);
-  actions.append(copy, closeForm);
+  content.role = "button";
+  content.tabIndex = 0;
   content.append(
-    createReceiveTitle(receiveAddress),
     createReceiveQr(receiveAddress),
     createReceiveAddress(receiveAddress),
-    actions,
   );
   dialog.append(content);
 
-  copy.addEventListener("click", () => {
-    void copyReceiveAddress(receiveAddress, copy).catch(() => {
-      copy.textContent = "Copy failed";
-    });
+  function copy() {
+    void copyReceiveAddress(receiveAddress, content, () => {
+      window.clearTimeout(copiedTimeout);
+      copiedTimeout = window.setTimeout(() => {
+        delete content.dataset.copied;
+      }, 1_000);
+    }).catch(() => {});
+  }
+
+  content.addEventListener("click", copy);
+  content.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    event.preventDefault();
+    copy();
   });
   openDialog(dialog, host);
 }

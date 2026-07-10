@@ -1,7 +1,10 @@
 import { scanBranches } from "./branches.js";
+import { mapConcurrent } from "../concurrent.js";
 import { isOutputDescriptor } from "../derive/index.js";
 import { parseOutputDescriptor } from "../derive/descriptor.js";
 import { addressScripts } from "../derive/script.js";
+
+const SCRIPT_SCAN_CONCURRENCY = 2;
 
 /**
  * @typedef {import("../derive/address.js").AddressScript} AddressScript
@@ -117,10 +120,10 @@ export async function scanWalletAddresses({
   source,
   onProgress,
 }) {
-  const scans = /** @type {ScriptScan[]} */ ([]);
-
-  for (const script of getSourceScripts(source)) {
-    scans.push(await scanBranches(client, source, {
+  const scans = await mapConcurrent(
+    getSourceScripts(source),
+    SCRIPT_SCAN_CONCURRENCY,
+    (script) => scanBranches(client, source, {
       script: script.id,
       onProgress(progress) {
         onProgress?.({
@@ -128,12 +131,12 @@ export async function scanWalletAddresses({
           branchLabel: `${script.label} ${progress.branchLabel}`,
         });
       },
-    }));
-  }
+    }),
+  );
 
   const addresses = scans.flatMap((scan) => scan.addresses)
     .sort(compareWalletAddresses);
-  const btcUsdPrice = await client.getLivePrice({ cache: false });
+  const btcUsdPrice = await client.getLivePrice();
 
   return {
     addresses,

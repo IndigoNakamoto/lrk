@@ -1,32 +1,12 @@
-import { createXyChart } from "../../chart/xy/index.js";
-import { createChartPoint, createChartPoints } from "../../chart/points.js";
-import { createLinearXScale } from "../../chart/x.js";
-import { createValueYScale } from "../../chart/y.js";
-import { formatFeeRate } from "../../utils/fee-rate.js";
+import { createXyChart } from "../../../chart/xy/index.js";
+import { createChartPoint, createChartPoints } from "../../../chart/points.js";
+import { createLinearXScale } from "../../../chart/x.js";
+import { createValueYScale } from "../../../chart/y.js";
+import { formatFeeRate } from "../../../utils/fee-rate.js";
+import { FEE_RATE_PERCENTILES, FEE_RATE_STOPS } from "../fee-rates.js";
 
-export const FEE_PERCENTILE_LABELS = /** @type {const} */ ([
-  "min",
-  "10%",
-  "25%",
-  "50%",
-  "75%",
-  "90%",
-  "max",
-]);
-
-const FEE_PERCENTILE_COLORS = /** @type {const} */ ([
-  "var(--cyan)",
-  "var(--blue)",
-  "var(--violet)",
-  "var(--white)",
-  "var(--yellow)",
-  "var(--orange)",
-  "var(--red)",
-]);
-
-const FEE_PERCENTILE_X = /** @type {const} */ ([0, 10, 25, 50, 75, 90, 100]);
 const VIEWBOX_HEIGHT = 180;
-const FEE_AVERAGE_COLOR = "var(--green)";
+const FEE_AVERAGE_COLOR = "var(--white)";
 
 /** @param {number} value */
 function scaleFeeRate(value) {
@@ -38,7 +18,7 @@ function scaleFeeRate(value) {
  * @returns {ChartSample[]}
  */
 function createPercentileSamples(values) {
-  return values.map((y, index) => ({ x: FEE_PERCENTILE_X[index], y }));
+  return values.map((y, index) => ({ x: FEE_RATE_PERCENTILES[index], y }));
 }
 
 /**
@@ -82,9 +62,9 @@ function createAverageSample(samples, averageRate) {
 function createEntries(percentileSamples, averageRate) {
   return [
     ...percentileSamples.map((sample, index) => ({
-      label: FEE_PERCENTILE_LABELS[index],
+      label: FEE_RATE_STOPS[index].label,
       sample,
-      color: FEE_PERCENTILE_COLORS[index],
+      color: FEE_RATE_STOPS[index].color,
       priority: 0,
     })),
     {
@@ -156,7 +136,7 @@ function plotSeries(percentileSamples, entries, frame) {
 export function createFeeChart(values, averageRate) {
   const percentileSamples = createPercentileSamples(values);
   const entries = createEntries(percentileSamples, averageRate);
-  const figure = createXyChart({
+  const chart = createXyChart({
     title: "Fees",
     unit: {
       id: "sat/vB",
@@ -172,9 +152,9 @@ export function createFeeChart(values, averageRate) {
     marker: false,
   });
 
-  figure.dataset.feeChart = "";
+  chart.element.dataset.feeChart = "";
 
-  return figure;
+  return chart;
 }
 
 /**

@@ -1,12 +1,12 @@
-import { createBtcAmount, satsToUsd } from "../../btc/index.js";
+import { createBtcAmount, satsToUsd } from "../../../btc/index.js";
 import {
   appendLegendListItem,
   createLegendItem,
   createLegendList,
-} from "../../legend/index.js";
-import { createUsdAmount } from "../../usd/index.js";
+} from "../../../legend/index.js";
+import { createUsdAmount } from "../../../usd/index.js";
 
-/** @typedef {import("../../modules/brk-client/index.js").BlockExtras} BlockExtras */
+/** @typedef {import("../../../modules/brk-client/index.js").BlockExtras} BlockExtras */
 
 const REWARD_COLORS = /** @type {const} */ ({
   subsidy: "var(--orange)",
@@ -108,13 +108,11 @@ function getRewardKey(target) {
 }
 
 /**
- * @param {HTMLElement} rewards
+ * @param {HTMLElement[]} elements
  * @param {string | null} activeKey
  */
-function setRewardPreview(rewards, activeKey) {
-  for (const element of rewards.querySelectorAll("[data-reward-key]")) {
-    if (!(element instanceof HTMLElement)) continue;
-
+function setRewardPreview(elements, activeKey) {
+  for (const element of elements) {
     if (element.dataset.rewardKey === activeKey) {
       element.dataset.preview = "";
       delete element.dataset.muted;
@@ -134,32 +132,42 @@ export function createRewardsPane(extras) {
   const rewards = document.createElement("div");
   const bar = document.createElement("div");
   const split = createLegendList({ fill: true });
+  const subsidyPart = createRewardPart(
+    "subsidy",
+    "Subsidy",
+    subsidy,
+    extras.reward,
+    extras.price,
+  );
+  const feesPart = createRewardPart(
+    "fees",
+    "Fees",
+    extras.totalFees,
+    extras.reward,
+    extras.price,
+  );
+  const subsidySegment = createRewardSegment("subsidy", subsidy, extras.reward);
+  const feesSegment = createRewardSegment("fees", extras.totalFees, extras.reward);
+  const previewElements = [subsidyPart, feesPart, subsidySegment, feesSegment];
 
   rewards.dataset.rewardsPane = "";
-  appendLegendListItem(
-    split,
-    createRewardPart("subsidy", "Subsidy", subsidy, extras.reward, extras.price),
-  );
-  appendLegendListItem(
-    split,
-    createRewardPart("fees", "Fees", extras.totalFees, extras.reward, extras.price),
-  );
+  appendLegendListItem(split, subsidyPart);
+  appendLegendListItem(split, feesPart);
   bar.dataset.rewardBar = "";
-  bar.append(
-    createRewardSegment("subsidy", subsidy, extras.reward),
-    createRewardSegment("fees", extras.totalFees, extras.reward),
-  );
+  bar.append(subsidySegment, feesSegment);
   rewards.append(createRewardTotal("Rewards", extras.reward, extras.price), bar, split);
 
   rewards.addEventListener("pointerenter", (event) => {
-    setRewardPreview(rewards, getRewardKey(event.target));
+    setRewardPreview(previewElements, getRewardKey(event.target));
   }, true);
-  rewards.addEventListener("pointerleave", () => setRewardPreview(rewards, null));
+  rewards.addEventListener("pointerleave", () => setRewardPreview(previewElements, null));
   rewards.addEventListener("pointerdown", (event) => {
-    setRewardPreview(rewards, getRewardKey(event.target));
+    setRewardPreview(previewElements, getRewardKey(event.target));
   });
-  rewards.addEventListener("pointerup", () => setRewardPreview(rewards, null));
-  rewards.addEventListener("pointercancel", () => setRewardPreview(rewards, null));
+  rewards.addEventListener("pointerup", () => setRewardPreview(previewElements, null));
+  rewards.addEventListener("pointercancel", () => {
+    setRewardPreview(previewElements, null);
+  });
 
   return rewards;
 }

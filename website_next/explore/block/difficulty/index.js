@@ -4,9 +4,9 @@ import {
   formatEpoch,
   formatNumber,
   getEpochProgress,
-} from "./format.js";
+} from "../format.js";
 
-/** @typedef {import("../../modules/brk-client/index.js").BlockInfoV1} Block */
+/** @typedef {import("../../../modules/brk-client/index.js").BlockInfoV1} Block */
 
 /**
  * @param {string} label

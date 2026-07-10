@@ -32,9 +32,10 @@ function getPage(pathname) {
 
 /** @param {HTMLElement} page */
 function activatePage(page) {
-  if (currentPage) {
+  if (currentPage && currentPage !== page) {
     currentPage.hidden = true;
     currentPage.inert = true;
+    currentPage.dispatchEvent(new Event("pageinactive"));
   }
 
   page.hidden = false;

@@ -268,8 +268,8 @@ function _wrapSeriesData(raw) {{
  * @property {{(n: number) => RangeBuilder<T>}} first - Get first n items
  * @property {{(n: number) => RangeBuilder<T>}} last - Get last n items
  * @property {{(n: number) => SkippedBuilder<T>}} skip - Skip first n items, chain with take()
- * @property {{(onValue?: (value: SeriesData<T>) => void) => Promise<SeriesData<T>>}} fetch - Fetch all data
- * @property {{() => Promise<string>}} fetchCsv - Fetch all data as CSV
+ * @property {{(arg?: SeriesFetchArg<T>, options?: ClientFetchOptions<SeriesData<T>>) => Promise<SeriesData<T>>}} fetch - Fetch all data
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch all data as CSV
  * @property {{() => Promise<number>}} len - Get total number of data points
  * @property {{() => Promise<Version>}} version - Get the current version of the series
  * @property {{Thenable<T>}} then - Thenable (await endpoint)
@@ -284,8 +284,8 @@ function _wrapSeriesData(raw) {{
  * @property {{(n: number) => DateRangeBuilder<T>}} first - Get first n items
  * @property {{(n: number) => DateRangeBuilder<T>}} last - Get last n items
  * @property {{(n: number) => DateSkippedBuilder<T>}} skip - Skip first n items, chain with take()
- * @property {{(onValue?: (value: DateSeriesData<T>) => void) => Promise<DateSeriesData<T>>}} fetch - Fetch all data
- * @property {{() => Promise<string>}} fetchCsv - Fetch all data as CSV
+ * @property {{(arg?: DateSeriesFetchArg<T>, options?: ClientFetchOptions<DateSeriesData<T>>) => Promise<DateSeriesData<T>>}} fetch - Fetch all data
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch all data as CSV
  * @property {{() => Promise<number>}} len - Get total number of data points
  * @property {{() => Promise<Version>}} version - Get the current version of the series
  * @property {{DateThenable<T>}} then - Thenable (await endpoint)
@@ -294,41 +294,53 @@ function _wrapSeriesData(raw) {{
 
 /** @typedef {{SeriesEndpoint<any>}} AnySeriesEndpoint */
 
+/**
+ * @template T
+ * @typedef {{Object}} ClientFetchOptions
+ * @property {{AbortSignal}} [signal] - Abort this request
+ * @property {{boolean}} [cache] - Use HTTP/browser/client caches. Set false for a no-store network fetch.
+ * @property {{boolean}} [memCache] - Use the parsed in-memory response cache. Set false for large one-shot reads.
+ * @property {{(value: T) => void}} [onValue] - Receive stale/fresh values as they arrive
+ */
+
+/** @template T @typedef {{ClientFetchOptions<SeriesData<T>> | ((value: SeriesData<T>) => void)}} SeriesFetchArg */
+/** @template T @typedef {{ClientFetchOptions<DateSeriesData<T>> | ((value: DateSeriesData<T>) => void)}} DateSeriesFetchArg */
+
 /** @template T @typedef {{Object}} SingleItemBuilder
- * @property {{(onValue?: (value: SeriesData<T>) => void) => Promise<SeriesData<T>>}} fetch - Fetch the item
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: SeriesFetchArg<T>, options?: ClientFetchOptions<SeriesData<T>>) => Promise<SeriesData<T>>}} fetch - Fetch the item
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{Thenable<T>}} then - Thenable
  */
 
 /** @template T @typedef {{Object}} DateSingleItemBuilder
- * @property {{(onValue?: (value: DateSeriesData<T>) => void) => Promise<DateSeriesData<T>>}} fetch - Fetch the item
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: DateSeriesFetchArg<T>, options?: ClientFetchOptions<DateSeriesData<T>>) => Promise<DateSeriesData<T>>}} fetch - Fetch the item
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{DateThenable<T>}} then - Thenable
  */
 
 /** @template T @typedef {{Object}} SkippedBuilder
  * @property {{(n: number) => RangeBuilder<T>}} take - Take n items after skipped position
- * @property {{(onValue?: (value: SeriesData<T>) => void) => Promise<SeriesData<T>>}} fetch - Fetch from skipped position to end
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: SeriesFetchArg<T>, options?: ClientFetchOptions<SeriesData<T>>) => Promise<SeriesData<T>>}} fetch - Fetch from skipped position to end
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{Thenable<T>}} then - Thenable
  */
 
 /** @template T @typedef {{Object}} DateSkippedBuilder
  * @property {{(n: number) => DateRangeBuilder<T>}} take - Take n items after skipped position
- * @property {{(onValue?: (value: DateSeriesData<T>) => void) => Promise<DateSeriesData<T>>}} fetch - Fetch from skipped position to end
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: DateSeriesFetchArg<T>, options?: ClientFetchOptions<DateSeriesData<T>>) => Promise<DateSeriesData<T>>}} fetch - Fetch from skipped position to end
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{DateThenable<T>}} then - Thenable
  */
 
 /** @template T @typedef {{Object}} RangeBuilder
- * @property {{(onValue?: (value: SeriesData<T>) => void) => Promise<SeriesData<T>>}} fetch - Fetch the range
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: SeriesFetchArg<T>, options?: ClientFetchOptions<SeriesData<T>>) => Promise<SeriesData<T>>}} fetch - Fetch the range
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{Thenable<T>}} then - Thenable
  */
 
 /** @template T @typedef {{Object}} DateRangeBuilder
- * @property {{(onValue?: (value: DateSeriesData<T>) => void) => Promise<DateSeriesData<T>>}} fetch - Fetch the range
- * @property {{() => Promise<string>}} fetchCsv - Fetch as CSV
+ * @property {{(arg?: DateSeriesFetchArg<T>, options?: ClientFetchOptions<DateSeriesData<T>>) => Promise<DateSeriesData<T>>}} fetch - Fetch the range
+ * @property {{(options?: ClientFetchOptions<string>) => Promise<string>}} fetchCsv - Fetch as CSV
  * @property {{DateThenable<T>}} then - Thenable
  */
 
@@ -375,8 +387,8 @@ function _endpoint(client, name, index) {{
    * @returns {{DateRangeBuilder<T>}}
    */
   const rangeBuilder = (start, end) => ({{
-    fetch(onValue) {{ return client._fetchSeriesData(buildPath(start, end), onValue); }},
-    fetchCsv() {{ return client.getText(buildPath(start, end, 'csv')); }},
+    fetch(arg, options) {{ return client._fetchSeriesData(buildPath(start, end), arg, options); }},
+    fetchCsv(options) {{ return client.getText(buildPath(start, end, 'csv'), options); }},
     then(resolve, reject) {{ return this.fetch().then(resolve, reject); }},
   }});
 
@@ -385,8 +397,8 @@ function _endpoint(client, name, index) {{
    * @returns {{DateSingleItemBuilder<T>}}
    */
   const singleItemBuilder = (idx) => ({{
-    fetch(onValue) {{ return client._fetchSeriesData(buildPath(idx, idx + 1), onValue); }},
-    fetchCsv() {{ return client.getText(buildPath(idx, idx + 1, 'csv')); }},
+    fetch(arg, options) {{ return client._fetchSeriesData(buildPath(idx, idx + 1), arg, options); }},
+    fetchCsv(options) {{ return client.getText(buildPath(idx, idx + 1, 'csv'), options); }},
     then(resolve, reject) {{ return this.fetch().then(resolve, reject); }},
   }});
 
@@ -396,8 +408,8 @@ function _endpoint(client, name, index) {{
    */
   const skippedBuilder = (start) => ({{
     take(n) {{ return rangeBuilder(start, start + n); }},
-    fetch(onValue) {{ return client._fetchSeriesData(buildPath(start, undefined), onValue); }},
-    fetchCsv() {{ return client.getText(buildPath(start, undefined, 'csv')); }},
+    fetch(arg, options) {{ return client._fetchSeriesData(buildPath(start, undefined), arg, options); }},
+    fetchCsv(options) {{ return client.getText(buildPath(start, undefined, 'csv'), options); }},
     then(resolve, reject) {{ return this.fetch().then(resolve, reject); }},
   }});
 
@@ -412,8 +424,8 @@ function _endpoint(client, name, index) {{
     first(n) {{ return rangeBuilder(undefined, n); }},
     last(n) {{ return n === 0 ? rangeBuilder(undefined, 0) : rangeBuilder(-n, undefined); }},
     skip(n) {{ return skippedBuilder(n); }},
-    fetch(onValue) {{ return client._fetchSeriesData(buildPath(), onValue); }},
-    fetchCsv() {{ return client.getText(buildPath(undefined, undefined, 'csv')); }},
+    fetch(arg, options) {{ return client._fetchSeriesData(buildPath(), arg, options); }},
+    fetchCsv(options) {{ return client.getText(buildPath(undefined, undefined, 'csv'), options); }},
     len() {{ return client.getSeriesLen(name, index); }},
     version() {{ return client.getSeriesVersion(name, index); }},
     then(resolve, reject) {{ return this.fetch().then(resolve, reject); }},
@@ -512,10 +524,10 @@ class BrkClientBase {{
    * @template T
    * @param {{string}} path
    * @param {{(res: Response) => Promise<T>}} parse - Response body reader
-   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
+   * @param {{ClientFetchOptions<T>}} [options]
    * @returns {{Promise<T>}}
    */
-  async _getCached(path, parse, {{ onValue, signal, cache = true }} = {{}}) {{
+  async _getCached(path, parse, {{ onValue, signal, cache = true, memCache = true }} = {{}}) {{
     if (!cache) {{
       const res = await this.get(path, {{ signal, cache }});
       const value = await parse(res);
@@ -524,8 +536,9 @@ class BrkClientBase {{
     }}
 
     const url = `${{this.baseUrl}}${{path}}`;
+    const useMemCache = memCache !== false;
     /** @type {{_MemEntry<T> | undefined}} */
-    const memHit = this._memGet(url);
+    const memHit = useMemCache ? this._memGet(url) : undefined;
     const browserCache = this._browserCache;
 
     // L1 fast path: deliver from memCache, revalidate via network.
@@ -538,7 +551,7 @@ class BrkClientBase {{
         if (netEtag && netEtag === memHit.etag) return memHit.value;
         const cloned = browserCache ? res.clone() : null;
         const value = await parse(res);
-        this._memSet(url, netEtag, value);
+        if (useMemCache) this._memSet(url, netEtag, value);
         if (onValue) onValue(value);
         if (cloned && browserCache) {{
           const cacheStore = browserCache;
@@ -557,7 +570,7 @@ class BrkClientBase {{
           if (!res || networkSettled) return null;
           const value = await parse(res);
           if (networkSettled) return value;
-          this._memSet(url, res.headers.get('ETag'), value);
+          if (useMemCache) this._memSet(url, res.headers.get('ETag'), value);
           onValue(value);
           return value;
         }}).catch(() => null)
@@ -568,11 +581,11 @@ class BrkClientBase {{
       networkSettled = true;
       const netEtag = res.headers.get('ETag');
       // Stale won and populated memCache with matching ETag → reuse, skip parse + second onValue.
-      const populated = /** @type {{_MemEntry<T> | undefined}} */ (this._memGet(url));
+      const populated = useMemCache ? /** @type {{_MemEntry<T> | undefined}} */ (this._memGet(url)) : undefined;
       if (populated && netEtag && netEtag === populated.etag) return populated.value;
       const cloned = browserCache ? res.clone() : null;
       const value = await parse(res);
-      this._memSet(url, netEtag, value);
+      if (useMemCache) this._memSet(url, netEtag, value);
       if (onValue) onValue(value);
       if (cloned && browserCache) {{
         const cacheStore = browserCache;
@@ -590,7 +603,7 @@ class BrkClientBase {{
    * Make a GET request expecting a JSON response. Cached and supports `onValue`.
    * @template T
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: T) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
+   * @param {{ClientFetchOptions<T>}} [options]
    * @returns {{Promise<T>}}
    */
   getJson(path, options) {{
@@ -601,7 +614,7 @@ class BrkClientBase {{
    * Make a GET request expecting a text response (text/plain, text/csv, ...).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: string) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
+   * @param {{ClientFetchOptions<string>}} [options]
    * @returns {{Promise<string>}}
    */
   getText(path, options) {{
@@ -612,7 +625,7 @@ class BrkClientBase {{
    * Make a GET request expecting binary data (application/octet-stream).
    * Cached and supports `onValue`, same as `getJson`.
    * @param {{string}} path
-   * @param {{{{ onValue?: (value: Uint8Array) => void, signal?: AbortSignal, cache?: boolean }}}} [options]
+   * @param {{ClientFetchOptions<Uint8Array>}} [options]
    * @returns {{Promise<Uint8Array>}}
    */
   getBytes(path, options) {{
@@ -684,12 +697,17 @@ class BrkClientBase {{
    * Fetch series data and wrap with helper methods (internal)
    * @template T
    * @param {{string}} path
-   * @param {{(value: DateSeriesData<T>) => void}} [onValue]
+   * @param {{DateSeriesFetchArg<T>}} [arg]
+   * @param {{ClientFetchOptions<DateSeriesData<T>>}} [options]
    * @returns {{Promise<DateSeriesData<T>>}}
    */
-  async _fetchSeriesData(path, onValue) {{
+  async _fetchSeriesData(path, arg, options) {{
+    const requestOptions = typeof arg === 'function'
+      ? {{ ...(options ?? {{}}), onValue: arg }}
+      : {{ ...(arg ?? {{}}), ...(options ?? {{}}) }};
+    const onValue = requestOptions.onValue;
     const wrappedOnValue = onValue ? (/** @type {{SeriesData<T>}} */ raw) => onValue(_wrapSeriesData(raw)) : undefined;
-    const raw = await this.getJson(path, {{ onValue: wrappedOnValue }});
+    const raw = await this.getJson(path, {{ ...requestOptions, onValue: wrappedOnValue }});
     return _wrapSeriesData(raw);
   }}
 }}

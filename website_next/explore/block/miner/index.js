@@ -1,7 +1,7 @@
-import { createPoolLogo } from "../../pools/index.js";
-import { formatPoolBlockNumber, getCoinbaseMessage } from "./format.js";
+import { createPoolLogo } from "../../../pools/index.js";
+import { formatPoolBlockNumber, getCoinbaseMessage } from "../format.js";
 
-/** @typedef {import("../../modules/brk-client/index.js").BlockInfoV1} Block */
+/** @typedef {import("../../../modules/brk-client/index.js").BlockInfoV1} Block */
 
 /** @param {string} raw */
 function createCoinbaseMessage(raw) {
@@ -31,11 +31,6 @@ export function createMinerPane(block) {
   const coinbaseMessage = createCoinbaseMessage(block.extras.coinbaseSignatureAscii);
 
   pane.dataset.minerPane = "";
-  head.dataset.minerHead = "";
-  identity.dataset.minerIdentity = "";
-  title.dataset.minerTitle = "";
-  slug.dataset.minerSlug = "";
-  logo.dataset.minerLogo = "";
 
   name.textContent = pool.name;
   blockNumber.textContent = formatPoolBlockNumber(pool.blockNumber);

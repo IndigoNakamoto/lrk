@@ -1,7 +1,7 @@
 export const DIFFICULTY_EPOCH_BLOCKS = 2_016;
 export const HALVING_EPOCH_BLOCKS = 210_000;
 
-const MAX_BLOCK_WEIGHT = 4_000_000;
+export const MAX_BLOCK_WEIGHT = 4_000_000;
 
 /** @param {number} value */
 export function formatNumber(value) {
