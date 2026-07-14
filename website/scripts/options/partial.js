@@ -348,7 +348,7 @@ export function createPartialOptions() {
 
     {
       name: "Source",
-      url: () => "https://litecoinresearchkit.org",
+      url: () => "https://github.com/IndigoNakamoto/lrk",
       title: "Litecoin Research Kit",
     },
   ];

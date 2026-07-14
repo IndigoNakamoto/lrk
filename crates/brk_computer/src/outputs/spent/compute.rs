@@ -44,18 +44,13 @@ impl Vecs {
             starting_lengths.height
         } else {
             let mut lo = 0usize;
-            let mut hi = starting_lengths.height.to_usize() + 1;
+            let mut hi = (starting_lengths.height.to_usize() + 1)
+                .min(first_txout_index_vec.len());
             while lo < hi {
                 let mid = lo + (hi - lo) / 2;
-                if first_txout_index_vec
-                    .collect_one_at(mid)
-                    .unwrap()
-                    .to_usize()
-                    <= min_txout_index
-                {
-                    lo = mid + 1;
-                } else {
-                    hi = mid;
+                match first_txout_index_vec.collect_one_at(mid) {
+                    Some(first) if first.to_usize() <= min_txout_index => lo = mid + 1,
+                    _ => hi = mid,
                 }
             }
             Height::from(lo.saturating_sub(1))
