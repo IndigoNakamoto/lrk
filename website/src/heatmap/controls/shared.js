@@ -24,7 +24,17 @@ export function createHeatmapPersistedValue(option, key, urlKey, defaultValue) {
  * @param {(choice: T) => string} toKey
  */
 export function findChoiceByKey(choices, key, fallback, toKey) {
-  return choices.find((candidate) => toKey(candidate) === key) ?? fallback;
+  return (
+    choices.find((candidate) => {
+      if (toKey(candidate) === key) return true;
+      const aliases =
+        candidate &&
+        typeof candidate === "object" &&
+        "aliases" in candidate &&
+        /** @type {{ aliases?: readonly string[] }} */ (candidate).aliases;
+      return Array.isArray(aliases) && aliases.includes(key);
+    }) ?? fallback
+  );
 }
 
 /** @param {HeatmapOption} option */

@@ -49,6 +49,7 @@
  * @typedef {Object} HeatmapAxisChoice
  * @property {string} label
  * @property {string} [key]
+ * @property {readonly string[]} [aliases]
  * @property {number} value
  *
  * @typedef {Object} HeatmapAxis
