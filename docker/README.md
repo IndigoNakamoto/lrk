@@ -37,6 +37,8 @@ cd docker/cloudflared
 
 Full walkthrough: [cloudflared/README.md](./cloudflared/README.md)
 
+For always-on hosting on this Mac (native BRK + LaunchAgents, not Docker Desktop), see [services/RELIABILITY.md](./services/RELIABILITY.md) and [services/README.md](./services/README.md).
+
 ## Configuration
 
 All configuration is passed via CLI args in `docker-compose.yml`. Edit the `command:` section to change settings.
