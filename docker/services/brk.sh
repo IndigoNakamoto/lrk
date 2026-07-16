@@ -14,9 +14,11 @@ if [[ ! -x "$BRK_BIN" ]]; then
 fi
 
 # Prefer cookie when present; otherwise ~/.brk/config.toml rpcuser/rpcpassword.
+# Force IPv4 — Litecoin listens on *:9332 (v4); localhost can resolve to ::1.
 exec "$BRK_BIN" \
   --chain litecoin \
   --brkport "$PORT" \
+  --rpcconnect 127.0.0.1 \
   --bitcoindir "$DATADIR" \
   --blocksdir "$DATADIR/blocks" \
   --brkdir "$BRKDIR"

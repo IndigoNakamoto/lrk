@@ -182,12 +182,16 @@ function initSelected() {
     });
   }
 
-  let firstMobileSwitch = true;
+  // In split layout the chart pane is always visible (CSS), so the Browse
+  // menu naturally stays open beside it and no switch is needed. In full
+  // (single-pane) layout we must reveal the chart pane on selection, but skip
+  // the very first change so we don't jump away on initial page load.
+  let firstSwitch = true;
   options.selected.onChange(() => {
-    if (!firstMobileSwitch && !isHidden(asideLabelElement)) {
+    if (!firstSwitch && !isHidden(asideLabelElement)) {
       asideLabelElement.click();
     }
-    firstMobileSwitch = false;
+    firstSwitch = false;
   });
 
   onFirstIntersection(asideElement, initSelectedFrame);

@@ -33,8 +33,18 @@ if [[ -n "${avail_gb:-}" ]] && [[ "$avail_gb" -lt "$DISK_WARN_GB" ]]; then
   log "WARN disk ${avail_gb}GB free (< ${DISK_WARN_GB}GB)"
 fi
 
-# Litecoin RPC (creds from docker/.env when present)
-if ! curl -sf --max-time 3 --user "${RPC_USER:-litecoin}:${RPC_PASSWORD:-litecoin}" \
+# Litecoin RPC: cookie auth (default) or RPC_USER/RPC_PASSWORD from docker/.env
+rpc_auth_args=()
+cookie_file="${CHAIN_DATA_DIR:-$HOME/Library/Application Support/Litecoin}/.cookie"
+if [[ -n "${RPC_USER:-}" && -n "${RPC_PASSWORD:-}" ]]; then
+  rpc_auth_args=(--user "${RPC_USER}:${RPC_PASSWORD}")
+elif [[ -f "$cookie_file" ]]; then
+  rpc_auth_args=(--user "$(cat "$cookie_file")")
+else
+  rpc_auth_args=(--user "litecoin:litecoin")
+fi
+
+if ! curl -sf --max-time 3 "${rpc_auth_args[@]}" \
   --data-binary '{"jsonrpc":"1.0","id":"wd","method":"getblockcount","params":[]}' \
   -H 'content-type: text/plain;' \
   "http://127.0.0.1:${RPC_PORT:-9332}/" >/dev/null 2>&1; then

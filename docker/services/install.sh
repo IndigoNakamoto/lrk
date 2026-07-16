@@ -26,11 +26,17 @@ echo "Stopping manual cloudflared (if any)..."
 pkill -f 'cloudflared tunnel --config' 2>/dev/null || true
 sleep 1
 
-echo "Installing plists..."
+# Plists may hardcode another checkout path (e.g. Projects/lrk); rewrite to this repo.
+REPO_ROOT="$(cd "$DIR/../.." && pwd)"
+
+echo "Installing plists (repo root: $REPO_ROOT)..."
 for label in "${labels[@]}"; do
   src="$DIR/${label}.plist"
   dst="$AGENTS/${label}.plist"
-  cp "$src" "$dst"
+  # BSD sed: plain substitutions (no -E) so both checkout paths rewrite cleanly.
+  sed -e "s|/Users/indigo/Projects/lrk|${REPO_ROOT}|g" \
+      -e "s|/Users/indigo/Dev/lrk|${REPO_ROOT}|g" \
+      "$src" >"$dst"
   launchctl bootout "$DOMAIN/$label" 2>/dev/null || true
   launchctl bootstrap "$DOMAIN" "$dst"
   launchctl enable "$DOMAIN/$label" 2>/dev/null || true
