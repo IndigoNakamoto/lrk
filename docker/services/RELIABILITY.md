@@ -1,8 +1,73 @@
-# Making litview.space more robust (this Mac)
+# Making litview.space more robust
 
-This documents the reliability changes made for the litview demo host after a multi-hour outage in July 2026. Goal: **self-heal process crashes and tunnel drops** on a single machine. This is not multi-host HA / five-nines.
+This documents the reliability changes for the litview hosts after a multi-hour outage in July 2026. Goal: **self-heal process crashes and tunnel drops**, with a **warm standby** on a second Mac. This is not multi-region five-nines.
 
 Related ops: [README.md](./README.md) (install/uninstall), [../cloudflared/README.md](../cloudflared/README.md) (tunnel).
+
+---
+
+## Roles (M1 primary / M5 standby)
+
+| Host | Role | Runs |
+|------|------|------|
+| M1 MacBook Pro | `LITVIEW_ROLE=primary` | Litecoin + brk + **cloudflared AlwaysOn** + watchdog |
+| M5 MacBook Pro | `LITVIEW_ROLE=standby` | Litecoin + brk + watchdog; **cloudflared only when promoted** |
+
+Both use the **same** Cloudflare tunnel UUID and `docker/cloudflared/config.yml` → `http://127.0.0.1:7070`. Each machine keeps its **own** Litecoin datadir and `~/.brk` (not shared).
+
+```text
+Visitors → Cloudflare → same tunnel UUID
+                │
+                ├─ normal: M1 cloudflared → M1 brk :7070
+                └─ failover: M5 cloudflared (promoted) → M5 brk :7070
+```
+
+Do **not** leave cloudflared KeepAlive on both hosts at once in normal operation — Cloudflare would treat them as replicas and may send traffic to either.
+
+### Install per role
+
+```bash
+# M1 (primary) — default
+LITVIEW_ROLE=primary ./docker/services/install.sh
+# or set LITVIEW_ROLE=primary in docker/.env then:
+./docker/services/install.sh
+
+# M5 (standby) — tunnel plist installed but not loaded
+LITVIEW_ROLE=standby ./docker/services/install.sh
+```
+
+Ensure M5 has `docker/cloudflared/credentials.json` + matching `config.yml` before an outage (promote cannot copy secrets mid-failure).
+
+### Automatic failover (standby)
+
+Watchdog on standby (every 60s):
+
+1. Probe `PUBLIC_HEALTH_URL` (default `https://litview.space/health`)
+2. After **`FAILOVER_FAILURES`** consecutive failures (default **3**) **and** local `http://127.0.0.1:7070/health` is OK → run `promote-standby.sh`
+3. Does **not** auto-demote (avoids flapping)
+
+Logs: `~/Library/Logs/litview/failover.log`, `watchdog.log`
+
+### Manual promote / demote
+
+```bash
+./docker/services/promote-standby.sh   # start cloudflared on this host (local /health required)
+./docker/services/demote-standby.sh    # stop cloudflared; keep Litecoin+brk warm
+```
+
+### Failback checklist (M1 recovered)
+
+1. Confirm M1 litecoin + brk healthy: `curl -sf http://127.0.0.1:7070/health`
+2. Confirm M1 tunnel agent is loaded/running (`com.litview.cloudflared`)
+3. On **M5**: `./docker/services/demote-standby.sh`
+4. Verify public still OK: `curl -sf https://litview.space/health`
+
+### Dry-run
+
+1. On M1: `launchctl bootout gui/$(id -u)/com.litview.cloudflared` (or demote if testing the other way)
+2. Within ~3 minutes M5 watchdog should promote
+3. Public `/health` returns 200 via M5
+4. Demote M5; restore M1 tunnel; confirm public still 200
 
 ---
 
@@ -25,9 +90,11 @@ Public site (`litview.space`) returned Cloudflare **502** while the tunnel proce
 
 Separately, the heatmap URL units were renamed (`sats`/`btc` → `lits`/`ltc`) and the tunnel ingress was corrected from `:3110` to `:7070` (Docker maps host `7070` → container `3110`; native BRK now listens on `7070` directly).
 
+A later tip stall was caused by a **corrupt duplicate block** in `blk*.dat` aborting the reader before a good copy; the reader now skips corrupt duplicates, and `/health` no longer panics the process on sync errors.
+
 ---
 
-## Before vs after
+## Before vs after (single host)
 
 ### Before
 
@@ -37,17 +104,7 @@ Visitors → Cloudflare → cloudflared (manual ./start.sh in a terminal)
 Litecoin-Qt (GUI, no auto-restart)
 ```
 
-Single points of failure:
-
-| Piece | Risk |
-|-------|------|
-| Litecoin-Qt | Crash stayed down until someone relaunched |
-| Docker Desktop | Engine freeze = site dead even if “port open” |
-| `./start.sh` | Closing the terminal killed the tunnel |
-| Healthcheck | Container `pgrep brk` ≠ HTTP healthy |
-| Disk | No ongoing free-space alarm |
-
-### After
+### After (primary)
 
 ```text
 Visitors → Cloudflare → cloudflared (LaunchAgent KeepAlive)
@@ -84,7 +141,7 @@ Docker `brk` is **stopped** with `restart=no` so it does not fight native BRK fo
 - **Files:** `com.litview.cloudflared.plist`
 - Same `docker/cloudflared/config.yml` (ingress → `http://127.0.0.1:7070`)
 - Survives closed terminals / Cursor sessions; restarts on crash
-- Demo `./start.sh` is optional; prefer the agent for always-on
+- On **standby**, plist is installed but not loaded until promote
 
 ### 4. Watchdog
 
@@ -92,15 +149,17 @@ Docker `brk` is **stopped** with `restart=no` so it does not fight native BRK fo
 - Checks:
   - Litecoin RPC (`getblockcount` on `:9332`) → kickstart `com.litview.litecoin` if down
   - BRK process if `/health` fails → kickstart `com.litview.brk` only when `brk` is not running (avoids killing a healthy indexer mid-sync)
-  - `cloudflared tunnel` process → kickstart tunnel agent
+  - **Primary:** `cloudflared tunnel` process → kickstart tunnel agent
+  - **Standby:** public `/health` failures → `promote-standby.sh` (no tunnel kickstart while demoted)
   - Free space on `/System/Volumes/Data` → **WARN** if below 50 GB (no automatic delete)
 
 Logs: `~/Library/Logs/litview/watchdog.log`
 
-### 5. Install / uninstall
+### 5. Install / uninstall / failover scripts
 
-- `install.sh` — copies plists to `~/Library/LaunchAgents`, bootstraps agents, stops Docker `brk`
+- `install.sh` — role-aware; copies plists; primary loads tunnel, standby does not
 - `uninstall.sh` — boots out agents and removes plists
+- `promote-standby.sh` / `demote-standby.sh` — tunnel ownership for standby
 
 ---
 
@@ -113,16 +172,17 @@ Logs: `~/Library/Logs/litview/watchdog.log`
 | Tunnel terminal closed | Immediate Cloudflare errors | LaunchAgent keeps tunnel up |
 | Docker Desktop freeze | Hard to diagnose; API hung | Not on the request path anymore |
 | Disk filling up | Silent until write failures | Watchdog warns (&lt; 50 GB) |
+| Primary host down | Site dead | Standby auto-promotes tunnel (~3 min) |
 
-**Still out of scope on one Mac:** power/sleep/ISP, APFS nearly-full write failures, and **full index resets** after inconsistency (multi-hour HTTP blackout). Those need disk headroom, external backups of `~/.brk`, and eventually a second host.
+**Still out of scope:** power/sleep/ISP on both hosts at once, APFS nearly-full write failures, and **full index resets** after inconsistency (multi-hour HTTP blackout on that host). Keep disk headroom; snapshot `~/.brk` when possible. Standby only helps if its index is near tip.
 
 ---
 
 ## Operating notes
 
 ```bash
-# Install / refresh agents
-./docker/services/install.sh
+# Install / refresh agents (primary)
+LITVIEW_ROLE=primary ./docker/services/install.sh
 
 # Follow BRK
 tail -f ~/Library/Logs/litview/brk.out.log
@@ -147,7 +207,7 @@ cargo build --release -p brk_cli --features litecoin
 
 1. **Free disk / external SSD** — keep substantial free space; Litecoin + `~/.brk` are hundreds of GB on one volume.
 2. **Snapshot `~/.brk`** to external storage when available so a full reset is not the only recovery path.
-3. **Optional later:** second machine + shared Cloudflare tunnel connectors; Linux/`litecoind` instead of Litecoin-Qt; fix BRK health-task panic (`Internal("data unavailable")`) so a tip reorg does not always force a full reset after a crash.
+3. Optional later: Cloudflare Load Balancer (true weighted primary), Linux/`litecoind` instead of Litecoin-Qt.
 
 ---
 
@@ -157,10 +217,11 @@ cargo build --release -p brk_cli --features litecoin
 |------|------|
 | `litecoin.sh` / `com.litview.litecoin.plist` | Supervised Litecoin |
 | `brk.sh` / `com.litview.brk.plist` | Native BRK on `:7070` |
-| `com.litview.cloudflared.plist` | Supervised tunnel |
-| `watchdog.sh` / `com.litview.watchdog.plist` | 60s health + disk warn |
-| `install.sh` / `uninstall.sh` | Load / unload agents |
+| `com.litview.cloudflared.plist` | Supervised tunnel (primary AlwaysOn) |
+| `watchdog.sh` / `com.litview.watchdog.plist` | 60s health + disk warn + standby promote |
+| `install.sh` / `uninstall.sh` | Load / unload agents (role-aware) |
+| `promote-standby.sh` / `demote-standby.sh` | Tunnel failover helpers |
 | `../cloudflared/config.yml` | Tunnel → `127.0.0.1:7070` |
-| `../.env` | RPC creds for watchdog (`CHAIN_DATA_DIR` quoted) |
-| `~/Library/Logs/litview/` | Runtime logs |
+| `../.env` | `LITVIEW_ROLE`, RPC, failover knobs |
+| `~/Library/Logs/litview/` | Runtime + failover logs |
 | `~/Library/LaunchAgents/com.litview.*.plist` | Installed agents |

@@ -1,20 +1,34 @@
 #!/usr/bin/env bash
 # Lightweight health checks + launchd kickstarts. Logs to ~/Library/Logs/litview/.
+#
+# LITVIEW_ROLE=primary (default): keep litecoin, brk, and cloudflared alive.
+# LITVIEW_ROLE=standby: keep litecoin + brk; do not restart cloudflared.
+#   If public /health fails N times and local /health is OK → promote-standby.sh.
 set -euo pipefail
 
 UID_NUM="$(id -u)"
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$DIR/../.." && pwd)"
 ENV_FILE="${LITVIEW_ENV:-$ROOT/docker/.env}"
 LOG_DIR="${LITVIEW_LOG_DIR:-$HOME/Library/Logs/litview}"
 mkdir -p "$LOG_DIR"
 LOG="$LOG_DIR/watchdog.log"
 DISK_WARN_GB="${DISK_WARN_GB:-50}"
+STATE_FILE="$LOG_DIR/standby-public-failures"
+ROLE="${LITVIEW_ROLE:-primary}"
+PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-https://litview.space/health}"
+FAILOVER_FAILURES="${FAILOVER_FAILURES:-3}"
+BRK_PORT="${BRK_PORT:-7070}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  ROLE="${LITVIEW_ROLE:-$ROLE}"
+  PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-https://litview.space/health}"
+  FAILOVER_FAILURES="${FAILOVER_FAILURES:-3}"
+  BRK_PORT="${BRK_PORT:-7070}"
 fi
 
 log() {
@@ -52,8 +66,10 @@ if ! curl -sf --max-time 3 "${rpc_auth_args[@]}" \
   kick com.litview.litecoin
 fi
 
-# BRK HTTP (only alert/kick if process should be managed)
-if ! curl -sf --max-time 3 "http://127.0.0.1:${BRK_PORT:-7070}/health" >/dev/null 2>&1; then
+local_brk_ok=0
+if curl -sf --max-time 3 "http://127.0.0.1:${BRK_PORT}/health" >/dev/null 2>&1; then
+  local_brk_ok=1
+else
   # During deep sync BRK may reset connections; only kick if binary not running.
   if ! pgrep -qx brk; then
     log "WARN brk not running — kickstarting com.litview.brk"
@@ -63,8 +79,42 @@ if ! curl -sf --max-time 3 "http://127.0.0.1:${BRK_PORT:-7070}/health" >/dev/nul
   fi
 fi
 
-# Tunnel
-if ! pgrep -qf 'cloudflared tunnel'; then
-  log "WARN cloudflared down — kickstarting com.litview.cloudflared"
-  kick com.litview.cloudflared
+if [[ "$ROLE" == "standby" ]]; then
+  # Standby: never kickstart the tunnel. Auto-promote when public origin is down.
+  if [[ "$local_brk_ok" -eq 1 ]]; then
+    if curl -sf --max-time 5 "$PUBLIC_HEALTH_URL" >/dev/null 2>&1; then
+      printf '0\n' >"$STATE_FILE"
+    else
+      fails=0
+      if [[ -f "$STATE_FILE" ]]; then
+        fails="$(cat "$STATE_FILE" 2>/dev/null || echo 0)"
+      fi
+      # Non-numeric guard
+      case "$fails" in
+        ''|*[!0-9]*) fails=0 ;;
+      esac
+      fails=$((fails + 1))
+      printf '%s\n' "$fails" >"$STATE_FILE"
+      log "WARN public health failed ($fails/${FAILOVER_FAILURES}): $PUBLIC_HEALTH_URL"
+      if [[ "$fails" -ge "$FAILOVER_FAILURES" ]]; then
+        if pgrep -qf 'cloudflared tunnel'; then
+          log "INFO public down but cloudflared already promoted"
+          printf '0\n' >"$STATE_FILE"
+        else
+          log "WARN promoting standby after ${fails} public health failures"
+          if "$DIR/promote-standby.sh" >>"$LOG_DIR/failover.log" 2>&1; then
+            printf '0\n' >"$STATE_FILE"
+          else
+            log "ERROR promote-standby.sh failed"
+          fi
+        fi
+      fi
+    fi
+  fi
+else
+  # Primary: keep the tunnel alive.
+  if ! pgrep -qf 'cloudflared tunnel'; then
+    log "WARN cloudflared down — kickstarting com.litview.cloudflared"
+    kick com.litview.cloudflared
+  fi
 fi
