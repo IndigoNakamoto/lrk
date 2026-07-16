@@ -16,3 +16,4 @@ brk_types = { workspace = true }
 byteview = { workspace = true }
 fjall = { workspace = true }
 rustc-hash = { workspace = true }
+tracing = { workspace = true }

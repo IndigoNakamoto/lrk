@@ -2,7 +2,7 @@ use crate::{
     FeeRate, RawLockTime, Sats, SigOps, TxIn, TxIndex, TxOut, TxStatus, TxVersionRaw, Txid, VSize,
     Weight, Witness,
 };
-use bitcoin::Script;
+use bitcoin::{Script, constants::WITNESS_SCALE_FACTOR};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::CheckedSub;
@@ -153,8 +153,8 @@ impl Transaction {
 
         SigOps::from(
             legacy
-                .saturating_mul(4)
-                .saturating_add(redeem.saturating_mul(4))
+                .saturating_mul(WITNESS_SCALE_FACTOR)
+                .saturating_add(redeem.saturating_mul(WITNESS_SCALE_FACTOR))
                 .saturating_add(witness),
         )
     }

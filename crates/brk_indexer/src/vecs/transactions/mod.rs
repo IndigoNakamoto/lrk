@@ -1,8 +1,13 @@
+mod features;
+
+pub use features::{TransactionCountVecs, TransactionFeaturesVecs};
+pub(crate) use features::{TransactionCounts, TxFeatureFlags};
+
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{
     BlkPosition, Height, RawLockTime, SigOps, StoredBool, StoredU32, TxInIndex, TxIndex,
-    TxOutIndex, TxVersion, Txid, Version,
+    TxOutIndex, TxVersion, Txid, Version, Weight,
 };
 use rayon::prelude::*;
 use vecdb::{
@@ -17,7 +22,7 @@ pub struct TransactionsVecs<M: StorageMode = Rw> {
     pub txid: M::Stored<BytesVec<TxIndex, Txid>>,
     pub tx_version: M::Stored<PcoVec<TxIndex, TxVersion>>,
     pub raw_locktime: M::Stored<PcoVec<TxIndex, RawLockTime>>,
-    pub base_size: M::Stored<PcoVec<TxIndex, StoredU32>>,
+    pub weight: M::Stored<PcoVec<TxIndex, Weight>>,
     pub total_size: M::Stored<PcoVec<TxIndex, StoredU32>>,
     pub total_sigop_cost: M::Stored<PcoVec<TxIndex, SigOps>>,
     pub is_explicitly_rbf: M::Stored<PcoVec<TxIndex, StoredBool>>,
@@ -31,7 +36,7 @@ pub struct TxMetadataVecs<'a> {
     pub tx_version: &'a mut PcoVec<TxIndex, TxVersion>,
     pub txid: &'a mut BytesVec<TxIndex, Txid>,
     pub raw_locktime: &'a mut PcoVec<TxIndex, RawLockTime>,
-    pub base_size: &'a mut PcoVec<TxIndex, StoredU32>,
+    pub weight: &'a mut PcoVec<TxIndex, Weight>,
     pub total_size: &'a mut PcoVec<TxIndex, StoredU32>,
     pub total_sigop_cost: &'a mut PcoVec<TxIndex, SigOps>,
     pub is_explicitly_rbf: &'a mut PcoVec<TxIndex, StoredBool>,
@@ -52,7 +57,7 @@ impl TransactionsVecs {
                 tx_version: &mut self.tx_version,
                 txid: &mut self.txid,
                 raw_locktime: &mut self.raw_locktime,
-                base_size: &mut self.base_size,
+                weight: &mut self.weight,
                 total_size: &mut self.total_size,
                 total_sigop_cost: &mut self.total_sigop_cost,
                 is_explicitly_rbf: &mut self.is_explicitly_rbf,
@@ -66,7 +71,7 @@ impl TransactionsVecs {
             txid,
             tx_version,
             raw_locktime,
-            base_size,
+            weight,
             total_size,
             total_sigop_cost,
             is_explicitly_rbf,
@@ -78,7 +83,7 @@ impl TransactionsVecs {
             txid = BytesVec::forced_import(db, "txid", version),
             tx_version = PcoVec::forced_import(db, "tx_version", version),
             raw_locktime = PcoVec::forced_import(db, "raw_locktime", version),
-            base_size = PcoVec::forced_import(db, "base_size", version),
+            weight = PcoVec::forced_import(db, "tx_weight", version),
             total_size = PcoVec::forced_import(db, "total_size", version),
             total_sigop_cost = PcoVec::forced_import(db, "total_sigop_cost", version),
             is_explicitly_rbf = PcoVec::forced_import(db, "is_explicitly_rbf", version),
@@ -91,7 +96,7 @@ impl TransactionsVecs {
             txid,
             tx_version,
             raw_locktime,
-            base_size,
+            weight,
             total_size,
             total_sigop_cost,
             is_explicitly_rbf,
@@ -109,8 +114,7 @@ impl TransactionsVecs {
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.raw_locktime
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
-        self.base_size
-            .truncate_if_needed_with_stamp(tx_index, stamp)?;
+        self.weight.truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.total_size
             .truncate_if_needed_with_stamp(tx_index, stamp)?;
         self.total_sigop_cost
@@ -132,7 +136,7 @@ impl TransactionsVecs {
             &mut self.txid,
             &mut self.tx_version,
             &mut self.raw_locktime,
-            &mut self.base_size,
+            &mut self.weight,
             &mut self.total_size,
             &mut self.total_sigop_cost,
             &mut self.is_explicitly_rbf,
@@ -149,7 +153,7 @@ impl TransactionsVecs {
             &self.txid,
             &self.tx_version,
             &self.raw_locktime,
-            &self.base_size,
+            &self.weight,
             &self.total_size,
             &self.total_sigop_cost,
             &self.is_explicitly_rbf,

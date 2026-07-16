@@ -250,12 +250,7 @@ impl Vecs {
                 identity: LazyVecFrom1::init(
                     "op_return_index",
                     version,
-                    indexer
-                        .vecs
-                        .scripts
-                        .op_return
-                        .to_tx_index
-                        .read_only_boxed_clone(),
+                    indexer.vecs.op_return.to_tx_index.read_only_boxed_clone(),
                     |index, _| index,
                 ),
             },

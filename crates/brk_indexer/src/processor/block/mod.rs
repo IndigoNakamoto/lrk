@@ -1,21 +1,22 @@
 use brk_error::{Error, Result};
 use brk_types::{BlockHashPrefix, Timestamp};
 use tracing::error;
-use vecdb::WritableVec;
+use vecdb::{WritableVec, unlikely};
 
-use super::{BlockProcessor, ComputedTx};
+use super::{BlockProcessor, transaction::ComputedTx};
 
 impl BlockProcessor<'_> {
-    pub fn process_block_metadata(&mut self) -> Result<()> {
+    pub(crate) fn process_block_metadata(&mut self) -> Result<()> {
         let height = self.height;
         let blockhash = self.block.hash();
         let blockhash_prefix = BlockHashPrefix::from(blockhash);
 
-        if self
-            .stores
-            .blockhash_prefix_to_height
-            .get(&blockhash_prefix)?
-            .is_some_and(|prev_height| *prev_height != height)
+        if unlikely(self.check_collisions)
+            && self
+                .stores
+                .blockhash_prefix_to_height
+                .get(&blockhash_prefix)?
+                .is_some_and(|prev_height| *prev_height != height)
         {
             error!("BlockHash: {blockhash}");
             return Err(Error::Internal("BlockHash prefix collision"));
@@ -51,13 +52,13 @@ impl BlockProcessor<'_> {
 
     /// Push block total_size and weight, reusing per-tx sizes already computed in ComputedTx.
     /// This avoids redundant tx serialization (base_size + total_size were already computed).
-    pub fn push_block_size_and_weight(&mut self, txs: &[ComputedTx]) -> Result<()> {
+    pub(crate) fn push_block_size_and_weight(&mut self, txs: &[ComputedTx]) -> Result<()> {
         let overhead = bitcoin::block::Header::SIZE + bitcoin::VarInt::from(txs.len()).size();
         let mut total_size = overhead;
-        let mut weight = overhead * 4;
+        let mut weight = bitcoin::Weight::from_non_witness_data_size(overhead as u64);
         let mut sw_txs = 0u32;
         let mut sw_size = 0usize;
-        let mut sw_weight = 0usize;
+        let mut sw_weight = bitcoin::Weight::ZERO;
 
         for (i, tx) in txs.iter().enumerate() {
             total_size += tx.total_size as usize;

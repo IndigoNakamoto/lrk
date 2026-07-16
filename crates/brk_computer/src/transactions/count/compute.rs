@@ -3,12 +3,13 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::blocks;
+use crate::{blocks, indexes};
 
 impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
+        indexes: &indexes::Vecs,
         lookback: &blocks::LookbackVecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -17,10 +18,10 @@ impl Vecs {
         let window_starts = lookback.window_starts();
         self.total
             .compute(starting_height, &window_starts, exit, |height| {
-                Ok(height.compute_count_from_indexes(
+                Ok(height.compute_transform(
                     starting_height,
-                    &indexer.vecs.transactions.first_tx_index,
-                    &indexer.vecs.transactions.txid,
+                    &indexes.height.tx_index_count,
+                    |(height, count, ..)| (height, count),
                     exit,
                 )?)
             })?;

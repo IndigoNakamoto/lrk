@@ -37,6 +37,13 @@ impl Vecs {
                 indexes,
                 cached_starts,
             )?,
+            other: PerBlockCumulativeRolling::forced_import(
+                db,
+                "tx_other_version",
+                version,
+                indexes,
+                cached_starts,
+            )?,
         })
     }
 }

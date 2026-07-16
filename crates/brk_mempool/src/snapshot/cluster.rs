@@ -10,10 +10,10 @@ use smallvec::SmallVec;
 
 use super::{SnapTx, TxIndex};
 
-/// Matches Bitcoin Core 31's `MAX_CLUSTER_COUNT_LIMIT`.
-pub const MAX_CLUSTER: usize = 64;
-
 pub struct Cluster;
+
+/// Matches Bitcoin Core 31's `MAX_CLUSTER_COUNT_LIMIT`.
+const MAX_CLUSTER: usize = 64;
 
 impl Cluster {
     /// Capped DFS over the undirected dependency graph (`parents ∪
@@ -99,11 +99,8 @@ impl Cluster {
     /// follows all its in-cluster parents.
     fn topo_sort(txs: &[SnapTx], component: &[TxIndex]) -> Vec<TxIndex> {
         let n = component.len();
-        let pos: FxHashMap<TxIndex, usize> = component
-            .iter()
-            .enumerate()
-            .map(|(i, &x)| (x, i))
-            .collect();
+        let pos: FxHashMap<TxIndex, usize> =
+            component.iter().enumerate().map(|(i, &x)| (x, i)).collect();
         let mut indeg: Vec<u32> = vec![0; n];
         let mut children: Vec<Vec<usize>> = vec![Vec::new(); n];
         for (i, &idx) in component.iter().enumerate() {

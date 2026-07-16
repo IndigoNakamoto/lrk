@@ -93,8 +93,7 @@ impl Lengths {
             .p2ms
             .first_index
             .checked_push(height, self.p2ms_output_index)?;
-        vecs.scripts
-            .op_return
+        vecs.op_return
             .first_index
             .checked_push(height, self.op_return_index)?;
         vecs.addrs
@@ -177,8 +176,8 @@ impl Lengths {
                 height,
             )?,
             op_return_index: next_index(
-                &vecs.scripts.op_return.first_index,
-                &vecs.scripts.op_return.to_tx_index,
+                &vecs.op_return.first_index,
+                &vecs.op_return.to_tx_index,
                 height,
             )?,
             p2pk33_addr_index: next_index(

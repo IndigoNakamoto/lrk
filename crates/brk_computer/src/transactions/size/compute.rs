@@ -14,7 +14,7 @@ impl Vecs {
     ) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
 
-        self.vsize
+        self.weight
             .derive_from(indexer, indexes, &starting_lengths, exit)?;
 
         Ok(())

@@ -14,6 +14,7 @@ mod addrs;
 mod blocks;
 mod inputs;
 mod macros;
+mod op_return;
 mod outputs;
 mod scripts;
 mod transactions;
@@ -21,6 +22,7 @@ mod transactions;
 pub use addrs::*;
 pub use blocks::*;
 pub use inputs::*;
+pub use op_return::*;
 pub use outputs::*;
 pub use scripts::*;
 pub use transactions::*;
@@ -34,6 +36,8 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub blocks: BlocksVecs<M>,
     #[traversable(wrap = "transactions", rename = "raw")]
     pub transactions: TransactionsVecs<M>,
+    #[traversable(wrap = "transactions", rename = "features")]
+    pub transaction_features: TransactionFeaturesVecs<M>,
     #[traversable(wrap = "inputs", rename = "raw")]
     pub inputs: InputsVecs<M>,
     #[traversable(wrap = "outputs", rename = "raw")]
@@ -42,6 +46,8 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub addrs: AddrsVecs<M>,
     #[traversable(wrap = "scripts", rename = "raw")]
     pub scripts: ScriptsVecs<M>,
+    #[traversable(wrap = "op_return", rename = "raw")]
+    pub op_return: OpReturnVecs<M>,
 }
 
 impl Vecs {
@@ -51,23 +57,36 @@ impl Vecs {
         tracing::debug!("Setting min len...");
         db.set_min_len(PAGE_SIZE * 60_000_000)?;
 
-        let (blocks, transactions, inputs, outputs, addrs, scripts) = parallel_import! {
+        let (
+            blocks,
+            transactions,
+            transaction_features,
+            inputs,
+            outputs,
+            addrs,
+            scripts,
+            op_return,
+        ) = parallel_import! {
             blocks = BlocksVecs::forced_import(&db, version),
             transactions = TransactionsVecs::forced_import(&db, version),
+            transaction_features = TransactionFeaturesVecs::forced_import(&db, version),
             inputs = InputsVecs::forced_import(&db, version),
             outputs = OutputsVecs::forced_import(&db, version),
             addrs = AddrsVecs::forced_import(&db, version),
             scripts = ScriptsVecs::forced_import(&db, version),
+            op_return = OpReturnVecs::forced_import(&db, version),
         };
 
         let this = Self {
             db,
             blocks,
             transactions,
+            transaction_features,
             inputs,
             outputs,
             addrs,
             scripts,
+            op_return,
         };
 
         this.db.retain_regions(
@@ -88,6 +107,12 @@ impl Vecs {
 
         self.transactions
             .truncate(starting_lengths.height, starting_lengths.tx_index, stamp)?;
+
+        self.transaction_features.truncate(
+            starting_lengths.height,
+            starting_lengths.tx_index,
+            stamp,
+        )?;
 
         self.inputs
             .truncate(starting_lengths.height, starting_lengths.txin_index, stamp)?;
@@ -111,9 +136,14 @@ impl Vecs {
         self.scripts.truncate(
             starting_lengths.height,
             starting_lengths.empty_output_index,
-            starting_lengths.op_return_index,
             starting_lengths.p2ms_output_index,
             starting_lengths.unknown_output_index,
+            stamp,
+        )?;
+
+        self.op_return.truncate(
+            starting_lengths.height,
+            starting_lengths.op_return_index,
             stamp,
         )?;
 
@@ -167,19 +197,23 @@ impl Vecs {
         self.blocks
             .par_iter_mut_any()
             .chain(self.transactions.par_iter_mut_any())
+            .chain(self.transaction_features.par_iter_mut_any())
             .chain(self.inputs.par_iter_mut_any())
             .chain(self.outputs.par_iter_mut_any())
             .chain(self.addrs.par_iter_mut_any())
             .chain(self.scripts.par_iter_mut_any())
+            .chain(self.op_return.par_iter_mut_any())
     }
 
     fn iter_any_stored_vec(&self) -> impl Iterator<Item = &dyn AnyStoredVec> {
         self.blocks
             .iter_any()
             .chain(self.transactions.iter_any())
+            .chain(self.transaction_features.iter_any())
             .chain(self.inputs.iter_any())
             .chain(self.outputs.iter_any())
             .chain(self.addrs.iter_any())
             .chain(self.scripts.iter_any())
+            .chain(self.op_return.iter_any())
     }
 }

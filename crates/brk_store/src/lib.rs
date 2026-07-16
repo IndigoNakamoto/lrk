@@ -1,12 +1,25 @@
 #![doc = include_str!("../README.md")]
 
-use std::{borrow::Cow, fmt::Debug, fs, hash::Hash, mem, ops::Range, path::Path};
+use std::{
+    borrow::Cow,
+    fmt::Debug,
+    fs,
+    hash::Hash,
+    mem,
+    ops::Range,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering::Relaxed},
+    },
+};
 
 use brk_error::Result;
 use brk_types::{Height, Version};
 use byteview::ByteView;
 use fjall::{Database, Keyspace, KeyspaceCreateOptions, config::*};
 use rustc_hash::{FxHashMap, FxHashSet};
+use tracing::info;
 
 mod any;
 mod item;
@@ -37,6 +50,7 @@ pub struct Store<K, V> {
     puts: FxHashMap<K, V>,
     dels: FxHashSet<K>,
     caches: Vec<FxHashMap<K, V>>,
+    db_reads: Arc<AtomicU64>,
 }
 
 impl<K, V> Store<K, V>
@@ -103,6 +117,7 @@ where
             puts: FxHashMap::default(),
             dels: FxHashSet::default(),
             caches,
+            db_reads: Arc::new(AtomicU64::new(0)),
         })
     }
 
@@ -164,6 +179,8 @@ where
             }
         }
 
+        self.db_reads.fetch_add(1, Relaxed);
+
         if let Some(slice) = self.keyspace.get(ByteView::from(key))? {
             Ok(Some(Cow::Owned(V::from(ByteView::from(slice)))))
         } else {
@@ -212,6 +229,7 @@ where
         for<'a> ByteView: From<&'a K> + From<&'a V>,
     {
         self.export_meta_if_needed(height)?;
+        self.report_db_reads();
 
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
@@ -284,6 +302,13 @@ where
             self.export_meta(height)?;
         }
         Ok(())
+    }
+
+    fn report_db_reads(&self) {
+        let reads = self.db_reads.swap(0, Relaxed);
+        if reads != 0 {
+            info!(store = self.name, reads, "Store DB reads");
+        }
     }
 
     fn ingest<'a>(
@@ -361,6 +386,7 @@ where
 
     fn commit(&mut self, height: Height) -> Result<()> {
         self.export_meta_if_needed(height)?;
+        self.report_db_reads();
 
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);

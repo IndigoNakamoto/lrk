@@ -16,6 +16,7 @@ use vecdb::{
 use crate::{
     blocks,
     distribution::{
+        DynCohortVecs,
         metrics::{
             AllCohortMetrics, BasicCohortMetrics, CohortMetricsBase, CoreCohortMetrics,
             ExtendedAdjustedCohortMetrics, ExtendedCohortMetrics, ImportConfig,
@@ -23,7 +24,6 @@ use crate::{
             TypeCohortMetrics,
         },
         state::UTXOCohortState,
-        DynCohortVecs,
     },
     indexes,
     internal::{ValuePerBlockCumulativeRolling, WindowStartVec, Windows},

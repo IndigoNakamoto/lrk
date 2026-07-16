@@ -1,8 +1,10 @@
+use bitcoin::ScriptBuf;
+use brk_error::Error;
 use byteview::ByteView;
 use derive_more::Deref;
 use vecdb::Bytes;
 
-use super::AddrBytes;
+use super::{AddrBytes, OutputType};
 
 #[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Bytes, Hash)]
 pub struct AddrHash(u64);
@@ -10,6 +12,13 @@ pub struct AddrHash(u64);
 impl AddrHash {
     pub const fn new(value: u64) -> Self {
         Self(value)
+    }
+
+    #[inline]
+    pub fn from_script(script: &ScriptBuf, output_type: OutputType) -> Result<Self, Error> {
+        Ok(Self(rapidhash::v3::rapidhash_v3(
+            AddrBytes::script_payload(script, output_type)?,
+        )))
     }
 }
 
@@ -36,5 +45,42 @@ impl From<&AddrHash> for ByteView {
     #[inline]
     fn from(value: &AddrHash) -> Self {
         Self::new(&value.0.to_be_bytes())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AddrHash;
+    use crate::{
+        AddrBytes, OutputType, P2ABytes, P2PK33Bytes, P2PK65Bytes, P2PKHBytes, P2SHBytes,
+        P2TRBytes, P2WPKHBytes, P2WSHBytes,
+    };
+
+    #[test]
+    fn hashes_borrowed_script_payloads_like_owned_addresses() {
+        let addresses = [
+            AddrBytes::from(P2PK65Bytes::from(&[0x04; 65][..])),
+            AddrBytes::from(P2PK33Bytes::from(&[0x02; 33][..])),
+            AddrBytes::from(P2PKHBytes::from(&[0x03; 20][..])),
+            AddrBytes::from(P2SHBytes::from(&[0x04; 20][..])),
+            AddrBytes::from(P2WPKHBytes::from(&[0x05; 20][..])),
+            AddrBytes::from(P2WSHBytes::from(&[0x06; 32][..])),
+            AddrBytes::from(P2TRBytes::from(&[0x07; 32][..])),
+            AddrBytes::from(P2ABytes::from(&[78, 115][..])),
+        ];
+
+        for address in addresses {
+            let script = address.to_script_pubkey();
+            let output_type = OutputType::from(&script);
+
+            assert_eq!(
+                AddrHash::from_script(&script, output_type).unwrap(),
+                AddrHash::from(&address)
+            );
+            assert_eq!(
+                AddrBytes::try_from((&script, output_type)).unwrap(),
+                address
+            );
+        }
     }
 }

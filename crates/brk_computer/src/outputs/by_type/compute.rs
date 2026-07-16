@@ -6,6 +6,8 @@ use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 use super::{Vecs, WithOutputTypes};
 use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
 
+const WRITE_INTERVAL: usize = 10_000;
+
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
@@ -44,6 +46,7 @@ impl Vecs {
 
             let mut otype_cursor = indexer.vecs.outputs.output_type.cursor();
             let mut fo_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+            let mut height = skip;
 
             walk_blocks(
                 &fi_batch,
@@ -77,7 +80,8 @@ impl Vecs {
                         .block
                         .push(StoredU64::from(spendable_total));
 
-                    if self.output_count.all.block.batch_limit_reached() {
+                    height += 1;
+                    if height.is_multiple_of(WRITE_INTERVAL) {
                         let _lock = exit.lock();
                         self.output_count.write()?;
                         self.spendable_output_count.block.write()?;
@@ -93,13 +97,13 @@ impl Vecs {
                 self.spendable_output_count.block.write()?;
                 self.tx_count.write()?;
             }
-
-            self.output_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.spendable_output_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.tx_count.compute_rest(starting_lengths.height, exit)?;
         }
+
+        self.output_count
+            .compute_rest(starting_lengths.height, exit)?;
+        self.spendable_output_count
+            .compute_rest(starting_lengths.height, exit)?;
+        self.tx_count.compute_rest(starting_lengths.height, exit)?;
 
         for (otype, source) in self.output_count.by_type.iter_typed() {
             self.output_share.get_mut(otype).compute_count_ratio(

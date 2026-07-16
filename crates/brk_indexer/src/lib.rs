@@ -37,6 +37,7 @@ pub struct Indexer<M: StorageMode = Rw> {
     path: PathBuf,
     pub vecs: Vecs<M>,
     pub stores: Stores,
+    buffers: BlockBuffers,
     safe_lengths: SafeLengths,
 }
 
@@ -53,7 +54,12 @@ impl<M: StorageMode> Indexer<M> {
     /// actually queryable.
     pub fn tip_blockhash(&self) -> BlockHash {
         match self.safe_lengths().height.decremented() {
-            Some(h) => self.vecs.blocks.blockhash.collect_one(h).unwrap_or_default(),
+            Some(h) => self
+                .vecs
+                .blocks
+                .blockhash
+                .collect_one(h)
+                .unwrap_or_default(),
             None => BlockHash::default(),
         }
     }
@@ -102,6 +108,7 @@ impl Indexer {
                 path: indexed_path.clone(),
                 vecs,
                 stores,
+                buffers: BlockBuffers::default(),
                 safe_lengths,
             })
         };
@@ -128,6 +135,7 @@ impl Indexer {
     /// record that gets replayed on every recovery), this cleanly recreates.
     fn full_reset(&mut self) -> Result<()> {
         info!("Full reset...");
+        self.buffers.reset();
         self.safe_lengths.reset();
         self.vecs.reset()?;
         let stores_path = self.path.join("stores");
@@ -196,6 +204,8 @@ impl Indexer {
         debug!("Rollback vecs done.");
         drop(lock);
 
+        self.buffers.continue_from(prev_hash);
+
         let mut lengths = starting_lengths;
 
         let is_export_height =
@@ -227,10 +237,10 @@ impl Indexer {
         };
 
         let mut readers = Readers::new(&self.vecs);
-        let mut buffers = BlockBuffers::default();
 
         let vecs = &mut self.vecs;
         let stores = &mut self.stores;
+        let buffers = &mut self.buffers;
 
         for block in reader.after(prev_hash)?.iter() {
             let block = match block {
@@ -277,38 +287,26 @@ impl Indexer {
             processor.push_block_size_and_weight(&txs)?;
 
             let (txins_result, txouts_result) = rayon::join(
-                || processor.process_inputs(&txs, &mut buffers.txid_prefix_map),
-                || processor.process_outputs(),
+                || processor.process_inputs(&txs, &mut buffers.inputs),
+                || processor.process_outputs(&mut buffers.addresses),
             );
             let txins = txins_result?;
             let txouts = txouts_result?;
-
             let tx_count = block.txdata.len();
             let input_count = txins.len();
             let output_count = txouts.len();
 
-            BlockProcessor::collect_same_block_spent_outpoints(
-                &txins,
-                &mut buffers.same_block_spent,
-            );
-
-            processor.check_txid_collisions(&txs)?;
-
-            let sigops = processor.compute_sigops(&txins, &txouts);
-
-            processor.finalize_and_store_metadata(
+            processor.analyze_and_finalize_transactions(
                 txs,
                 txouts,
                 txins,
-                sigops,
-                &buffers.same_block_spent,
-                &mut buffers.already_added_addrs,
-                &mut buffers.same_block_output_info,
+                &mut buffers.addresses,
             )?;
 
             processor
                 .lengths
                 .add_block(tx_count, input_count, output_count);
+            buffers.finish_block(*block.hash());
 
             if is_export_height(height) {
                 drop(readers);
@@ -389,6 +387,7 @@ impl ReadOnlyClone for Indexer {
             path: self.path.clone(),
             vecs: self.vecs.read_only_clone(),
             stores: self.stores.clone(),
+            buffers: BlockBuffers::default(),
             safe_lengths: self.safe_lengths.clone(),
         }
     }

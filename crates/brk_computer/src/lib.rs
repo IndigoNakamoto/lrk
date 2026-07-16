@@ -20,6 +20,7 @@ mod internal;
 mod investing;
 mod market;
 mod mining;
+mod op_return;
 mod outputs;
 mod pools;
 pub mod price;
@@ -44,9 +45,10 @@ pub struct Computer<M: StorageMode = Rw> {
     pub supply: Box<supply::Vecs<M>>,
     pub inputs: Box<inputs::Vecs<M>>,
     pub outputs: Box<outputs::Vecs<M>>,
+    pub op_return: Box<op_return::Vecs<M>>,
 }
 
-const VERSION: Version = Version::new(6);
+const VERSION: Version = Version::new(7);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {
@@ -87,8 +89,9 @@ impl Computer {
 
         let cached_starts = blocks.lookback.cached_window_starts();
 
-        let (inputs, outputs, mining, transactions, pools, cointime) =
-            timed("Imported inputs/outputs/mining/tx/pools/cointime", || {
+        let (inputs, outputs, mining, transactions, pools, cointime, op_return) = timed(
+            "Imported inputs/outputs/mining/tx/pools/cointime/op_return",
+            || {
                 thread::scope(|s| -> Result<_> {
                     let inputs_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(inputs::Vecs::forced_import(
@@ -143,15 +146,33 @@ impl Computer {
                         &cached_starts,
                     )?);
 
+                    let op_return_handle = big_thread().spawn_scoped(s, || -> Result<_> {
+                        Ok(Box::new(op_return::Vecs::forced_import(
+                            &computed_path,
+                            VERSION,
+                            &indexes,
+                        )?))
+                    })?;
+
                     let inputs = inputs_handle.join().unwrap()?;
                     let outputs = outputs_handle.join().unwrap()?;
                     let mining = mining_handle.join().unwrap()?;
                     let transactions = transactions_handle.join().unwrap()?;
                     let pools = pools_handle.join().unwrap()?;
+                    let op_return = op_return_handle.join().unwrap()?;
 
-                    Ok((inputs, outputs, mining, transactions, pools, cointime))
+                    Ok((
+                        inputs,
+                        outputs,
+                        mining,
+                        transactions,
+                        pools,
+                        cointime,
+                        op_return,
+                    ))
                 })
-            })?;
+            },
+        )?;
 
         // Market, indicators, and distribution are independent; import in parallel.
         // Supply depends on distribution so it runs after.
@@ -225,6 +246,7 @@ impl Computer {
             inputs,
             price,
             outputs,
+            op_return,
         };
 
         Self::retain_databases(&computed_path)?;
@@ -249,6 +271,7 @@ impl Computer {
             supply::DB_NAME,
             inputs::DB_NAME,
             outputs::DB_NAME,
+            op_return::DB_NAME,
         ];
 
         if !computed_path.exists() {
@@ -292,8 +315,7 @@ impl Computer {
             let (inputs_result, prices_result) = rayon::join(
                 || {
                     timed("Computed inputs", || {
-                        self.inputs
-                            .compute(indexer, &self.indexes, &self.blocks, exit)
+                        self.inputs.compute(indexer, &self.blocks, exit)
                     })
                 },
                 || {
@@ -337,18 +359,19 @@ impl Computer {
                 })
             });
 
+            let op_return = scope.spawn(|| {
+                timed("Computed OP_RETURN", || {
+                    self.op_return.compute(indexer, exit)
+                })
+            });
+
             timed("Computed outputs", || {
-                self.outputs.compute(
-                    indexer,
-                    &self.indexes,
-                    &self.inputs,
-                    &self.blocks,
-                    &self.price,
-                    exit,
-                )
+                self.outputs
+                    .compute(indexer, &self.inputs, &self.blocks, &self.price, exit)
             })?;
 
             tx_mining.join().unwrap()?;
+            op_return.join().unwrap()?;
             market.join().unwrap()?;
             Ok(())
         })?;
@@ -502,7 +525,8 @@ impl_iter_named!(
     distribution,
     supply,
     inputs,
-    outputs
+    outputs,
+    op_return
 );
 
 fn timed<T>(label: &str, f: impl FnOnce() -> T) -> T {

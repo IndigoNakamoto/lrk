@@ -3,7 +3,7 @@ use brk_indexer::{Indexer, Lengths};
 use brk_traversable::Traversable;
 use brk_types::TxIndex;
 use schemars::JsonSchema;
-use vecdb::{Database, Exit, LazyVecFrom2, ReadableVec, Rw, StorageMode, Version};
+use vecdb::{Database, Exit, LazyVecFrom1, ReadableVec, Rw, StorageMode, Version};
 
 use crate::{
     indexes,
@@ -11,29 +11,27 @@ use crate::{
 };
 
 #[derive(Traversable)]
-pub struct LazyPerTxDistribution<T, S1, S2, M: StorageMode = Rw>
+pub struct LazyPerTxDistribution<T, S, M: StorageMode = Rw>
 where
     T: ComputedVecValue + PartialOrd + JsonSchema,
-    S1: ComputedVecValue,
-    S2: ComputedVecValue,
+    S: ComputedVecValue,
 {
-    pub tx_index: LazyVecFrom2<TxIndex, T, TxIndex, S1, TxIndex, S2>,
+    pub tx_index: LazyVecFrom1<TxIndex, T, TxIndex, S>,
     #[traversable(flatten)]
     pub distribution: TxDerivedDistribution<T, M>,
 }
 
-impl<T, S1, S2> LazyPerTxDistribution<T, S1, S2>
+impl<T, S> LazyPerTxDistribution<T, S>
 where
     T: NumericValue + JsonSchema,
-    S1: ComputedVecValue + JsonSchema,
-    S2: ComputedVecValue + JsonSchema,
+    S: ComputedVecValue + JsonSchema,
 {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        tx_index: LazyVecFrom2<TxIndex, T, TxIndex, S1, TxIndex, S2>,
+        tx_index: LazyVecFrom1<TxIndex, T, TxIndex, S>,
     ) -> Result<Self> {
         let distribution = TxDerivedDistribution::forced_import(db, name, version, indexes)?;
         Ok(Self {
@@ -52,7 +50,7 @@ where
     where
         T: Copy + Ord + From<f64> + Default,
         f64: From<T>,
-        LazyVecFrom2<TxIndex, T, TxIndex, S1, TxIndex, S2>: ReadableVec<TxIndex, T>,
+        LazyVecFrom1<TxIndex, T, TxIndex, S>: ReadableVec<TxIndex, T>,
     {
         self.distribution
             .derive_from(indexer, indexes, starting_lengths, &self.tx_index, exit)

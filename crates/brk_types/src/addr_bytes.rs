@@ -38,6 +38,37 @@ impl AddrBytes {
         rapidhash::v3::rapidhash_v3(self.as_slice())
     }
 
+    pub(crate) fn script_payload(
+        script: &ScriptBuf,
+        output_type: OutputType,
+    ) -> Result<&[u8], Error> {
+        let bytes = script.as_bytes();
+        match output_type {
+            OutputType::P2PK65 => match bytes.len() {
+                67 => Ok(&bytes[1..66]),
+                received => Err(Error::WrongLength {
+                    expected: 67,
+                    received,
+                }),
+            },
+            OutputType::P2PK33 => match bytes.len() {
+                35 => Ok(&bytes[1..34]),
+                received => Err(Error::WrongLength {
+                    expected: 35,
+                    received,
+                }),
+            },
+            OutputType::P2PKH => Ok(&bytes[3..23]),
+            OutputType::P2SH => Ok(&bytes[2..22]),
+            OutputType::P2WPKH | OutputType::P2WSH | OutputType::P2TR | OutputType::P2A => {
+                Ok(&bytes[2..])
+            }
+            OutputType::P2MS | OutputType::Unknown | OutputType::Empty | OutputType::OpReturn => {
+                Err(Error::WrongAddrType)
+            }
+        }
+    }
+
     /// Reconstruct the script_pubkey from the address bytes
     pub fn to_script_pubkey(&self) -> ScriptBuf {
         match self {
@@ -80,64 +111,21 @@ impl TryFrom<(&ScriptBuf, OutputType)> for AddrBytes {
     type Error = Error;
     fn try_from(tuple: (&ScriptBuf, OutputType)) -> Result<Self, Self::Error> {
         let (script, output_type) = tuple;
+        let bytes = Self::script_payload(script, output_type)?;
 
-        match output_type {
-            OutputType::P2PK65 => {
-                let bytes = script.as_bytes();
-                let bytes = match bytes.len() {
-                    67 => &bytes[1..66],
-                    len => {
-                        dbg!(bytes);
-                        return Err(Error::WrongLength {
-                            expected: 67,
-                            received: len,
-                        });
-                    }
-                };
-                Ok(Self::P2PK65(P2PK65Bytes::from(bytes)))
-            }
-            OutputType::P2PK33 => {
-                let bytes = script.as_bytes();
-                let bytes = match bytes.len() {
-                    35 => &bytes[1..34],
-                    len => {
-                        dbg!(bytes);
-                        return Err(Error::WrongLength {
-                            expected: 35,
-                            received: len,
-                        });
-                    }
-                };
-                Ok(Self::P2PK33(P2PK33Bytes::from(bytes)))
-            }
-            OutputType::P2PKH => {
-                let bytes = &script.as_bytes()[3..23];
-                Ok(Self::P2PKH(P2PKHBytes::from(bytes)))
-            }
-            OutputType::P2SH => {
-                let bytes = &script.as_bytes()[2..22];
-                Ok(Self::P2SH(P2SHBytes::from(bytes)))
-            }
-            OutputType::P2WPKH => {
-                let bytes = &script.as_bytes()[2..];
-                Ok(Self::P2WPKH(P2WPKHBytes::from(bytes)))
-            }
-            OutputType::P2WSH => {
-                let bytes = &script.as_bytes()[2..];
-                Ok(Self::P2WSH(P2WSHBytes::from(bytes)))
-            }
-            OutputType::P2TR => {
-                let bytes = &script.as_bytes()[2..];
-                Ok(Self::P2TR(P2TRBytes::from(bytes)))
-            }
-            OutputType::P2A => {
-                let bytes = &script.as_bytes()[2..];
-                Ok(Self::P2A(P2ABytes::from(bytes)))
-            }
+        Ok(match output_type {
+            OutputType::P2PK65 => Self::P2PK65(P2PK65Bytes::from(bytes)),
+            OutputType::P2PK33 => Self::P2PK33(P2PK33Bytes::from(bytes)),
+            OutputType::P2PKH => Self::P2PKH(P2PKHBytes::from(bytes)),
+            OutputType::P2SH => Self::P2SH(P2SHBytes::from(bytes)),
+            OutputType::P2WPKH => Self::P2WPKH(P2WPKHBytes::from(bytes)),
+            OutputType::P2WSH => Self::P2WSH(P2WSHBytes::from(bytes)),
+            OutputType::P2TR => Self::P2TR(P2TRBytes::from(bytes)),
+            OutputType::P2A => Self::P2A(P2ABytes::from(bytes)),
             OutputType::P2MS | OutputType::Unknown | OutputType::Empty | OutputType::OpReturn => {
-                Err(Error::WrongAddrType)
+                unreachable!()
             }
-        }
+        })
     }
 }
 

@@ -235,12 +235,7 @@ impl Query {
             Index::TxInIndex => v.inputs.first_txin_index.collect_one(h).map(usize::from),
             Index::TxOutIndex => v.outputs.first_txout_index.collect_one(h).map(usize::from),
             Index::EmptyOutputIndex => v.scripts.empty.first_index.collect_one(h).map(usize::from),
-            Index::OpReturnIndex => v
-                .scripts
-                .op_return
-                .first_index
-                .collect_one(h)
-                .map(usize::from),
+            Index::OpReturnIndex => v.op_return.first_index.collect_one(h).map(usize::from),
             Index::P2MSOutputIndex => v.scripts.p2ms.first_index.collect_one(h).map(usize::from),
             Index::UnknownOutputIndex => v
                 .scripts

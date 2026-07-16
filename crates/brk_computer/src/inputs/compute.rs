@@ -3,13 +3,12 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{blocks, indexes};
+use crate::blocks;
 
 impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        indexes: &indexes::Vecs,
         blocks: &blocks::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -18,7 +17,7 @@ impl Vecs {
         let starting_lengths = indexer.safe_lengths();
 
         self.spent.compute(indexer, exit)?;
-        self.count.compute(indexer, indexes, blocks, exit)?;
+        self.count.compute(indexer, blocks, exit)?;
         self.per_sec.compute(&self.count, &starting_lengths, exit)?;
         self.by_type.compute(indexer, exit)?;
 

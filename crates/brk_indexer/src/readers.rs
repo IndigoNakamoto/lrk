@@ -1,8 +1,9 @@
 use bitcoin::ScriptBuf;
 use brk_types::{
-    AddrBytes, OutputType, P2AAddrIndex, P2ABytes, P2PK33AddrIndex, P2PK33Bytes, P2PK65AddrIndex,
-    P2PK65Bytes, P2PKHAddrIndex, P2PKHBytes, P2SHAddrIndex, P2SHBytes, P2TRAddrIndex, P2TRBytes,
-    P2WPKHAddrIndex, P2WPKHBytes, P2WSHAddrIndex, P2WSHBytes, TxIndex, TxOutIndex, Txid, TypeIndex,
+    AddrBytes, OutputType, P2AAddrIndex, P2ABytes, P2MSOutputIndex, P2PK33AddrIndex, P2PK33Bytes,
+    P2PK65AddrIndex, P2PK65Bytes, P2PKHAddrIndex, P2PKHBytes, P2SHAddrIndex, P2SHBytes,
+    P2TRAddrIndex, P2TRBytes, P2WPKHAddrIndex, P2WPKHBytes, P2WSHAddrIndex, P2WSHBytes, SigOps,
+    TxIndex, TxOutIndex, Txid, TypeIndex, UnknownOutputIndex,
 };
 use vecdb::{BytesStrategy, VecReader};
 
@@ -46,6 +47,7 @@ pub struct Readers {
     pub tx_index_to_first_txout_index: VecReader<TxIndex, TxOutIndex, BytesStrategy<TxOutIndex>>,
     pub txout_index_to_output_type: VecReader<TxOutIndex, OutputType, BytesStrategy<OutputType>>,
     pub txout_index_to_type_index: VecReader<TxOutIndex, TypeIndex, BytesStrategy<TypeIndex>>,
+    pub scripts: ScriptReaders,
     pub addrbytes: AddrReaders,
 }
 
@@ -56,7 +58,16 @@ impl Readers {
             tx_index_to_first_txout_index: vecs.transactions.first_txout_index.reader(),
             txout_index_to_output_type: vecs.outputs.output_type.reader(),
             txout_index_to_type_index: vecs.outputs.type_index.reader(),
+            scripts: ScriptReaders {
+                p2ms_legacy_sigops: vecs.scripts.p2ms.legacy_sigops.reader(),
+                unknown_legacy_sigops: vecs.scripts.unknown.legacy_sigops.reader(),
+            },
             addrbytes: vecs.addrs.addr_readers(),
         }
     }
+}
+
+pub struct ScriptReaders {
+    pub p2ms_legacy_sigops: VecReader<P2MSOutputIndex, SigOps, BytesStrategy<SigOps>>,
+    pub unknown_legacy_sigops: VecReader<UnknownOutputIndex, SigOps, BytesStrategy<SigOps>>,
 }

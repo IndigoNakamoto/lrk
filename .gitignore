@@ -26,6 +26,7 @@ _*
 /playground
 /*.txt
 /*.csv
+/tmp
 
 # Logs
 *.log*

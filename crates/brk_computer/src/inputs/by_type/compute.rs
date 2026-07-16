@@ -6,6 +6,8 @@ use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 use super::{Vecs, WithInputTypes};
 use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
 
+const WRITE_INTERVAL: usize = 10_000;
+
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
@@ -37,6 +39,7 @@ impl Vecs {
 
             let mut itype_cursor = indexer.vecs.inputs.output_type.cursor();
             let mut fi_in_cursor = indexer.vecs.transactions.first_txin_index.cursor();
+            let mut height = skip;
 
             walk_blocks(
                 &fi_batch,
@@ -65,7 +68,8 @@ impl Vecs {
                     );
                     push_block(&mut self.tx_count, agg.txs_all, &agg.txs_per_type);
 
-                    if self.input_count.all.block.batch_limit_reached() {
+                    height += 1;
+                    if height.is_multiple_of(WRITE_INTERVAL) {
                         let _lock = exit.lock();
                         self.input_count.write()?;
                         self.tx_count.write()?;
@@ -79,11 +83,11 @@ impl Vecs {
                 self.input_count.write()?;
                 self.tx_count.write()?;
             }
-
-            self.input_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.tx_count.compute_rest(starting_lengths.height, exit)?;
         }
+
+        self.input_count
+            .compute_rest(starting_lengths.height, exit)?;
+        self.tx_count.compute_rest(starting_lengths.height, exit)?;
 
         for (otype, source) in self.input_count.by_type.iter_typed() {
             self.input_share.get_mut(otype).compute_count_ratio(

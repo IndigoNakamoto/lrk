@@ -19,7 +19,7 @@ impl Vecs {
         self.db.sync_bg_tasks()?;
 
         let (r1, (r2, r3)) = rayon::join(
-            || self.count.compute(indexer, &blocks.lookback, exit),
+            || self.count.compute(indexer, indexes, &blocks.lookback, exit),
             || {
                 rayon::join(
                     || self.versions.compute(indexer, exit),
@@ -33,6 +33,11 @@ impl Vecs {
 
         self.fees
             .compute(indexer, indexes, &inputs.spent, &self.size, exit)?;
+
+        self.patterns
+            .compute(indexer, indexes, &inputs.spent, exit)?;
+
+        self.policy.compute(indexer, indexes, &self.fees, exit)?;
 
         self.volume
             .compute(indexer, indexes, prices, &self.count, &self.fees, exit)?;

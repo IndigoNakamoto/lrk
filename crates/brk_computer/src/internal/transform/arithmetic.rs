@@ -146,11 +146,11 @@ impl UnaryTransform<StoredU64, Weight> for VBytesToWeight {
     }
 }
 
-pub struct VSizeToWeight;
+pub struct WeightToVSize;
 
-impl UnaryTransform<VSize, Weight> for VSizeToWeight {
+impl UnaryTransform<Weight, VSize> for WeightToVSize {
     #[inline(always)]
-    fn apply(vsize: VSize) -> Weight {
-        Weight::from(vsize)
+    fn apply(weight: Weight) -> VSize {
+        VSize::from(weight)
     }
 }

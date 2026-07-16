@@ -3,7 +3,14 @@
     reason = "P2PK65 and P2PK33 both serialize as 'p2pk'"
 )]
 
-use bitcoin::{AddressType, ScriptBuf, opcodes::all::OP_PUSHBYTES_2};
+use bitcoin::{
+    AddressType, ScriptBuf,
+    opcodes::all::{
+        OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_HASH160, OP_PUSHBYTES_0, OP_PUSHBYTES_2,
+        OP_PUSHBYTES_20, OP_PUSHBYTES_32, OP_PUSHBYTES_33, OP_PUSHBYTES_65, OP_PUSHNUM_1,
+        OP_RETURN,
+    },
+};
 use brk_error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -147,41 +154,43 @@ impl OutputType {
 impl From<&ScriptBuf> for OutputType {
     #[inline]
     fn from(script: &ScriptBuf) -> Self {
-        if script.is_p2pkh() {
-            Self::P2PKH
-        } else if script.is_p2wpkh() {
-            Self::P2WPKH
-        } else if script.is_p2wsh() {
-            Self::P2WSH
-        } else if script.is_p2tr() {
-            Self::P2TR
-        } else if script.is_p2sh() {
-            Self::P2SH
-        } else if script.is_op_return() {
-            Self::OpReturn
-        } else if script.is_p2pk() {
-            let bytes = script.as_bytes();
+        let bytes = script.as_bytes();
 
-            match bytes.len() {
-                67 => Self::P2PK65,
-                35 => Self::P2PK33,
-                _ => {
-                    dbg!(bytes);
-                    unreachable!()
-                }
+        match bytes.len() {
+            0 => Self::Empty,
+            4 if bytes == [OP_PUSHNUM_1.to_u8(), OP_PUSHBYTES_2.to_u8(), 78, 115] => Self::P2A,
+            22 if bytes[0] == OP_PUSHBYTES_0.to_u8() && bytes[1] == OP_PUSHBYTES_20.to_u8() => {
+                Self::P2WPKH
             }
-        } else if script.is_multisig() {
-            Self::P2MS
-        } else if script.witness_version() == Some(bitcoin::WitnessVersion::V1)
-            && script.len() == 4
-            && script.as_bytes()[1] == OP_PUSHBYTES_2.to_u8()
-            && script.as_bytes()[2..4] == [78, 115]
-        {
-            Self::P2A
-        } else if script.is_empty() {
-            Self::Empty
-        } else {
-            Self::Unknown
+            23 if bytes[0] == OP_HASH160.to_u8()
+                && bytes[1] == OP_PUSHBYTES_20.to_u8()
+                && bytes[22] == OP_EQUAL.to_u8() =>
+            {
+                Self::P2SH
+            }
+            25 if bytes[0] == OP_DUP.to_u8()
+                && bytes[1] == OP_HASH160.to_u8()
+                && bytes[2] == OP_PUSHBYTES_20.to_u8()
+                && bytes[23] == OP_EQUALVERIFY.to_u8()
+                && bytes[24] == OP_CHECKSIG.to_u8() =>
+            {
+                Self::P2PKH
+            }
+            34 if bytes[0] == OP_PUSHBYTES_0.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::P2WSH
+            }
+            34 if bytes[0] == OP_PUSHNUM_1.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::P2TR
+            }
+            35 if bytes[0] == OP_PUSHBYTES_33.to_u8() && bytes[34] == OP_CHECKSIG.to_u8() => {
+                Self::P2PK33
+            }
+            67 if bytes[0] == OP_PUSHBYTES_65.to_u8() && bytes[66] == OP_CHECKSIG.to_u8() => {
+                Self::P2PK65
+            }
+            _ if bytes[0] == OP_RETURN.to_u8() => Self::OpReturn,
+            _ if script.is_multisig() => Self::P2MS,
+            _ => Self::Unknown,
         }
     }
 }

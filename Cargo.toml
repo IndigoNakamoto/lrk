@@ -64,15 +64,15 @@ color-eyre = "0.6.5"
 corepc-jsonrpc = { package = "jsonrpc", version = "0.19.0", features = ["simple_http"], default-features = false }
 corepc-types = { version = "0.15.0", features = ["std"], default-features = false }
 derive_more = { version = "2.1.1", features = ["deref", "deref_mut"] }
-fjall = "3.1.5"
+fjall = { version = "=3.0.4", path = "../fjall" }
 indexmap = { version = "2.14.0", features = ["serde"] }
-jiff = { version = "0.2.31", features = ["perf-inline", "tz-system"], default-features = false }
+jiff = { version = "0.2.32", features = ["perf-inline", "tz-system"], default-features = false }
 owo-colors = "4.3.0"
 parking_lot = "0.12.5"
 pco = "1.0.2"
 rayon = "1.12.0"
-rapidhash = "4.4.2"
-rustc-hash = "2.1.2"
+rapidhash = "4.5.1"
+rustc-hash = "2.1.3"
 schemars = { version = "1.2.1", features = ["indexmap2"] }
 serde = "1.0.228"
 serde_bytes = "0.11.19"
@@ -84,8 +84,11 @@ tower-http = { version = "0.7.0", features = ["catch-panic", "compression-br", "
 tower-layer = "0.3"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 ureq = { version = "3.3.0", features = ["json"] }
-vecdb = { version = "0.10.3", features = ["derive", "serde_json", "pco", "schemars"] }
+vecdb = { version = "0.10.4", features = ["derive", "serde_json", "pco", "schemars"] }
 # vecdb = { path = "../anydb/crates/vecdb", features = ["derive", "serde_json", "pco", "schemars"] }
+
+[patch.crates-io]
+lsm-tree = { path = "../lsm-tree" }
 
 [workspace.metadata.release]
 shared-version = true
