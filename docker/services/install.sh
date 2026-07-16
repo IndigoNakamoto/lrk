@@ -66,8 +66,19 @@ install_plist() {
 
 load_label() {
   local label="$1"
+  local attempt
   launchctl bootout "$DOMAIN/$label" 2>/dev/null || true
-  launchctl bootstrap "$DOMAIN" "$AGENTS/${label}.plist"
+  # bootout can race with KeepAlive teardown → bootstrap EIO (exit 5); retry.
+  for attempt in 1 2 3 4 5; do
+    if launchctl bootstrap "$DOMAIN" "$AGENTS/${label}.plist" 2>/dev/null; then
+      break
+    fi
+    if [[ "$attempt" -eq 5 ]]; then
+      # Surface the real launchctl error on the final attempt.
+      launchctl bootstrap "$DOMAIN" "$AGENTS/${label}.plist"
+    fi
+    sleep "$attempt"
+  done
   launchctl enable "$DOMAIN/$label" 2>/dev/null || true
   # Do not kickstart -k here — KeepAlive jobs block kickstart until exit.
   launchctl start "$label" 2>/dev/null || true
