@@ -103,8 +103,7 @@ impl Vecs {
             .input_value
             .len()
             .min(self.output_value.len())
-            .min(size_vecs.vsize.tx_index.len())
-            .min(starting_lengths.tx_index.to_usize());
+            .min(size_vecs.vsize.tx_index.len());
         let tx_len = self
             .fee
             .tx_index
@@ -119,7 +118,6 @@ impl Vecs {
             .transactions
             .first_tx_index
             .len()
-            .min(starting_lengths.height.to_usize())
             .min(indexes.height.tx_index_count.len());
         let next_height = if tx_len >= target {
             max_height
@@ -201,12 +199,7 @@ impl Vecs {
             let input_end = if h + 1 < max_height {
                 next_block_input.next().unwrap().to_usize()
             } else {
-                indexer
-                    .vecs
-                    .inputs
-                    .outpoint
-                    .len()
-                    .min(starting_lengths.txin_index.to_usize())
+                indexer.vecs.inputs.outpoint.len()
             };
             indexer.vecs.inputs.outpoint.collect_range_into_at(
                 input_begin,
@@ -417,7 +410,7 @@ fn same_block_parents<'a>(
 
     outpoints[start..end].iter().filter_map(move |outpoint| {
         let parent = outpoint.tx_index().to_usize();
-        (parent >= first_tx && parent < first_tx + tx_count).then_some(parent - first_tx)
+        (parent >= first_tx && parent < first_tx + tx_count).then(|| parent - first_tx)
     })
 }
 
@@ -472,7 +465,10 @@ mod tests {
         let mut cluster = Cluster::default();
         cluster_fee_rates(
             &[TxInIndex::from(0usize), TxInIndex::from(1usize)],
-            &[OutPoint::COINBASE, OutPoint::COINBASE],
+            &[
+                OutPoint::COINBASE,
+                OutPoint::new(TxIndex::from(9usize), Vout::ZERO),
+            ],
             0,
             10,
             &[Sats::new(100), Sats::new(300)],

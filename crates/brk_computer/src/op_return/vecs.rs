@@ -1,73 +1,15 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, StoredU64, VSize, Version};
-use schemars::JsonSchema;
-use vecdb::{
-    AnyStoredVec, AnyVec, Database, EagerVec, Exit, ImportableVec, PcoVec, Rw, StorageMode,
-    WritableVec,
-};
+use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use super::ByKind;
 use crate::{
     indexes,
-    internal::{NumericValue, PerBlock},
+    internal::{PerBlockCumulativeRolling, WindowStartVec, Windows},
 };
 
-#[derive(Traversable)]
-pub struct Series<T, M: StorageMode = Rw>
-where
-    T: NumericValue + JsonSchema,
-{
-    pub block: M::Stored<EagerVec<PcoVec<Height, T>>>,
-    pub cumulative: PerBlock<T, M>,
-}
-
-impl<T> Series<T>
-where
-    T: NumericValue + JsonSchema,
-{
-    fn forced_import(
-        db: &Database,
-        name: &str,
-        version: Version,
-        indexes: &indexes::Vecs,
-    ) -> Result<Self> {
-        let block = EagerVec::forced_import(db, name, version)?;
-        let cumulative =
-            PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
-        Ok(Self { block, cumulative })
-    }
-
-    fn len(&self) -> usize {
-        self.block.len()
-    }
-
-    fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
-        self.block.validate_and_truncate(version, height)?;
-        Ok(())
-    }
-
-    fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
-        self.block.truncate_if_needed_at(len)?;
-        Ok(())
-    }
-
-    fn push(&mut self, block: T) {
-        self.block.push(block);
-    }
-
-    fn write(&mut self) -> Result<()> {
-        self.block.write()?;
-        Ok(())
-    }
-
-    fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.cumulative
-            .height
-            .compute_cumulative(max_from, &self.block, exit)?;
-        Ok(())
-    }
-}
+pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, T, M>;
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct Totals {
@@ -78,11 +20,103 @@ pub(super) struct Totals {
 }
 
 #[derive(Traversable)]
-pub struct Metrics<M: StorageMode = Rw> {
-    pub output_count: Series<StoredU64, M>,
+pub struct TotalMetrics<M: StorageMode = Rw> {
     pub post_op_return_bytes: Series<StoredU64, M>,
     pub carrier_tx_count: Series<StoredU64, M>,
     pub carrier_vsize: Series<VSize, M>,
+}
+
+impl TotalMetrics {
+    pub(crate) fn forced_import(
+        db: &Database,
+        prefix: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        cached_starts: &Windows<&WindowStartVec>,
+    ) -> Result<Self> {
+        Ok(Self {
+            post_op_return_bytes: Series::forced_import(
+                db,
+                &format!("{prefix}_post_op_return_bytes"),
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            carrier_tx_count: Series::forced_import(
+                db,
+                &format!("{prefix}_carrier_tx_count"),
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            carrier_vsize: Series::forced_import(
+                db,
+                &format!("{prefix}_carrier_vsize"),
+                version,
+                indexes,
+                cached_starts,
+            )?,
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.post_op_return_bytes
+            .block
+            .len()
+            .min(self.carrier_tx_count.block.len())
+            .min(self.carrier_vsize.block.len())
+    }
+
+    pub(super) fn push(&mut self, block: Totals) {
+        self.post_op_return_bytes
+            .block
+            .push(block.post_op_return_bytes.into());
+        self.carrier_tx_count
+            .block
+            .push(block.carrier_tx_count.into());
+        self.carrier_vsize.block.push(block.carrier_vsize);
+    }
+
+    fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
+        self.post_op_return_bytes
+            .block
+            .validate_and_truncate(version, height)?;
+        self.carrier_tx_count
+            .block
+            .validate_and_truncate(version, height)?;
+        self.carrier_vsize
+            .block
+            .validate_and_truncate(version, height)?;
+        Ok(())
+    }
+
+    fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
+        self.post_op_return_bytes.block.truncate_if_needed_at(len)?;
+        self.carrier_tx_count.block.truncate_if_needed_at(len)?;
+        self.carrier_vsize.block.truncate_if_needed_at(len)?;
+        Ok(())
+    }
+
+    fn write(&mut self) -> Result<()> {
+        self.post_op_return_bytes.block.write()?;
+        self.carrier_tx_count.block.write()?;
+        self.carrier_vsize.block.write()?;
+        Ok(())
+    }
+
+    fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
+        self.post_op_return_bytes.compute_rest(max_from, exit)?;
+        self.carrier_tx_count.compute_rest(max_from, exit)?;
+        self.carrier_vsize.compute_rest(max_from, exit)?;
+        Ok(())
+    }
+}
+
+#[derive(Traversable)]
+pub struct Metrics<M: StorageMode = Rw> {
+    pub output_count: Series<StoredU64, M>,
+    #[traversable(flatten)]
+    pub total: TotalMetrics<M>,
 }
 
 impl Metrics {
@@ -91,6 +125,7 @@ impl Metrics {
         prefix: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             output_count: Series::forced_import(
@@ -98,82 +133,51 @@ impl Metrics {
                 &format!("{prefix}_output_count"),
                 version,
                 indexes,
+                cached_starts,
             )?,
-            post_op_return_bytes: Series::forced_import(
-                db,
-                &format!("{prefix}_post_op_return_bytes"),
-                version,
-                indexes,
-            )?,
-            carrier_tx_count: Series::forced_import(
-                db,
-                &format!("{prefix}_carrier_tx_count"),
-                version,
-                indexes,
-            )?,
-            carrier_vsize: Series::forced_import(
-                db,
-                &format!("{prefix}_carrier_vsize"),
-                version,
-                indexes,
-            )?,
+            total: TotalMetrics::forced_import(db, prefix, version, indexes, cached_starts)?,
         })
     }
 
     fn len(&self) -> usize {
-        self.output_count
-            .len()
-            .min(self.post_op_return_bytes.len())
-            .min(self.carrier_tx_count.len())
-            .min(self.carrier_vsize.len())
+        self.output_count.block.len().min(self.total.len())
     }
 
     pub(super) fn push(&mut self, block: Totals) {
-        self.output_count.push(block.output_count.into());
-        self.post_op_return_bytes
-            .push(block.post_op_return_bytes.into());
-        self.carrier_tx_count.push(block.carrier_tx_count.into());
-        self.carrier_vsize.push(block.carrier_vsize);
+        self.output_count.block.push(block.output_count.into());
+        self.total.push(block);
     }
 
     fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
-        self.output_count.validate_and_truncate(version, height)?;
-        self.post_op_return_bytes
+        self.output_count
+            .block
             .validate_and_truncate(version, height)?;
-        self.carrier_tx_count
-            .validate_and_truncate(version, height)?;
-        self.carrier_vsize.validate_and_truncate(version, height)?;
+        self.total.validate_and_truncate(version, height)?;
         Ok(())
     }
 
     fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
-        self.output_count.truncate_if_needed_at(len)?;
-        self.post_op_return_bytes.truncate_if_needed_at(len)?;
-        self.carrier_tx_count.truncate_if_needed_at(len)?;
-        self.carrier_vsize.truncate_if_needed_at(len)?;
+        self.output_count.block.truncate_if_needed_at(len)?;
+        self.total.truncate_if_needed_at(len)?;
         Ok(())
     }
 
     fn write(&mut self) -> Result<()> {
-        self.output_count.write()?;
-        self.post_op_return_bytes.write()?;
-        self.carrier_tx_count.write()?;
-        self.carrier_vsize.write()?;
+        self.output_count.block.write()?;
+        self.total.write()?;
         Ok(())
     }
 
     fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.output_count.compute_cumulative(max_from, exit)?;
-        self.post_op_return_bytes
-            .compute_cumulative(max_from, exit)?;
-        self.carrier_tx_count.compute_cumulative(max_from, exit)?;
-        self.carrier_vsize.compute_cumulative(max_from, exit)?;
+        self.output_count.compute_rest(max_from, exit)?;
+        self.total.compute_cumulative(max_from, exit)?;
         Ok(())
     }
 }
 
 #[derive(Traversable)]
 pub struct Policy<M: StorageMode = Rw> {
+    pub standard: Metrics<M>,
     pub oversized: Metrics<M>,
     pub multiple: Metrics<M>,
     pub pre_v30_nonstandard: Metrics<M>,
@@ -184,12 +188,20 @@ impl Policy {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let import = |name| {
-            Metrics::forced_import(db, &format!("op_return_policy_{name}"), version, indexes)
+            Metrics::forced_import(
+                db,
+                &format!("op_return_policy_{name}"),
+                version,
+                indexes,
+                cached_starts,
+            )
         };
 
         Ok(Self {
+            standard: import("standard")?,
             oversized: import("oversized")?,
             multiple: import("multiple")?,
             pre_v30_nonstandard: import("pre_v30_nonstandard")?,
@@ -197,11 +209,18 @@ impl Policy {
     }
 
     fn iter(&self) -> impl Iterator<Item = &Metrics> {
-        [&self.oversized, &self.multiple, &self.pre_v30_nonstandard].into_iter()
+        [
+            &self.standard,
+            &self.oversized,
+            &self.multiple,
+            &self.pre_v30_nonstandard,
+        ]
+        .into_iter()
     }
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut Metrics> {
         [
+            &mut self.standard,
             &mut self.oversized,
             &mut self.multiple,
             &mut self.pre_v30_nonstandard,
@@ -214,7 +233,7 @@ impl Policy {
 pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub(crate) db: Database,
-    pub total: Metrics<M>,
+    pub total: TotalMetrics<M>,
     pub by_kind: ByKind<Metrics<M>>,
     pub policy: Policy<M>,
 }

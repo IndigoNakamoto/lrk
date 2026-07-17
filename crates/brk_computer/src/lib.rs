@@ -151,6 +151,7 @@ impl Computer {
                             &computed_path,
                             VERSION,
                             &indexes,
+                            &cached_starts,
                         )?))
                     })?;
 

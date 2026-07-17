@@ -192,6 +192,7 @@ Month6 = int
 # Opening price value for a time period
 Open = Dollars
 OpReturnIndex = TypeIndex
+OpReturnKind = Literal["runes", "veri_block", "omni", "stacks", "blockstack", "colu", "open_assets", "komodo", "coin_spark", "poet", "docproof", "open_timestamps", "factom", "eternity_wall", "memo", "bitproof", "ascribe", "stampery", "epobc", "bare_hash", "text", "empty", "unknown"]
 OutPoint = int
 P2AAddrIndex = TypeIndex
 U8x2 = List[int]
@@ -3350,13 +3351,13 @@ class MaxMedianMinPct10Pct25Pct75Pct90Pattern2:
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.max: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'max'))
-        self.median: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'median'))
-        self.min: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'min'))
-        self.pct10: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'pct10'))
-        self.pct25: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'pct25'))
-        self.pct75: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'pct75'))
-        self.pct90: SeriesPattern18[Weight] = SeriesPattern18(client, _m(acc, 'pct90'))
+        self.max: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'max'))
+        self.median: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'median'))
+        self.min: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'min'))
+        self.pct10: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'pct10'))
+        self.pct25: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'pct25'))
+        self.pct75: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'pct75'))
+        self.pct90: SeriesPattern18[VSize] = SeriesPattern18(client, _m(acc, 'pct90'))
 
 class MaxMedianMinPct10Pct25Pct75Pct90Pattern(Generic[T]):
     """Pattern struct for repeated tree structure."""
@@ -3755,6 +3756,16 @@ class BtcCentsSatsUsdPattern3:
         self.cents: SeriesPattern18[Cents] = SeriesPattern18(client, _m(acc, 'cents'))
         self.sats: SeriesPattern18[Sats] = SeriesPattern18(client, _m(acc, 'sats'))
         self.usd: SeriesPattern18[Dollars] = SeriesPattern18(client, _m(acc, 'usd'))
+
+class CarrierOutputPostPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count'))
+        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize'))
+        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
+        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes'))
 
 class CentsDeltaToUsdPattern:
     """Pattern struct for repeated tree structure."""
@@ -4401,12 +4412,72 @@ class SeriesTree_Transactions_Raw:
         self.txid: SeriesPattern19[Txid] = SeriesPattern19(client, 'txid')
         self.tx_version: SeriesPattern19[TxVersion] = SeriesPattern19(client, 'tx_version')
         self.raw_locktime: SeriesPattern19[RawLockTime] = SeriesPattern19(client, 'raw_locktime')
-        self.base_size: SeriesPattern19[StoredU32] = SeriesPattern19(client, 'base_size')
+        self.weight: SeriesPattern19[Weight] = SeriesPattern19(client, 'tx_weight')
         self.total_size: SeriesPattern19[StoredU32] = SeriesPattern19(client, 'total_size')
         self.total_sigop_cost: SeriesPattern19[SigOps] = SeriesPattern19(client, 'total_sigop_cost')
         self.is_explicitly_rbf: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_explicitly_rbf')
         self.first_txin_index: SeriesPattern19[TxInIndex] = SeriesPattern19(client, 'first_txin_index')
         self.first_txout_index: SeriesPattern19[TxOutIndex] = SeriesPattern19(client, 'first_txout_index')
+
+class SeriesTree_Transactions_Features_Count:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.v1: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_v1')
+        self.v2: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_v2')
+        self.v3: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_v3')
+        self.other_version: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_other_version')
+        self.explicitly_rbf: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_explicitly_rbf')
+        self.one_input: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_one_input')
+        self.one_output: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_one_output')
+        self.p2pk: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2pk')
+        self.p2ms: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2ms')
+        self.p2pkh: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2pkh')
+        self.p2sh: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2sh')
+        self.p2wpkh: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2wpkh')
+        self.p2wsh: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2wsh')
+        self.p2tr: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2tr')
+        self.p2a: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_p2a')
+        self.op_return: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_op_return')
+        self.empty: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_empty')
+        self.unknown: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_unknown')
+        self.fake_pubkey: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_fake_pubkey')
+        self.fake_scripthash: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_fake_scripthash')
+        self.inscription: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_inscription')
+        self.annex: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_annex')
+        self.sighash_all: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_all')
+        self.sighash_none: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_none')
+        self.sighash_single: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_single')
+        self.sighash_default: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_default')
+        self.sighash_anyone_can_pay: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_anyone_can_pay')
+        self.dust_output: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_dust_output')
+
+class SeriesTree_Transactions_Features:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.count: SeriesTree_Transactions_Features_Count = SeriesTree_Transactions_Features_Count(client)
+        self.has_p2pk: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2pk')
+        self.has_p2ms: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2ms')
+        self.has_p2pkh: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2pkh')
+        self.has_p2sh: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2sh')
+        self.has_p2wpkh: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2wpkh')
+        self.has_p2wsh: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2wsh')
+        self.has_p2tr: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2tr')
+        self.has_p2a: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_p2a')
+        self.has_op_return: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_op_return')
+        self.has_empty: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_empty')
+        self.has_unknown: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_unknown')
+        self.has_fake_pubkey: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_fake_pubkey')
+        self.has_fake_scripthash: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_fake_scripthash')
+        self.has_inscription: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_inscription')
+        self.has_annex: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_annex')
+        self.has_sighash_all: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_sighash_all')
+        self.has_sighash_none: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_sighash_none')
+        self.has_sighash_single: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_sighash_single')
+        self.has_sighash_default: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_sighash_default')
+        self.has_sighash_anyone_can_pay: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_sighash_anyone_can_pay')
+        self.has_dust_output: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'has_dust_output')
 
 class SeriesTree_Transactions_Count:
     """Series tree node."""
@@ -4414,30 +4485,71 @@ class SeriesTree_Transactions_Count:
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.total: AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern = AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(client, 'tx_count')
 
+class SeriesTree_Transactions_Size_Vsize:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.tx_index: SeriesPattern19[VSize] = SeriesPattern19(client, 'tx_vsize')
+        self.block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2 = MaxMedianMinPct10Pct25Pct75Pct90Pattern2(client, 'tx_vsize')
+        self._6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2 = MaxMedianMinPct10Pct25Pct75Pct90Pattern2(client, 'tx_vsize_6b')
+
 class SeriesTree_Transactions_Size_Weight:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.tx_index: SeriesPattern19[Weight] = SeriesPattern19(client, 'tx_weight')
-        self.block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2 = MaxMedianMinPct10Pct25Pct75Pct90Pattern2(client, 'tx_weight')
-        self._6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2 = MaxMedianMinPct10Pct25Pct75Pct90Pattern2(client, 'tx_weight_6b')
+        self.block: MaxMedianMinPct10Pct25Pct75Pct90Pattern[Weight] = MaxMedianMinPct10Pct25Pct75Pct90Pattern(client, 'tx_weight')
+        self._6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern[Weight] = MaxMedianMinPct10Pct25Pct75Pct90Pattern(client, 'tx_weight_6b')
 
 class SeriesTree_Transactions_Size:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.vsize: _6bBlockTxPattern[VSize] = _6bBlockTxPattern(client, 'tx_vsize')
+        self.vsize: SeriesTree_Transactions_Size_Vsize = SeriesTree_Transactions_Size_Vsize(client)
         self.weight: SeriesTree_Transactions_Size_Weight = SeriesTree_Transactions_Size_Weight(client)
+
+class SeriesTree_Transactions_Fees_Count:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.cpfp_parent: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'cpfp_parent_count')
+        self.cpfp_child: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'cpfp_child_count')
 
 class SeriesTree_Transactions_Fees:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
+        self.count: SeriesTree_Transactions_Fees_Count = SeriesTree_Transactions_Fees_Count(client)
         self.input_value: SeriesPattern19[Sats] = SeriesPattern19(client, 'input_value')
         self.output_value: SeriesPattern19[Sats] = SeriesPattern19(client, 'output_value')
         self.fee: _6bBlockTxPattern[Sats] = _6bBlockTxPattern(client, 'fee')
         self.fee_rate: SeriesPattern19[FeeRate] = SeriesPattern19(client, 'fee_rate')
         self.effective_fee_rate: _6bBlockTxPattern[FeeRate] = _6bBlockTxPattern(client, 'effective_fee_rate')
+        self.is_cpfp_parent: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_cpfp_parent')
+        self.is_cpfp_child: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_cpfp_child')
+
+class SeriesTree_Transactions_Patterns_Count:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.coinjoin: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'coinjoin_count')
+        self.consolidation: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'consolidation_count')
+        self.batch_payout: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'batch_payout_count')
+
+class SeriesTree_Transactions_Patterns:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.count: SeriesTree_Transactions_Patterns_Count = SeriesTree_Transactions_Patterns_Count(client)
+        self.is_coinjoin: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_coinjoin')
+        self.is_consolidation: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_consolidation')
+        self.is_batch_payout: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_batch_payout')
+
+class SeriesTree_Transactions_Policy:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.count: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'nonstandard_count')
+        self.is_nonstandard: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_nonstandard')
 
 class SeriesTree_Transactions_Versions:
     """Series tree node."""
@@ -4446,6 +4558,7 @@ class SeriesTree_Transactions_Versions:
         self.v1: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_v1')
         self.v2: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_v2')
         self.v3: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_v3')
+        self.other: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_other_version')
 
 class SeriesTree_Transactions_Volume:
     """Series tree node."""
@@ -4459,9 +4572,12 @@ class SeriesTree_Transactions:
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.raw: SeriesTree_Transactions_Raw = SeriesTree_Transactions_Raw(client)
+        self.features: SeriesTree_Transactions_Features = SeriesTree_Transactions_Features(client)
         self.count: SeriesTree_Transactions_Count = SeriesTree_Transactions_Count(client)
         self.size: SeriesTree_Transactions_Size = SeriesTree_Transactions_Size(client)
         self.fees: SeriesTree_Transactions_Fees = SeriesTree_Transactions_Fees(client)
+        self.patterns: SeriesTree_Transactions_Patterns = SeriesTree_Transactions_Patterns(client)
+        self.policy: SeriesTree_Transactions_Policy = SeriesTree_Transactions_Policy(client)
         self.versions: SeriesTree_Transactions_Versions = SeriesTree_Transactions_Versions(client)
         self.volume: SeriesTree_Transactions_Volume = SeriesTree_Transactions_Volume(client)
 
@@ -4902,19 +5018,13 @@ class SeriesTree_Scripts_Raw_Empty:
         self.first_index: SeriesPattern18[EmptyOutputIndex] = SeriesPattern18(client, 'first_empty_output_index')
         self.to_tx_index: SeriesPattern22[TxIndex] = SeriesPattern22(client, 'tx_index')
 
-class SeriesTree_Scripts_Raw_OpReturn:
-    """Series tree node."""
-    
-    def __init__(self, client: BrkClient, base_path: str = ''):
-        self.first_index: SeriesPattern18[OpReturnIndex] = SeriesPattern18(client, 'first_op_return_index')
-        self.to_tx_index: SeriesPattern23[TxIndex] = SeriesPattern23(client, 'tx_index')
-
 class SeriesTree_Scripts_Raw_P2ms:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.first_index: SeriesPattern18[P2MSOutputIndex] = SeriesPattern18(client, 'first_p2ms_output_index')
         self.to_tx_index: SeriesPattern25[TxIndex] = SeriesPattern25(client, 'tx_index')
+        self.legacy_sigops: SeriesPattern25[SigOps] = SeriesPattern25(client, 'p2ms_legacy_sigops')
 
 class SeriesTree_Scripts_Raw_Unknown:
     """Series tree node."""
@@ -4922,13 +5032,13 @@ class SeriesTree_Scripts_Raw_Unknown:
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.first_index: SeriesPattern18[UnknownOutputIndex] = SeriesPattern18(client, 'first_unknown_output_index')
         self.to_tx_index: SeriesPattern33[TxIndex] = SeriesPattern33(client, 'tx_index')
+        self.legacy_sigops: SeriesPattern33[SigOps] = SeriesPattern33(client, 'unknown_legacy_sigops')
 
 class SeriesTree_Scripts_Raw:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.empty: SeriesTree_Scripts_Raw_Empty = SeriesTree_Scripts_Raw_Empty(client)
-        self.op_return: SeriesTree_Scripts_Raw_OpReturn = SeriesTree_Scripts_Raw_OpReturn(client)
         self.p2ms: SeriesTree_Scripts_Raw_P2ms = SeriesTree_Scripts_Raw_P2ms(client)
         self.unknown: SeriesTree_Scripts_Raw_Unknown = SeriesTree_Scripts_Raw_Unknown(client)
 
@@ -4937,6 +5047,69 @@ class SeriesTree_Scripts:
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.raw: SeriesTree_Scripts_Raw = SeriesTree_Scripts_Raw(client)
+
+class SeriesTree_OpReturn_Raw:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.first_index: SeriesPattern18[OpReturnIndex] = SeriesPattern18(client, 'first_op_return_index')
+        self.to_tx_index: SeriesPattern23[TxIndex] = SeriesPattern23(client, 'tx_index')
+        self.kind: SeriesPattern23[OpReturnKind] = SeriesPattern23(client, 'kind')
+        self.post_op_return_bytes: SeriesPattern23[StoredU32] = SeriesPattern23(client, 'op_return_post_op_return_bytes')
+
+class SeriesTree_OpReturn_Total:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_post_op_return_bytes')
+        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_tx_count')
+        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_vsize')
+
+class SeriesTree_OpReturn_ByKind:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.runes: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_runes')
+        self.veri_block: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_veri_block')
+        self.omni: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_omni')
+        self.stacks: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_stacks')
+        self.blockstack: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_blockstack')
+        self.colu: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_colu')
+        self.open_assets: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_open_assets')
+        self.komodo: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_komodo')
+        self.coin_spark: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_coin_spark')
+        self.poet: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_poet')
+        self.docproof: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_docproof')
+        self.open_timestamps: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_open_timestamps')
+        self.factom: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_factom')
+        self.eternity_wall: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_eternity_wall')
+        self.memo: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_memo')
+        self.bitproof: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_bitproof')
+        self.ascribe: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_ascribe')
+        self.stampery: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_stampery')
+        self.epobc: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_epobc')
+        self.bare_hash: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_bare_hash')
+        self.text: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_text')
+        self.empty: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_empty')
+        self.unknown: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_unknown')
+
+class SeriesTree_OpReturn_Policy:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.standard: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_standard')
+        self.oversized: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_oversized')
+        self.multiple: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_multiple')
+        self.pre_v30_nonstandard: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_pre_v30_nonstandard')
+
+class SeriesTree_OpReturn:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.raw: SeriesTree_OpReturn_Raw = SeriesTree_OpReturn_Raw(client)
+        self.total: SeriesTree_OpReturn_Total = SeriesTree_OpReturn_Total(client)
+        self.by_kind: SeriesTree_OpReturn_ByKind = SeriesTree_OpReturn_ByKind(client)
+        self.policy: SeriesTree_OpReturn_Policy = SeriesTree_OpReturn_Policy(client)
 
 class SeriesTree_Mining_Rewards_Subsidy:
     """Series tree node."""
@@ -7118,6 +7291,7 @@ class SeriesTree:
         self.outputs: SeriesTree_Outputs = SeriesTree_Outputs(client)
         self.addrs: SeriesTree_Addrs = SeriesTree_Addrs(client)
         self.scripts: SeriesTree_Scripts = SeriesTree_Scripts(client)
+        self.op_return: SeriesTree_OpReturn = SeriesTree_OpReturn(client)
         self.mining: SeriesTree_Mining = SeriesTree_Mining(client)
         self.cointime: SeriesTree_Cointime = SeriesTree_Cointime(client)
         self.constants: SeriesTree_Constants = SeriesTree_Constants(client)

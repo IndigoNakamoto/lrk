@@ -68,6 +68,9 @@ impl BlockAddresses {
             }
         }
 
+        self.lookups
+            .sort_unstable_by_key(|lookup| (lookup.output_type, lookup.hash));
+
         let stores = &processor.stores.addr_type_to_addr_hash_to_addr_index;
         let lengths = &*processor.lengths;
 

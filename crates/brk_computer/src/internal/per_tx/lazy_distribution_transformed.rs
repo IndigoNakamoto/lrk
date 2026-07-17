@@ -5,8 +5,7 @@ use vecdb::{LazyVecFrom1, UnaryTransform};
 
 use crate::internal::{ComputedVecValue, LazyTxDerivedDistribution, TxDerivedDistribution};
 
-/// Like `LazyPerTxDistribution` but with a lazy-derived distribution
-/// (transformed from another type's distribution rather than eagerly computed).
+/// Per-transaction lazy values with a distribution transformed from another type's distribution.
 #[derive(Clone, Traversable)]
 pub struct LazyPerTxDistributionTransformed<T, S, DSource>
 where

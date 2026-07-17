@@ -47,22 +47,22 @@ impl Vecs {
             vec.validate_computed_version_or_reset(version)?;
         }
 
-        let lengths = indexer.safe_lengths();
-        let target_tx = lengths.tx_index.to_usize();
-        let target_height = lengths.height.to_usize();
+        let starting_lengths = indexer.safe_lengths();
+        let target_tx = indexes.tx_index.input_count.len();
+        let target_height = indexes.height.tx_index_count.len();
         let tx_len = self
             .is_coinjoin
             .len()
             .min(self.is_consolidation.len())
             .min(self.is_batch_payout.len())
-            .min(target_tx);
+            .min(starting_lengths.tx_index.to_usize());
         let count_len = self
             .count
             .coinjoin
             .len()
             .min(self.count.consolidation.len())
             .min(self.count.batch_payout.len())
-            .min(target_height);
+            .min(starting_lengths.height.to_usize());
         let start_height = count_len.min(next_height(indexes, tx_len, target_tx, target_height));
         if start_height >= target_height {
             return Ok(());

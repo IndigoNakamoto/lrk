@@ -3,7 +3,7 @@ use std::mem;
 use brk_types::{AddrHash, OutputType, TypeIndex};
 
 const ASSOCIATIVITY: usize = 4;
-const SET_COUNT: usize = 1 << 18;
+const SET_COUNT: usize = 1 << 19;
 const SET_MASK: usize = SET_COUNT - 1;
 const TYPE_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
 const REFERENCE_SHIFT: usize = 2;

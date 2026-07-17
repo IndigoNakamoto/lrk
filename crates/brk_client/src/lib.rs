@@ -1831,13 +1831,13 @@ impl InMaxMinPerSupplyPattern {
 
 /// Pattern struct for repeated tree structure.
 pub struct MaxMedianMinPct10Pct25Pct75Pct90Pattern2 {
-    pub max: SeriesPattern18<Weight>,
-    pub median: SeriesPattern18<Weight>,
-    pub min: SeriesPattern18<Weight>,
-    pub pct10: SeriesPattern18<Weight>,
-    pub pct25: SeriesPattern18<Weight>,
-    pub pct75: SeriesPattern18<Weight>,
-    pub pct90: SeriesPattern18<Weight>,
+    pub max: SeriesPattern18<VSize>,
+    pub median: SeriesPattern18<VSize>,
+    pub min: SeriesPattern18<VSize>,
+    pub pct10: SeriesPattern18<VSize>,
+    pub pct25: SeriesPattern18<VSize>,
+    pub pct75: SeriesPattern18<VSize>,
+    pub pct90: SeriesPattern18<VSize>,
 }
 
 impl MaxMedianMinPct10Pct25Pct75Pct90Pattern2 {
@@ -2648,6 +2648,26 @@ impl BtcCentsSatsUsdPattern3 {
             cents: SeriesPattern18::new(client.clone(), _m(&acc, "cents")),
             sats: SeriesPattern18::new(client.clone(), _m(&acc, "sats")),
             usd: SeriesPattern18::new(client.clone(), _m(&acc, "usd")),
+        }
+    }
+}
+
+/// Pattern struct for repeated tree structure.
+pub struct CarrierOutputPostPattern {
+    pub carrier_tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub carrier_vsize: AverageBlockCumulativeSumPattern<VSize>,
+    pub output_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub post_op_return_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
+}
+
+impl CarrierOutputPostPattern {
+    /// Create a new pattern node with accumulated series name.
+    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
+        Self {
+            carrier_tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "carrier_tx_count")),
+            carrier_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "carrier_vsize")),
+            output_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "output_count")),
+            post_op_return_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "post_op_return_bytes")),
         }
     }
 }
@@ -3661,6 +3681,7 @@ pub struct SeriesTree {
     pub outputs: SeriesTree_Outputs,
     pub addrs: SeriesTree_Addrs,
     pub scripts: SeriesTree_Scripts,
+    pub op_return: SeriesTree_OpReturn,
     pub mining: SeriesTree_Mining,
     pub cointime: SeriesTree_Cointime,
     pub constants: SeriesTree_Constants,
@@ -3683,6 +3704,7 @@ impl SeriesTree {
             outputs: SeriesTree_Outputs::new(client.clone(), format!("{base_path}_outputs")),
             addrs: SeriesTree_Addrs::new(client.clone(), format!("{base_path}_addrs")),
             scripts: SeriesTree_Scripts::new(client.clone(), format!("{base_path}_scripts")),
+            op_return: SeriesTree_OpReturn::new(client.clone(), format!("{base_path}_op_return")),
             mining: SeriesTree_Mining::new(client.clone(), format!("{base_path}_mining")),
             cointime: SeriesTree_Cointime::new(client.clone(), format!("{base_path}_cointime")),
             constants: SeriesTree_Constants::new(client.clone(), format!("{base_path}_constants")),
@@ -3978,9 +4000,12 @@ impl SeriesTree_Blocks_Halving {
 /// Series tree node.
 pub struct SeriesTree_Transactions {
     pub raw: SeriesTree_Transactions_Raw,
+    pub features: SeriesTree_Transactions_Features,
     pub count: SeriesTree_Transactions_Count,
     pub size: SeriesTree_Transactions_Size,
     pub fees: SeriesTree_Transactions_Fees,
+    pub patterns: SeriesTree_Transactions_Patterns,
+    pub policy: SeriesTree_Transactions_Policy,
     pub versions: SeriesTree_Transactions_Versions,
     pub volume: SeriesTree_Transactions_Volume,
 }
@@ -3989,9 +4014,12 @@ impl SeriesTree_Transactions {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             raw: SeriesTree_Transactions_Raw::new(client.clone(), format!("{base_path}_raw")),
+            features: SeriesTree_Transactions_Features::new(client.clone(), format!("{base_path}_features")),
             count: SeriesTree_Transactions_Count::new(client.clone(), format!("{base_path}_count")),
             size: SeriesTree_Transactions_Size::new(client.clone(), format!("{base_path}_size")),
             fees: SeriesTree_Transactions_Fees::new(client.clone(), format!("{base_path}_fees")),
+            patterns: SeriesTree_Transactions_Patterns::new(client.clone(), format!("{base_path}_patterns")),
+            policy: SeriesTree_Transactions_Policy::new(client.clone(), format!("{base_path}_policy")),
             versions: SeriesTree_Transactions_Versions::new(client.clone(), format!("{base_path}_versions")),
             volume: SeriesTree_Transactions_Volume::new(client.clone(), format!("{base_path}_volume")),
         }
@@ -4004,7 +4032,7 @@ pub struct SeriesTree_Transactions_Raw {
     pub txid: SeriesPattern19<Txid>,
     pub tx_version: SeriesPattern19<TxVersion>,
     pub raw_locktime: SeriesPattern19<RawLockTime>,
-    pub base_size: SeriesPattern19<StoredU32>,
+    pub weight: SeriesPattern19<Weight>,
     pub total_size: SeriesPattern19<StoredU32>,
     pub total_sigop_cost: SeriesPattern19<SigOps>,
     pub is_explicitly_rbf: SeriesPattern19<StoredBool>,
@@ -4019,12 +4047,134 @@ impl SeriesTree_Transactions_Raw {
             txid: SeriesPattern19::new(client.clone(), "txid".to_string()),
             tx_version: SeriesPattern19::new(client.clone(), "tx_version".to_string()),
             raw_locktime: SeriesPattern19::new(client.clone(), "raw_locktime".to_string()),
-            base_size: SeriesPattern19::new(client.clone(), "base_size".to_string()),
+            weight: SeriesPattern19::new(client.clone(), "tx_weight".to_string()),
             total_size: SeriesPattern19::new(client.clone(), "total_size".to_string()),
             total_sigop_cost: SeriesPattern19::new(client.clone(), "total_sigop_cost".to_string()),
             is_explicitly_rbf: SeriesPattern19::new(client.clone(), "is_explicitly_rbf".to_string()),
             first_txin_index: SeriesPattern19::new(client.clone(), "first_txin_index".to_string()),
             first_txout_index: SeriesPattern19::new(client.clone(), "first_txout_index".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Features {
+    pub count: SeriesTree_Transactions_Features_Count,
+    pub has_p2pk: SeriesPattern19<StoredBool>,
+    pub has_p2ms: SeriesPattern19<StoredBool>,
+    pub has_p2pkh: SeriesPattern19<StoredBool>,
+    pub has_p2sh: SeriesPattern19<StoredBool>,
+    pub has_p2wpkh: SeriesPattern19<StoredBool>,
+    pub has_p2wsh: SeriesPattern19<StoredBool>,
+    pub has_p2tr: SeriesPattern19<StoredBool>,
+    pub has_p2a: SeriesPattern19<StoredBool>,
+    pub has_op_return: SeriesPattern19<StoredBool>,
+    pub has_empty: SeriesPattern19<StoredBool>,
+    pub has_unknown: SeriesPattern19<StoredBool>,
+    pub has_fake_pubkey: SeriesPattern19<StoredBool>,
+    pub has_fake_scripthash: SeriesPattern19<StoredBool>,
+    pub has_inscription: SeriesPattern19<StoredBool>,
+    pub has_annex: SeriesPattern19<StoredBool>,
+    pub has_sighash_all: SeriesPattern19<StoredBool>,
+    pub has_sighash_none: SeriesPattern19<StoredBool>,
+    pub has_sighash_single: SeriesPattern19<StoredBool>,
+    pub has_sighash_default: SeriesPattern19<StoredBool>,
+    pub has_sighash_anyone_can_pay: SeriesPattern19<StoredBool>,
+    pub has_dust_output: SeriesPattern19<StoredBool>,
+}
+
+impl SeriesTree_Transactions_Features {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            count: SeriesTree_Transactions_Features_Count::new(client.clone(), format!("{base_path}_count")),
+            has_p2pk: SeriesPattern19::new(client.clone(), "has_p2pk".to_string()),
+            has_p2ms: SeriesPattern19::new(client.clone(), "has_p2ms".to_string()),
+            has_p2pkh: SeriesPattern19::new(client.clone(), "has_p2pkh".to_string()),
+            has_p2sh: SeriesPattern19::new(client.clone(), "has_p2sh".to_string()),
+            has_p2wpkh: SeriesPattern19::new(client.clone(), "has_p2wpkh".to_string()),
+            has_p2wsh: SeriesPattern19::new(client.clone(), "has_p2wsh".to_string()),
+            has_p2tr: SeriesPattern19::new(client.clone(), "has_p2tr".to_string()),
+            has_p2a: SeriesPattern19::new(client.clone(), "has_p2a".to_string()),
+            has_op_return: SeriesPattern19::new(client.clone(), "has_op_return".to_string()),
+            has_empty: SeriesPattern19::new(client.clone(), "has_empty".to_string()),
+            has_unknown: SeriesPattern19::new(client.clone(), "has_unknown".to_string()),
+            has_fake_pubkey: SeriesPattern19::new(client.clone(), "has_fake_pubkey".to_string()),
+            has_fake_scripthash: SeriesPattern19::new(client.clone(), "has_fake_scripthash".to_string()),
+            has_inscription: SeriesPattern19::new(client.clone(), "has_inscription".to_string()),
+            has_annex: SeriesPattern19::new(client.clone(), "has_annex".to_string()),
+            has_sighash_all: SeriesPattern19::new(client.clone(), "has_sighash_all".to_string()),
+            has_sighash_none: SeriesPattern19::new(client.clone(), "has_sighash_none".to_string()),
+            has_sighash_single: SeriesPattern19::new(client.clone(), "has_sighash_single".to_string()),
+            has_sighash_default: SeriesPattern19::new(client.clone(), "has_sighash_default".to_string()),
+            has_sighash_anyone_can_pay: SeriesPattern19::new(client.clone(), "has_sighash_anyone_can_pay".to_string()),
+            has_dust_output: SeriesPattern19::new(client.clone(), "has_dust_output".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Features_Count {
+    pub v1: SeriesPattern18<StoredU64>,
+    pub v2: SeriesPattern18<StoredU64>,
+    pub v3: SeriesPattern18<StoredU64>,
+    pub other_version: SeriesPattern18<StoredU64>,
+    pub explicitly_rbf: SeriesPattern18<StoredU64>,
+    pub one_input: SeriesPattern18<StoredU64>,
+    pub one_output: SeriesPattern18<StoredU64>,
+    pub p2pk: SeriesPattern18<StoredU64>,
+    pub p2ms: SeriesPattern18<StoredU64>,
+    pub p2pkh: SeriesPattern18<StoredU64>,
+    pub p2sh: SeriesPattern18<StoredU64>,
+    pub p2wpkh: SeriesPattern18<StoredU64>,
+    pub p2wsh: SeriesPattern18<StoredU64>,
+    pub p2tr: SeriesPattern18<StoredU64>,
+    pub p2a: SeriesPattern18<StoredU64>,
+    pub op_return: SeriesPattern18<StoredU64>,
+    pub empty: SeriesPattern18<StoredU64>,
+    pub unknown: SeriesPattern18<StoredU64>,
+    pub fake_pubkey: SeriesPattern18<StoredU64>,
+    pub fake_scripthash: SeriesPattern18<StoredU64>,
+    pub inscription: SeriesPattern18<StoredU64>,
+    pub annex: SeriesPattern18<StoredU64>,
+    pub sighash_all: SeriesPattern18<StoredU64>,
+    pub sighash_none: SeriesPattern18<StoredU64>,
+    pub sighash_single: SeriesPattern18<StoredU64>,
+    pub sighash_default: SeriesPattern18<StoredU64>,
+    pub sighash_anyone_can_pay: SeriesPattern18<StoredU64>,
+    pub dust_output: SeriesPattern18<StoredU64>,
+}
+
+impl SeriesTree_Transactions_Features_Count {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            v1: SeriesPattern18::new(client.clone(), "tx_count_v1".to_string()),
+            v2: SeriesPattern18::new(client.clone(), "tx_count_v2".to_string()),
+            v3: SeriesPattern18::new(client.clone(), "tx_count_v3".to_string()),
+            other_version: SeriesPattern18::new(client.clone(), "tx_count_other_version".to_string()),
+            explicitly_rbf: SeriesPattern18::new(client.clone(), "tx_count_explicitly_rbf".to_string()),
+            one_input: SeriesPattern18::new(client.clone(), "tx_count_one_input".to_string()),
+            one_output: SeriesPattern18::new(client.clone(), "tx_count_one_output".to_string()),
+            p2pk: SeriesPattern18::new(client.clone(), "tx_count_p2pk".to_string()),
+            p2ms: SeriesPattern18::new(client.clone(), "tx_count_p2ms".to_string()),
+            p2pkh: SeriesPattern18::new(client.clone(), "tx_count_p2pkh".to_string()),
+            p2sh: SeriesPattern18::new(client.clone(), "tx_count_p2sh".to_string()),
+            p2wpkh: SeriesPattern18::new(client.clone(), "tx_count_p2wpkh".to_string()),
+            p2wsh: SeriesPattern18::new(client.clone(), "tx_count_p2wsh".to_string()),
+            p2tr: SeriesPattern18::new(client.clone(), "tx_count_p2tr".to_string()),
+            p2a: SeriesPattern18::new(client.clone(), "tx_count_p2a".to_string()),
+            op_return: SeriesPattern18::new(client.clone(), "tx_count_op_return".to_string()),
+            empty: SeriesPattern18::new(client.clone(), "tx_count_empty".to_string()),
+            unknown: SeriesPattern18::new(client.clone(), "tx_count_unknown".to_string()),
+            fake_pubkey: SeriesPattern18::new(client.clone(), "tx_count_fake_pubkey".to_string()),
+            fake_scripthash: SeriesPattern18::new(client.clone(), "tx_count_fake_scripthash".to_string()),
+            inscription: SeriesPattern18::new(client.clone(), "tx_count_inscription".to_string()),
+            annex: SeriesPattern18::new(client.clone(), "tx_count_annex".to_string()),
+            sighash_all: SeriesPattern18::new(client.clone(), "tx_count_sighash_all".to_string()),
+            sighash_none: SeriesPattern18::new(client.clone(), "tx_count_sighash_none".to_string()),
+            sighash_single: SeriesPattern18::new(client.clone(), "tx_count_sighash_single".to_string()),
+            sighash_default: SeriesPattern18::new(client.clone(), "tx_count_sighash_default".to_string()),
+            sighash_anyone_can_pay: SeriesPattern18::new(client.clone(), "tx_count_sighash_anyone_can_pay".to_string()),
+            dust_output: SeriesPattern18::new(client.clone(), "tx_count_dust_output".to_string()),
         }
     }
 }
@@ -4044,53 +4194,140 @@ impl SeriesTree_Transactions_Count {
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Size {
-    pub vsize: _6bBlockTxPattern<VSize>,
+    pub vsize: SeriesTree_Transactions_Size_Vsize,
     pub weight: SeriesTree_Transactions_Size_Weight,
 }
 
 impl SeriesTree_Transactions_Size {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            vsize: _6bBlockTxPattern::new(client.clone(), "tx_vsize".to_string()),
+            vsize: SeriesTree_Transactions_Size_Vsize::new(client.clone(), format!("{base_path}_vsize")),
             weight: SeriesTree_Transactions_Size_Weight::new(client.clone(), format!("{base_path}_weight")),
         }
     }
 }
 
 /// Series tree node.
-pub struct SeriesTree_Transactions_Size_Weight {
-    pub tx_index: SeriesPattern19<Weight>,
+pub struct SeriesTree_Transactions_Size_Vsize {
+    pub tx_index: SeriesPattern19<VSize>,
     pub block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2,
     pub _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2,
+}
+
+impl SeriesTree_Transactions_Size_Vsize {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            tx_index: SeriesPattern19::new(client.clone(), "tx_vsize".to_string()),
+            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_vsize".to_string()),
+            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_vsize_6b".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Size_Weight {
+    pub block: MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>,
+    pub _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>,
 }
 
 impl SeriesTree_Transactions_Size_Weight {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            tx_index: SeriesPattern19::new(client.clone(), "tx_weight".to_string()),
-            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_weight".to_string()),
-            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_weight_6b".to_string()),
+            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(client.clone(), "tx_weight".to_string()),
+            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(client.clone(), "tx_weight_6b".to_string()),
         }
     }
 }
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Fees {
+    pub count: SeriesTree_Transactions_Fees_Count,
     pub input_value: SeriesPattern19<Sats>,
     pub output_value: SeriesPattern19<Sats>,
     pub fee: _6bBlockTxPattern<Sats>,
     pub fee_rate: SeriesPattern19<FeeRate>,
     pub effective_fee_rate: _6bBlockTxPattern<FeeRate>,
+    pub is_cpfp_parent: SeriesPattern19<StoredBool>,
+    pub is_cpfp_child: SeriesPattern19<StoredBool>,
 }
 
 impl SeriesTree_Transactions_Fees {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
+            count: SeriesTree_Transactions_Fees_Count::new(client.clone(), format!("{base_path}_count")),
             input_value: SeriesPattern19::new(client.clone(), "input_value".to_string()),
             output_value: SeriesPattern19::new(client.clone(), "output_value".to_string()),
             fee: _6bBlockTxPattern::new(client.clone(), "fee".to_string()),
             fee_rate: SeriesPattern19::new(client.clone(), "fee_rate".to_string()),
             effective_fee_rate: _6bBlockTxPattern::new(client.clone(), "effective_fee_rate".to_string()),
+            is_cpfp_parent: SeriesPattern19::new(client.clone(), "is_cpfp_parent".to_string()),
+            is_cpfp_child: SeriesPattern19::new(client.clone(), "is_cpfp_child".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Fees_Count {
+    pub cpfp_parent: SeriesPattern18<StoredU64>,
+    pub cpfp_child: SeriesPattern18<StoredU64>,
+}
+
+impl SeriesTree_Transactions_Fees_Count {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            cpfp_parent: SeriesPattern18::new(client.clone(), "cpfp_parent_count".to_string()),
+            cpfp_child: SeriesPattern18::new(client.clone(), "cpfp_child_count".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Patterns {
+    pub count: SeriesTree_Transactions_Patterns_Count,
+    pub is_coinjoin: SeriesPattern19<StoredBool>,
+    pub is_consolidation: SeriesPattern19<StoredBool>,
+    pub is_batch_payout: SeriesPattern19<StoredBool>,
+}
+
+impl SeriesTree_Transactions_Patterns {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            count: SeriesTree_Transactions_Patterns_Count::new(client.clone(), format!("{base_path}_count")),
+            is_coinjoin: SeriesPattern19::new(client.clone(), "is_coinjoin".to_string()),
+            is_consolidation: SeriesPattern19::new(client.clone(), "is_consolidation".to_string()),
+            is_batch_payout: SeriesPattern19::new(client.clone(), "is_batch_payout".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Patterns_Count {
+    pub coinjoin: SeriesPattern18<StoredU64>,
+    pub consolidation: SeriesPattern18<StoredU64>,
+    pub batch_payout: SeriesPattern18<StoredU64>,
+}
+
+impl SeriesTree_Transactions_Patterns_Count {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            coinjoin: SeriesPattern18::new(client.clone(), "coinjoin_count".to_string()),
+            consolidation: SeriesPattern18::new(client.clone(), "consolidation_count".to_string()),
+            batch_payout: SeriesPattern18::new(client.clone(), "batch_payout_count".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Policy {
+    pub count: SeriesPattern18<StoredU64>,
+    pub is_nonstandard: SeriesPattern19<StoredBool>,
+}
+
+impl SeriesTree_Transactions_Policy {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            count: SeriesPattern18::new(client.clone(), "nonstandard_count".to_string()),
+            is_nonstandard: SeriesPattern19::new(client.clone(), "is_nonstandard".to_string()),
         }
     }
 }
@@ -4100,6 +4337,7 @@ pub struct SeriesTree_Transactions_Versions {
     pub v1: AverageBlockCumulativeSumPattern<StoredU64>,
     pub v2: AverageBlockCumulativeSumPattern<StoredU64>,
     pub v3: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub other: AverageBlockCumulativeSumPattern<StoredU64>,
 }
 
 impl SeriesTree_Transactions_Versions {
@@ -4108,6 +4346,7 @@ impl SeriesTree_Transactions_Versions {
             v1: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v1".to_string()),
             v2: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v2".to_string()),
             v3: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v3".to_string()),
+            other: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_other_version".to_string()),
         }
     }
 }
@@ -5043,7 +5282,6 @@ impl SeriesTree_Scripts {
 /// Series tree node.
 pub struct SeriesTree_Scripts_Raw {
     pub empty: SeriesTree_Scripts_Raw_Empty,
-    pub op_return: SeriesTree_Scripts_Raw_OpReturn,
     pub p2ms: SeriesTree_Scripts_Raw_P2ms,
     pub unknown: SeriesTree_Scripts_Raw_Unknown,
 }
@@ -5052,7 +5290,6 @@ impl SeriesTree_Scripts_Raw {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             empty: SeriesTree_Scripts_Raw_Empty::new(client.clone(), format!("{base_path}_empty")),
-            op_return: SeriesTree_Scripts_Raw_OpReturn::new(client.clone(), format!("{base_path}_op_return")),
             p2ms: SeriesTree_Scripts_Raw_P2ms::new(client.clone(), format!("{base_path}_p2ms")),
             unknown: SeriesTree_Scripts_Raw_Unknown::new(client.clone(), format!("{base_path}_unknown")),
         }
@@ -5075,24 +5312,10 @@ impl SeriesTree_Scripts_Raw_Empty {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Scripts_Raw_OpReturn {
-    pub first_index: SeriesPattern18<OpReturnIndex>,
-    pub to_tx_index: SeriesPattern23<TxIndex>,
-}
-
-impl SeriesTree_Scripts_Raw_OpReturn {
-    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
-        Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_op_return_index".to_string()),
-            to_tx_index: SeriesPattern23::new(client.clone(), "tx_index".to_string()),
-        }
-    }
-}
-
-/// Series tree node.
 pub struct SeriesTree_Scripts_Raw_P2ms {
     pub first_index: SeriesPattern18<P2MSOutputIndex>,
     pub to_tx_index: SeriesPattern25<TxIndex>,
+    pub legacy_sigops: SeriesPattern25<SigOps>,
 }
 
 impl SeriesTree_Scripts_Raw_P2ms {
@@ -5100,6 +5323,7 @@ impl SeriesTree_Scripts_Raw_P2ms {
         Self {
             first_index: SeriesPattern18::new(client.clone(), "first_p2ms_output_index".to_string()),
             to_tx_index: SeriesPattern25::new(client.clone(), "tx_index".to_string()),
+            legacy_sigops: SeriesPattern25::new(client.clone(), "p2ms_legacy_sigops".to_string()),
         }
     }
 }
@@ -5108,6 +5332,7 @@ impl SeriesTree_Scripts_Raw_P2ms {
 pub struct SeriesTree_Scripts_Raw_Unknown {
     pub first_index: SeriesPattern18<UnknownOutputIndex>,
     pub to_tx_index: SeriesPattern33<TxIndex>,
+    pub legacy_sigops: SeriesPattern33<SigOps>,
 }
 
 impl SeriesTree_Scripts_Raw_Unknown {
@@ -5115,6 +5340,138 @@ impl SeriesTree_Scripts_Raw_Unknown {
         Self {
             first_index: SeriesPattern18::new(client.clone(), "first_unknown_output_index".to_string()),
             to_tx_index: SeriesPattern33::new(client.clone(), "tx_index".to_string()),
+            legacy_sigops: SeriesPattern33::new(client.clone(), "unknown_legacy_sigops".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_OpReturn {
+    pub raw: SeriesTree_OpReturn_Raw,
+    pub total: SeriesTree_OpReturn_Total,
+    pub by_kind: SeriesTree_OpReturn_ByKind,
+    pub policy: SeriesTree_OpReturn_Policy,
+}
+
+impl SeriesTree_OpReturn {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            raw: SeriesTree_OpReturn_Raw::new(client.clone(), format!("{base_path}_raw")),
+            total: SeriesTree_OpReturn_Total::new(client.clone(), format!("{base_path}_total")),
+            by_kind: SeriesTree_OpReturn_ByKind::new(client.clone(), format!("{base_path}_by_kind")),
+            policy: SeriesTree_OpReturn_Policy::new(client.clone(), format!("{base_path}_policy")),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_OpReturn_Raw {
+    pub first_index: SeriesPattern18<OpReturnIndex>,
+    pub to_tx_index: SeriesPattern23<TxIndex>,
+    pub kind: SeriesPattern23<OpReturnKind>,
+    pub post_op_return_bytes: SeriesPattern23<StoredU32>,
+}
+
+impl SeriesTree_OpReturn_Raw {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            first_index: SeriesPattern18::new(client.clone(), "first_op_return_index".to_string()),
+            to_tx_index: SeriesPattern23::new(client.clone(), "tx_index".to_string()),
+            kind: SeriesPattern23::new(client.clone(), "kind".to_string()),
+            post_op_return_bytes: SeriesPattern23::new(client.clone(), "op_return_post_op_return_bytes".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_OpReturn_Total {
+    pub post_op_return_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub carrier_tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub carrier_vsize: AverageBlockCumulativeSumPattern<VSize>,
+}
+
+impl SeriesTree_OpReturn_Total {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            post_op_return_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_post_op_return_bytes".to_string()),
+            carrier_tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_carrier_tx_count".to_string()),
+            carrier_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_carrier_vsize".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_OpReturn_ByKind {
+    pub runes: CarrierOutputPostPattern,
+    pub veri_block: CarrierOutputPostPattern,
+    pub omni: CarrierOutputPostPattern,
+    pub stacks: CarrierOutputPostPattern,
+    pub blockstack: CarrierOutputPostPattern,
+    pub colu: CarrierOutputPostPattern,
+    pub open_assets: CarrierOutputPostPattern,
+    pub komodo: CarrierOutputPostPattern,
+    pub coin_spark: CarrierOutputPostPattern,
+    pub poet: CarrierOutputPostPattern,
+    pub docproof: CarrierOutputPostPattern,
+    pub open_timestamps: CarrierOutputPostPattern,
+    pub factom: CarrierOutputPostPattern,
+    pub eternity_wall: CarrierOutputPostPattern,
+    pub memo: CarrierOutputPostPattern,
+    pub bitproof: CarrierOutputPostPattern,
+    pub ascribe: CarrierOutputPostPattern,
+    pub stampery: CarrierOutputPostPattern,
+    pub epobc: CarrierOutputPostPattern,
+    pub bare_hash: CarrierOutputPostPattern,
+    pub text: CarrierOutputPostPattern,
+    pub empty: CarrierOutputPostPattern,
+    pub unknown: CarrierOutputPostPattern,
+}
+
+impl SeriesTree_OpReturn_ByKind {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            runes: CarrierOutputPostPattern::new(client.clone(), "op_return_runes".to_string()),
+            veri_block: CarrierOutputPostPattern::new(client.clone(), "op_return_veri_block".to_string()),
+            omni: CarrierOutputPostPattern::new(client.clone(), "op_return_omni".to_string()),
+            stacks: CarrierOutputPostPattern::new(client.clone(), "op_return_stacks".to_string()),
+            blockstack: CarrierOutputPostPattern::new(client.clone(), "op_return_blockstack".to_string()),
+            colu: CarrierOutputPostPattern::new(client.clone(), "op_return_colu".to_string()),
+            open_assets: CarrierOutputPostPattern::new(client.clone(), "op_return_open_assets".to_string()),
+            komodo: CarrierOutputPostPattern::new(client.clone(), "op_return_komodo".to_string()),
+            coin_spark: CarrierOutputPostPattern::new(client.clone(), "op_return_coin_spark".to_string()),
+            poet: CarrierOutputPostPattern::new(client.clone(), "op_return_poet".to_string()),
+            docproof: CarrierOutputPostPattern::new(client.clone(), "op_return_docproof".to_string()),
+            open_timestamps: CarrierOutputPostPattern::new(client.clone(), "op_return_open_timestamps".to_string()),
+            factom: CarrierOutputPostPattern::new(client.clone(), "op_return_factom".to_string()),
+            eternity_wall: CarrierOutputPostPattern::new(client.clone(), "op_return_eternity_wall".to_string()),
+            memo: CarrierOutputPostPattern::new(client.clone(), "op_return_memo".to_string()),
+            bitproof: CarrierOutputPostPattern::new(client.clone(), "op_return_bitproof".to_string()),
+            ascribe: CarrierOutputPostPattern::new(client.clone(), "op_return_ascribe".to_string()),
+            stampery: CarrierOutputPostPattern::new(client.clone(), "op_return_stampery".to_string()),
+            epobc: CarrierOutputPostPattern::new(client.clone(), "op_return_epobc".to_string()),
+            bare_hash: CarrierOutputPostPattern::new(client.clone(), "op_return_bare_hash".to_string()),
+            text: CarrierOutputPostPattern::new(client.clone(), "op_return_text".to_string()),
+            empty: CarrierOutputPostPattern::new(client.clone(), "op_return_empty".to_string()),
+            unknown: CarrierOutputPostPattern::new(client.clone(), "op_return_unknown".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_OpReturn_Policy {
+    pub standard: CarrierOutputPostPattern,
+    pub oversized: CarrierOutputPostPattern,
+    pub multiple: CarrierOutputPostPattern,
+    pub pre_v30_nonstandard: CarrierOutputPostPattern,
+}
+
+impl SeriesTree_OpReturn_Policy {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            standard: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_standard".to_string()),
+            oversized: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
+            multiple: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
+            pre_v30_nonstandard: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
         }
     }
 }

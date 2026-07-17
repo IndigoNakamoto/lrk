@@ -283,7 +283,6 @@ impl Indexer {
             processor.process_block_metadata()?;
 
             let txs = processor.compute_txids()?;
-
             processor.push_block_size_and_weight(&txs)?;
 
             let (txins_result, txouts_result) = rayon::join(
@@ -292,6 +291,7 @@ impl Indexer {
             );
             let txins = txins_result?;
             let txouts = txouts_result?;
+
             let tx_count = block.txdata.len();
             let input_count = txins.len();
             let output_count = txouts.len();

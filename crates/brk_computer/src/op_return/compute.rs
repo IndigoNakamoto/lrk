@@ -11,6 +11,7 @@ const WRITE_INTERVAL: usize = 10_000;
 
 #[derive(Clone, Copy, Default)]
 struct PolicyTotals {
+    standard: Totals,
     oversized: Totals,
     multiple: Totals,
     pre_v30_nonstandard: Totals,
@@ -54,19 +55,11 @@ impl Vecs {
         self.validate_and_truncate(version, starting_lengths.height)?;
 
         let skip = self.min_len();
-        let end = raw
-            .first_index
-            .len()
-            .min(starting_lengths.height.to_usize());
+        let end = raw.first_index.len();
         if skip < end {
             self.truncate_if_needed_at(skip)?;
 
-            let op_return_len = raw
-                .to_tx_index
-                .len()
-                .min(raw.kind.len())
-                .min(raw.post_op_return_bytes.len())
-                .min(starting_lengths.op_return_index.to_usize());
+            let op_return_len = raw.to_tx_index.len();
             let mut tx_cursor = raw.to_tx_index.cursor();
             let mut kind_cursor = raw.kind.cursor();
             let mut post_op_return_bytes = raw.post_op_return_bytes.cursor();
@@ -108,7 +101,6 @@ impl Vecs {
                         carrier.vsize = VSize::from(weight_cursor.next().unwrap());
                     }
 
-                    total.output_count += 1;
                     total.post_op_return_bytes += bytes;
                     by_kind[kind_index].output_count += 1;
                     by_kind[kind_index].post_op_return_bytes += bytes;
@@ -121,6 +113,7 @@ impl Vecs {
                 for (kind, metrics) in self.by_kind.iter_typed_mut() {
                     metrics.push(by_kind[kind as usize]);
                 }
+                self.policy.standard.push(policy.standard);
                 self.policy.oversized.push(policy.oversized);
                 self.policy.multiple.push(policy.multiple);
                 self.policy
@@ -183,6 +176,10 @@ fn finalize_transaction(
         policy.pre_v30_nonstandard.output_count += carrier.output_count;
         policy.pre_v30_nonstandard.post_op_return_bytes += carrier.post_op_return_bytes;
         add_carrier(&mut policy.pre_v30_nonstandard, carrier.vsize);
+    } else {
+        policy.standard.output_count += carrier.output_count;
+        policy.standard.post_op_return_bytes += carrier.post_op_return_bytes;
+        add_carrier(&mut policy.standard, carrier.vsize);
     }
 }
 
@@ -219,6 +216,7 @@ mod tests {
         assert_eq!(policy.multiple.output_count, 2);
         assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 1);
         assert_eq!(policy.oversized.carrier_tx_count, 0);
+        assert_eq!(policy.standard.carrier_tx_count, 0);
     }
 
     #[test]
@@ -238,5 +236,26 @@ mod tests {
         assert_eq!(policy.oversized.carrier_vsize, VSize::new(120));
         assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 1);
         assert_eq!(policy.multiple.carrier_tx_count, 0);
+        assert_eq!(policy.standard.carrier_tx_count, 0);
+    }
+
+    #[test]
+    fn standard_output_is_recorded_directly() {
+        let mut total = Totals::default();
+        let mut by_kind = [Totals::default(); KIND_COUNT];
+        let mut policy = PolicyTotals::default();
+        let mut carrier = Carrier {
+            vsize: VSize::new(100),
+            ..Carrier::default()
+        };
+        carrier.add_output(OpReturnKind::Runes, 15);
+
+        finalize_transaction(&mut total, &mut by_kind, &mut policy, carrier);
+
+        assert_eq!(policy.standard.output_count, 1);
+        assert_eq!(policy.standard.post_op_return_bytes, 15);
+        assert_eq!(policy.standard.carrier_tx_count, 1);
+        assert_eq!(policy.standard.carrier_vsize, VSize::new(100));
+        assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 0);
     }
 }

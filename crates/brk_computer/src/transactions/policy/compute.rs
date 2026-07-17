@@ -27,11 +27,14 @@ impl Vecs {
             .validate_computed_version_or_reset(version)?;
         self.count.validate_computed_version_or_reset(version)?;
 
-        let lengths = indexer.safe_lengths();
-        let target_tx = lengths.tx_index.to_usize().min(fees.fee.tx_index.len());
-        let target_height = lengths.height.to_usize();
-        let tx_len = self.is_nonstandard.len().min(target_tx);
-        let count_len = self.count.len().min(target_height);
+        let starting_lengths = indexer.safe_lengths();
+        let target_tx = fees.fee.tx_index.len();
+        let target_height = indexes.height.tx_index_count.len();
+        let tx_len = self
+            .is_nonstandard
+            .len()
+            .min(starting_lengths.tx_index.to_usize());
+        let count_len = self.count.len().min(starting_lengths.height.to_usize());
         let next_height = if tx_len >= target_tx {
             target_height
         } else {

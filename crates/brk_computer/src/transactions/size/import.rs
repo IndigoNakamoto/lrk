@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Version, Weight};
+use brk_types::Version;
 use vecdb::{Database, LazyVecFrom1, ReadableCloneableVec};
 
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{Identity, LazyPerTxDistribution, LazyPerTxDistributionTransformed, WeightToVSize},
+    internal::{LazyPerTxDistributionTransformed, TxDerivedDistribution, WeightToVSize},
 };
 
 impl Vecs {
@@ -16,19 +16,7 @@ impl Vecs {
         indexer: &Indexer,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let tx_index_to_weight = LazyVecFrom1::transformed::<Identity<Weight>>(
-            "tx_weight",
-            version,
-            indexer.vecs.transactions.weight.read_only_boxed_clone(),
-        );
-
-        let weight = LazyPerTxDistribution::forced_import(
-            db,
-            "tx_weight",
-            version,
-            indexes,
-            tx_index_to_weight,
-        )?;
+        let weight = TxDerivedDistribution::forced_import(db, "tx_weight", version, indexes)?;
 
         let tx_index_to_vsize = LazyVecFrom1::transformed::<WeightToVSize>(
             "tx_vsize",
@@ -40,7 +28,7 @@ impl Vecs {
             "tx_vsize",
             version,
             tx_index_to_vsize,
-            &weight.distribution,
+            &weight,
         );
 
         Ok(Self { vsize, weight })

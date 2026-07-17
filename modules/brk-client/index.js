@@ -822,6 +822,7 @@ ancestors and no descendants (matches mempool.space).
  * @property {Close} close
  */
 /** @typedef {TypeIndex} OpReturnIndex */
+/** @typedef {("runes"|"veri_block"|"omni"|"stacks"|"blockstack"|"colu"|"open_assets"|"komodo"|"coin_spark"|"poet"|"docproof"|"open_timestamps"|"factom"|"eternity_wall"|"memo"|"bitproof"|"ascribe"|"stampery"|"epobc"|"bare_hash"|"text"|"empty"|"unknown")} OpReturnKind */
 /**
  * Opening price value for a time period
  *
@@ -3297,13 +3298,13 @@ function createInMaxMinPerSupplyPattern(client, acc) {
 
 /**
  * @typedef {Object} MaxMedianMinPct10Pct25Pct75Pct90Pattern2
- * @property {SeriesPattern18<Weight>} max
- * @property {SeriesPattern18<Weight>} median
- * @property {SeriesPattern18<Weight>} min
- * @property {SeriesPattern18<Weight>} pct10
- * @property {SeriesPattern18<Weight>} pct25
- * @property {SeriesPattern18<Weight>} pct75
- * @property {SeriesPattern18<Weight>} pct90
+ * @property {SeriesPattern18<VSize>} max
+ * @property {SeriesPattern18<VSize>} median
+ * @property {SeriesPattern18<VSize>} min
+ * @property {SeriesPattern18<VSize>} pct10
+ * @property {SeriesPattern18<VSize>} pct25
+ * @property {SeriesPattern18<VSize>} pct75
+ * @property {SeriesPattern18<VSize>} pct90
  */
 
 /**
@@ -4228,6 +4229,29 @@ function createBtcCentsSatsUsdPattern3(client, acc) {
     cents: createSeriesPattern18(client, _m(acc, 'cents')),
     sats: createSeriesPattern18(client, _m(acc, 'sats')),
     usd: createSeriesPattern18(client, _m(acc, 'usd')),
+  };
+}
+
+/**
+ * @typedef {Object} CarrierOutputPostPattern
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
+ */
+
+/**
+ * Create a CarrierOutputPostPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CarrierOutputPostPattern}
+ */
+function createCarrierOutputPostPattern(client, acc) {
+  return {
+    carrierTxCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count')),
+    carrierVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize')),
+    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
+    postOpReturnBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes')),
   };
 }
 
@@ -5424,6 +5448,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Outputs} outputs
  * @property {SeriesTree_Addrs} addrs
  * @property {SeriesTree_Scripts} scripts
+ * @property {SeriesTree_OpReturn} opReturn
  * @property {SeriesTree_Mining} mining
  * @property {SeriesTree_Cointime} cointime
  * @property {SeriesTree_Constants} constants
@@ -5565,9 +5590,12 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Transactions
  * @property {SeriesTree_Transactions_Raw} raw
+ * @property {SeriesTree_Transactions_Features} features
  * @property {SeriesTree_Transactions_Count} count
  * @property {SeriesTree_Transactions_Size} size
  * @property {SeriesTree_Transactions_Fees} fees
+ * @property {SeriesTree_Transactions_Patterns} patterns
+ * @property {SeriesTree_Transactions_Policy} policy
  * @property {SeriesTree_Transactions_Versions} versions
  * @property {SeriesTree_Transactions_Volume} volume
  */
@@ -5578,12 +5606,70 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern19<Txid>} txid
  * @property {SeriesPattern19<TxVersion>} txVersion
  * @property {SeriesPattern19<RawLockTime>} rawLocktime
- * @property {SeriesPattern19<StoredU32>} baseSize
+ * @property {SeriesPattern19<Weight>} weight
  * @property {SeriesPattern19<StoredU32>} totalSize
  * @property {SeriesPattern19<SigOps>} totalSigopCost
  * @property {SeriesPattern19<StoredBool>} isExplicitlyRbf
  * @property {SeriesPattern19<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern19<TxOutIndex>} firstTxoutIndex
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Features
+ * @property {SeriesTree_Transactions_Features_Count} count
+ * @property {SeriesPattern19<StoredBool>} hasP2pk
+ * @property {SeriesPattern19<StoredBool>} hasP2ms
+ * @property {SeriesPattern19<StoredBool>} hasP2pkh
+ * @property {SeriesPattern19<StoredBool>} hasP2sh
+ * @property {SeriesPattern19<StoredBool>} hasP2wpkh
+ * @property {SeriesPattern19<StoredBool>} hasP2wsh
+ * @property {SeriesPattern19<StoredBool>} hasP2tr
+ * @property {SeriesPattern19<StoredBool>} hasP2a
+ * @property {SeriesPattern19<StoredBool>} hasOpReturn
+ * @property {SeriesPattern19<StoredBool>} hasEmpty
+ * @property {SeriesPattern19<StoredBool>} hasUnknown
+ * @property {SeriesPattern19<StoredBool>} hasFakePubkey
+ * @property {SeriesPattern19<StoredBool>} hasFakeScripthash
+ * @property {SeriesPattern19<StoredBool>} hasInscription
+ * @property {SeriesPattern19<StoredBool>} hasAnnex
+ * @property {SeriesPattern19<StoredBool>} hasSighashAll
+ * @property {SeriesPattern19<StoredBool>} hasSighashNone
+ * @property {SeriesPattern19<StoredBool>} hasSighashSingle
+ * @property {SeriesPattern19<StoredBool>} hasSighashDefault
+ * @property {SeriesPattern19<StoredBool>} hasSighashAnyoneCanPay
+ * @property {SeriesPattern19<StoredBool>} hasDustOutput
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Features_Count
+ * @property {SeriesPattern18<StoredU64>} v1
+ * @property {SeriesPattern18<StoredU64>} v2
+ * @property {SeriesPattern18<StoredU64>} v3
+ * @property {SeriesPattern18<StoredU64>} otherVersion
+ * @property {SeriesPattern18<StoredU64>} explicitlyRbf
+ * @property {SeriesPattern18<StoredU64>} oneInput
+ * @property {SeriesPattern18<StoredU64>} oneOutput
+ * @property {SeriesPattern18<StoredU64>} p2pk
+ * @property {SeriesPattern18<StoredU64>} p2ms
+ * @property {SeriesPattern18<StoredU64>} p2pkh
+ * @property {SeriesPattern18<StoredU64>} p2sh
+ * @property {SeriesPattern18<StoredU64>} p2wpkh
+ * @property {SeriesPattern18<StoredU64>} p2wsh
+ * @property {SeriesPattern18<StoredU64>} p2tr
+ * @property {SeriesPattern18<StoredU64>} p2a
+ * @property {SeriesPattern18<StoredU64>} opReturn
+ * @property {SeriesPattern18<StoredU64>} empty
+ * @property {SeriesPattern18<StoredU64>} unknown
+ * @property {SeriesPattern18<StoredU64>} fakePubkey
+ * @property {SeriesPattern18<StoredU64>} fakeScripthash
+ * @property {SeriesPattern18<StoredU64>} inscription
+ * @property {SeriesPattern18<StoredU64>} annex
+ * @property {SeriesPattern18<StoredU64>} sighashAll
+ * @property {SeriesPattern18<StoredU64>} sighashNone
+ * @property {SeriesPattern18<StoredU64>} sighashSingle
+ * @property {SeriesPattern18<StoredU64>} sighashDefault
+ * @property {SeriesPattern18<StoredU64>} sighashAnyoneCanPay
+ * @property {SeriesPattern18<StoredU64>} dustOutput
  */
 
 /**
@@ -5593,24 +5679,60 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Size
- * @property {_6bBlockTxPattern<VSize>} vsize
+ * @property {SeriesTree_Transactions_Size_Vsize} vsize
  * @property {SeriesTree_Transactions_Size_Weight} weight
  */
 
 /**
- * @typedef {Object} SeriesTree_Transactions_Size_Weight
- * @property {SeriesPattern19<Weight>} txIndex
+ * @typedef {Object} SeriesTree_Transactions_Size_Vsize
+ * @property {SeriesPattern19<VSize>} txIndex
  * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern2} block
  * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern2} _6b
  */
 
 /**
+ * @typedef {Object} SeriesTree_Transactions_Size_Weight
+ * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>} block
+ * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>} _6b
+ */
+
+/**
  * @typedef {Object} SeriesTree_Transactions_Fees
+ * @property {SeriesTree_Transactions_Fees_Count} count
  * @property {SeriesPattern19<Sats>} inputValue
  * @property {SeriesPattern19<Sats>} outputValue
  * @property {_6bBlockTxPattern<Sats>} fee
  * @property {SeriesPattern19<FeeRate>} feeRate
  * @property {_6bBlockTxPattern<FeeRate>} effectiveFeeRate
+ * @property {SeriesPattern19<StoredBool>} isCpfpParent
+ * @property {SeriesPattern19<StoredBool>} isCpfpChild
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Fees_Count
+ * @property {SeriesPattern18<StoredU64>} cpfpParent
+ * @property {SeriesPattern18<StoredU64>} cpfpChild
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Patterns
+ * @property {SeriesTree_Transactions_Patterns_Count} count
+ * @property {SeriesPattern19<StoredBool>} isCoinjoin
+ * @property {SeriesPattern19<StoredBool>} isConsolidation
+ * @property {SeriesPattern19<StoredBool>} isBatchPayout
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Patterns_Count
+ * @property {SeriesPattern18<StoredU64>} coinjoin
+ * @property {SeriesPattern18<StoredU64>} consolidation
+ * @property {SeriesPattern18<StoredU64>} batchPayout
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Policy
+ * @property {SeriesPattern18<StoredU64>} count
+ * @property {SeriesPattern19<StoredBool>} isNonstandard
  */
 
 /**
@@ -5618,6 +5740,7 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v1
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v2
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v3
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} other
  */
 
 /**
@@ -6024,7 +6147,6 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Scripts_Raw
  * @property {SeriesTree_Scripts_Raw_Empty} empty
- * @property {SeriesTree_Scripts_Raw_OpReturn} opReturn
  * @property {SeriesTree_Scripts_Raw_P2ms} p2ms
  * @property {SeriesTree_Scripts_Raw_Unknown} unknown
  */
@@ -6036,21 +6158,75 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Scripts_Raw_OpReturn
- * @property {SeriesPattern18<OpReturnIndex>} firstIndex
- * @property {SeriesPattern23<TxIndex>} toTxIndex
- */
-
-/**
  * @typedef {Object} SeriesTree_Scripts_Raw_P2ms
  * @property {SeriesPattern18<P2MSOutputIndex>} firstIndex
  * @property {SeriesPattern25<TxIndex>} toTxIndex
+ * @property {SeriesPattern25<SigOps>} legacySigops
  */
 
 /**
  * @typedef {Object} SeriesTree_Scripts_Raw_Unknown
  * @property {SeriesPattern18<UnknownOutputIndex>} firstIndex
  * @property {SeriesPattern33<TxIndex>} toTxIndex
+ * @property {SeriesPattern33<SigOps>} legacySigops
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn
+ * @property {SeriesTree_OpReturn_Raw} raw
+ * @property {SeriesTree_OpReturn_Total} total
+ * @property {SeriesTree_OpReturn_ByKind} byKind
+ * @property {SeriesTree_OpReturn_Policy} policy
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Raw
+ * @property {SeriesPattern18<OpReturnIndex>} firstIndex
+ * @property {SeriesPattern23<TxIndex>} toTxIndex
+ * @property {SeriesPattern23<OpReturnKind>} kind
+ * @property {SeriesPattern23<StoredU32>} postOpReturnBytes
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Total
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_ByKind
+ * @property {CarrierOutputPostPattern} runes
+ * @property {CarrierOutputPostPattern} veriBlock
+ * @property {CarrierOutputPostPattern} omni
+ * @property {CarrierOutputPostPattern} stacks
+ * @property {CarrierOutputPostPattern} blockstack
+ * @property {CarrierOutputPostPattern} colu
+ * @property {CarrierOutputPostPattern} openAssets
+ * @property {CarrierOutputPostPattern} komodo
+ * @property {CarrierOutputPostPattern} coinSpark
+ * @property {CarrierOutputPostPattern} poet
+ * @property {CarrierOutputPostPattern} docproof
+ * @property {CarrierOutputPostPattern} openTimestamps
+ * @property {CarrierOutputPostPattern} factom
+ * @property {CarrierOutputPostPattern} eternityWall
+ * @property {CarrierOutputPostPattern} memo
+ * @property {CarrierOutputPostPattern} bitproof
+ * @property {CarrierOutputPostPattern} ascribe
+ * @property {CarrierOutputPostPattern} stampery
+ * @property {CarrierOutputPostPattern} epobc
+ * @property {CarrierOutputPostPattern} bareHash
+ * @property {CarrierOutputPostPattern} text
+ * @property {CarrierOutputPostPattern} empty
+ * @property {CarrierOutputPostPattern} unknown
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Policy
+ * @property {CarrierOutputPostPattern} standard
+ * @property {CarrierOutputPostPattern} oversized
+ * @property {CarrierOutputPostPattern} multiple
+ * @property {CarrierOutputPostPattern} preV30Nonstandard
  */
 
 /**
@@ -9398,35 +9574,112 @@ class BrkClient extends BrkClientBase {
           txid: createSeriesPattern19(this, 'txid'),
           txVersion: createSeriesPattern19(this, 'tx_version'),
           rawLocktime: createSeriesPattern19(this, 'raw_locktime'),
-          baseSize: createSeriesPattern19(this, 'base_size'),
+          weight: createSeriesPattern19(this, 'tx_weight'),
           totalSize: createSeriesPattern19(this, 'total_size'),
           totalSigopCost: createSeriesPattern19(this, 'total_sigop_cost'),
           isExplicitlyRbf: createSeriesPattern19(this, 'is_explicitly_rbf'),
           firstTxinIndex: createSeriesPattern19(this, 'first_txin_index'),
           firstTxoutIndex: createSeriesPattern19(this, 'first_txout_index'),
         },
+        features: {
+          count: {
+            v1: createSeriesPattern18(this, 'tx_count_v1'),
+            v2: createSeriesPattern18(this, 'tx_count_v2'),
+            v3: createSeriesPattern18(this, 'tx_count_v3'),
+            otherVersion: createSeriesPattern18(this, 'tx_count_other_version'),
+            explicitlyRbf: createSeriesPattern18(this, 'tx_count_explicitly_rbf'),
+            oneInput: createSeriesPattern18(this, 'tx_count_one_input'),
+            oneOutput: createSeriesPattern18(this, 'tx_count_one_output'),
+            p2pk: createSeriesPattern18(this, 'tx_count_p2pk'),
+            p2ms: createSeriesPattern18(this, 'tx_count_p2ms'),
+            p2pkh: createSeriesPattern18(this, 'tx_count_p2pkh'),
+            p2sh: createSeriesPattern18(this, 'tx_count_p2sh'),
+            p2wpkh: createSeriesPattern18(this, 'tx_count_p2wpkh'),
+            p2wsh: createSeriesPattern18(this, 'tx_count_p2wsh'),
+            p2tr: createSeriesPattern18(this, 'tx_count_p2tr'),
+            p2a: createSeriesPattern18(this, 'tx_count_p2a'),
+            opReturn: createSeriesPattern18(this, 'tx_count_op_return'),
+            empty: createSeriesPattern18(this, 'tx_count_empty'),
+            unknown: createSeriesPattern18(this, 'tx_count_unknown'),
+            fakePubkey: createSeriesPattern18(this, 'tx_count_fake_pubkey'),
+            fakeScripthash: createSeriesPattern18(this, 'tx_count_fake_scripthash'),
+            inscription: createSeriesPattern18(this, 'tx_count_inscription'),
+            annex: createSeriesPattern18(this, 'tx_count_annex'),
+            sighashAll: createSeriesPattern18(this, 'tx_count_sighash_all'),
+            sighashNone: createSeriesPattern18(this, 'tx_count_sighash_none'),
+            sighashSingle: createSeriesPattern18(this, 'tx_count_sighash_single'),
+            sighashDefault: createSeriesPattern18(this, 'tx_count_sighash_default'),
+            sighashAnyoneCanPay: createSeriesPattern18(this, 'tx_count_sighash_anyone_can_pay'),
+            dustOutput: createSeriesPattern18(this, 'tx_count_dust_output'),
+          },
+          hasP2pk: createSeriesPattern19(this, 'has_p2pk'),
+          hasP2ms: createSeriesPattern19(this, 'has_p2ms'),
+          hasP2pkh: createSeriesPattern19(this, 'has_p2pkh'),
+          hasP2sh: createSeriesPattern19(this, 'has_p2sh'),
+          hasP2wpkh: createSeriesPattern19(this, 'has_p2wpkh'),
+          hasP2wsh: createSeriesPattern19(this, 'has_p2wsh'),
+          hasP2tr: createSeriesPattern19(this, 'has_p2tr'),
+          hasP2a: createSeriesPattern19(this, 'has_p2a'),
+          hasOpReturn: createSeriesPattern19(this, 'has_op_return'),
+          hasEmpty: createSeriesPattern19(this, 'has_empty'),
+          hasUnknown: createSeriesPattern19(this, 'has_unknown'),
+          hasFakePubkey: createSeriesPattern19(this, 'has_fake_pubkey'),
+          hasFakeScripthash: createSeriesPattern19(this, 'has_fake_scripthash'),
+          hasInscription: createSeriesPattern19(this, 'has_inscription'),
+          hasAnnex: createSeriesPattern19(this, 'has_annex'),
+          hasSighashAll: createSeriesPattern19(this, 'has_sighash_all'),
+          hasSighashNone: createSeriesPattern19(this, 'has_sighash_none'),
+          hasSighashSingle: createSeriesPattern19(this, 'has_sighash_single'),
+          hasSighashDefault: createSeriesPattern19(this, 'has_sighash_default'),
+          hasSighashAnyoneCanPay: createSeriesPattern19(this, 'has_sighash_anyone_can_pay'),
+          hasDustOutput: createSeriesPattern19(this, 'has_dust_output'),
+        },
         count: {
           total: createAverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(this, 'tx_count'),
         },
         size: {
-          vsize: create_6bBlockTxPattern(this, 'tx_vsize'),
+          vsize: {
+            txIndex: createSeriesPattern19(this, 'tx_vsize'),
+            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_vsize'),
+            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_vsize_6b'),
+          },
           weight: {
-            txIndex: createSeriesPattern19(this, 'tx_weight'),
-            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_weight'),
-            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_weight_6b'),
+            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern(this, 'tx_weight'),
+            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern(this, 'tx_weight_6b'),
           },
         },
         fees: {
+          count: {
+            cpfpParent: createSeriesPattern18(this, 'cpfp_parent_count'),
+            cpfpChild: createSeriesPattern18(this, 'cpfp_child_count'),
+          },
           inputValue: createSeriesPattern19(this, 'input_value'),
           outputValue: createSeriesPattern19(this, 'output_value'),
           fee: create_6bBlockTxPattern(this, 'fee'),
           feeRate: createSeriesPattern19(this, 'fee_rate'),
           effectiveFeeRate: create_6bBlockTxPattern(this, 'effective_fee_rate'),
+          isCpfpParent: createSeriesPattern19(this, 'is_cpfp_parent'),
+          isCpfpChild: createSeriesPattern19(this, 'is_cpfp_child'),
+        },
+        patterns: {
+          count: {
+            coinjoin: createSeriesPattern18(this, 'coinjoin_count'),
+            consolidation: createSeriesPattern18(this, 'consolidation_count'),
+            batchPayout: createSeriesPattern18(this, 'batch_payout_count'),
+          },
+          isCoinjoin: createSeriesPattern19(this, 'is_coinjoin'),
+          isConsolidation: createSeriesPattern19(this, 'is_consolidation'),
+          isBatchPayout: createSeriesPattern19(this, 'is_batch_payout'),
+        },
+        policy: {
+          count: createSeriesPattern18(this, 'nonstandard_count'),
+          isNonstandard: createSeriesPattern19(this, 'is_nonstandard'),
         },
         versions: {
           v1: createAverageBlockCumulativeSumPattern(this, 'tx_v1'),
           v2: createAverageBlockCumulativeSumPattern(this, 'tx_v2'),
           v3: createAverageBlockCumulativeSumPattern(this, 'tx_v3'),
+          other: createAverageBlockCumulativeSumPattern(this, 'tx_other_version'),
         },
         volume: {
           transferVolume: createAverageBlockCumulativeSumPattern3(this, 'transfer_volume_bis'),
@@ -9712,18 +9965,60 @@ class BrkClient extends BrkClientBase {
             firstIndex: createSeriesPattern18(this, 'first_empty_output_index'),
             toTxIndex: createSeriesPattern22(this, 'tx_index'),
           },
-          opReturn: {
-            firstIndex: createSeriesPattern18(this, 'first_op_return_index'),
-            toTxIndex: createSeriesPattern23(this, 'tx_index'),
-          },
           p2ms: {
             firstIndex: createSeriesPattern18(this, 'first_p2ms_output_index'),
             toTxIndex: createSeriesPattern25(this, 'tx_index'),
+            legacySigops: createSeriesPattern25(this, 'p2ms_legacy_sigops'),
           },
           unknown: {
             firstIndex: createSeriesPattern18(this, 'first_unknown_output_index'),
             toTxIndex: createSeriesPattern33(this, 'tx_index'),
+            legacySigops: createSeriesPattern33(this, 'unknown_legacy_sigops'),
           },
+        },
+      },
+      opReturn: {
+        raw: {
+          firstIndex: createSeriesPattern18(this, 'first_op_return_index'),
+          toTxIndex: createSeriesPattern23(this, 'tx_index'),
+          kind: createSeriesPattern23(this, 'kind'),
+          postOpReturnBytes: createSeriesPattern23(this, 'op_return_post_op_return_bytes'),
+        },
+        total: {
+          postOpReturnBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_post_op_return_bytes'),
+          carrierTxCount: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_tx_count'),
+          carrierVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_vsize'),
+        },
+        byKind: {
+          runes: createCarrierOutputPostPattern(this, 'op_return_runes'),
+          veriBlock: createCarrierOutputPostPattern(this, 'op_return_veri_block'),
+          omni: createCarrierOutputPostPattern(this, 'op_return_omni'),
+          stacks: createCarrierOutputPostPattern(this, 'op_return_stacks'),
+          blockstack: createCarrierOutputPostPattern(this, 'op_return_blockstack'),
+          colu: createCarrierOutputPostPattern(this, 'op_return_colu'),
+          openAssets: createCarrierOutputPostPattern(this, 'op_return_open_assets'),
+          komodo: createCarrierOutputPostPattern(this, 'op_return_komodo'),
+          coinSpark: createCarrierOutputPostPattern(this, 'op_return_coin_spark'),
+          poet: createCarrierOutputPostPattern(this, 'op_return_poet'),
+          docproof: createCarrierOutputPostPattern(this, 'op_return_docproof'),
+          openTimestamps: createCarrierOutputPostPattern(this, 'op_return_open_timestamps'),
+          factom: createCarrierOutputPostPattern(this, 'op_return_factom'),
+          eternityWall: createCarrierOutputPostPattern(this, 'op_return_eternity_wall'),
+          memo: createCarrierOutputPostPattern(this, 'op_return_memo'),
+          bitproof: createCarrierOutputPostPattern(this, 'op_return_bitproof'),
+          ascribe: createCarrierOutputPostPattern(this, 'op_return_ascribe'),
+          stampery: createCarrierOutputPostPattern(this, 'op_return_stampery'),
+          epobc: createCarrierOutputPostPattern(this, 'op_return_epobc'),
+          bareHash: createCarrierOutputPostPattern(this, 'op_return_bare_hash'),
+          text: createCarrierOutputPostPattern(this, 'op_return_text'),
+          empty: createCarrierOutputPostPattern(this, 'op_return_empty'),
+          unknown: createCarrierOutputPostPattern(this, 'op_return_unknown'),
+        },
+        policy: {
+          standard: createCarrierOutputPostPattern(this, 'op_return_policy_standard'),
+          oversized: createCarrierOutputPostPattern(this, 'op_return_policy_oversized'),
+          multiple: createCarrierOutputPostPattern(this, 'op_return_policy_multiple'),
+          preV30Nonstandard: createCarrierOutputPostPattern(this, 'op_return_policy_pre_v30_nonstandard'),
         },
       },
       mining: {
