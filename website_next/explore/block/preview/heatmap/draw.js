@@ -48,22 +48,28 @@ function drawHover(context, rect) {
  * @param {DrawPreviewArgs} args
  */
 export function drawPreview(args) {
-  const { context, disabledMask, filterState, inspected, previewMask, rects } = args;
+  const {
+    context,
+    hasHidden,
+    hiddenCounts,
+    inspected,
+    previewMembership,
+    rects,
+    start,
+  } = args;
   let inspectedRect = /** @type {PreviewRect | null} */ (null);
 
-  if (filterState === null || (disabledMask === 0 && previewMask === null)) {
+  if (previewMembership === null && !hasHidden) {
     for (const rect of rects) {
       drawRect(context, 1, rect.color, rect);
       if (rect.transaction === inspected) inspectedRect = rect;
     }
   } else {
-    const activeMask = previewMask ?? disabledMask;
-
     for (const rect of rects) {
-      const mask = filterState.masks[rect.transaction.txIndex - filterState.start];
-      const alpha = previewMask === null
-        ? (mask & activeMask ? MUTED_ALPHA : 1)
-        : (mask & activeMask ? 1 : MUTED_ALPHA);
+      const index = rect.transaction.txIndex - start;
+      const alpha = previewMembership === null
+        ? (hiddenCounts[index] ? MUTED_ALPHA : 1)
+        : (previewMembership[index] ? 1 : MUTED_ALPHA);
 
       drawRect(context, alpha, rect.color, rect);
       if (rect.transaction === inspected) inspectedRect = rect;
@@ -77,13 +83,13 @@ export function drawPreview(args) {
 /**
  * @typedef {Object} DrawPreviewArgs
  * @property {CanvasRenderingContext2D} context
- * @property {number} disabledMask
- * @property {BlockPreviewFilterState | null} filterState
+ * @property {boolean} hasHidden
+ * @property {Uint8Array} hiddenCounts
  * @property {BlockPreviewTransaction | null} inspected
- * @property {number | null} previewMask
+ * @property {Uint8Array | null} previewMembership
  * @property {PreviewRect[]} rects
+ * @property {number} start
  */
 
-/** @typedef {import("../data.js").BlockPreviewFilterState} BlockPreviewFilterState */
 /** @typedef {import("../data.js").BlockPreviewTransaction} BlockPreviewTransaction */
 /** @typedef {import("./geometry.js").PreviewRect} PreviewRect */

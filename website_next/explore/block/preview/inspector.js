@@ -36,9 +36,9 @@ function setField(element, value, loading = false) {
 
 /**
  * @param {AbortSignal} parentSignal
- * @param {() => Promise<BlockPreviewFilterState>} loadFilters
+ * @param {BlockPreviewFilterData} filterData
  */
-export function createBlockPreviewInspector(parentSignal, loadFilters) {
+export function createBlockPreviewInspector(parentSignal, filterData) {
   const element = document.createElement("dl");
   const txid = appendField(element, "txid");
   const tx = appendField(element, "tx");
@@ -51,8 +51,7 @@ export function createBlockPreviewInspector(parentSignal, loadFilters) {
   let inspected = /** @type {BlockPreviewTransaction | null} */ (null);
   let point = /** @type {BlockPreviewPointer | null} */ (null);
   let readoutSize = /** @type {BlockPreviewReadoutSize | null} */ (null);
-  let filterState = /** @type {BlockPreviewFilterState | null} */ (null);
-  let filterPromise = /** @type {Promise<void> | null} */ (null);
+  let traitsController = /** @type {AbortController | null} */ (null);
   let traitsTimer = 0;
 
   element.dataset.blockPreviewTransaction = "";
@@ -60,6 +59,8 @@ export function createBlockPreviewInspector(parentSignal, loadFilters) {
 
   function abortPending() {
     clearTimeout(traitsTimer);
+    traitsController?.abort();
+    traitsController = null;
     txidLoader.abort();
   }
 
@@ -87,13 +88,14 @@ export function createBlockPreviewInspector(parentSignal, loadFilters) {
     }
   }
 
-  /** @param {number} mask */
-  function setTraits(mask) {
+  /** @param {string[]} keys */
+  function setTraits(keys) {
     invalidateReadoutSize();
+    const activeKeys = new Set(keys);
 
     for (const { filters, value } of traitFields) {
       const labels = filters
-        .filter(({ bit }) => mask & bit)
+        .filter(({ key }) => activeKeys.has(key))
         .map(({ label }) => label);
       const text = labels.join(" · ") || "none";
 
@@ -102,46 +104,33 @@ export function createBlockPreviewInspector(parentSignal, loadFilters) {
     }
   }
 
-  /** @param {BlockPreviewTransaction} transaction */
-  function setTransactionTraits(transaction) {
-    const state = /** @type {BlockPreviewFilterState} */ (filterState);
-    const mask = state.masks[transaction.txIndex - state.start];
-
-    setTraits(mask);
-    if (point !== null) place(point);
-  }
-
-  function loadFilterState() {
-    if (filterState !== null || filterPromise !== null) return;
-
-    filterPromise = loadFilters()
-      .then((state) => {
-        filterState = state;
-        filterPromise = null;
-        if (inspected !== null) setTransactionTraits(inspected);
-      })
-      .catch((error) => {
-        filterPromise = null;
-        if (parentSignal.aborted || inspected === null) return;
-
-        for (const { value } of traitFields) setField(value, "unavailable");
-        console.error(error);
-      });
-  }
-
   /**
    * @param {BlockPreviewTransaction} transaction
    * @param {boolean} eager
    */
   function loadTraits(transaction, eager) {
     setTraitsLoading();
-    if (filterState !== null) {
-      setTransactionTraits(transaction);
-      return;
-    }
-
     traitsTimer = setTimeout(() => {
-      loadFilterState();
+      const controller = new AbortController();
+      const signal = AbortSignal.any([parentSignal, controller.signal]);
+
+      traitsController = controller;
+      void filterData.loadTransactionFilters(transaction.txIndex, signal)
+        .then((keys) => {
+          if (inspected !== transaction) return;
+
+          setTraits(keys);
+          if (point !== null) place(point);
+        })
+        .catch((error) => {
+          if (signal.aborted || inspected !== transaction) return;
+
+          for (const { value } of traitFields) setField(value, "unavailable");
+          console.error(error);
+        })
+        .finally(() => {
+          if (traitsController === controller) traitsController = null;
+        });
     }, eager ? 0 : TRAITS_DWELL_MS);
   }
 
@@ -210,7 +199,7 @@ export function createBlockPreviewInspector(parentSignal, loadFilters) {
 }
 
 /** @typedef {import("./data.js").BlockPreviewTransaction} BlockPreviewTransaction */
-/** @typedef {import("./data.js").BlockPreviewFilterState} BlockPreviewFilterState */
+/** @typedef {import("./filters/data.js").BlockPreviewFilterData} BlockPreviewFilterData */
 
 /**
  * @typedef {Object} BlockPreviewPointer

@@ -1,7 +1,5 @@
-import {
-  loadBlockPreview,
-  loadBlockPreviewFilters,
-} from "./data.js";
+import { loadBlockPreview } from "./data.js";
+import { createBlockPreviewFilterData } from "./filters/data.js";
 import {
   createPendingPreviewFilters,
   createPreviewFilters,
@@ -30,34 +28,17 @@ function createFigure(body, filters, inspector) {
 }
 
 /**
- * @template T
- * @param {() => Promise<T>} load
- */
-function memoize(load) {
-  let promise = /** @type {Promise<T> | null} */ (null);
-
-  return () => {
-    promise ??= load().catch((error) => {
-      promise = null;
-      throw error;
-    });
-
-    return promise;
-  };
-}
-
-/**
  * @param {BlockPreviewData} data
- * @param {() => Promise<BlockPreviewFilterState>} loadFilters
+ * @param {number} height
  * @param {AbortSignal} signal
  */
-function createPreview(data, loadFilters, signal) {
-  const loadFilterState = memoize(loadFilters);
-  const inspector = createBlockPreviewInspector(signal, loadFilterState);
+function createPreview(data, height, signal) {
+  const filterData = createBlockPreviewFilterData(height, data.range, signal);
+  const inspector = createBlockPreviewInspector(signal, filterData);
   const heatmap = createBlockPreviewHeatmap(data, {
     onInspect: inspector.inspect,
   });
-  const filters = createPreviewFilters(loadFilterState, heatmap);
+  const filters = createPreviewFilters(filterData, heatmap);
 
   return {
     destroy() {
@@ -96,11 +77,7 @@ export function createBlockPreviewPane(block) {
   void loadBlockPreview(block, controller.signal)
     .then((data) => {
       if (!live) return;
-      const preview = createPreview(
-        data,
-        () => loadBlockPreviewFilters(data.range, controller.signal),
-        controller.signal,
-      );
+      const preview = createPreview(data, block.height, controller.signal);
 
       destroyHeatmap = preview.destroy;
       content.replaceChildren(preview.element);
@@ -123,7 +100,6 @@ export function createBlockPreviewPane(block) {
 }
 
 /** @typedef {import("./data.js").BlockPreviewData} BlockPreviewData */
-/** @typedef {import("./data.js").BlockPreviewFilterState} BlockPreviewFilterState */
 
 /**
  * @typedef {Object} BlockPreview

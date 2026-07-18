@@ -1,11 +1,11 @@
 import { MAX_BLOCK_WEIGHT } from "../../format.js";
 import { createPreviewFeeRange, orderTransactions } from "./fees.js";
-import { createSquareLayout } from "./capacity.js";
+import { createSquareLayout } from "./layout.js";
 import { getCanvasFeeRateColor } from "./color.js";
 import { createPreviewGeometry, hitTest } from "./geometry.js";
 import { drawPreview } from "./draw.js";
 
-const COLUMNS = 84;
+const COLUMNS = 86;
 const VISIBLE_CELLS = COLUMNS * COLUMNS;
 
 /**
@@ -56,15 +56,20 @@ export function createBlockPreviewHeatmap(data, options = {}) {
   const order = orderTransactions(data.weights, data.feeRates);
   const ranges = createPreviewFeeRange(data.feeRates, order);
   const cells = createCapacityCells(data, order, ranges);
-  const square = createSquareLayout(cells, MAX_BLOCK_WEIGHT, COLUMNS);
-  let disabledMask = 0;
-  let filterState = /** @type {BlockPreviewFilterState | null} */ (null);
+  const square = createSquareLayout(
+    cells,
+    data.blockWeight,
+    MAX_BLOCK_WEIGHT,
+    COLUMNS,
+  );
+  const hiddenCounts = new Uint8Array(data.range.end - data.range.start);
+  let hiddenFilterCount = 0;
   let frame = 0;
   let inspected = /** @type {BlockPreviewTransaction | null} */ (null);
   let inspectFrame = 0;
   let inspectPoint = /** @type {BlockPreviewPointer | null} */ (null);
   let bounds = /** @type {DOMRectReadOnly | null} */ (null);
-  let previewMask = /** @type {number | null} */ (null);
+  let previewMembership = /** @type {Uint8Array | null} */ (null);
   let geometry = /** @type {PreviewGeometry | null} */ (null);
   let rectWidth = 0;
   let capturedPointer = /** @type {number | null} */ (null);
@@ -99,11 +104,12 @@ export function createBlockPreviewHeatmap(data, options = {}) {
     context.clearRect(0, 0, width, width);
     drawPreview({
       context,
-      disabledMask,
-      filterState,
+      hasHidden: hiddenFilterCount > 0,
+      hiddenCounts,
       inspected,
-      previewMask,
+      previewMembership,
       rects: geometry?.rects ?? [],
+      start: data.range.start,
     });
   }
 
@@ -242,23 +248,25 @@ export function createBlockPreviewHeatmap(data, options = {}) {
       window.removeEventListener("blur", clearInspect);
       observer.disconnect();
     },
-    /** @param {number | null} mask */
-    setPreviewMask(mask) {
-      if (previewMask === mask) return;
+    /** @param {Uint8Array | null} membership */
+    setPreviewMembership(membership) {
+      if (previewMembership === membership) return;
 
-      previewMask = mask;
+      previewMembership = membership;
       scheduleDraw();
     },
-    /** @param {number} mask */
-    setDisabledMask(mask) {
-      if (disabledMask === mask) return;
+    /**
+     * @param {Uint8Array} membership
+     * @param {boolean} hidden
+     */
+    setFilterHidden(membership, hidden) {
+      const change = hidden ? 1 : -1;
 
-      disabledMask = mask;
-      scheduleDraw();
-    },
-    /** @param {BlockPreviewFilterState} state */
-    setFilterState(state) {
-      filterState = state;
+      hiddenFilterCount += change;
+      for (let index = 0; index < hiddenCounts.length; index += 1) {
+        if (membership[index]) hiddenCounts[index] += change;
+      }
+
       scheduleDraw();
     },
   });
@@ -266,7 +274,6 @@ export function createBlockPreviewHeatmap(data, options = {}) {
 
 /** @typedef {import("../data.js").BlockPreviewData} BlockPreviewData */
 /** @typedef {import("../data.js").BlockPreviewTransaction} BlockPreviewTransaction */
-/** @typedef {import("../data.js").BlockPreviewFilterState} BlockPreviewFilterState */
 
 /**
  * @typedef {Object} BlockPreviewPointer
