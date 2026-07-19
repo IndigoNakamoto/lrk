@@ -12,13 +12,13 @@ export const OP_RETURN_COUNT_SOURCES = [
   ...OP_RETURN_KIND_FILTERS.map(([, kind, clientKey]) => {
     return {
       key: `op_return:${kind}`,
-      series: byKind[clientKey].carrierTxCount.block,
+      series: byKind[clientKey].txCount.block,
     };
   }),
   ...OP_RETURN_POLICY_FILTERS.map(([, filter, clientKey]) => {
     return {
       key: `op_return_policy:${filter}`,
-      series: policy[clientKey].carrierTxCount.block,
+      series: policy[clientKey].txCount.block,
     };
   }),
 ];

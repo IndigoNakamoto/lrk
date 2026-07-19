@@ -3492,6 +3492,33 @@ function createCentsNegativeToUsdPattern2(client, acc) {
 }
 
 /**
+ * @typedef {Object} ChainDataOutputTxPattern
+ * @property {BpsPercentRatioPattern2} chainShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
+ * @property {BpsPercentRatioPattern2} dataShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ */
+
+/**
+ * Create a ChainDataOutputTxPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ChainDataOutputTxPattern}
+ */
+function createChainDataOutputTxPattern(client, acc) {
+  return {
+    chainShare: createBpsPercentRatioPattern2(client, _m(acc, 'chain_share')),
+    dataBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes')),
+    dataShare: createBpsPercentRatioPattern2(client, _m(acc, 'data_share')),
+    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
+    txCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count')),
+    txVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize')),
+  };
+}
+
+/**
  * @typedef {Object} DeltaDominanceHalfInTotalPattern2
  * @property {AbsoluteRatePattern3} delta
  * @property {BpsPercentRatioPattern2} dominance
@@ -3817,31 +3844,6 @@ function createCapLossMvrvPriceProfitPattern(client, acc) {
     mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
     price: createBpsCentsRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
-  };
-}
-
-/**
- * @typedef {Object} CarrierDataOutputPostPattern
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
- * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
- * @property {BpsPercentRatioPattern2} dataShare
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
- */
-
-/**
- * Create a CarrierDataOutputPostPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {CarrierDataOutputPostPattern}
- */
-function createCarrierDataOutputPostPattern(client, acc) {
-  return {
-    carrierTxCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count')),
-    carrierVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize')),
-    dataShare: createBpsPercentRatioPattern2(client, _m(acc, 'data_share')),
-    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
-    postOpReturnBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes')),
   };
 }
 
@@ -4254,29 +4256,6 @@ function createBtcCentsSatsUsdPattern3(client, acc) {
     cents: createSeriesPattern18(client, _m(acc, 'cents')),
     sats: createSeriesPattern18(client, _m(acc, 'sats')),
     usd: createSeriesPattern18(client, _m(acc, 'usd')),
-  };
-}
-
-/**
- * @typedef {Object} CarrierOutputPostPattern
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
- * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
- */
-
-/**
- * Create a CarrierOutputPostPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {CarrierOutputPostPattern}
- */
-function createCarrierOutputPostPattern(client, acc) {
-  return {
-    carrierTxCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count')),
-    carrierVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize')),
-    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
-    postOpReturnBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes')),
   };
 }
 
@@ -6214,45 +6193,45 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_Total
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
- * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
- * @property {BpsPercentRatioPattern2} dataShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ * @property {BpsPercentRatioPattern2} chainShare
  */
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_ByKind
- * @property {CarrierOutputPostPattern} runes
- * @property {CarrierOutputPostPattern} veriBlock
- * @property {CarrierOutputPostPattern} omni
- * @property {CarrierOutputPostPattern} stacks
- * @property {CarrierOutputPostPattern} blockstack
- * @property {CarrierOutputPostPattern} colu
- * @property {CarrierOutputPostPattern} openAssets
- * @property {CarrierOutputPostPattern} komodo
- * @property {CarrierOutputPostPattern} coinSpark
- * @property {CarrierOutputPostPattern} poet
- * @property {CarrierOutputPostPattern} docproof
- * @property {CarrierOutputPostPattern} openTimestamps
- * @property {CarrierOutputPostPattern} factom
- * @property {CarrierOutputPostPattern} eternityWall
- * @property {CarrierOutputPostPattern} memo
- * @property {CarrierOutputPostPattern} bitproof
- * @property {CarrierOutputPostPattern} ascribe
- * @property {CarrierOutputPostPattern} stampery
- * @property {CarrierOutputPostPattern} epobc
- * @property {CarrierOutputPostPattern} bareHash
- * @property {CarrierOutputPostPattern} text
- * @property {CarrierOutputPostPattern} empty
- * @property {CarrierOutputPostPattern} unknown
+ * @property {ChainDataOutputTxPattern} runes
+ * @property {ChainDataOutputTxPattern} veriBlock
+ * @property {ChainDataOutputTxPattern} omni
+ * @property {ChainDataOutputTxPattern} stacks
+ * @property {ChainDataOutputTxPattern} blockstack
+ * @property {ChainDataOutputTxPattern} colu
+ * @property {ChainDataOutputTxPattern} openAssets
+ * @property {ChainDataOutputTxPattern} komodo
+ * @property {ChainDataOutputTxPattern} coinSpark
+ * @property {ChainDataOutputTxPattern} poet
+ * @property {ChainDataOutputTxPattern} docproof
+ * @property {ChainDataOutputTxPattern} openTimestamps
+ * @property {ChainDataOutputTxPattern} factom
+ * @property {ChainDataOutputTxPattern} eternityWall
+ * @property {ChainDataOutputTxPattern} memo
+ * @property {ChainDataOutputTxPattern} bitproof
+ * @property {ChainDataOutputTxPattern} ascribe
+ * @property {ChainDataOutputTxPattern} stampery
+ * @property {ChainDataOutputTxPattern} epobc
+ * @property {ChainDataOutputTxPattern} bareHash
+ * @property {ChainDataOutputTxPattern} text
+ * @property {ChainDataOutputTxPattern} empty
+ * @property {ChainDataOutputTxPattern} unknown
  */
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_Policy
- * @property {CarrierDataOutputPostPattern} standard
- * @property {CarrierDataOutputPostPattern} oversized
- * @property {CarrierDataOutputPostPattern} multiple
- * @property {CarrierDataOutputPostPattern} preV30Nonstandard
+ * @property {ChainDataOutputTxPattern} preV30Standard
+ * @property {ChainDataOutputTxPattern} preV30Nonstandard
+ * @property {ChainDataOutputTxPattern} oversized
+ * @property {ChainDataOutputTxPattern} multiple
  */
 
 /**
@@ -10011,41 +9990,41 @@ class BrkClient extends BrkClientBase {
           postOpReturnBytes: createSeriesPattern23(this, 'op_return_post_op_return_bytes'),
         },
         total: {
-          postOpReturnBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_post_op_return_bytes'),
-          carrierTxCount: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_tx_count'),
-          carrierVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_vsize'),
-          dataShare: createBpsPercentRatioPattern2(this, 'op_return_data_share'),
+          dataBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_data_bytes'),
+          txCount: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_count'),
+          txVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_vsize'),
+          chainShare: createBpsPercentRatioPattern2(this, 'op_return_chain_share'),
         },
         byKind: {
-          runes: createCarrierOutputPostPattern(this, 'op_return_runes'),
-          veriBlock: createCarrierOutputPostPattern(this, 'op_return_veri_block'),
-          omni: createCarrierOutputPostPattern(this, 'op_return_omni'),
-          stacks: createCarrierOutputPostPattern(this, 'op_return_stacks'),
-          blockstack: createCarrierOutputPostPattern(this, 'op_return_blockstack'),
-          colu: createCarrierOutputPostPattern(this, 'op_return_colu'),
-          openAssets: createCarrierOutputPostPattern(this, 'op_return_open_assets'),
-          komodo: createCarrierOutputPostPattern(this, 'op_return_komodo'),
-          coinSpark: createCarrierOutputPostPattern(this, 'op_return_coin_spark'),
-          poet: createCarrierOutputPostPattern(this, 'op_return_poet'),
-          docproof: createCarrierOutputPostPattern(this, 'op_return_docproof'),
-          openTimestamps: createCarrierOutputPostPattern(this, 'op_return_open_timestamps'),
-          factom: createCarrierOutputPostPattern(this, 'op_return_factom'),
-          eternityWall: createCarrierOutputPostPattern(this, 'op_return_eternity_wall'),
-          memo: createCarrierOutputPostPattern(this, 'op_return_memo'),
-          bitproof: createCarrierOutputPostPattern(this, 'op_return_bitproof'),
-          ascribe: createCarrierOutputPostPattern(this, 'op_return_ascribe'),
-          stampery: createCarrierOutputPostPattern(this, 'op_return_stampery'),
-          epobc: createCarrierOutputPostPattern(this, 'op_return_epobc'),
-          bareHash: createCarrierOutputPostPattern(this, 'op_return_bare_hash'),
-          text: createCarrierOutputPostPattern(this, 'op_return_text'),
-          empty: createCarrierOutputPostPattern(this, 'op_return_empty'),
-          unknown: createCarrierOutputPostPattern(this, 'op_return_unknown'),
+          runes: createChainDataOutputTxPattern(this, 'op_return_runes'),
+          veriBlock: createChainDataOutputTxPattern(this, 'op_return_veri_block'),
+          omni: createChainDataOutputTxPattern(this, 'op_return_omni'),
+          stacks: createChainDataOutputTxPattern(this, 'op_return_stacks'),
+          blockstack: createChainDataOutputTxPattern(this, 'op_return_blockstack'),
+          colu: createChainDataOutputTxPattern(this, 'op_return_colu'),
+          openAssets: createChainDataOutputTxPattern(this, 'op_return_open_assets'),
+          komodo: createChainDataOutputTxPattern(this, 'op_return_komodo'),
+          coinSpark: createChainDataOutputTxPattern(this, 'op_return_coin_spark'),
+          poet: createChainDataOutputTxPattern(this, 'op_return_poet'),
+          docproof: createChainDataOutputTxPattern(this, 'op_return_docproof'),
+          openTimestamps: createChainDataOutputTxPattern(this, 'op_return_open_timestamps'),
+          factom: createChainDataOutputTxPattern(this, 'op_return_factom'),
+          eternityWall: createChainDataOutputTxPattern(this, 'op_return_eternity_wall'),
+          memo: createChainDataOutputTxPattern(this, 'op_return_memo'),
+          bitproof: createChainDataOutputTxPattern(this, 'op_return_bitproof'),
+          ascribe: createChainDataOutputTxPattern(this, 'op_return_ascribe'),
+          stampery: createChainDataOutputTxPattern(this, 'op_return_stampery'),
+          epobc: createChainDataOutputTxPattern(this, 'op_return_epobc'),
+          bareHash: createChainDataOutputTxPattern(this, 'op_return_bare_hash'),
+          text: createChainDataOutputTxPattern(this, 'op_return_text'),
+          empty: createChainDataOutputTxPattern(this, 'op_return_empty'),
+          unknown: createChainDataOutputTxPattern(this, 'op_return_unknown'),
         },
         policy: {
-          standard: createCarrierDataOutputPostPattern(this, 'op_return_policy_standard'),
-          oversized: createCarrierDataOutputPostPattern(this, 'op_return_policy_oversized'),
-          multiple: createCarrierDataOutputPostPattern(this, 'op_return_policy_multiple'),
-          preV30Nonstandard: createCarrierDataOutputPostPattern(this, 'op_return_policy_pre_v30_nonstandard'),
+          preV30Standard: createChainDataOutputTxPattern(this, 'op_return_policy_pre_v30_standard'),
+          preV30Nonstandard: createChainDataOutputTxPattern(this, 'op_return_policy_pre_v30_nonstandard'),
+          oversized: createChainDataOutputTxPattern(this, 'op_return_policy_oversized'),
+          multiple: createChainDataOutputTxPattern(this, 'op_return_policy_multiple'),
         },
       },
       mining: {

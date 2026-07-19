@@ -15,16 +15,16 @@ pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, T, M>;
 #[derive(Clone, Copy, Default)]
 pub(super) struct Totals {
     pub output_count: u64,
-    pub post_op_return_bytes: u64,
-    pub carrier_tx_count: u64,
-    pub carrier_vsize: VSize,
+    pub data_bytes: u64,
+    pub tx_count: u64,
+    pub tx_vsize: VSize,
 }
 
 #[derive(Traversable)]
 pub struct TotalMetrics<M: StorageMode = Rw> {
-    pub post_op_return_bytes: Series<StoredU64, M>,
-    pub carrier_tx_count: Series<StoredU64, M>,
-    pub carrier_vsize: Series<VSize, M>,
+    pub data_bytes: Series<StoredU64, M>,
+    pub tx_count: Series<StoredU64, M>,
+    pub tx_vsize: Series<VSize, M>,
 }
 
 impl TotalMetrics {
@@ -36,23 +36,23 @@ impl TotalMetrics {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
-            post_op_return_bytes: Series::forced_import(
+            data_bytes: Series::forced_import(
                 db,
-                &format!("{prefix}_post_op_return_bytes"),
+                &format!("{prefix}_data_bytes"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            carrier_tx_count: Series::forced_import(
+            tx_count: Series::forced_import(
                 db,
-                &format!("{prefix}_carrier_tx_count"),
+                &format!("{prefix}_tx_count"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            carrier_vsize: Series::forced_import(
+            tx_vsize: Series::forced_import(
                 db,
-                &format!("{prefix}_carrier_vsize"),
+                &format!("{prefix}_tx_vsize"),
                 version,
                 indexes,
                 cached_starts,
@@ -61,54 +61,46 @@ impl TotalMetrics {
     }
 
     fn len(&self) -> usize {
-        self.post_op_return_bytes
+        self.data_bytes
             .block
             .len()
-            .min(self.carrier_tx_count.block.len())
-            .min(self.carrier_vsize.block.len())
+            .min(self.tx_count.block.len())
+            .min(self.tx_vsize.block.len())
     }
 
     pub(super) fn push(&mut self, block: Totals) {
-        self.post_op_return_bytes
-            .block
-            .push(block.post_op_return_bytes.into());
-        self.carrier_tx_count
-            .block
-            .push(block.carrier_tx_count.into());
-        self.carrier_vsize.block.push(block.carrier_vsize);
+        self.data_bytes.block.push(block.data_bytes.into());
+        self.tx_count.block.push(block.tx_count.into());
+        self.tx_vsize.block.push(block.tx_vsize);
     }
 
     fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
-        self.post_op_return_bytes
+        self.data_bytes
             .block
             .validate_and_truncate(version, height)?;
-        self.carrier_tx_count
-            .block
-            .validate_and_truncate(version, height)?;
-        self.carrier_vsize
-            .block
-            .validate_and_truncate(version, height)?;
+        self.tx_count.block.validate_and_truncate(version, height)?;
+        self.tx_vsize.block.validate_and_truncate(version, height)?;
         Ok(())
     }
 
     fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
-        self.post_op_return_bytes.block.truncate_if_needed_at(len)?;
-        self.carrier_tx_count.block.truncate_if_needed_at(len)?;
-        self.carrier_vsize.block.truncate_if_needed_at(len)?;
+        self.data_bytes.block.truncate_if_needed_at(len)?;
+        self.tx_count.block.truncate_if_needed_at(len)?;
+        self.tx_vsize.block.truncate_if_needed_at(len)?;
         Ok(())
     }
 
     fn write(&mut self) -> Result<()> {
-        self.post_op_return_bytes.block.write()?;
-        self.carrier_tx_count.block.write()?;
-        self.carrier_vsize.block.write()?;
+        self.data_bytes.block.write()?;
+        self.tx_count.block.write()?;
+        self.tx_vsize.block.write()?;
         Ok(())
     }
 
     fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.post_op_return_bytes.compute_rest(max_from, exit)?;
-        self.carrier_tx_count.compute_rest(max_from, exit)?;
-        self.carrier_vsize.compute_rest(max_from, exit)?;
+        self.data_bytes.compute_rest(max_from, exit)?;
+        self.tx_count.compute_rest(max_from, exit)?;
+        self.tx_vsize.compute_rest(max_from, exit)?;
         Ok(())
     }
 }
@@ -119,7 +111,7 @@ pub struct Total<M: StorageMode = Rw> {
     #[deref_mut]
     #[traversable(flatten)]
     pub metrics: TotalMetrics<M>,
-    pub data_share: PercentPerBlock<BasisPoints16, M>,
+    pub chain_share: PercentPerBlock<BasisPoints16, M>,
 }
 
 impl Total {
@@ -132,9 +124,9 @@ impl Total {
     ) -> Result<Self> {
         Ok(Self {
             metrics: TotalMetrics::forced_import(db, prefix, version, indexes, cached_starts)?,
-            data_share: PercentPerBlock::forced_import(
+            chain_share: PercentPerBlock::forced_import(
                 db,
-                &format!("{prefix}_data_share"),
+                &format!("{prefix}_chain_share"),
                 version,
                 indexes,
             )?,
@@ -206,16 +198,17 @@ impl Metrics {
 }
 
 #[derive(Deref, DerefMut, Traversable)]
-pub struct PolicyMetrics<M: StorageMode = Rw> {
+pub struct Breakdown<M: StorageMode = Rw> {
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
     pub metrics: Metrics<M>,
     pub data_share: PercentPerBlock<BasisPoints16, M>,
+    pub chain_share: PercentPerBlock<BasisPoints16, M>,
 }
 
-impl PolicyMetrics {
-    fn forced_import(
+impl Breakdown {
+    pub(crate) fn forced_import(
         db: &Database,
         prefix: &str,
         version: Version,
@@ -230,16 +223,22 @@ impl PolicyMetrics {
                 version,
                 indexes,
             )?,
+            chain_share: PercentPerBlock::forced_import(
+                db,
+                &format!("{prefix}_chain_share"),
+                version,
+                indexes,
+            )?,
         })
     }
 }
 
 #[derive(Traversable)]
 pub struct Policy<M: StorageMode = Rw> {
-    pub standard: PolicyMetrics<M>,
-    pub oversized: PolicyMetrics<M>,
-    pub multiple: PolicyMetrics<M>,
-    pub pre_v30_nonstandard: PolicyMetrics<M>,
+    pub pre_v30_standard: Breakdown<M>,
+    pub pre_v30_nonstandard: Breakdown<M>,
+    pub oversized: Breakdown<M>,
+    pub multiple: Breakdown<M>,
 }
 
 impl Policy {
@@ -250,7 +249,7 @@ impl Policy {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let import = |name| {
-            PolicyMetrics::forced_import(
+            Breakdown::forced_import(
                 db,
                 &format!("op_return_policy_{name}"),
                 version,
@@ -260,29 +259,29 @@ impl Policy {
         };
 
         Ok(Self {
-            standard: import("standard")?,
+            pre_v30_standard: import("pre_v30_standard")?,
+            pre_v30_nonstandard: import("pre_v30_nonstandard")?,
             oversized: import("oversized")?,
             multiple: import("multiple")?,
-            pre_v30_nonstandard: import("pre_v30_nonstandard")?,
         })
     }
 
-    fn iter(&self) -> impl Iterator<Item = &PolicyMetrics> {
+    fn iter(&self) -> impl Iterator<Item = &Breakdown> {
         [
-            &self.standard,
+            &self.pre_v30_standard,
+            &self.pre_v30_nonstandard,
             &self.oversized,
             &self.multiple,
-            &self.pre_v30_nonstandard,
         ]
         .into_iter()
     }
 
-    pub(super) fn iter_mut(&mut self) -> impl Iterator<Item = &mut PolicyMetrics> {
+    pub(super) fn iter_mut(&mut self) -> impl Iterator<Item = &mut Breakdown> {
         [
-            &mut self.standard,
+            &mut self.pre_v30_standard,
+            &mut self.pre_v30_nonstandard,
             &mut self.oversized,
             &mut self.multiple,
-            &mut self.pre_v30_nonstandard,
         ]
         .into_iter()
     }
@@ -293,7 +292,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub(crate) db: Database,
     pub total: Total<M>,
-    pub by_kind: ByKind<Metrics<M>>,
+    pub by_kind: ByKind<Breakdown<M>>,
     pub policy: Policy<M>,
 }
 
@@ -302,7 +301,7 @@ impl Vecs {
         let len = self
             .by_kind
             .iter()
-            .map(Metrics::len)
+            .map(|metrics| metrics.len())
             .fold(self.total.len(), usize::min);
         self.policy
             .iter()

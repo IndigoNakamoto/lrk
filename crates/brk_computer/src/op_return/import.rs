@@ -3,7 +3,7 @@ use std::path::Path;
 use brk_error::Result;
 use brk_types::Version;
 
-use super::{ByKind, Metrics, Policy, Total, Vecs};
+use super::{Breakdown, ByKind, Policy, Total, Vecs};
 use crate::{
     indexes,
     internal::{
@@ -22,7 +22,7 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 1_000_000)?;
         let total = Total::forced_import(&db, "op_return", version, indexes, cached_starts)?;
         let by_kind = ByKind::try_new(|_, name| {
-            Metrics::forced_import(
+            Breakdown::forced_import(
                 &db,
                 &format!("op_return_{name}"),
                 version,

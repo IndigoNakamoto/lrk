@@ -37,7 +37,7 @@ export const OP_RETURN_KIND_FILTERS = /** @type {const} */ ([
 ]);
 
 export const OP_RETURN_POLICY_FILTERS = /** @type {const} */ ([
-  ["standard", "standard", "standard", txColors.opReturnPolicy.standard],
+  ["standard", "standard", "preV30Standard", txColors.opReturnPolicy.standard],
   ["oversized", "oversized", "oversized", txColors.opReturnPolicy.oversized],
   ["multiple", "multiple", "multiple", txColors.opReturnPolicy.multiple],
   [

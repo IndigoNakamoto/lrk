@@ -3432,6 +3432,18 @@ class CentsNegativeToUsdPattern2:
         self.to_own_mcap: BpsPercentRatioPattern4 = BpsPercentRatioPattern4(client, _m(acc, 'to_own_mcap'))
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, acc)
 
+class ChainDataOutputTxPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.chain_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, _m(acc, 'chain_share'))
+        self.data_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes'))
+        self.data_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, _m(acc, 'data_share'))
+        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
+        self.tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count'))
+        self.tx_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize'))
+
 class DeltaDominanceHalfInTotalPattern2:
     """Pattern struct for repeated tree structure."""
     
@@ -3576,17 +3588,6 @@ class CapLossMvrvPriceProfitPattern:
         self.mvrv: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'mvrv'))
         self.price: BpsCentsRatioSatsUsdPattern = BpsCentsRatioSatsUsdPattern(client, _m(acc, 'realized_price'))
         self.profit: BlockCumulativeSumPattern = BlockCumulativeSumPattern(client, _m(acc, 'realized_profit'))
-
-class CarrierDataOutputPostPattern:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count'))
-        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize'))
-        self.data_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, _m(acc, 'data_share'))
-        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
-        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes'))
 
 class CentsToUsdPattern4:
     """Pattern struct for repeated tree structure."""
@@ -3767,16 +3768,6 @@ class BtcCentsSatsUsdPattern3:
         self.cents: SeriesPattern18[Cents] = SeriesPattern18(client, _m(acc, 'cents'))
         self.sats: SeriesPattern18[Sats] = SeriesPattern18(client, _m(acc, 'sats'))
         self.usd: SeriesPattern18[Dollars] = SeriesPattern18(client, _m(acc, 'usd'))
-
-class CarrierOutputPostPattern:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count'))
-        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize'))
-        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
-        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes'))
 
 class CentsDeltaToUsdPattern:
     """Pattern struct for repeated tree structure."""
@@ -5072,47 +5063,47 @@ class SeriesTree_OpReturn_Total:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_post_op_return_bytes')
-        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_tx_count')
-        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_vsize')
-        self.data_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, 'op_return_data_share')
+        self.data_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_data_bytes')
+        self.tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_tx_count')
+        self.tx_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, 'op_return_tx_vsize')
+        self.chain_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, 'op_return_chain_share')
 
 class SeriesTree_OpReturn_ByKind:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.runes: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_runes')
-        self.veri_block: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_veri_block')
-        self.omni: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_omni')
-        self.stacks: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_stacks')
-        self.blockstack: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_blockstack')
-        self.colu: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_colu')
-        self.open_assets: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_open_assets')
-        self.komodo: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_komodo')
-        self.coin_spark: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_coin_spark')
-        self.poet: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_poet')
-        self.docproof: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_docproof')
-        self.open_timestamps: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_open_timestamps')
-        self.factom: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_factom')
-        self.eternity_wall: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_eternity_wall')
-        self.memo: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_memo')
-        self.bitproof: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_bitproof')
-        self.ascribe: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_ascribe')
-        self.stampery: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_stampery')
-        self.epobc: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_epobc')
-        self.bare_hash: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_bare_hash')
-        self.text: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_text')
-        self.empty: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_empty')
-        self.unknown: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_unknown')
+        self.runes: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_runes')
+        self.veri_block: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_veri_block')
+        self.omni: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_omni')
+        self.stacks: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_stacks')
+        self.blockstack: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_blockstack')
+        self.colu: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_colu')
+        self.open_assets: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_open_assets')
+        self.komodo: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_komodo')
+        self.coin_spark: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_coin_spark')
+        self.poet: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_poet')
+        self.docproof: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_docproof')
+        self.open_timestamps: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_open_timestamps')
+        self.factom: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_factom')
+        self.eternity_wall: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_eternity_wall')
+        self.memo: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_memo')
+        self.bitproof: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_bitproof')
+        self.ascribe: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_ascribe')
+        self.stampery: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_stampery')
+        self.epobc: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_epobc')
+        self.bare_hash: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_bare_hash')
+        self.text: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_text')
+        self.empty: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_empty')
+        self.unknown: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_unknown')
 
 class SeriesTree_OpReturn_Policy:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.standard: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_standard')
-        self.oversized: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_oversized')
-        self.multiple: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_multiple')
-        self.pre_v30_nonstandard: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_pre_v30_nonstandard')
+        self.pre_v30_standard: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_pre_v30_standard')
+        self.pre_v30_nonstandard: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_pre_v30_nonstandard')
+        self.oversized: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_oversized')
+        self.multiple: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_multiple')
 
 class SeriesTree_OpReturn:
     """Series tree node."""

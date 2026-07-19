@@ -3,7 +3,7 @@ use brk_indexer::Indexer;
 use brk_types::{BasisPoints16, Height, OpReturnKind, StoredU64, VSize};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
-use super::{Vecs, vecs::Totals};
+use super::{Breakdown, Vecs, vecs::Totals};
 use crate::{
     blocks,
     internal::{PercentPerBlock, RatioU64Bp16},
@@ -15,30 +15,30 @@ const WRITE_INTERVAL: usize = 10_000;
 
 #[derive(Clone, Copy, Default)]
 struct PolicyTotals {
-    standard: Totals,
+    pre_v30_standard: Totals,
+    pre_v30_nonstandard: Totals,
     oversized: Totals,
     multiple: Totals,
-    pre_v30_nonstandard: Totals,
 }
 
 #[derive(Clone, Copy, Default)]
 struct Carrier {
     kinds: u32,
     output_count: u64,
-    post_op_return_bytes: u64,
+    data_bytes: u64,
     oversized_output_count: u64,
-    oversized_post_op_return_bytes: u64,
+    oversized_data_bytes: u64,
     vsize: VSize,
 }
 
 impl Carrier {
-    fn add_output(&mut self, kind: OpReturnKind, post_op_return_bytes: u64) {
+    fn add_output(&mut self, kind: OpReturnKind, data_bytes: u64) {
         self.kinds |= kind_bit(kind);
         self.output_count += 1;
-        self.post_op_return_bytes += post_op_return_bytes;
-        if post_op_return_bytes > OLD_STANDARD_MAX_POST_OP_RETURN_BYTES {
+        self.data_bytes += data_bytes;
+        if data_bytes > OLD_STANDARD_MAX_POST_OP_RETURN_BYTES {
             self.oversized_output_count += 1;
-            self.oversized_post_op_return_bytes += post_op_return_bytes;
+            self.oversized_data_bytes += data_bytes;
         }
     }
 }
@@ -110,9 +110,9 @@ impl Vecs {
                         carrier.vsize = VSize::from(weight_cursor.next().unwrap());
                     }
 
-                    total.post_op_return_bytes += bytes;
+                    total.data_bytes += bytes;
                     by_kind[kind_index].output_count += 1;
-                    by_kind[kind_index].post_op_return_bytes += bytes;
+                    by_kind[kind_index].data_bytes += bytes;
                     carrier.add_output(kind, bytes);
                 }
 
@@ -122,12 +122,12 @@ impl Vecs {
                 for (kind, metrics) in self.by_kind.iter_typed_mut() {
                     metrics.push(by_kind[kind as usize]);
                 }
-                self.policy.standard.push(policy.standard);
-                self.policy.oversized.push(policy.oversized);
-                self.policy.multiple.push(policy.multiple);
+                self.policy.pre_v30_standard.push(policy.pre_v30_standard);
                 self.policy
                     .pre_v30_nonstandard
                     .push(policy.pre_v30_nonstandard);
+                self.policy.oversized.push(policy.oversized);
+                self.policy.multiple.push(policy.multiple);
 
                 if (height + 1).is_multiple_of(WRITE_INTERVAL) {
                     let _lock = exit.lock();
@@ -144,16 +144,26 @@ impl Vecs {
         let block_size = &blocks.size.size.cumulative.height;
         compute_data_share(
             starting_lengths.height,
-            &mut self.total.data_share,
-            &self.total.metrics.post_op_return_bytes.cumulative.height,
+            &mut self.total.chain_share,
+            &self.total.metrics.data_bytes.cumulative.height,
             block_size,
             exit,
         )?;
-        for policy in self.policy.iter_mut() {
-            compute_data_share(
+        let total_data = &self.total.metrics.data_bytes.cumulative.height;
+        for breakdown in self.by_kind.iter_mut() {
+            compute_breakdown_data_shares(
                 starting_lengths.height,
-                &mut policy.data_share,
-                &policy.metrics.total.post_op_return_bytes.cumulative.height,
+                breakdown,
+                total_data,
+                block_size,
+                exit,
+            )?;
+        }
+        for policy in self.policy.iter_mut() {
+            compute_breakdown_data_shares(
+                starting_lengths.height,
+                policy,
+                total_data,
                 block_size,
                 exit,
             )?;
@@ -166,6 +176,18 @@ impl Vecs {
         });
         Ok(())
     }
+}
+
+fn compute_breakdown_data_shares(
+    max_from: Height,
+    breakdown: &mut Breakdown,
+    total_data: &impl ReadableVec<Height, StoredU64>,
+    block_size: &impl ReadableVec<Height, StoredU64>,
+    exit: &Exit,
+) -> Result<()> {
+    let data = &breakdown.metrics.total.data_bytes.cumulative.height;
+    compute_data_share(max_from, &mut breakdown.chain_share, data, block_size, exit)?;
+    compute_data_share(max_from, &mut breakdown.data_share, data, total_data, exit)
 }
 
 fn compute_data_share(
@@ -198,30 +220,30 @@ fn finalize_transaction(
 
     if carrier.oversized_output_count > 0 {
         policy.oversized.output_count += carrier.oversized_output_count;
-        policy.oversized.post_op_return_bytes += carrier.oversized_post_op_return_bytes;
+        policy.oversized.data_bytes += carrier.oversized_data_bytes;
         add_carrier(&mut policy.oversized, carrier.vsize);
     }
 
     if carrier.output_count > 1 {
         policy.multiple.output_count += carrier.output_count;
-        policy.multiple.post_op_return_bytes += carrier.post_op_return_bytes;
+        policy.multiple.data_bytes += carrier.data_bytes;
         add_carrier(&mut policy.multiple, carrier.vsize);
     }
 
     if carrier.oversized_output_count > 0 || carrier.output_count > 1 {
         policy.pre_v30_nonstandard.output_count += carrier.output_count;
-        policy.pre_v30_nonstandard.post_op_return_bytes += carrier.post_op_return_bytes;
+        policy.pre_v30_nonstandard.data_bytes += carrier.data_bytes;
         add_carrier(&mut policy.pre_v30_nonstandard, carrier.vsize);
     } else {
-        policy.standard.output_count += carrier.output_count;
-        policy.standard.post_op_return_bytes += carrier.post_op_return_bytes;
-        add_carrier(&mut policy.standard, carrier.vsize);
+        policy.pre_v30_standard.output_count += carrier.output_count;
+        policy.pre_v30_standard.data_bytes += carrier.data_bytes;
+        add_carrier(&mut policy.pre_v30_standard, carrier.vsize);
     }
 }
 
 fn add_carrier(metrics: &mut Totals, vsize: VSize) {
-    metrics.carrier_tx_count += 1;
-    metrics.carrier_vsize += vsize;
+    metrics.tx_count += 1;
+    metrics.tx_vsize += vsize;
 }
 
 const fn kind_bit(kind: OpReturnKind) -> u32 {
@@ -246,13 +268,13 @@ mod tests {
 
         finalize_transaction(&mut total, &mut by_kind, &mut policy, carrier);
 
-        assert_eq!(total.carrier_tx_count, 1);
-        assert_eq!(by_kind[OpReturnKind::Runes as usize].carrier_tx_count, 1);
-        assert_eq!(by_kind[OpReturnKind::Omni as usize].carrier_tx_count, 1);
+        assert_eq!(total.tx_count, 1);
+        assert_eq!(by_kind[OpReturnKind::Runes as usize].tx_count, 1);
+        assert_eq!(by_kind[OpReturnKind::Omni as usize].tx_count, 1);
         assert_eq!(policy.multiple.output_count, 2);
-        assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 1);
-        assert_eq!(policy.oversized.carrier_tx_count, 0);
-        assert_eq!(policy.standard.carrier_tx_count, 0);
+        assert_eq!(policy.pre_v30_nonstandard.tx_count, 1);
+        assert_eq!(policy.oversized.tx_count, 0);
+        assert_eq!(policy.pre_v30_standard.tx_count, 0);
     }
 
     #[test]
@@ -269,10 +291,10 @@ mod tests {
         finalize_transaction(&mut total, &mut by_kind, &mut policy, carrier);
 
         assert_eq!(policy.oversized.output_count, 1);
-        assert_eq!(policy.oversized.carrier_vsize, VSize::new(120));
-        assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 1);
-        assert_eq!(policy.multiple.carrier_tx_count, 0);
-        assert_eq!(policy.standard.carrier_tx_count, 0);
+        assert_eq!(policy.oversized.tx_vsize, VSize::new(120));
+        assert_eq!(policy.pre_v30_nonstandard.tx_count, 1);
+        assert_eq!(policy.multiple.tx_count, 0);
+        assert_eq!(policy.pre_v30_standard.tx_count, 0);
     }
 
     #[test]
@@ -288,10 +310,10 @@ mod tests {
 
         finalize_transaction(&mut total, &mut by_kind, &mut policy, carrier);
 
-        assert_eq!(policy.standard.output_count, 1);
-        assert_eq!(policy.standard.post_op_return_bytes, 15);
-        assert_eq!(policy.standard.carrier_tx_count, 1);
-        assert_eq!(policy.standard.carrier_vsize, VSize::new(100));
-        assert_eq!(policy.pre_v30_nonstandard.carrier_tx_count, 0);
+        assert_eq!(policy.pre_v30_standard.output_count, 1);
+        assert_eq!(policy.pre_v30_standard.data_bytes, 15);
+        assert_eq!(policy.pre_v30_standard.tx_count, 1);
+        assert_eq!(policy.pre_v30_standard.tx_vsize, VSize::new(100));
+        assert_eq!(policy.pre_v30_nonstandard.tx_count, 0);
     }
 }
