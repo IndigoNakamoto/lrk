@@ -2292,6 +2292,28 @@ impl CapLossMvrvPriceProfitPattern {
 }
 
 /// Pattern struct for repeated tree structure.
+pub struct CarrierDataOutputPostPattern {
+    pub carrier_tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub carrier_vsize: AverageBlockCumulativeSumPattern<VSize>,
+    pub data_share: BpsPercentRatioPattern2,
+    pub output_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub post_op_return_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
+}
+
+impl CarrierDataOutputPostPattern {
+    /// Create a new pattern node with accumulated series name.
+    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
+        Self {
+            carrier_tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "carrier_tx_count")),
+            carrier_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "carrier_vsize")),
+            data_share: BpsPercentRatioPattern2::new(client.clone(), _m(&acc, "data_share")),
+            output_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "output_count")),
+            post_op_return_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "post_op_return_bytes")),
+        }
+    }
+}
+
+/// Pattern struct for repeated tree structure.
 pub struct CentsToUsdPattern4 {
     pub cents: SeriesPattern1<Cents>,
     pub to_mcap: BpsPercentRatioPattern2,
@@ -5388,6 +5410,7 @@ pub struct SeriesTree_OpReturn_Total {
     pub post_op_return_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
     pub carrier_tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
     pub carrier_vsize: AverageBlockCumulativeSumPattern<VSize>,
+    pub data_share: BpsPercentRatioPattern2,
 }
 
 impl SeriesTree_OpReturn_Total {
@@ -5396,6 +5419,7 @@ impl SeriesTree_OpReturn_Total {
             post_op_return_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_post_op_return_bytes".to_string()),
             carrier_tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_carrier_tx_count".to_string()),
             carrier_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_carrier_vsize".to_string()),
+            data_share: BpsPercentRatioPattern2::new(client.clone(), "op_return_data_share".to_string()),
         }
     }
 }
@@ -5459,19 +5483,19 @@ impl SeriesTree_OpReturn_ByKind {
 
 /// Series tree node.
 pub struct SeriesTree_OpReturn_Policy {
-    pub standard: CarrierOutputPostPattern,
-    pub oversized: CarrierOutputPostPattern,
-    pub multiple: CarrierOutputPostPattern,
-    pub pre_v30_nonstandard: CarrierOutputPostPattern,
+    pub standard: CarrierDataOutputPostPattern,
+    pub oversized: CarrierDataOutputPostPattern,
+    pub multiple: CarrierDataOutputPostPattern,
+    pub pre_v30_nonstandard: CarrierDataOutputPostPattern,
 }
 
 impl SeriesTree_OpReturn_Policy {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            standard: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_standard".to_string()),
-            oversized: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
-            multiple: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
-            pre_v30_nonstandard: CarrierOutputPostPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
+            standard: CarrierDataOutputPostPattern::new(client.clone(), "op_return_policy_standard".to_string()),
+            oversized: CarrierDataOutputPostPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
+            multiple: CarrierDataOutputPostPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
+            pre_v30_nonstandard: CarrierDataOutputPostPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
         }
     }
 }

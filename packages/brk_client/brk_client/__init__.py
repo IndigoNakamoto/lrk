@@ -3577,6 +3577,17 @@ class CapLossMvrvPriceProfitPattern:
         self.price: BpsCentsRatioSatsUsdPattern = BpsCentsRatioSatsUsdPattern(client, _m(acc, 'realized_price'))
         self.profit: BlockCumulativeSumPattern = BlockCumulativeSumPattern(client, _m(acc, 'realized_profit'))
 
+class CarrierDataOutputPostPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count'))
+        self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize'))
+        self.data_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, _m(acc, 'data_share'))
+        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
+        self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes'))
+
 class CentsToUsdPattern4:
     """Pattern struct for repeated tree structure."""
     
@@ -5064,6 +5075,7 @@ class SeriesTree_OpReturn_Total:
         self.post_op_return_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_post_op_return_bytes')
         self.carrier_tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_tx_count')
         self.carrier_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, 'op_return_carrier_vsize')
+        self.data_share: BpsPercentRatioPattern2 = BpsPercentRatioPattern2(client, 'op_return_data_share')
 
 class SeriesTree_OpReturn_ByKind:
     """Series tree node."""
@@ -5097,10 +5109,10 @@ class SeriesTree_OpReturn_Policy:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.standard: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_standard')
-        self.oversized: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_oversized')
-        self.multiple: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_multiple')
-        self.pre_v30_nonstandard: CarrierOutputPostPattern = CarrierOutputPostPattern(client, 'op_return_policy_pre_v30_nonstandard')
+        self.standard: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_standard')
+        self.oversized: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_oversized')
+        self.multiple: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_multiple')
+        self.pre_v30_nonstandard: CarrierDataOutputPostPattern = CarrierDataOutputPostPattern(client, 'op_return_policy_pre_v30_nonstandard')
 
 class SeriesTree_OpReturn:
     """Series tree node."""

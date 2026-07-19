@@ -1,12 +1,13 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Height, StoredU64, VSize, Version};
+use brk_types::{BasisPoints16, Height, StoredU64, VSize, Version};
+use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use super::ByKind;
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, WindowStartVec, Windows},
+    internal::{PerBlockCumulativeRolling, PercentPerBlock, WindowStartVec, Windows},
 };
 
 pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, T, M>;
@@ -112,6 +113,35 @@ impl TotalMetrics {
     }
 }
 
+#[derive(Deref, DerefMut, Traversable)]
+pub struct Total<M: StorageMode = Rw> {
+    #[deref]
+    #[deref_mut]
+    #[traversable(flatten)]
+    pub metrics: TotalMetrics<M>,
+    pub data_share: PercentPerBlock<BasisPoints16, M>,
+}
+
+impl Total {
+    pub(crate) fn forced_import(
+        db: &Database,
+        prefix: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        cached_starts: &Windows<&WindowStartVec>,
+    ) -> Result<Self> {
+        Ok(Self {
+            metrics: TotalMetrics::forced_import(db, prefix, version, indexes, cached_starts)?,
+            data_share: PercentPerBlock::forced_import(
+                db,
+                &format!("{prefix}_data_share"),
+                version,
+                indexes,
+            )?,
+        })
+    }
+}
+
 #[derive(Traversable)]
 pub struct Metrics<M: StorageMode = Rw> {
     pub output_count: Series<StoredU64, M>,
@@ -175,12 +205,41 @@ impl Metrics {
     }
 }
 
+#[derive(Deref, DerefMut, Traversable)]
+pub struct PolicyMetrics<M: StorageMode = Rw> {
+    #[deref]
+    #[deref_mut]
+    #[traversable(flatten)]
+    pub metrics: Metrics<M>,
+    pub data_share: PercentPerBlock<BasisPoints16, M>,
+}
+
+impl PolicyMetrics {
+    fn forced_import(
+        db: &Database,
+        prefix: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        cached_starts: &Windows<&WindowStartVec>,
+    ) -> Result<Self> {
+        Ok(Self {
+            metrics: Metrics::forced_import(db, prefix, version, indexes, cached_starts)?,
+            data_share: PercentPerBlock::forced_import(
+                db,
+                &format!("{prefix}_data_share"),
+                version,
+                indexes,
+            )?,
+        })
+    }
+}
+
 #[derive(Traversable)]
 pub struct Policy<M: StorageMode = Rw> {
-    pub standard: Metrics<M>,
-    pub oversized: Metrics<M>,
-    pub multiple: Metrics<M>,
-    pub pre_v30_nonstandard: Metrics<M>,
+    pub standard: PolicyMetrics<M>,
+    pub oversized: PolicyMetrics<M>,
+    pub multiple: PolicyMetrics<M>,
+    pub pre_v30_nonstandard: PolicyMetrics<M>,
 }
 
 impl Policy {
@@ -191,7 +250,7 @@ impl Policy {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let import = |name| {
-            Metrics::forced_import(
+            PolicyMetrics::forced_import(
                 db,
                 &format!("op_return_policy_{name}"),
                 version,
@@ -208,7 +267,7 @@ impl Policy {
         })
     }
 
-    fn iter(&self) -> impl Iterator<Item = &Metrics> {
+    fn iter(&self) -> impl Iterator<Item = &PolicyMetrics> {
         [
             &self.standard,
             &self.oversized,
@@ -218,7 +277,7 @@ impl Policy {
         .into_iter()
     }
 
-    fn iter_mut(&mut self) -> impl Iterator<Item = &mut Metrics> {
+    pub(super) fn iter_mut(&mut self) -> impl Iterator<Item = &mut PolicyMetrics> {
         [
             &mut self.standard,
             &mut self.oversized,
@@ -233,18 +292,22 @@ impl Policy {
 pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub(crate) db: Database,
-    pub total: TotalMetrics<M>,
+    pub total: Total<M>,
     pub by_kind: ByKind<Metrics<M>>,
     pub policy: Policy<M>,
 }
 
 impl Vecs {
     pub(crate) fn min_len(&self) -> usize {
-        self.by_kind
+        let len = self
+            .by_kind
             .iter()
-            .chain(self.policy.iter())
             .map(Metrics::len)
-            .fold(self.total.len(), usize::min)
+            .fold(self.total.len(), usize::min);
+        self.policy
+            .iter()
+            .map(|metrics| metrics.len())
+            .fold(len, usize::min)
     }
 
     pub(crate) fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {

@@ -34,6 +34,7 @@ import {
   exposedSubtree,
   reusedSubtree,
 } from "./shared.js";
+import { createOpReturnSection } from "./network/op-return.js";
 
 /**
  * Create Network section
@@ -829,8 +830,8 @@ export function createNetworkSection() {
    * @template {string} K
    * @param {Object} args
    * @param {string} args.label - Singular noun for count/tree labels ("Output" / "Prev-Out")
-   * @param {Readonly<Record<K, CountPattern<number>>>} args.count
-   * @param {Readonly<Record<K, CountPattern<number>>>} args.txCount
+   * @param {Readonly<Record<K | "all", CountPattern<number>>>} args.count
+   * @param {Readonly<Record<K | "all", CountPattern<number>>>} args.txCount
    * @param {Readonly<Record<K, PercentRatioCumulativePattern>>} args.share
    * @param {Readonly<Record<K, PercentRatioCumulativePattern>>} args.txShare
    * @param {ReadonlyArray<{key: K, name: string, color: Color, defaultActive: boolean}>} args.types
@@ -845,6 +846,15 @@ export function createNetworkSection() {
     types,
   }) => {
     const lowerLabel = label.toLowerCase();
+    const countTypes = /** @type {const} */ ([
+      ...types,
+      {
+        key: "all",
+        name: "All",
+        color: colors.default,
+        defaultActive: false,
+      },
+    ]);
     return [
       {
         name: "Compare",
@@ -855,7 +865,7 @@ export function createNetworkSection() {
               ...ROLLING_WINDOWS.map((w) => ({
                 name: w.name,
                 title: `${w.title} ${label} Count by Type`,
-                bottom: types.map((t) =>
+                bottom: countTypes.map((t) =>
                   line({
                     series: count[t.key].sum[w.key],
                     name: t.name,
@@ -868,7 +878,7 @@ export function createNetworkSection() {
               {
                 name: "Cumulative",
                 title: `Cumulative ${label} Count by Type`,
-                bottom: types.map((t) =>
+                bottom: countTypes.map((t) =>
                   line({
                     series: count[t.key].cumulative,
                     name: t.name,
@@ -898,7 +908,7 @@ export function createNetworkSection() {
               ...ROLLING_WINDOWS.map((w) => ({
                 name: w.name,
                 title: `${w.title} Transactions by ${label} Type`,
-                bottom: types.map((t) =>
+                bottom: countTypes.map((t) =>
                   line({
                     series: txCount[t.key].sum[w.key],
                     name: t.name,
@@ -911,7 +921,7 @@ export function createNetworkSection() {
               {
                 name: "Cumulative",
                 title: `Cumulative Transactions by ${label} Type`,
-                bottom: types.map((t) =>
+                bottom: countTypes.map((t) =>
                   line({
                     series: txCount[t.key].cumulative,
                     name: t.name,
@@ -1230,6 +1240,8 @@ export function createNetworkSection() {
           },
         ],
       },
+
+      createOpReturnSection(),
 
       // UTXOs
       {

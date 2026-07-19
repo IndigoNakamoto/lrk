@@ -164,7 +164,7 @@ export function createCohortFolderWithNupl(cohort) {
       createValuationSectionFull({ cohort, title }),
       createPricesSectionFull({ cohort, title }),
       createCostBasisSectionWithPercentiles({ cohort, title }),
-      createProfitabilitySection({ cohort, title }),
+      createProfitabilitySectionFull({ cohort, title }),
       createActivitySection({ cohort, title }),
     ],
   };

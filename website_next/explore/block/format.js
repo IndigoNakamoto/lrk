@@ -3,6 +3,15 @@ export const HALVING_EPOCH_BLOCKS = 210_000;
 
 export const MAX_BLOCK_WEIGHT = 4_000_000;
 
+const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined);
+const RELATIVE_UNITS = /** @type {const} */ ([
+  ["year", 31_557_600],
+  ["month", 2_629_800],
+  ["day", 86_400],
+  ["hour", 3_600],
+  ["minute", 60],
+]);
+
 /** @param {number} value */
 export function formatNumber(value) {
   return value.toLocaleString();
@@ -20,6 +29,23 @@ export function formatDateTime(unixSeconds) {
     dateStyle: "medium",
     timeStyle: "medium",
   });
+}
+
+/** @param {number} unixSeconds */
+export function formatDateAndAge(unixSeconds) {
+  const date = new Date(unixSeconds * 1_000).toLocaleDateString(undefined, {
+    dateStyle: "medium",
+  });
+  const difference = unixSeconds - Date.now() / 1_000;
+  const absolute = Math.abs(difference);
+
+  if (absolute < 60) return `${date} · just now`;
+
+  const [unit, seconds] = RELATIVE_UNITS.find(([, duration]) => {
+    return absolute >= duration;
+  }) ?? RELATIVE_UNITS.at(-1);
+
+  return `${date} · ${RELATIVE_TIME.format(Math.trunc(difference / seconds), unit)}`;
 }
 
 /** @param {number} bytes */

@@ -1,5 +1,5 @@
 import { createUsdAmount, renderUsdAmount } from "../../../usd/index.js";
-import { formatDateTime } from "../format.js";
+import { formatDateAndAge } from "../format.js";
 import { createBlockTitle } from "../title/index.js";
 
 /** @typedef {import("../../../modules/brk-client/index.js").BlockInfoV1} Block */
@@ -24,38 +24,37 @@ function createHashElement(hash) {
 /** @param {Node[]} [actions] */
 export function createBlockHeader(actions = []) {
   const element = document.createElement("header");
-  const titleRow = document.createElement("div");
-  const main = document.createElement("div");
   const title = document.createElement("h1");
-  const side = document.createElement("div");
   const actionList = document.createElement("div");
   const date = document.createElement("time");
   const hash = document.createElement("p");
   const price = createUsdAmount("output", 0, {
+    size: "title",
     tone: "positive",
   });
+  let timestamp = 0;
+  let dateTimer = 0;
 
   element.dataset.blockHeader = "";
   title.dataset.blockTitleText = "";
-  main.dataset.blockMain = "";
-  titleRow.dataset.blockTitle = "";
-  side.dataset.blockSide = "";
-  actionList.dataset.blockActions = "";
-  date.dataset.blockDate = "";
-  hash.dataset.blockHashLine = "";
   actionList.append(...actions);
-  side.append(date, price, actionList);
-  main.append(title, hash);
-  titleRow.append(main, side);
-  element.append(titleRow);
+  element.append(title, price, hash, actionList, date);
+
+  function refreshDate() {
+    date.textContent = formatDateAndAge(timestamp);
+    dateTimer = window.setTimeout(refreshDate, 60_000);
+  }
 
   /** @param {Block} block */
   function update(block) {
     title.replaceChildren(...createBlockTitle(block.height));
     date.dateTime = new Date(block.timestamp * 1_000).toISOString();
-    date.textContent = formatDateTime(block.timestamp);
+    timestamp = block.timestamp;
+    window.clearTimeout(dateTimer);
+    refreshDate();
     hash.replaceChildren(createHashElement(block.id));
     renderUsdAmount(price, block.extras.price, {
+      size: "title",
       tone: "positive",
     });
   }

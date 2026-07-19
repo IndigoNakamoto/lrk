@@ -2,7 +2,7 @@
  * @param {readonly PackCell[]} cells
  * @param {number} columns
  * @param {number} rows
- * @returns {PackLayout[] | null}
+ * @returns {PackLayout[]}
  */
 export function packCells(cells, columns, rows) {
   const occupied = new Uint8Array(columns * rows);
@@ -10,8 +10,8 @@ export function packCells(cells, columns, rows) {
   const layouts = [];
 
   for (const cell of cells) {
-    const span = Math.min(cell.span, columns);
-    const position = findPosition(
+    let span = Math.min(cell.span, columns);
+    let position = findPosition(
       occupied,
       columns,
       rows,
@@ -19,7 +19,16 @@ export function packCells(cells, columns, rows) {
       cursors[span],
     );
 
-    if (position === null) return null;
+    while (position === null) {
+      span -= 1;
+      position = findPosition(
+        occupied,
+        columns,
+        rows,
+        span,
+        cursors[span],
+      );
+    }
 
     fillCells(occupied, columns, position.x, position.y, span);
     cursors[span] = position.index + span;

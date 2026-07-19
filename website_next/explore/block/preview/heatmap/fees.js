@@ -34,12 +34,8 @@ export function orderTransactions(weights, feeRates) {
  * @param {number} rows
  */
 export function packTransactions(cells, columns, rows) {
-  let layouts = packCells(cells, columns, rows);
-
-  while (layouts === null) {
-    rows += 1;
-    layouts = packCells(cells, columns, rows);
-  }
-
-  return { layouts, resolvedCells: cells };
+  return {
+    layouts: packCells(cells, columns, rows),
+    resolvedCells: cells,
+  };
 }

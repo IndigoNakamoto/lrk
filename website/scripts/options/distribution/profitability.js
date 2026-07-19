@@ -808,8 +808,8 @@ export function createProfitabilitySectionAll({ cohort, title }) {
 }
 
 /**
- * Section for Full cohorts (STH)
- * @param {{ cohort: CohortFull, title: (name: string) => string }} args
+ * Section for cohorts with full realized and unrealized profitability data.
+ * @param {{ cohort: { tree: { unrealized: FullRelativePattern, realized: RealizedPattern } }, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createProfitabilitySectionFull({ cohort, title }) {

@@ -3821,6 +3821,31 @@ function createCapLossMvrvPriceProfitPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} CarrierDataOutputPostPattern
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
+ * @property {BpsPercentRatioPattern2} dataShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
+ */
+
+/**
+ * Create a CarrierDataOutputPostPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CarrierDataOutputPostPattern}
+ */
+function createCarrierDataOutputPostPattern(client, acc) {
+  return {
+    carrierTxCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_tx_count')),
+    carrierVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'carrier_vsize')),
+    dataShare: createBpsPercentRatioPattern2(client, _m(acc, 'data_share')),
+    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
+    postOpReturnBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'post_op_return_bytes')),
+  };
+}
+
+/**
  * @typedef {Object} CentsToUsdPattern4
  * @property {SeriesPattern1<Cents>} cents
  * @property {BpsPercentRatioPattern2} toMcap
@@ -6192,6 +6217,7 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} postOpReturnBytes
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} carrierTxCount
  * @property {AverageBlockCumulativeSumPattern<VSize>} carrierVsize
+ * @property {BpsPercentRatioPattern2} dataShare
  */
 
 /**
@@ -6223,10 +6249,10 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_Policy
- * @property {CarrierOutputPostPattern} standard
- * @property {CarrierOutputPostPattern} oversized
- * @property {CarrierOutputPostPattern} multiple
- * @property {CarrierOutputPostPattern} preV30Nonstandard
+ * @property {CarrierDataOutputPostPattern} standard
+ * @property {CarrierDataOutputPostPattern} oversized
+ * @property {CarrierDataOutputPostPattern} multiple
+ * @property {CarrierDataOutputPostPattern} preV30Nonstandard
  */
 
 /**
@@ -9988,6 +10014,7 @@ class BrkClient extends BrkClientBase {
           postOpReturnBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_post_op_return_bytes'),
           carrierTxCount: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_tx_count'),
           carrierVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_carrier_vsize'),
+          dataShare: createBpsPercentRatioPattern2(this, 'op_return_data_share'),
         },
         byKind: {
           runes: createCarrierOutputPostPattern(this, 'op_return_runes'),
@@ -10015,10 +10042,10 @@ class BrkClient extends BrkClientBase {
           unknown: createCarrierOutputPostPattern(this, 'op_return_unknown'),
         },
         policy: {
-          standard: createCarrierOutputPostPattern(this, 'op_return_policy_standard'),
-          oversized: createCarrierOutputPostPattern(this, 'op_return_policy_oversized'),
-          multiple: createCarrierOutputPostPattern(this, 'op_return_policy_multiple'),
-          preV30Nonstandard: createCarrierOutputPostPattern(this, 'op_return_policy_pre_v30_nonstandard'),
+          standard: createCarrierDataOutputPostPattern(this, 'op_return_policy_standard'),
+          oversized: createCarrierDataOutputPostPattern(this, 'op_return_policy_oversized'),
+          multiple: createCarrierDataOutputPostPattern(this, 'op_return_policy_multiple'),
+          preV30Nonstandard: createCarrierDataOutputPostPattern(this, 'op_return_policy_pre_v30_nonstandard'),
         },
       },
       mining: {

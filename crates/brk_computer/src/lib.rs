@@ -362,7 +362,7 @@ impl Computer {
 
             let op_return = scope.spawn(|| {
                 timed("Computed OP_RETURN", || {
-                    self.op_return.compute(indexer, exit)
+                    self.op_return.compute(indexer, &self.blocks, exit)
                 })
             });
 

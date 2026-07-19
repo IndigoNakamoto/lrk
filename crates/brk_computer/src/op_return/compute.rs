@@ -1,9 +1,13 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{OpReturnKind, VSize};
+use brk_types::{BasisPoints16, Height, OpReturnKind, StoredU64, VSize};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
 use super::{Vecs, vecs::Totals};
+use crate::{
+    blocks,
+    internal::{PercentPerBlock, RatioU64Bp16},
+};
 
 const KIND_COUNT: usize = OpReturnKind::Unknown as usize + 1;
 const OLD_STANDARD_MAX_POST_OP_RETURN_BYTES: u64 = 82;
@@ -40,7 +44,12 @@ impl Carrier {
 }
 
 impl Vecs {
-    pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
+    pub(crate) fn compute(
+        &mut self,
+        indexer: &Indexer,
+        blocks: &blocks::Vecs,
+        exit: &Exit,
+    ) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
         let starting_lengths = indexer.safe_lengths();
@@ -132,6 +141,23 @@ impl Vecs {
         }
 
         self.compute_cumulative(starting_lengths.height, exit)?;
+        let block_size = &blocks.size.size.cumulative.height;
+        compute_data_share(
+            starting_lengths.height,
+            &mut self.total.data_share,
+            &self.total.metrics.post_op_return_bytes.cumulative.height,
+            block_size,
+            exit,
+        )?;
+        for policy in self.policy.iter_mut() {
+            compute_data_share(
+                starting_lengths.height,
+                &mut policy.data_share,
+                &policy.metrics.total.post_op_return_bytes.cumulative.height,
+                block_size,
+                exit,
+            )?;
+        }
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {
@@ -140,6 +166,16 @@ impl Vecs {
         });
         Ok(())
     }
+}
+
+fn compute_data_share(
+    max_from: Height,
+    target: &mut PercentPerBlock<BasisPoints16>,
+    data: &impl ReadableVec<Height, StoredU64>,
+    block_size: &impl ReadableVec<Height, StoredU64>,
+    exit: &Exit,
+) -> Result<()> {
+    target.compute_binary::<StoredU64, StoredU64, RatioU64Bp16>(max_from, data, block_size, exit)
 }
 
 fn finalize_transaction(
