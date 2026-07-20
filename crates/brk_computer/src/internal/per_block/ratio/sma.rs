@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints32, Height, StoredF32, Version};
+use brk_types::{Height, PartsPerMillion32, StoredF32, Version};
 use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{blocks, indexes};
@@ -10,12 +10,12 @@ use super::RatioPerBlock;
 
 #[derive(Traversable)]
 pub struct RatioSma<M: StorageMode = Rw> {
-    pub all: RatioPerBlock<BasisPoints32, M>,
-    pub _1w: RatioPerBlock<BasisPoints32, M>,
-    pub _1m: RatioPerBlock<BasisPoints32, M>,
-    pub _1y: RatioPerBlock<BasisPoints32, M>,
-    pub _2y: RatioPerBlock<BasisPoints32, M>,
-    pub _4y: RatioPerBlock<BasisPoints32, M>,
+    pub all: RatioPerBlock<PartsPerMillion32, M>,
+    pub _1w: RatioPerBlock<PartsPerMillion32, M>,
+    pub _1m: RatioPerBlock<PartsPerMillion32, M>,
+    pub _1y: RatioPerBlock<PartsPerMillion32, M>,
+    pub _2y: RatioPerBlock<PartsPerMillion32, M>,
+    pub _4y: RatioPerBlock<PartsPerMillion32, M>,
 }
 
 const VERSION: Version = Version::new(4);
@@ -58,7 +58,7 @@ impl RatioSma {
         ratio_source: &impl ReadableVec<Height, StoredF32>,
     ) -> Result<()> {
         // Expanding SMA (all history)
-        self.all.bps.height.compute_sma_(
+        self.all.raw.height.compute_sma_(
             starting_lengths.height,
             ratio_source,
             usize::MAX,
@@ -74,7 +74,7 @@ impl RatioSma {
             (&mut self._2y, &blocks.lookback._2y),
             (&mut self._4y, &blocks.lookback._4y),
         ] {
-            sma.bps.height.compute_rolling_average(
+            sma.raw.height.compute_rolling_average(
                 starting_lengths.height,
                 lookback,
                 ratio_source,

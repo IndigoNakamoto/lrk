@@ -1,9 +1,9 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, BasisPoints32, BasisPointsSigned32, Dollars, Height, Version};
+use brk_types::{Dollars, Height, PartsPerMillion32, PartsPerMillionSigned32, Version};
 use vecdb::{Exit, ReadableVec, Rw, StorageMode};
 
-use crate::internal::{PercentPerBlock, RatioDollarsBp16, RatioDollarsBp32, RatioDollarsBps32};
+use crate::internal::{PercentPerBlock, RatioDollars};
 
 use crate::distribution::metrics::{ImportConfig, UnrealizedCore};
 
@@ -11,11 +11,11 @@ use crate::distribution::metrics::{ImportConfig, UnrealizedCore};
 #[derive(Traversable)]
 pub struct RelativeExtendedOwnMarketCap<M: StorageMode = Rw> {
     #[traversable(wrap = "unrealized/profit", rename = "to_own_mcap")]
-    pub unrealized_profit_to_own_mcap: PercentPerBlock<BasisPoints16, M>,
+    pub unrealized_profit_to_own_mcap: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(wrap = "unrealized/loss", rename = "to_own_mcap")]
-    pub unrealized_loss_to_own_mcap: PercentPerBlock<BasisPoints32, M>,
+    pub unrealized_loss_to_own_mcap: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(wrap = "unrealized/net_pnl", rename = "to_own_mcap")]
-    pub net_unrealized_pnl_to_own_mcap: PercentPerBlock<BasisPointsSigned32, M>,
+    pub net_unrealized_pnl_to_own_mcap: PercentPerBlock<PartsPerMillionSigned32, M>,
 }
 
 impl RelativeExtendedOwnMarketCap {
@@ -39,21 +39,21 @@ impl RelativeExtendedOwnMarketCap {
         exit: &Exit,
     ) -> Result<()> {
         self.unrealized_profit_to_own_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp16>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 max_from,
                 &unrealized.profit.usd.height,
                 own_market_cap,
                 exit,
             )?;
         self.unrealized_loss_to_own_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 max_from,
                 &unrealized.loss.usd.height,
                 own_market_cap,
                 exit,
             )?;
         self.net_unrealized_pnl_to_own_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBps32>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillionSigned32>>(
                 max_from,
                 &unrealized.net_pnl.usd.height,
                 own_market_cap,

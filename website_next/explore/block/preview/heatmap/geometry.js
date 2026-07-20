@@ -124,8 +124,8 @@ export function hitTest(geometry, x, y) {
 /**
  * @typedef {Object} SquareLayout
  * @property {number} columns
- * @property {SquareCell[]} resolvedCells
- * @property {SquareCellLayout[]} layouts
+ * @property {readonly SquareCell[]} resolvedCells
+ * @property {readonly SquareCellLayout[]} layouts
  */
 
 /**

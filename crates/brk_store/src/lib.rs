@@ -19,7 +19,6 @@ use brk_types::{Height, Version};
 use byteview::ByteView;
 use fjall::{Database, Keyspace, KeyspaceCreateOptions, config::*};
 use rustc_hash::{FxHashMap, FxHashSet};
-use tracing::info;
 
 mod any;
 mod item;
@@ -229,7 +228,6 @@ where
         for<'a> ByteView: From<&'a K> + From<&'a V>,
     {
         self.export_meta_if_needed(height)?;
-        self.report_db_reads();
 
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
@@ -302,13 +300,6 @@ where
             self.export_meta(height)?;
         }
         Ok(())
-    }
-
-    fn report_db_reads(&self) {
-        let reads = self.db_reads.swap(0, Relaxed);
-        if reads != 0 {
-            info!(store = self.name, reads, "Store DB reads");
-        }
     }
 
     fn ingest<'a>(
@@ -386,7 +377,6 @@ where
 
     fn commit(&mut self, height: Height) -> Result<()> {
         self.export_meta_if_needed(height)?;
-        self.report_db_reads();
 
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);

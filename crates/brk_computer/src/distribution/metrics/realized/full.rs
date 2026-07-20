@@ -2,8 +2,8 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    BasisPoints32, BasisPointsSigned32, Bitcoin, Cents, CentsSats, CentsSigned, CentsSquaredSats,
-    Dollars, Height, StoredF64, Version,
+    Bitcoin, Cents, CentsSats, CentsSigned, CentsSquaredSats, Dollars, Height, PartsPerMillion32,
+    PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
@@ -13,10 +13,9 @@ use crate::{
     distribution::state::{CohortState, CostBasisData, RealizedState, WithCapital},
     internal::{
         FiatPerBlockCumulativeWithSums, PercentPerBlock, PercentRollingWindows,
-        PriceWithRatioExtendedPerBlock, RatioCents64, RatioCentsBp32, RatioCentsSignedCentsBps32,
-        RatioCentsSignedDollarsBps32, RatioDollarsBp32, RatioPerBlockPercentiles,
-        RatioPerBlockStdDevBands, RatioSma, RollingWindows, RollingWindowsFrom1w,
-        ValuePerBlockCumulativeRolling,
+        PriceWithRatioExtendedPerBlock, RatioCents, RatioCents64, RatioCentsSignedCents,
+        RatioCentsSignedDollars, RatioDollars, RatioPerBlockPercentiles, RatioPerBlockStdDevBands,
+        RatioSma, RollingWindows, RollingWindowsFrom1w, ValuePerBlockCumulativeRolling,
     },
     price,
 };
@@ -28,9 +27,9 @@ use super::RealizedCore;
 #[derive(Traversable)]
 pub struct RealizedNetPnl<M: StorageMode = Rw> {
     #[traversable(wrap = "change_1m", rename = "to_rcap")]
-    pub change_1m_to_rcap: PercentPerBlock<BasisPointsSigned32, M>,
+    pub change_1m_to_rcap: PercentPerBlock<PartsPerMillionSigned64, M>,
     #[traversable(wrap = "change_1m", rename = "to_mcap")]
-    pub change_1m_to_mcap: PercentPerBlock<BasisPointsSigned32, M>,
+    pub change_1m_to_mcap: PercentPerBlock<PartsPerMillionSigned64, M>,
 }
 
 #[derive(Traversable)]
@@ -60,7 +59,7 @@ pub struct RealizedFull<M: StorageMode = Rw> {
     pub core: RealizedCore<M>,
 
     pub gross_pnl: FiatPerBlockCumulativeWithSums<Cents, M>,
-    pub sell_side_risk_ratio: PercentRollingWindows<BasisPoints32, M>,
+    pub sell_side_risk_ratio: PercentRollingWindows<PartsPerMillion32, M>,
     pub net_pnl: RealizedNetPnl<M>,
     pub sopr: RealizedSopr<M>,
     pub peak_regret: RealizedPeakRegret<M>,
@@ -71,7 +70,7 @@ pub struct RealizedFull<M: StorageMode = Rw> {
     #[traversable(hidden)]
     pub cap_raw: M::Stored<BytesVec<Height, CentsSats>>,
     #[traversable(wrap = "cap", rename = "to_own_mcap")]
-    pub cap_to_own_mcap: PercentPerBlock<BasisPoints32, M>,
+    pub cap_to_own_mcap: PercentPerBlock<PartsPerMillion32, M>,
 
     #[traversable(wrap = "price", rename = "percentiles")]
     pub price_ratio_percentiles: RatioPerBlockPercentiles<M>,
@@ -95,8 +94,8 @@ impl RealizedFull {
 
         // Net PnL
         let net_pnl = RealizedNetPnl {
-            change_1m_to_rcap: cfg.import("net_pnl_change_1m_to_rcap", Version::new(4))?,
-            change_1m_to_mcap: cfg.import("net_pnl_change_1m_to_mcap", Version::new(4))?,
+            change_1m_to_rcap: cfg.import("net_pnl_change_1m_to_rcap", Version::new(5))?,
+            change_1m_to_mcap: cfg.import("net_pnl_change_1m_to_mcap", Version::new(5))?,
         };
 
         // SOPR
@@ -286,7 +285,7 @@ impl RealizedFull {
         // Net PnL 1m change relative to rcap and mcap
         self.net_pnl
             .change_1m_to_rcap
-            .compute_binary::<CentsSigned, Cents, RatioCentsSignedCentsBps32>(
+            .compute_binary::<CentsSigned, Cents, RatioCentsSignedCents<PartsPerMillionSigned64>>(
                 starting_lengths.height,
                 &self.core.net_pnl.delta.absolute._1m.cents.height,
                 &self.core.minimal.cap.cents.height,
@@ -294,7 +293,11 @@ impl RealizedFull {
             )?;
         self.net_pnl
             .change_1m_to_mcap
-            .compute_binary::<CentsSigned, Dollars, RatioCentsSignedDollarsBps32>(
+            .compute_binary::<
+                CentsSigned,
+                Dollars,
+                RatioCentsSignedDollars<PartsPerMillionSigned64>,
+            >(
                 starting_lengths.height,
                 &self.core.net_pnl.delta.absolute._1m.cents.height,
                 height_to_market_cap,
@@ -313,7 +316,7 @@ impl RealizedFull {
             .into_iter()
             .zip(self.gross_pnl.sum.as_array())
         {
-            ssrr.compute_binary::<Cents, Cents, RatioCentsBp32>(
+            ssrr.compute_binary::<Cents, Cents, RatioCents<PartsPerMillion32>>(
                 starting_lengths.height,
                 &rv.cents.height,
                 &self.core.minimal.cap.cents.height,
@@ -323,7 +326,7 @@ impl RealizedFull {
 
         // Realized cap relative to own market cap
         self.cap_to_own_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 starting_lengths.height,
                 &self.core.minimal.cap.usd.height,
                 height_to_market_cap,

@@ -1,5 +1,5 @@
 use brk_error::Result;
-use brk_types::BasisPointsSigned16;
+use brk_types::PartsPerMillionSigned32;
 use vecdb::{EagerVec, Exit, PcoVec, ReadableVec, VecIndex, VecValue};
 
 pub trait ComputeDrawdown<I: VecIndex> {
@@ -16,7 +16,7 @@ pub trait ComputeDrawdown<I: VecIndex> {
         f64: From<C> + From<A>;
 }
 
-impl<I> ComputeDrawdown<I> for EagerVec<PcoVec<I, BasisPointsSigned16>>
+impl<I> ComputeDrawdown<I> for EagerVec<PcoVec<I, PartsPerMillionSigned32>>
 where
     I: VecIndex,
 {
@@ -39,9 +39,9 @@ where
             |(i, current, ath, _)| {
                 let ath_f64 = f64::from(ath);
                 let drawdown = if ath_f64 == 0.0 {
-                    BasisPointsSigned16::default()
+                    PartsPerMillionSigned32::default()
                 } else {
-                    BasisPointsSigned16::from((f64::from(current) - ath_f64) / ath_f64)
+                    PartsPerMillionSigned32::from((f64::from(current) - ath_f64) / ath_f64)
                 };
                 (i, drawdown)
             },

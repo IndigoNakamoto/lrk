@@ -6,7 +6,7 @@ use super::Vecs;
 use crate::{
     indexes,
     internal::{
-        LazyPercentCumulativeRolling, OneMinusBp16, PercentCumulativeRolling, RatioRollingWindows,
+        LazyPercentCumulativeRolling, OneMinusPpm, PercentCumulativeRolling, RatioRollingWindows,
         ValuePerBlockCumulative, ValuePerBlockCumulativeRolling, ValuePerBlockFull, WindowStartVec,
         Windows,
     },
@@ -22,7 +22,7 @@ impl Vecs {
         let fee_dominance =
             PercentCumulativeRolling::forced_import(db, "fee_dominance", version, indexes)?;
 
-        let subsidy_dominance = LazyPercentCumulativeRolling::from_source::<OneMinusBp16>(
+        let subsidy_dominance = LazyPercentCumulativeRolling::from_source::<OneMinusPpm>(
             "subsidy_dominance",
             version,
             &fee_dominance,

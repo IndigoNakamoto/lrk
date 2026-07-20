@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    BasisPointsSigned32, Bitcoin, Cents, CentsSigned, Dollars, Height, StoredF64, Version,
+    Bitcoin, Cents, CentsSigned, Dollars, Height, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{
@@ -45,8 +45,12 @@ pub struct RealizedCore<M: StorageMode = Rw> {
 
     #[traversable(wrap = "loss", rename = "negative")]
     pub neg_loss: NegRealizedLoss,
-    pub net_pnl:
-        FiatPerBlockCumulativeWithSumsAndDeltas<CentsSigned, CentsSigned, BasisPointsSigned32, M>,
+    pub net_pnl: FiatPerBlockCumulativeWithSumsAndDeltas<
+        CentsSigned,
+        CentsSigned,
+        PartsPerMillionSigned64,
+        M,
+    >,
     pub sopr: RealizedSoprCore<M>,
 }
 
@@ -80,7 +84,7 @@ impl RealizedCore {
             cfg.db,
             &cfg.name("net_realized_pnl"),
             cfg.version + v1,
-            Version::new(4),
+            Version::new(5),
             cfg.indexes,
             cfg.cached_starts,
         )?;

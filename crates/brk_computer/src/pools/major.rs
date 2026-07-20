@@ -1,14 +1,14 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Height, PoolSlug, StoredU64};
+use brk_types::{Height, PartsPerMillion32, PoolSlug, StoredU64};
 use derive_more::{Deref, DerefMut};
 use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, Version};
 
 use crate::{
     blocks, indexes,
     internal::{
-        MaskSats, PercentRollingWindows, RatioU64Bp16, ValuePerBlockCumulativeRolling,
+        MaskSats, PercentRollingWindows, RatioU64, ValuePerBlockCumulativeRolling,
         WindowStartVec, Windows,
     },
     mining, price,
@@ -25,7 +25,7 @@ pub struct Vecs<M: StorageMode = Rw> {
 
     pub rewards: ValuePerBlockCumulativeRolling<M>,
     #[traversable(rename = "dominance")]
-    pub dominance_rolling: PercentRollingWindows<BasisPoints16, M>,
+    pub dominance_rolling: PercentRollingWindows<PartsPerMillion32, M>,
 }
 
 impl Vecs {
@@ -79,7 +79,7 @@ impl Vecs {
                 .into_iter()
                 .zip(blocks.count.total.sum.as_array()),
         ) {
-            dom.compute_binary::<StoredU64, StoredU64, RatioU64Bp16>(
+            dom.compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
                 starting_height,
                 &mined.height,
                 &total.height,

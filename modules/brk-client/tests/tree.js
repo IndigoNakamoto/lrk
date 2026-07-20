@@ -42,6 +42,7 @@ function getAllMetrics(obj, path = "") {
     // Check if this is a metric pattern using the indexes() method
     if (isMetricPattern(attr)) {
       metrics.push({ path: currentPath, metric: attr });
+      continue;
     }
 
     // Recurse into nested tree nodes
@@ -90,7 +91,7 @@ async function testAllEndpoints() {
         console.log(
           `FAIL: ${fullPath} -> ${e instanceof Error ? e.message : e}`,
         );
-        return;
+        throw e;
       }
     }
   }

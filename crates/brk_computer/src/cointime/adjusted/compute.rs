@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::BasisPointsSigned32;
+use brk_types::PartsPerMillionSigned64;
 use vecdb::Exit;
 
 use super::super::activity;
@@ -17,14 +17,14 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.inflation_rate.bps.height.compute_transform2(
+        self.inflation_rate.raw.height.compute_transform2(
             starting_height,
             &activity.ratio.height,
-            &supply.inflation_rate.bps.height,
+            &supply.inflation_rate.raw.height,
             |(h, a2vr, inflation, ..)| {
                 (
                     h,
-                    BasisPointsSigned32::from(f64::from(a2vr) * f64::from(inflation)),
+                    PartsPerMillionSigned64::from(f64::from(a2vr) * f64::from(inflation)),
                 )
             },
             exit,

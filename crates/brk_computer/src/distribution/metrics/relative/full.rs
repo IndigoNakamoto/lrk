@@ -1,25 +1,25 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Dollars, Height, Sats, Version};
+use brk_types::{Dollars, Height, PartsPerMillion32, Sats, Version};
 use vecdb::{Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
     distribution::metrics::{ImportConfig, SupplyCore, UnrealizedBasic},
-    internal::{PercentPerBlock, RatioDollarsBp16, RatioSatsBp16},
+    internal::{PercentPerBlock, RatioDollars, RatioSats},
 };
 
 /// Full relative metrics (sth/lth/all tier).
 #[derive(Traversable)]
 pub struct RelativeFull<M: StorageMode = Rw> {
     #[traversable(wrap = "supply/in_profit", rename = "share")]
-    pub supply_in_profit_share: PercentPerBlock<BasisPoints16, M>,
+    pub supply_in_profit_share: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(wrap = "supply/in_loss", rename = "share")]
-    pub supply_in_loss_share: PercentPerBlock<BasisPoints16, M>,
+    pub supply_in_loss_share: PercentPerBlock<PartsPerMillion32, M>,
 
     #[traversable(wrap = "unrealized/profit", rename = "to_mcap")]
-    pub unrealized_profit_to_mcap: PercentPerBlock<BasisPoints16, M>,
+    pub unrealized_profit_to_mcap: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(wrap = "unrealized/loss", rename = "to_mcap")]
-    pub unrealized_loss_to_mcap: PercentPerBlock<BasisPoints16, M>,
+    pub unrealized_loss_to_mcap: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl RelativeFull {
@@ -44,14 +44,14 @@ impl RelativeFull {
         exit: &Exit,
     ) -> Result<()> {
         self.supply_in_profit_share
-            .compute_binary::<Sats, Sats, RatioSatsBp16>(
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
                 max_from,
                 &supply.in_profit.sats.height,
                 &supply.total.sats.height,
                 exit,
             )?;
         self.supply_in_loss_share
-            .compute_binary::<Sats, Sats, RatioSatsBp16>(
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
                 max_from,
                 &supply.in_loss.sats.height,
                 &supply.total.sats.height,
@@ -59,14 +59,14 @@ impl RelativeFull {
             )?;
 
         self.unrealized_profit_to_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp16>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 max_from,
                 &unrealized.profit.usd.height,
                 market_cap,
                 exit,
             )?;
         self.unrealized_loss_to_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp16>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 max_from,
                 &unrealized.loss.usd.height,
                 market_cap,

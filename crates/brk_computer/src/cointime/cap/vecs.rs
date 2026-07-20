@@ -1,5 +1,5 @@
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints32, Cents};
+use brk_types::{Cents, PartsPerMillion32};
 use vecdb::{Rw, StorageMode};
 
 use crate::internal::{FiatPerBlock, RatioPerBlock};
@@ -11,5 +11,5 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub vaulted: FiatPerBlock<Cents, M>,
     pub active: FiatPerBlock<Cents, M>,
     pub cointime: FiatPerBlock<Cents, M>,
-    pub aviv: RatioPerBlock<BasisPoints32, M>,
+    pub aviv: RatioPerBlock<PartsPerMillion32, M>,
 }

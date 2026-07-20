@@ -5,25 +5,25 @@
 
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Height, StoredU64, Version};
+use brk_types::{Height, PartsPerMillion32, StoredU64, Version};
 use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, VecValue};
 
 use crate::{
     indexes,
     internal::{
-        BpsType, PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, RatioU64Bp16,
+        FixedRatio, PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, RatioU64,
     },
 };
 
 #[derive(Traversable)]
-pub struct PercentCumulativeRolling<B: BpsType, M: StorageMode = Rw> {
+pub struct PercentCumulativeRolling<B: FixedRatio, M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub cumulative: PercentPerBlock<B, M>,
     #[traversable(flatten)]
     pub rolling: PercentRollingWindows<B, M>,
 }
 
-impl<B: BpsType> PercentCumulativeRolling<B> {
+impl<B: FixedRatio> PercentCumulativeRolling<B> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
@@ -73,7 +73,7 @@ impl<B: BpsType> PercentCumulativeRolling<B> {
     }
 }
 
-impl PercentCumulativeRolling<BasisPoints16> {
+impl PercentCumulativeRolling<PartsPerMillion32> {
     /// Derive a percent from two `PerBlockCumulativeRolling<StoredU64>`
     /// sources (numerator and denominator). Both sources must already have
     /// their cumulative and rolling sums computed.
@@ -85,7 +85,15 @@ impl PercentCumulativeRolling<BasisPoints16> {
         starting_height: Height,
         exit: &Exit,
     ) -> Result<()> {
-        self.compute_binary::<StoredU64, StoredU64, RatioU64Bp16, _, _, _, _>(
+        self.compute_binary::<
+            StoredU64,
+            StoredU64,
+            RatioU64<PartsPerMillion32>,
+            _,
+            _,
+            _,
+            _,
+        >(
             starting_height,
             &numerator.cumulative.height,
             &denominator.cumulative.height,

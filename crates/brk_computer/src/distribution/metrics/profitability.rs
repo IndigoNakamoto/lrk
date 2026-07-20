@@ -2,7 +2,7 @@ use brk_cohort::{Loss, Profit, ProfitabilityRange};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Bitcoin, Cents, Dollars, Sats, Version};
+use brk_types::{Bitcoin, Cents, Dollars, PartsPerMillionSigned32, Sats, Version};
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use crate::{
@@ -24,7 +24,7 @@ pub struct ProfitabilityBucket<M: StorageMode = Rw> {
     pub supply: WithSth<ValuePerBlockWithDeltas<M>, ValuePerBlock<M>>,
     pub realized_cap: WithSth<PerBlock<Dollars, M>>,
     pub unrealized_pnl: WithSth<PerBlock<Dollars, M>>,
-    pub nupl: RatioPerBlock<BasisPointsSigned32, M>,
+    pub nupl: RatioPerBlock<PartsPerMillionSigned32, M>,
 }
 
 impl<M: StorageMode> ProfitabilityBucket<M> {
@@ -152,7 +152,7 @@ impl ProfitabilityBucket {
             exit,
         )?;
 
-        self.nupl.bps.height.compute_transform3(
+        self.nupl.raw.height.compute_transform3(
             max_from,
             &prices.spot.cents.height,
             &self.realized_cap.all.height,
@@ -161,11 +161,11 @@ impl ProfitabilityBucket {
                 let p = spot.as_u128();
                 let supply = supply_sats.as_u128();
                 if p == 0 || supply == 0 {
-                    (i, BasisPointsSigned32::ZERO)
+                    (i, PartsPerMillionSigned32::ZERO)
                 } else {
                     let rp = Cents::from(cap_dollars).as_u128() * Sats::ONE_BTC_U128 / supply;
-                    let bps = ((p as i128 - rp as i128) * 10000) / p as i128;
-                    (i, BasisPointsSigned32::from(bps as i32))
+                    let ratio = (p as f64 - rp as f64) / p as f64;
+                    (i, PartsPerMillionSigned32::from(ratio))
                 }
             },
             exit,
@@ -230,7 +230,7 @@ impl ProfitabilityBucket {
             &mut self.realized_cap.sth.height,
             &mut self.unrealized_pnl.all.height,
             &mut self.unrealized_pnl.sth.height,
-            &mut self.nupl.bps.height,
+            &mut self.nupl.raw.height,
         ]
     }
 }

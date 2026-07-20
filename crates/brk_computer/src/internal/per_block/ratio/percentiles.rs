@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints32, Cents, Height, StoredF32, Version};
+use brk_types::{Cents, Height, PartsPerMillion32, StoredF32, Version};
 use vecdb::{
     AnyStoredVec, AnyVec, Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode, VecIndex,
     WritableVec,
@@ -9,7 +9,7 @@ use vecdb::{
 
 use crate::{
     indexes,
-    internal::{Price, PriceTimesRatioBp32Cents, algo::ExpandingPercentiles},
+    internal::{Price, PriceTimesRatio, algo::ExpandingPercentiles},
 };
 
 use super::{super::PerBlock, RatioPerBlock};
@@ -17,7 +17,7 @@ use super::{super::PerBlock, RatioPerBlock};
 #[derive(Traversable)]
 pub struct RatioBand<M: StorageMode = Rw> {
     #[traversable(flatten)]
-    pub ratio: RatioPerBlock<BasisPoints32, M>,
+    pub ratio: RatioPerBlock<PartsPerMillion32, M>,
     pub price: Price<PerBlock<Cents, M>>,
 }
 
@@ -119,18 +119,18 @@ impl RatioPerBlockPercentiles {
             }
 
             let new_ratios = ratio_source.collect_range_at(start, ratio_len);
-            let mut pct_vecs: [&mut EagerVec<PcoVec<Height, BasisPoints32>>; 8] = [
-                &mut self.pct0_5.ratio.bps.height,
-                &mut self.pct1.ratio.bps.height,
-                &mut self.pct2.ratio.bps.height,
-                &mut self.pct5.ratio.bps.height,
-                &mut self.pct95.ratio.bps.height,
-                &mut self.pct98.ratio.bps.height,
-                &mut self.pct99.ratio.bps.height,
-                &mut self.pct99_5.ratio.bps.height,
+            let mut pct_vecs: [&mut EagerVec<PcoVec<Height, PartsPerMillion32>>; 8] = [
+                &mut self.pct0_5.ratio.raw.height,
+                &mut self.pct1.ratio.raw.height,
+                &mut self.pct2.ratio.raw.height,
+                &mut self.pct5.ratio.raw.height,
+                &mut self.pct95.ratio.raw.height,
+                &mut self.pct98.ratio.raw.height,
+                &mut self.pct99.ratio.raw.height,
+                &mut self.pct99_5.ratio.raw.height,
             ];
             const PCTS: [f64; 8] = [0.005, 0.01, 0.02, 0.05, 0.95, 0.98, 0.99, 0.995];
-            let mut out = [0u32; 8];
+            let mut out = [0.0; 8];
 
             for vec in pct_vecs.iter_mut() {
                 vec.truncate_if_needed_at(start)?;
@@ -142,7 +142,7 @@ impl RatioPerBlockPercentiles {
                 }
                 self.expanding_pct.quantiles(&PCTS, &mut out);
                 for (vec, &val) in pct_vecs.iter_mut().zip(out.iter()) {
-                    vec.push(BasisPoints32::from(val));
+                    vec.push(PartsPerMillion32::from(val));
                 }
             }
         }
@@ -159,10 +159,14 @@ impl RatioPerBlockPercentiles {
                 self.$band
                     .price
                     .cents
-                    .compute_binary::<Cents, BasisPoints32, PriceTimesRatioBp32Cents>(
+                    .compute_binary::<
+                        Cents,
+                        PartsPerMillion32,
+                        PriceTimesRatio<PartsPerMillion32>,
+                    >(
                         starting_lengths.height,
                         series_price,
-                        &self.$band.ratio.bps.height,
+                        &self.$band.ratio.raw.height,
                         exit,
                     )?;
             };
@@ -182,16 +186,16 @@ impl RatioPerBlockPercentiles {
 
     fn mut_pct_vecs(
         &mut self,
-    ) -> impl Iterator<Item = &mut EagerVec<PcoVec<Height, BasisPoints32>>> {
+    ) -> impl Iterator<Item = &mut EagerVec<PcoVec<Height, PartsPerMillion32>>> {
         [
-            &mut self.pct0_5.ratio.bps.height,
-            &mut self.pct1.ratio.bps.height,
-            &mut self.pct2.ratio.bps.height,
-            &mut self.pct5.ratio.bps.height,
-            &mut self.pct95.ratio.bps.height,
-            &mut self.pct98.ratio.bps.height,
-            &mut self.pct99.ratio.bps.height,
-            &mut self.pct99_5.ratio.bps.height,
+            &mut self.pct0_5.ratio.raw.height,
+            &mut self.pct1.ratio.raw.height,
+            &mut self.pct2.ratio.raw.height,
+            &mut self.pct5.ratio.raw.height,
+            &mut self.pct95.ratio.raw.height,
+            &mut self.pct98.ratio.raw.height,
+            &mut self.pct99.ratio.raw.height,
+            &mut self.pct99_5.ratio.raw.height,
         ]
         .into_iter()
     }

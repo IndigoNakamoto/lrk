@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Height, StoredU64, VSize, Version};
+use brk_types::{Height, PartsPerMillion32, StoredU64, VSize, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
@@ -111,7 +111,7 @@ pub struct Total<M: StorageMode = Rw> {
     #[deref_mut]
     #[traversable(flatten)]
     pub metrics: TotalMetrics<M>,
-    pub chain_share: PercentPerBlock<BasisPoints16, M>,
+    pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl Total {
@@ -203,8 +203,8 @@ pub struct Breakdown<M: StorageMode = Rw> {
     #[deref_mut]
     #[traversable(flatten)]
     pub metrics: Metrics<M>,
-    pub data_share: PercentPerBlock<BasisPoints16, M>,
-    pub chain_share: PercentPerBlock<BasisPoints16, M>,
+    pub data_share: PercentPerBlock<PartsPerMillion32, M>,
+    pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl Breakdown {

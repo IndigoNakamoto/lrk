@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPoints16, Sats, StoredU64, Version};
+use brk_types::{PartsPerMillion32, Sats, StoredU64, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 
 use crate::{distribution, internal::PercentPerBlock};
 
 pub(super) fn compute(
-    gini: &mut PercentPerBlock<BasisPoints16>,
+    gini: &mut PercentPerBlock<PartsPerMillion32>,
     distribution: &distribution::Vecs,
     indexer: &Indexer,
     exit: &Exit,
@@ -34,13 +34,13 @@ pub(super) fn compute(
             .iter()
             .fold(Version::ZERO, |acc, v| acc + v.version());
 
-    gini.bps
+    gini.raw
         .height
         .validate_computed_version_or_reset(source_version)?;
 
-    let min_len = gini.bps.height.len().min(starting_height.to_usize());
+    let min_len = gini.raw.height.len().min(starting_height.to_usize());
 
-    gini.bps.height.truncate_if_needed_at(min_len)?;
+    gini.raw.height.truncate_if_needed_at(min_len)?;
 
     let total_heights = supply_vecs
         .iter()
@@ -49,7 +49,7 @@ pub(super) fn compute(
         .unwrap_or(0)
         .min(count_vecs.iter().map(|v| v.len()).min().unwrap_or(0));
 
-    let start_height = gini.bps.height.len();
+    let start_height = gini.raw.height.len();
     if start_height >= total_heights {
         return Ok(());
     }
@@ -73,23 +73,23 @@ pub(super) fn compute(
             let count: u64 = count_data[c][offset].into();
             buckets.push((count, supply));
         }
-        gini.bps.height.push(gini_from_lorenz(&buckets));
+        gini.raw.height.push(gini_from_lorenz(&buckets));
     }
 
     {
         let _lock = exit.lock();
-        gini.bps.height.write()?;
+        gini.raw.height.write()?;
     }
 
     Ok(())
 }
 
-fn gini_from_lorenz(buckets: &[(u64, u64)]) -> BasisPoints16 {
+fn gini_from_lorenz(buckets: &[(u64, u64)]) -> PartsPerMillion32 {
     let total_count: u64 = buckets.iter().map(|(c, _)| c).sum();
     let total_supply: u64 = buckets.iter().map(|(_, s)| s).sum();
 
     if total_count == 0 || total_supply == 0 {
-        return BasisPoints16::ZERO;
+        return PartsPerMillion32::ZERO;
     }
 
     let (mut cumulative_count, mut cumulative_supply, mut area) = (0u64, 0u64, 0.0f64);
@@ -103,5 +103,5 @@ fn gini_from_lorenz(buckets: &[(u64, u64)]) -> BasisPoints16 {
         area += (p1 - p0) * (w0 + w1) / 2.0;
     }
 
-    BasisPoints16::from(1.0 - 2.0 * area)
+    PartsPerMillion32::from(1.0 - 2.0 * area)
 }

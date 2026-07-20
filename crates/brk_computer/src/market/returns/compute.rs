@@ -1,12 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPointsSigned32, Dollars};
+use brk_types::{Dollars, PartsPerMillionSigned64};
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{
-    blocks, internal::RatioDiffDollarsBps32, investing::ByDcaPeriod, market::lookback, price,
-};
+use crate::{blocks, internal::RatioDiffDollars, investing::ByDcaPeriod, market::lookback, price};
 
 impl Vecs {
     pub(crate) fn compute(
@@ -25,7 +23,7 @@ impl Vecs {
             .iter_mut_with_days()
             .zip(lookback.price_past.iter_with_days())
         {
-            returns.compute_binary::<Dollars, Dollars, RatioDiffDollarsBps32>(
+            returns.compute_binary::<Dollars, Dollars, RatioDiffDollars<PartsPerMillionSigned64>>(
                 starting_lengths.height,
                 &prices.spot.usd.height,
                 &lookback_price.usd.height,
@@ -37,13 +35,13 @@ impl Vecs {
         let price_return_dca = ByDcaPeriod::from_lookback(&self.periods);
         for (cagr, returns, days) in self.cagr.zip_mut_with_period(&price_return_dca) {
             let years = days as f64 / 365.0;
-            cagr.bps.height.compute_transform(
+            cagr.raw.height.compute_transform(
                 starting_lengths.height,
-                &returns.bps.height,
+                &returns.raw.height,
                 |(h, r, ..)| {
                     let ratio = f64::from(r);
                     let v = (ratio + 1.0).powf(1.0 / years) - 1.0;
-                    (h, BasisPointsSigned32::from(v))
+                    (h, PartsPerMillionSigned64::from(v))
                 },
                 exit,
             )?;

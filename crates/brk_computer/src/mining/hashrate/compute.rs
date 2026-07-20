@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Dollars, Height, Sats, StoredF32, StoredF64};
+use brk_types::{Dollars, Height, PartsPerMillionSigned64, Sats, StoredF32, StoredF64};
 use vecdb::{Exit, ReadableVec};
 
 use super::Vecs;
 use crate::{
     blocks::{self, ONE_TERA_HASH, TARGET_BLOCKS_PER_DAY_F64},
-    internal::RatioDiffF32Bps32,
+    internal::RatioDiffF32,
 };
 
 impl Vecs {
@@ -103,7 +103,7 @@ impl Vecs {
 
         self.price
             .rebound
-            .compute_binary::<StoredF32, StoredF32, RatioDiffF32Bps32>(
+            .compute_binary::<StoredF32, StoredF32, RatioDiffF32<PartsPerMillionSigned64>>(
                 starting_height,
                 &self.price.phs.height,
                 &self.price.phs_min.height,
@@ -112,7 +112,7 @@ impl Vecs {
 
         self.value
             .rebound
-            .compute_binary::<StoredF32, StoredF32, RatioDiffF32Bps32>(
+            .compute_binary::<StoredF32, StoredF32, RatioDiffF32<PartsPerMillionSigned64>>(
                 starting_height,
                 &self.value.phs.height,
                 &self.value.phs_min.height,

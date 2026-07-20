@@ -1,7 +1,9 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Height, StoredF32, StoredI64, StoredU32, StoredU64, Version};
+use brk_types::{
+    Height, PartsPerMillionSigned64, StoredF32, StoredI64, StoredU32, StoredU64, Version,
+};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
@@ -15,7 +17,7 @@ use crate::{
 /// Base output metrics: utxo_count + delta.
 #[derive(Traversable)]
 pub struct OutputsBase<M: StorageMode = Rw> {
-    pub unspent_count: PerBlockWithDeltas<StoredU64, StoredI64, BasisPointsSigned32, M>,
+    pub unspent_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
     pub spent_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
     pub spending_rate: PerBlock<StoredF32, M>,
 }
@@ -28,7 +30,7 @@ impl OutputsBase {
                 cfg.db,
                 &cfg.name("utxo_count"),
                 cfg.version,
-                v1,
+                Version::TWO,
                 cfg.indexes,
                 cfg.cached_starts,
             )?,

@@ -2,7 +2,7 @@ use std::{cmp::Reverse, collections::BinaryHeap, fs, path::Path};
 
 use brk_cohort::{AGE_RANGE_NAMES, CohortContext, Filtered, PROFITABILITY_RANGE_COUNT, TERM_NAMES};
 use brk_error::Result;
-use brk_types::{BasisPoints16, Cents, CentsCompact, Date, Dollars, Sats, UrpdRaw};
+use brk_types::{Cents, CentsCompact, Date, Dollars, PartsPerMillion32, Sats, UrpdRaw};
 use rayon::prelude::*;
 
 use crate::distribution::metrics::{CostBasis, ProfitabilityMetrics};
@@ -139,10 +139,14 @@ impl UTXOCohorts {
 
 /// Push percentiles + density to cost basis vecs.
 #[inline(always)]
-fn push_cost_basis(percentiles: &PercentileResult, density_bps: u16, cost_basis: &mut CostBasis) {
+fn push_cost_basis(
+    percentiles: &PercentileResult,
+    density: PartsPerMillion32,
+    cost_basis: &mut CostBasis,
+) {
     cost_basis.push_minmax(percentiles.min_price, percentiles.max_price);
     cost_basis.push_percentiles(&percentiles.sat_prices, &percentiles.usd_prices);
-    cost_basis.push_density(BasisPoints16::from(density_bps));
+    cost_basis.push_density(density);
 }
 
 #[inline(always)]

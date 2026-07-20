@@ -1,16 +1,14 @@
 use std::ops::{Add, AddAssign, Div};
 
 use brk_types::{
-    BasisPoints16, BasisPoints32, BasisPointsSigned16, BasisPointsSigned32, StoredF32,
+    PartsPerMillion32, PartsPerMillion64, PartsPerMillionSigned32, PartsPerMillionSigned64,
+    StoredF32,
 };
 use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::{CheckedSub, Formattable, PcoVecValue, UnaryTransform};
 
-use crate::internal::{
-    Bp16ToFloat, Bp16ToPercent, Bp32ToFloat, Bp32ToPercent, Bps16ToFloat, Bps16ToPercent,
-    Bps32ToFloat, Bps32ToPercent,
-};
+use crate::internal::{FixedToPercent, FixedToRatio};
 
 pub trait ComputedVecValue
 where
@@ -40,28 +38,38 @@ pub trait NumericValue: ComputedVecValue + CheckedSub + Default + From<f64> + In
 
 impl<T> NumericValue for T where T: ComputedVecValue + CheckedSub + Default + From<f64> + Into<f64> {}
 
-/// Trait that associates a basis-point type with its transforms to ratio and percent.
-pub trait BpsType: NumericValue + JsonSchema {
+/// A stored fixed-point ratio and its public representations.
+pub trait FixedRatio: NumericValue + JsonSchema {
+    const SUFFIX: &'static str;
+
     type ToRatio: UnaryTransform<Self, StoredF32>;
     type ToPercent: UnaryTransform<Self, StoredF32>;
 }
 
-impl BpsType for BasisPoints16 {
-    type ToRatio = Bp16ToFloat;
-    type ToPercent = Bp16ToPercent;
+impl FixedRatio for PartsPerMillion32 {
+    const SUFFIX: &'static str = "ppm";
+
+    type ToRatio = FixedToRatio;
+    type ToPercent = FixedToPercent;
 }
 
-impl BpsType for BasisPoints32 {
-    type ToRatio = Bp32ToFloat;
-    type ToPercent = Bp32ToPercent;
+impl FixedRatio for PartsPerMillionSigned32 {
+    const SUFFIX: &'static str = "ppm";
+
+    type ToRatio = FixedToRatio;
+    type ToPercent = FixedToPercent;
 }
 
-impl BpsType for BasisPointsSigned16 {
-    type ToRatio = Bps16ToFloat;
-    type ToPercent = Bps16ToPercent;
+impl FixedRatio for PartsPerMillion64 {
+    const SUFFIX: &'static str = "ppm";
+
+    type ToRatio = FixedToRatio;
+    type ToPercent = FixedToPercent;
 }
 
-impl BpsType for BasisPointsSigned32 {
-    type ToRatio = Bps32ToFloat;
-    type ToPercent = Bps32ToPercent;
+impl FixedRatio for PartsPerMillionSigned64 {
+    const SUFFIX: &'static str = "ppm";
+
+    type ToRatio = FixedToRatio;
+    type ToPercent = FixedToPercent;
 }

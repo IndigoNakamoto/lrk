@@ -1,12 +1,14 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CheckedSub, Dollars, Halving, Sats};
+use brk_types::{
+    CheckedSub, Dollars, Halving, PartsPerMillion32, PartsPerMillion64, Sats,
+};
 use vecdb::{Exit, ReadableVec, VecIndex};
 
 use super::Vecs;
 use crate::{
     blocks, indexes,
-    internal::{RatioDollarsBp32, RatioSatsBp16},
+    internal::{RatioDollars, RatioSats},
     price, transactions,
 };
 
@@ -109,7 +111,7 @@ impl Vecs {
         self.unclaimed.compute(prices, starting_height, exit)?;
 
         self.fee_dominance
-            .compute_binary::<Sats, Sats, RatioSatsBp16, _, _, _, _>(
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>, _, _, _, _>(
                 starting_height,
                 &self.fees.cumulative.sats.height,
                 &self.coinbase.cumulative.sats.height,
@@ -119,7 +121,7 @@ impl Vecs {
             )?;
 
         self.fee_to_subsidy_ratio
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32, _, _>(
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>, _, _>(
                 starting_height,
                 self.coinbase.sum.as_array().map(|w| &w.usd.height),
                 self.fees.sum.as_array().map(|w| &w.usd.height),

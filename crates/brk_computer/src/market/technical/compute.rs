@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::Dollars;
+use brk_types::{Dollars, PartsPerMillion32};
 use vecdb::Exit;
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     blocks,
-    internal::{RatioDollarsBp32, WindowsTo1m},
+    internal::{RatioDollars, WindowsTo1m},
     price,
 };
 
@@ -62,8 +62,8 @@ impl Vecs {
         }
 
         self.pi_cycle
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .raw
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 starting_height,
                 &moving_average.sma._111d.usd.height,
                 &moving_average.sma._350d_x2.usd.height,

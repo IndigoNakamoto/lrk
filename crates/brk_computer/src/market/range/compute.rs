@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPoints16, StoredF32};
+use brk_types::{PartsPerMillion32, StoredF32};
 use vecdb::{Exit, ReadableVec, VecIndex};
 
 use super::Vecs;
@@ -72,7 +72,7 @@ impl Vecs {
             exit,
         )?;
 
-        self.choppiness_index_2w.bps.height.compute_transform4(
+        self.choppiness_index_2w.raw.height.compute_transform4(
             starting_height,
             &self.true_range_sum_2w.height,
             &self.max._2w.cents.height,
@@ -82,9 +82,11 @@ impl Vecs {
                 let range = f64::from(max) - f64::from(min);
                 let n = (h.to_usize() - window_start.to_usize() + 1) as f32;
                 let ci = if range > 0.0 && n > 1.0 {
-                    BasisPoints16::from((*tr_sum / range as f32).log10() as f64 / n.log10() as f64)
+                    PartsPerMillion32::from(
+                        (*tr_sum / range as f32).log10() as f64 / n.log10() as f64,
+                    )
                 } else {
-                    BasisPoints16::ZERO
+                    PartsPerMillion32::ZERO
                 };
                 (h, ci)
             },

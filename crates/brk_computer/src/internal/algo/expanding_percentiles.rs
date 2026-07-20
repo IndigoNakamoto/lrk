@@ -4,7 +4,7 @@ use super::fenwick::FenwickTree;
 
 /// Fast expanding percentile tracker using a Fenwick tree (Binary Indexed Tree).
 ///
-/// Values are discretized to 10 BPS (0.1%) resolution and tracked in
+/// Values are discretized to 0.001 ratio resolution and tracked in
 /// a fixed-size frequency array with Fenwick prefix sums. This gives:
 /// - O(log N) insert (N = tree size, ~16 ops for 43k buckets)
 /// - O(log N) percentile query via prefix-sum walk
@@ -15,11 +15,9 @@ pub(crate) struct ExpandingPercentiles {
     count: u32,
 }
 
-/// Bucket granularity in BPS. 10 BPS = 0.1% = 0.001 ratio.
-const BUCKET_BPS: i32 = 10;
-/// Max ratio supported: 43.0 = 430,000 BPS.
-const MAX_BPS: i32 = 430_000;
-const TREE_SIZE: usize = (MAX_BPS / BUCKET_BPS) as usize + 1;
+const BUCKET_WIDTH: f64 = 0.001;
+const MAX_RATIO: f64 = 43.0;
+const TREE_SIZE: usize = (MAX_RATIO / BUCKET_WIDTH) as usize + 1;
 
 impl Default for ExpandingPercentiles {
     fn default() -> Self {
@@ -43,8 +41,9 @@ impl ExpandingPercentiles {
     /// Convert f32 ratio to 0-indexed bucket.
     #[inline]
     fn to_bucket(value: f32) -> usize {
-        let bps = (value as f64 * 10000.0).round() as i32;
-        (bps / BUCKET_BPS).clamp(0, TREE_SIZE as i32 - 1) as usize
+        (value as f64 / BUCKET_WIDTH)
+            .round()
+            .clamp(0.0, (TREE_SIZE - 1) as f64) as usize
     }
 
     /// Bulk-load values in O(n + N) instead of O(n log N).
@@ -73,10 +72,10 @@ impl ExpandingPercentiles {
 
     /// Compute 8 percentiles in one call via kth. O(8 × log N) but with
     /// shared tree traversal across all 8 targets for better cache locality.
-    /// Quantiles q must be sorted ascending in (0, 1). Output is in BPS.
-    pub fn quantiles(&self, qs: &[f64; 8], out: &mut [u32; 8]) {
+    /// Quantiles q must be sorted ascending in (0, 1). Output values are ratios.
+    pub fn quantiles(&self, qs: &[f64; 8], out: &mut [f64; 8]) {
         if self.count == 0 {
-            out.iter_mut().for_each(|o| *o = 0);
+            out.fill(0.0);
             return;
         }
         let mut targets = [0u32; 8];
@@ -87,7 +86,7 @@ impl ExpandingPercentiles {
         let mut buckets = [0usize; 8];
         self.tree.kth(&targets, &|n: &u32| *n, &mut buckets);
         for (i, bucket) in buckets.iter().enumerate() {
-            out[i] = *bucket as u32 * BUCKET_BPS as u32;
+            out[i] = *bucket as f64 * BUCKET_WIDTH;
         }
     }
 }
@@ -96,8 +95,8 @@ impl ExpandingPercentiles {
 mod tests {
     use super::*;
 
-    fn quantile(ep: &ExpandingPercentiles, q: f64) -> u32 {
-        let mut out = [0u32; 8];
+    fn quantile(ep: &ExpandingPercentiles, q: f64) -> f64 {
+        let mut out = [0.0; 8];
         ep.quantiles(&[q, q, q, q, q, q, q, q], &mut out);
         out[0]
     }
@@ -111,20 +110,20 @@ mod tests {
         assert_eq!(ep.count(), 1000);
 
         let median = quantile(&ep, 0.5);
-        assert!((median as i32 - 5000).abs() < 100, "median was {median}");
+        assert!((median - 0.5).abs() < 0.01, "median was {median}");
 
         let p99 = quantile(&ep, 0.99);
-        assert!((p99 as i32 - 9900).abs() < 100, "p99 was {p99}");
+        assert!((p99 - 0.99).abs() < 0.01, "p99 was {p99}");
 
         let p01 = quantile(&ep, 0.01);
-        assert!((p01 as i32 - 100).abs() < 100, "p01 was {p01}");
+        assert!((p01 - 0.01).abs() < 0.01, "p01 was {p01}");
     }
 
     #[test]
     fn empty() {
         let ep = ExpandingPercentiles::default();
         assert_eq!(ep.count(), 0);
-        assert_eq!(quantile(&ep, 0.5), 0);
+        assert_eq!(quantile(&ep, 0.5), 0.0);
     }
 
     #[test]
@@ -132,7 +131,7 @@ mod tests {
         let mut ep = ExpandingPercentiles::default();
         ep.add(0.42);
         let v = quantile(&ep, 0.5);
-        assert!((v as i32 - 4200).abs() <= BUCKET_BPS, "got {v}");
+        assert!((v - 0.42).abs() <= BUCKET_WIDTH, "got {v}");
     }
 
     #[test]
@@ -144,6 +143,6 @@ mod tests {
         assert_eq!(ep.count(), 100);
         ep.reset();
         assert_eq!(ep.count(), 0);
-        assert_eq!(quantile(&ep, 0.5), 0);
+        assert_eq!(quantile(&ep, 0.5), 0.0);
     }
 }

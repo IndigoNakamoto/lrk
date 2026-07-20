@@ -5,37 +5,37 @@ use vecdb::{
     Database, EagerVec, ImportableVec, LazyVecFrom1, PcoVec, ReadableCloneableVec, Rw, StorageMode,
 };
 
-use crate::internal::{BpsType, Percent};
+use crate::internal::{FixedRatio, Percent};
 
-/// Lightweight percent container: BPS height vec + lazy ratio + lazy percent.
+/// Lightweight percent container: fixed-point height vec + lazy ratio + lazy percent.
 /// No resolutions, no rolling stats.
 #[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
 #[allow(clippy::type_complexity)]
-pub struct PercentVec<B: BpsType, M: StorageMode = Rw>(
+pub struct PercentVec<B: FixedRatio, M: StorageMode = Rw>(
     pub Percent<M::Stored<EagerVec<PcoVec<Height, B>>>, LazyVecFrom1<Height, StoredF32, Height, B>>,
 );
 
-impl<B: BpsType> PercentVec<B> {
+impl<B: FixedRatio> PercentVec<B> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
     ) -> brk_error::Result<Self> {
-        let bps: EagerVec<PcoVec<Height, B>> =
-            EagerVec::forced_import(db, &format!("{name}_bps"), version)?;
-        let bps_clone = bps.read_only_boxed_clone();
+        let raw: EagerVec<PcoVec<Height, B>> =
+            EagerVec::forced_import(db, &format!("{name}_{}", B::SUFFIX), version)?;
+        let raw_clone = raw.read_only_boxed_clone();
 
         let ratio = LazyVecFrom1::transformed::<B::ToRatio>(
             &format!("{name}_ratio"),
             version,
-            bps_clone.clone(),
+            raw_clone.clone(),
         );
 
-        let percent = LazyVecFrom1::transformed::<B::ToPercent>(name, version, bps_clone);
+        let percent = LazyVecFrom1::transformed::<B::ToPercent>(name, version, raw_clone);
 
         Ok(Self(Percent {
-            bps,
+            raw,
             ratio,
             percent,
         }))

@@ -163,7 +163,7 @@ fn type_contains_ident(ty: &Type, ident: &syn::Ident) -> bool {
                         matches!(arg, syn::GenericArgument::Type(inner) if type_contains_ident(inner, ident))
                     }),
                     syn::PathArguments::Parenthesized(args) => {
-                        args.inputs.iter().any(|inner| type_contains_ident(inner, ident))
+                        args.inputs.iter().any(|inner| type_contains_ident(&inner.ty, ident))
                             || matches!(&args.output, syn::ReturnType::Type(_, inner) if type_contains_ident(inner, ident))
                     }
                     syn::PathArguments::None => false,

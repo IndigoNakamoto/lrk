@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
-use brk_types::{BasisPoints32, Cents, StoredF32, StoredF64};
+use brk_types::{Cents, StoredF32, StoredF64};
 use vecdb::{BinaryTransform, UnaryTransform};
+
+use crate::internal::FixedRatio;
 
 pub struct DaysToYears;
 
@@ -54,12 +56,12 @@ impl BinaryTransform<Cents, StoredF32, Cents> for PriceTimesRatioCents {
     }
 }
 
-pub struct PriceTimesRatioBp32Cents;
+pub struct PriceTimesRatio<R>(PhantomData<R>);
 
-impl BinaryTransform<Cents, BasisPoints32, Cents> for PriceTimesRatioBp32Cents {
+impl<R: FixedRatio> BinaryTransform<Cents, R, Cents> for PriceTimesRatio<R> {
     #[inline(always)]
-    fn apply(price: Cents, ratio: BasisPoints32) -> Cents {
-        Cents::from(f64::from(price) * f64::from(ratio))
+    fn apply(price: Cents, ratio: R) -> Cents {
+        Cents::from(f64::from(price) * ratio.into())
     }
 }
 

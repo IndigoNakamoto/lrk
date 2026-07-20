@@ -1,126 +1,86 @@
-use brk_types::{
-    BasisPoints16, BasisPoints32, BasisPointsSigned32, Cents, CentsSigned, Dollars, Sats,
-    StoredF32, StoredU64,
-};
+use std::marker::PhantomData;
+
+use brk_types::{Cents, CentsSigned, Dollars, Sats, StoredF32, StoredU64};
 use vecdb::BinaryTransform;
 
-pub struct RatioU64Bp16;
+use crate::internal::FixedRatio;
 
-impl BinaryTransform<StoredU64, StoredU64, BasisPoints16> for RatioU64Bp16 {
+pub struct RatioU64<P>(PhantomData<P>);
+
+impl<P: FixedRatio> BinaryTransform<StoredU64, StoredU64, P> for RatioU64<P> {
     #[inline(always)]
-    fn apply(numerator: StoredU64, denominator: StoredU64) -> BasisPoints16 {
+    fn apply(numerator: StoredU64, denominator: StoredU64) -> P {
         if *denominator > 0 {
-            BasisPoints16::from(*numerator as f64 / *denominator as f64)
+            P::from(*numerator as f64 / *denominator as f64)
         } else {
-            BasisPoints16::ZERO
+            P::default()
         }
     }
 }
 
-pub struct RatioSatsBp16;
+pub struct RatioSats<P>(PhantomData<P>);
 
-impl BinaryTransform<Sats, Sats, BasisPoints16> for RatioSatsBp16 {
+impl<P: FixedRatio> BinaryTransform<Sats, Sats, P> for RatioSats<P> {
     #[inline(always)]
-    fn apply(numerator: Sats, denominator: Sats) -> BasisPoints16 {
+    fn apply(numerator: Sats, denominator: Sats) -> P {
         if *denominator > 0 {
-            BasisPoints16::from(*numerator as f64 / *denominator as f64)
+            P::from(*numerator as f64 / *denominator as f64)
         } else {
-            BasisPoints16::ZERO
+            P::default()
         }
     }
 }
 
-pub struct RatioCentsBp32;
+pub struct RatioCents<P>(PhantomData<P>);
 
-impl BinaryTransform<Cents, Cents, BasisPoints32> for RatioCentsBp32 {
+impl<P: FixedRatio> BinaryTransform<Cents, Cents, P> for RatioCents<P> {
     #[inline(always)]
-    fn apply(numerator: Cents, denominator: Cents) -> BasisPoints32 {
+    fn apply(numerator: Cents, denominator: Cents) -> P {
         if denominator == Cents::ZERO {
-            BasisPoints32::ZERO
+            P::default()
         } else {
-            BasisPoints32::from(numerator.inner() as f64 / denominator.inner() as f64)
+            P::from(numerator.inner() as f64 / denominator.inner() as f64)
         }
     }
 }
 
-pub struct RatioCentsBp16;
+pub struct RatioDollars<P>(PhantomData<P>);
 
-impl BinaryTransform<Cents, Cents, BasisPoints16> for RatioCentsBp16 {
+impl<P: FixedRatio> BinaryTransform<Dollars, Dollars, P> for RatioDollars<P> {
     #[inline(always)]
-    fn apply(numerator: Cents, denominator: Cents) -> BasisPoints16 {
-        if denominator == Cents::ZERO {
-            BasisPoints16::ZERO
-        } else {
-            BasisPoints16::from(numerator.inner() as f64 / denominator.inner() as f64)
-        }
-    }
-}
-
-pub struct RatioDollarsBp16;
-
-impl BinaryTransform<Dollars, Dollars, BasisPoints16> for RatioDollarsBp16 {
-    #[inline(always)]
-    fn apply(numerator: Dollars, denominator: Dollars) -> BasisPoints16 {
-        let ratio = *(numerator / denominator);
-        if ratio.is_finite() {
-            BasisPoints16::from(ratio)
-        } else {
-            BasisPoints16::ZERO
-        }
-    }
-}
-
-pub struct RatioDollarsBps32;
-
-impl BinaryTransform<Dollars, Dollars, BasisPointsSigned32> for RatioDollarsBps32 {
-    #[inline(always)]
-    fn apply(numerator: Dollars, denominator: Dollars) -> BasisPointsSigned32 {
-        let ratio = *(numerator / denominator);
-        if ratio.is_finite() {
-            BasisPointsSigned32::from(ratio)
-        } else {
-            BasisPointsSigned32::ZERO
-        }
-    }
-}
-
-pub struct RatioCentsSignedCentsBps32;
-
-impl BinaryTransform<CentsSigned, Cents, BasisPointsSigned32> for RatioCentsSignedCentsBps32 {
-    #[inline(always)]
-    fn apply(numerator: CentsSigned, denominator: Cents) -> BasisPointsSigned32 {
-        if denominator == Cents::ZERO {
-            BasisPointsSigned32::ZERO
-        } else {
-            BasisPointsSigned32::from(numerator.inner() as f64 / denominator.inner() as f64)
-        }
-    }
-}
-
-pub struct RatioCentsSignedDollarsBps32;
-
-impl BinaryTransform<CentsSigned, Dollars, BasisPointsSigned32> for RatioCentsSignedDollarsBps32 {
-    #[inline(always)]
-    fn apply(numerator: CentsSigned, denominator: Dollars) -> BasisPointsSigned32 {
-        let d: f64 = denominator.into();
-        if d > 0.0 {
-            BasisPointsSigned32::from(numerator.inner() as f64 / 100.0 / d)
-        } else {
-            BasisPointsSigned32::ZERO
-        }
-    }
-}
-
-pub struct RatioDollarsBp32;
-
-impl BinaryTransform<Dollars, Dollars, BasisPoints32> for RatioDollarsBp32 {
-    #[inline(always)]
-    fn apply(numerator: Dollars, denominator: Dollars) -> BasisPoints32 {
+    fn apply(numerator: Dollars, denominator: Dollars) -> P {
         let ratio = f64::from(numerator) / f64::from(denominator);
         if ratio.is_finite() {
-            BasisPoints32::from(ratio)
+            P::from(ratio)
         } else {
-            BasisPoints32::ZERO
+            P::default()
+        }
+    }
+}
+
+pub struct RatioCentsSignedCents<P>(PhantomData<P>);
+
+impl<P: FixedRatio> BinaryTransform<CentsSigned, Cents, P> for RatioCentsSignedCents<P> {
+    #[inline(always)]
+    fn apply(numerator: CentsSigned, denominator: Cents) -> P {
+        if denominator == Cents::ZERO {
+            P::default()
+        } else {
+            P::from(numerator.inner() as f64 / denominator.inner() as f64)
+        }
+    }
+}
+
+pub struct RatioCentsSignedDollars<P>(PhantomData<P>);
+
+impl<P: FixedRatio> BinaryTransform<CentsSigned, Dollars, P> for RatioCentsSignedDollars<P> {
+    #[inline(always)]
+    fn apply(numerator: CentsSigned, denominator: Dollars) -> P {
+        let denominator = f64::from(denominator);
+        if denominator > 0.0 {
+            P::from(numerator.inner() as f64 / 100.0 / denominator)
+        } else {
+            P::default()
         }
     }
 }
@@ -138,43 +98,43 @@ impl BinaryTransform<StoredU64, StoredU64, StoredF32> for RatioU64F32 {
     }
 }
 
-pub struct RatioDiffF32Bps32;
+pub struct RatioDiffF32<P>(PhantomData<P>);
 
-impl BinaryTransform<StoredF32, StoredF32, BasisPointsSigned32> for RatioDiffF32Bps32 {
+impl<P: FixedRatio> BinaryTransform<StoredF32, StoredF32, P> for RatioDiffF32<P> {
     #[inline(always)]
-    fn apply(value: StoredF32, base: StoredF32) -> BasisPointsSigned32 {
+    fn apply(value: StoredF32, base: StoredF32) -> P {
         if base.is_nan() || *base == 0.0 {
-            BasisPointsSigned32::ZERO
+            P::default()
         } else {
-            BasisPointsSigned32::from((*value / *base - 1.0) as f64)
+            P::from((*value / *base - 1.0) as f64)
         }
     }
 }
 
-pub struct RatioDiffDollarsBps32;
+pub struct RatioDiffDollars<P>(PhantomData<P>);
 
-impl BinaryTransform<Dollars, Dollars, BasisPointsSigned32> for RatioDiffDollarsBps32 {
+impl<P: FixedRatio> BinaryTransform<Dollars, Dollars, P> for RatioDiffDollars<P> {
     #[inline(always)]
-    fn apply(close: Dollars, base: Dollars) -> BasisPointsSigned32 {
-        let base_f64: f64 = base.into();
-        if base_f64 == 0.0 {
-            BasisPointsSigned32::ZERO
+    fn apply(close: Dollars, base: Dollars) -> P {
+        let base = f64::from(base);
+        if base == 0.0 {
+            P::default()
         } else {
-            BasisPointsSigned32::from(f64::from(close) / base_f64 - 1.0)
+            P::from(f64::from(close) / base - 1.0)
         }
     }
 }
 
-pub struct RatioDiffCentsBps32;
+pub struct RatioDiffCents<P>(PhantomData<P>);
 
-impl BinaryTransform<Cents, Cents, BasisPointsSigned32> for RatioDiffCentsBps32 {
+impl<P: FixedRatio> BinaryTransform<Cents, Cents, P> for RatioDiffCents<P> {
     #[inline(always)]
-    fn apply(close: Cents, base: Cents) -> BasisPointsSigned32 {
-        let base_f64 = f64::from(base);
-        if base_f64 == 0.0 {
-            BasisPointsSigned32::ZERO
+    fn apply(close: Cents, base: Cents) -> P {
+        let base = f64::from(base);
+        if base == 0.0 {
+            P::default()
         } else {
-            BasisPointsSigned32::from(f64::from(close) / base_f64 - 1.0)
+            P::from(f64::from(close) / base - 1.0)
         }
     }
 }

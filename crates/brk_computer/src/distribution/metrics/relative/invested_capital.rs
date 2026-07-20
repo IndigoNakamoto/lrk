@@ -1,9 +1,9 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Cents, Height, Version};
+use brk_types::{Cents, Height, PartsPerMillion32, Version};
 use vecdb::{Exit, Rw, StorageMode};
 
-use crate::internal::{PercentPerBlock, RatioCentsBp16};
+use crate::internal::{PercentPerBlock, RatioCents};
 
 use crate::distribution::metrics::{ImportConfig, RealizedFull, UnrealizedFull};
 
@@ -12,9 +12,9 @@ use crate::distribution::metrics::{ImportConfig, RealizedFull, UnrealizedFull};
 #[derive(Traversable)]
 pub struct RelativeInvestedCapital<M: StorageMode = Rw> {
     #[traversable(wrap = "invested_capital/in_profit", rename = "share")]
-    pub in_profit_share: PercentPerBlock<BasisPoints16, M>,
+    pub in_profit_share: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(wrap = "invested_capital/in_loss", rename = "share")]
-    pub in_loss_share: PercentPerBlock<BasisPoints16, M>,
+    pub in_loss_share: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl RelativeInvestedCapital {
@@ -35,14 +35,14 @@ impl RelativeInvestedCapital {
     ) -> Result<()> {
         let realized_cap = &realized.core.minimal.cap.cents.height;
         self.in_profit_share
-            .compute_binary::<Cents, Cents, RatioCentsBp16>(
+            .compute_binary::<Cents, Cents, RatioCents<PartsPerMillion32>>(
                 max_from,
                 &unrealized.invested_capital.in_profit.cents.height,
                 realized_cap,
                 exit,
             )?;
         self.in_loss_share
-            .compute_binary::<Cents, Cents, RatioCentsBp16>(
+            .compute_binary::<Cents, Cents, RatioCents<PartsPerMillion32>>(
                 max_from,
                 &unrealized.invested_capital.in_loss.cents.height,
                 realized_cap,

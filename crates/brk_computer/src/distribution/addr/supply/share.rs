@@ -1,13 +1,13 @@
 use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Height, Sats, Version};
+use brk_types::{Height, PartsPerMillion32, Sats, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{PercentPerBlock, RatioSatsBp16, WithAddrTypes},
+    internal::{PercentPerBlock, RatioSats, WithAddrTypes},
 };
 
 use super::vecs::AddrSupplyVecs;
@@ -18,7 +18,7 @@ use super::vecs::AddrSupplyVecs;
 /// - Per-type: type's category supply / type's total supply
 #[derive(Deref, DerefMut, Traversable)]
 pub struct AddrSupplyShareVecs<M: StorageMode = Rw>(
-    #[traversable(flatten)] pub WithAddrTypes<PercentPerBlock<BasisPoints16, M>>,
+    #[traversable(flatten)] pub WithAddrTypes<PercentPerBlock<PartsPerMillion32, M>>,
 );
 
 impl AddrSupplyShareVecs {
@@ -29,7 +29,7 @@ impl AddrSupplyShareVecs {
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         Ok(Self(
-            WithAddrTypes::<PercentPerBlock<BasisPoints16>>::forced_import(
+            WithAddrTypes::<PercentPerBlock<PartsPerMillion32>>::forced_import(
                 db,
                 &format!("{name}_addr_supply_share"),
                 version,
@@ -46,7 +46,8 @@ impl AddrSupplyShareVecs {
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
     ) -> Result<()> {
-        self.all.compute_binary::<Sats, Sats, RatioSatsBp16>(
+        self.all
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
             max_from,
             &supply.all.sats.height,
             all_supply_sats,
@@ -57,7 +58,7 @@ impl AddrSupplyShareVecs {
             .iter_mut()
             .zip(supply.by_addr_type.iter().zip(type_supply_sats.iter()))
         {
-            share.compute_binary::<Sats, Sats, RatioSatsBp16>(
+            share.compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
                 max_from,
                 &cat.sats.height,
                 *denom,

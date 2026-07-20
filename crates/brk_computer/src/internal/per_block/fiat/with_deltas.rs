@@ -7,7 +7,7 @@ use vecdb::{Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{BpsType, LazyRollingDeltasFiatFromHeight, WindowStartVec, Windows},
+    internal::{FixedRatio, LazyRollingDeltasFiatFromHeight, WindowStartVec, Windows},
 };
 
 use super::{FiatPerBlock, FiatType};
@@ -17,7 +17,7 @@ pub struct FiatPerBlockWithDeltas<C, CS, B, M: StorageMode = Rw>
 where
     C: FiatType + Into<f64>,
     CS: FiatType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     #[deref]
     #[deref_mut]
@@ -30,7 +30,7 @@ impl<C, CS, B> FiatPerBlockWithDeltas<C, CS, B>
 where
     C: FiatType + JsonSchema + Into<f64>,
     CS: FiatType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub(crate) fn forced_import(
         db: &Database,

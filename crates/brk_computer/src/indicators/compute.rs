@@ -1,10 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Bitcoin, Dollars, StoredF32};
+use brk_types::{Bitcoin, Dollars, PartsPerMillion64, StoredF32};
 use vecdb::Exit;
 
 use super::{Vecs, gini};
-use crate::{distribution, internal::RatioDollarsBp32, market, mining, transactions};
+use crate::{distribution, internal::RatioDollars, market, mining, transactions};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -23,8 +23,8 @@ impl Vecs {
 
         // Puell Multiple: daily_subsidy_usd / sma_365d_subsidy_usd
         self.puell_multiple
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .raw
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 &mining.rewards.subsidy.block.usd,
                 &mining.rewards.subsidy.average._1y.usd.height,
@@ -36,8 +36,8 @@ impl Vecs {
 
         // RHODL Ratio: 1d-1w realized cap / 1y-2y realized cap
         self.rhodl_ratio
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .raw
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 &distribution
                     .utxo_cohorts
@@ -70,8 +70,8 @@ impl Vecs {
             .usd
             .height;
         self.nvt
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .raw
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 market_cap,
                 &transactions.volume.transfer_volume.sum._24h.usd.height,
@@ -80,8 +80,8 @@ impl Vecs {
 
         // Thermocap Multiple: market_cap / thermo_cap
         self.thermo_cap_multiple
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .raw
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 market_cap,
                 &mining.rewards.subsidy.cumulative.usd.height,

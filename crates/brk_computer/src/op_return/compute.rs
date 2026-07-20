@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPoints16, Height, OpReturnKind, StoredU64, VSize};
+use brk_types::{Height, OpReturnKind, PartsPerMillion32, StoredU64, VSize};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
 use super::{Breakdown, Vecs, vecs::Totals};
 use crate::{
     blocks,
-    internal::{PercentPerBlock, RatioU64Bp16},
+    internal::{PercentPerBlock, RatioU64},
 };
 
 const KIND_COUNT: usize = OpReturnKind::Unknown as usize + 1;
@@ -192,12 +192,17 @@ fn compute_breakdown_data_shares(
 
 fn compute_data_share(
     max_from: Height,
-    target: &mut PercentPerBlock<BasisPoints16>,
+    target: &mut PercentPerBlock<PartsPerMillion32>,
     data: &impl ReadableVec<Height, StoredU64>,
     block_size: &impl ReadableVec<Height, StoredU64>,
     exit: &Exit,
 ) -> Result<()> {
-    target.compute_binary::<StoredU64, StoredU64, RatioU64Bp16>(max_from, data, block_size, exit)
+    target.compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
+        max_from,
+        data,
+        block_size,
+        exit,
+    )
 }
 
 fn finalize_transaction(

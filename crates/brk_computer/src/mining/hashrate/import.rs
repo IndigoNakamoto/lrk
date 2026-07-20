@@ -77,7 +77,7 @@ impl Vecs {
                 rebound: PercentPerBlock::forced_import(
                     db,
                     "hash_price_rebound",
-                    version + v4,
+                    version + v5,
                     indexes,
                 )?,
             },
@@ -89,7 +89,7 @@ impl Vecs {
                 rebound: PercentPerBlock::forced_import(
                     db,
                     "hash_value_rebound",
-                    version + v4,
+                    version + v5,
                     indexes,
                 )?,
             },

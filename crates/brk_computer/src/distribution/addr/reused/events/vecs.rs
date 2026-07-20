@@ -2,7 +2,7 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, OutputType, StoredF32, StoredU32, StoredU64, Version};
+use brk_types::{OutputType, PartsPerMillion32, StoredF32, StoredU32, StoredU64, Version};
 use rayon::prelude::*;
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
@@ -67,11 +67,11 @@ use super::state::AddrTypeToAddrEventCount;
 pub struct AddrEventsVecs<M: StorageMode = Rw> {
     pub output_to_reused_addr_count:
         WithAddrTypes<PerBlockCumulativeRolling<StoredU64, StoredU64, M>>,
-    pub output_to_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<BasisPoints16, M>>,
-    pub spendable_output_to_reused_addr_share: PercentCumulativeRolling<BasisPoints16, M>,
+    pub output_to_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
+    pub spendable_output_to_reused_addr_share: PercentCumulativeRolling<PartsPerMillion32, M>,
     pub input_from_reused_addr_count:
         WithAddrTypes<PerBlockCumulativeRolling<StoredU64, StoredU64, M>>,
-    pub input_from_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<BasisPoints16, M>>,
+    pub input_from_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
     pub active_reused_addr_count: PerBlockRollingAverage<StoredU32, StoredU64, M>,
     pub active_reused_addr_share: PerBlockRollingAverage<StoredF32, StoredF32, M>,
 }
@@ -94,7 +94,7 @@ impl AddrEventsVecs {
             )
         };
         let import_percent =
-            |name: &str| -> Result<WithAddrTypes<PercentCumulativeRolling<BasisPoints16>>> {
+            |name: &str| -> Result<WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32>>> {
                 Ok(WithAddrTypes {
                     all: PercentCumulativeRolling::forced_import(db, name, version, indexes)?,
                     by_addr_type: ByAddrType::new_with_name(|type_name| {

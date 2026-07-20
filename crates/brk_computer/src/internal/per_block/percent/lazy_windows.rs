@@ -3,20 +3,20 @@ use brk_types::Version;
 use derive_more::{Deref, DerefMut};
 use vecdb::UnaryTransform;
 
-use crate::internal::{BpsType, PercentRollingWindows, Windows};
+use crate::internal::{FixedRatio, PercentRollingWindows, Windows};
 
 use super::LazyPercentPerBlock;
 
 /// Fully lazy rolling percent windows — 4 windows (24h, 1w, 1m, 1y),
-/// each with lazy BPS + lazy ratio/percent float views.
+/// each with lazy raw + lazy ratio/percent float views.
 ///
 /// No stored vecs. All values derived from a source `PercentRollingWindows`.
 #[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
-pub struct LazyPercentRollingWindows<B: BpsType>(pub Windows<LazyPercentPerBlock<B>>);
+pub struct LazyPercentRollingWindows<B: FixedRatio>(pub Windows<LazyPercentPerBlock<B>>);
 
-impl<B: BpsType> LazyPercentRollingWindows<B> {
-    /// Create from a stored `PercentRollingWindows` source via a BPS-to-BPS unary transform.
+impl<B: FixedRatio> LazyPercentRollingWindows<B> {
+    /// Create from a stored source via a same-unit unary transform.
     pub(crate) fn from_rolling<F: UnaryTransform<B, B>>(
         name: &str,
         version: Version,

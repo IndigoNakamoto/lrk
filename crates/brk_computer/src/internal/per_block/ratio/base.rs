@@ -1,23 +1,23 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints32, Cents, Height, StoredF32, Version};
+use brk_types::{Cents, Height, StoredF32, Version};
 use vecdb::{Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{BpsType, LazyPerBlock, PerBlock},
+    internal::{FixedRatio, LazyPerBlock, PerBlock},
 };
 
 #[derive(Traversable)]
-pub struct RatioPerBlock<B: BpsType = BasisPoints32, M: StorageMode = Rw> {
-    pub bps: PerBlock<B, M>,
-    pub ratio: LazyPerBlock<StoredF32, B>,
+pub struct RatioPerBlock<R: FixedRatio, M: StorageMode = Rw> {
+    pub raw: PerBlock<R, M>,
+    pub ratio: LazyPerBlock<StoredF32, R>,
 }
 
-const VERSION: Version = Version::TWO;
+const VERSION: Version = Version::new(3);
 
-impl<B: BpsType> RatioPerBlock<B> {
+impl<R: FixedRatio> RatioPerBlock<R> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
@@ -35,20 +35,18 @@ impl<B: BpsType> RatioPerBlock<B> {
     ) -> Result<Self> {
         let v = version + VERSION;
 
-        let bps = PerBlock::forced_import(db, &format!("{name}_bps"), v, indexes)?;
+        let raw = PerBlock::forced_import(db, &format!("{name}_{}", R::SUFFIX), v, indexes)?;
 
-        let ratio = LazyPerBlock::from_computed::<B::ToRatio>(
+        let ratio = LazyPerBlock::from_computed::<R::ToRatio>(
             name,
             v,
-            bps.height.read_only_boxed_clone(),
-            &bps,
+            raw.height.read_only_boxed_clone(),
+            &raw,
         );
 
-        Ok(Self { bps, ratio })
+        Ok(Self { raw, ratio })
     }
-}
 
-impl RatioPerBlock<BasisPoints32> {
     pub(crate) fn compute_ratio(
         &mut self,
         starting_lengths: &Lengths,
@@ -56,15 +54,15 @@ impl RatioPerBlock<BasisPoints32> {
         series_price: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.bps.height.compute_transform2(
+        self.raw.height.compute_transform2(
             starting_lengths.height,
             close_price,
             series_price,
             |(i, close, price, ..)| {
                 if price == Cents::ZERO {
-                    (i, BasisPoints32::from(1.0))
+                    (i, R::from(1.0))
                 } else {
-                    (i, BasisPoints32::from(f64::from(close) / f64::from(price)))
+                    (i, R::from(f64::from(close) / f64::from(price)))
                 }
             },
             exit,

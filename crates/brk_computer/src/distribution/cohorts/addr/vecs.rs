@@ -4,7 +4,7 @@ use brk_cohort::{CohortContext, Filter, Filtered};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Cents, Height, Sats, StoredI64, StoredU64, Version};
+use brk_types::{Cents, Height, PartsPerMillionSigned64, Sats, StoredI64, StoredU64, Version};
 use rayon::prelude::*;
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
@@ -28,7 +28,7 @@ pub struct AddrCohortVecs<M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub metrics: MinimalCohortMetrics<M>,
 
-    pub addr_count: PerBlockWithDeltas<StoredU64, StoredI64, BasisPointsSigned32, M>,
+    pub addr_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
 }
 
 impl AddrCohortVecs {
@@ -56,7 +56,7 @@ impl AddrCohortVecs {
             db,
             &cfg.name("addr_count"),
             version,
-            Version::ONE,
+            Version::TWO,
             indexes,
             cached_starts,
         )?;

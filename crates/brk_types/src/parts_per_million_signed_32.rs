@@ -7,9 +7,9 @@ use vecdb::{CheckedSub, Formattable, Pco, unlikely};
 
 use super::StoredF32;
 
-/// Signed basis points stored as i32.
-/// 1 bp = 0.0001. Range: -214,748.3647 to +214,748.3647.
-/// Use for unbounded signed values (returns, growth rates, volatility, z-scores, etc.).
+/// Signed parts per million stored as i32.
+/// One unit is 0.000001. Range: -2,147.483647 to +2,147.483647.
+/// Use for precise bounded signed ratios and percentages.
 /// `i32::MIN` is reserved as a NaN sentinel.
 #[derive(
     Debug,
@@ -27,11 +27,10 @@ use super::StoredF32;
     Pco,
     JsonSchema,
 )]
-pub struct BasisPointsSigned32(i32);
+pub struct PartsPerMillionSigned32(i32);
 
-impl BasisPointsSigned32 {
+impl PartsPerMillionSigned32 {
     pub const ZERO: Self = Self(0);
-    /// NaN sentinel — uses i32::MIN which is outside the documented range.
     pub const NAN: Self = Self(i32::MIN);
 
     #[inline]
@@ -55,29 +54,28 @@ impl BasisPointsSigned32 {
         self.0 < 0 && self.0 != i32::MIN
     }
 
-    /// Convert to f32: divide by 10000. Returns NaN for sentinel value.
     #[inline]
     pub fn to_f32(self) -> f32 {
         if unlikely(self.0 == i32::MIN) {
             f32::NAN
         } else {
-            self.0 as f32 / 10000.0
+            self.0 as f32 / 1_000_000.0
         }
     }
 }
 
-impl From<usize> for BasisPointsSigned32 {
+impl From<usize> for PartsPerMillionSigned32 {
     #[inline]
     fn from(value: usize) -> Self {
         debug_assert!(
             value <= i32::MAX as usize,
-            "usize out of BasisPointsSigned32 range: {value}"
+            "usize out of PartsPerMillionSigned32 range: {value}"
         );
         Self(value as i32)
     }
 }
 
-impl From<i32> for BasisPointsSigned32 {
+impl From<i32> for PartsPerMillionSigned32 {
     #[inline]
     fn from(value: i32) -> Self {
         debug_assert!(value != i32::MIN, "i32::MIN is reserved as NaN sentinel");
@@ -85,65 +83,68 @@ impl From<i32> for BasisPointsSigned32 {
     }
 }
 
-impl From<BasisPointsSigned32> for i32 {
+impl From<PartsPerMillionSigned32> for i32 {
     #[inline]
-    fn from(value: BasisPointsSigned32) -> Self {
+    fn from(value: PartsPerMillionSigned32) -> Self {
         value.0
     }
 }
 
-/// Convert from float: multiply by 10000 and round.
-/// Input is in ratio form (e.g., 50.0 for +5000%).
-/// NaN/Inf → NaN sentinel.
-impl From<f64> for BasisPointsSigned32 {
+impl From<f64> for PartsPerMillionSigned32 {
     #[inline]
     fn from(value: f64) -> Self {
         if unlikely(!value.is_finite()) {
             return Self::NAN;
         }
-        let scaled = (value * 10000.0)
+        let scaled = (value * 1_000_000.0)
             .round()
             .clamp(i32::MIN as f64 + 1.0, i32::MAX as f64);
         Self(scaled as i32)
     }
 }
 
-/// Convert from f32 ratio form: multiply by 10000 and round.
-/// Input is in ratio form (e.g., 0.5 for +50% → 5000 bps).
-/// NaN/Inf → NaN sentinel.
-impl From<f32> for BasisPointsSigned32 {
+impl From<f32> for PartsPerMillionSigned32 {
     #[inline]
     fn from(value: f32) -> Self {
-        if unlikely(!value.is_finite()) {
-            return Self::NAN;
-        }
-        let scaled = (value * 10000.0)
-            .round()
-            .clamp(i32::MIN as f32 + 1.0, i32::MAX as f32);
-        Self(scaled as i32)
+        Self::from(value as f64)
     }
 }
 
-impl From<BasisPointsSigned32> for f64 {
+impl From<StoredF32> for PartsPerMillionSigned32 {
     #[inline]
-    fn from(value: BasisPointsSigned32) -> Self {
+    fn from(value: StoredF32) -> Self {
+        Self::from(*value)
+    }
+}
+
+impl From<PartsPerMillionSigned32> for f64 {
+    #[inline]
+    fn from(value: PartsPerMillionSigned32) -> Self {
         if unlikely(value.0 == i32::MIN) {
             f64::NAN
         } else {
-            value.0 as f64 / 10000.0
+            value.0 as f64 / 1_000_000.0
         }
     }
 }
 
-impl From<BasisPointsSigned32> for StoredF32 {
+impl From<PartsPerMillionSigned32> for f32 {
     #[inline]
-    fn from(value: BasisPointsSigned32) -> Self {
+    fn from(value: PartsPerMillionSigned32) -> Self {
+        value.to_f32()
+    }
+}
+
+impl From<PartsPerMillionSigned32> for StoredF32 {
+    #[inline]
+    fn from(value: PartsPerMillionSigned32) -> Self {
         StoredF32::from(value.to_f32())
     }
 }
 
-impl Add for BasisPointsSigned32 {
+impl Add for PartsPerMillionSigned32 {
     type Output = Self;
+
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         if unlikely(self.0 == i32::MIN || rhs.0 == i32::MIN) {
@@ -154,15 +155,16 @@ impl Add for BasisPointsSigned32 {
     }
 }
 
-impl AddAssign for BasisPointsSigned32 {
+impl AddAssign for PartsPerMillionSigned32 {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }
 
-impl Sub for BasisPointsSigned32 {
+impl Sub for PartsPerMillionSigned32 {
     type Output = Self;
+
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         if unlikely(self.0 == i32::MIN || rhs.0 == i32::MIN) {
@@ -173,15 +175,16 @@ impl Sub for BasisPointsSigned32 {
     }
 }
 
-impl SubAssign for BasisPointsSigned32 {
+impl SubAssign for PartsPerMillionSigned32 {
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
     }
 }
 
-impl Div<usize> for BasisPointsSigned32 {
+impl Div<usize> for PartsPerMillionSigned32 {
     type Output = Self;
+
     #[inline]
     fn div(self, rhs: usize) -> Self::Output {
         if unlikely(self.0 == i32::MIN) {
@@ -193,7 +196,7 @@ impl Div<usize> for BasisPointsSigned32 {
     }
 }
 
-impl CheckedSub for BasisPointsSigned32 {
+impl CheckedSub for PartsPerMillionSigned32 {
     fn checked_sub(self, rhs: Self) -> Option<Self> {
         if unlikely(self.0 == i32::MIN || rhs.0 == i32::MIN) {
             Some(Self::NAN)
@@ -203,19 +206,18 @@ impl CheckedSub for BasisPointsSigned32 {
     }
 }
 
-impl std::fmt::Display for BasisPointsSigned32 {
+impl std::fmt::Display for PartsPerMillionSigned32 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buf = itoa::Buffer::new();
-        let str = buf.format(self.0);
-        f.write_str(str)
+        f.write_str(buf.format(self.0))
     }
 }
 
-impl Formattable for BasisPointsSigned32 {
+impl Formattable for PartsPerMillionSigned32 {
     #[inline(always)]
     fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
+        let mut value = itoa::Buffer::new();
+        buf.extend_from_slice(value.format(self.0).as_bytes());
     }
 
     #[inline(always)]
@@ -225,5 +227,29 @@ impl Formattable for BasisPointsSigned32 {
         } else {
             self.write_to(buf);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversions_and_sentinels() {
+        assert_eq!(
+            PartsPerMillionSigned32::from(-0.123_456_6).inner(),
+            -123_457
+        );
+        assert_eq!(PartsPerMillionSigned32::from(f64::MAX).inner(), i32::MAX);
+        assert_eq!(
+            PartsPerMillionSigned32::from(f64::MIN).inner(),
+            i32::MIN + 1
+        );
+        assert!(PartsPerMillionSigned32::from(f64::NAN).is_nan());
+        assert!(!PartsPerMillionSigned32::NAN.is_negative());
+
+        let mut json = Vec::new();
+        PartsPerMillionSigned32::NAN.fmt_json(&mut json);
+        assert_eq!(json, b"null");
     }
 }

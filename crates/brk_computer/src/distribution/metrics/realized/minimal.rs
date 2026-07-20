@@ -2,8 +2,8 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    BasisPoints32, BasisPointsSigned32, Bitcoin, Cents, CentsSigned, Height, Sats, StoredF32,
-    Version,
+    Bitcoin, Cents, CentsSigned, Height, PartsPerMillion64, PartsPerMillionSigned64, Sats,
+    StoredF32, Version,
 };
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
@@ -20,7 +20,7 @@ use crate::distribution::metrics::ImportConfig;
 
 #[derive(Traversable)]
 pub struct RealizedMinimal<M: StorageMode = Rw> {
-    pub cap: FiatPerBlockWithDeltas<Cents, CentsSigned, BasisPointsSigned32, M>,
+    pub cap: FiatPerBlockWithDeltas<Cents, CentsSigned, PartsPerMillionSigned64, M>,
     pub profit: FiatPerBlockCumulativeWithSums<Cents, M>,
     pub loss: FiatPerBlockCumulativeWithSums<Cents, M>,
     pub price: PriceWithRatioPerBlock<M>,
@@ -35,13 +35,13 @@ impl RealizedMinimal {
             cfg.db,
             &cfg.name("realized_cap"),
             cfg.version,
-            v1,
+            Version::TWO,
             cfg.indexes,
             cfg.cached_starts,
         )?;
 
         let price: PriceWithRatioPerBlock = cfg.import("realized_price", v1)?;
-        let mvrv = LazyPerBlock::from_lazy::<Identity<StoredF32>, BasisPoints32>(
+        let mvrv = LazyPerBlock::from_lazy::<Identity<StoredF32>, PartsPerMillion64>(
             &cfg.name("mvrv"),
             cfg.version,
             &price.ratio,

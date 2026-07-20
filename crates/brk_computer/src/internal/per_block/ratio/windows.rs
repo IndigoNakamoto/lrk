@@ -6,16 +6,17 @@ use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, VecVa
 
 use crate::{
     indexes,
-    internal::{BpsType, RatioPerBlock, Windows},
+    internal::{FixedRatio, RatioPerBlock, Windows},
 };
 
-/// 4 rolling window vecs (24h, 1w, 1m, 1y), each storing basis points
-/// with a lazy ratio float view.
+/// Four rolling-window ratios with fixed-point storage and lazy float views.
 #[derive(Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
-pub struct RatioRollingWindows<B: BpsType, M: StorageMode = Rw>(pub Windows<RatioPerBlock<B, M>>);
+pub struct RatioRollingWindows<B: FixedRatio, M: StorageMode = Rw>(
+    pub Windows<RatioPerBlock<B, M>>,
+);
 
-impl<B: BpsType> RatioRollingWindows<B> {
+impl<B: FixedRatio> RatioRollingWindows<B> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
@@ -49,7 +50,7 @@ impl<B: BpsType> RatioRollingWindows<B> {
             .zip(sources2)
         {
             target
-                .bps
+                .raw
                 .compute_binary::<S1T, S2T, F>(max_from, s1, s2, exit)?;
         }
         Ok(())

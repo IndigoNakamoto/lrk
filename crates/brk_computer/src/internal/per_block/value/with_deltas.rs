@@ -1,6 +1,6 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Sats, SatsSigned, Version};
+use brk_types::{PartsPerMillionSigned64, Sats, SatsSigned, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{Database, Rw, StorageMode};
 
@@ -15,7 +15,7 @@ pub struct ValuePerBlockWithDeltas<M: StorageMode = Rw> {
     #[deref_mut]
     #[traversable(flatten)]
     pub inner: ValuePerBlock<M>,
-    pub delta: LazyRollingDeltasAmountFromHeight<Sats, SatsSigned, BasisPointsSigned32>,
+    pub delta: LazyRollingDeltasAmountFromHeight<Sats, SatsSigned, PartsPerMillionSigned64>,
 }
 
 impl ValuePerBlockWithDeltas {
@@ -30,7 +30,7 @@ impl ValuePerBlockWithDeltas {
 
         let delta = LazyRollingDeltasAmountFromHeight::new(
             &format!("{name}_delta"),
-            version + Version::ONE,
+            version + Version::TWO,
             &inner.sats.height,
             cached_starts,
             indexes,

@@ -43,7 +43,7 @@ export function formatDateAndAge(unixSeconds) {
 
   const [unit, seconds] = RELATIVE_UNITS.find(([, duration]) => {
     return absolute >= duration;
-  }) ?? RELATIVE_UNITS.at(-1);
+  }) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];
 
   return `${date} · ${RELATIVE_TIME.format(Math.trunc(difference / seconds), unit)}`;
 }

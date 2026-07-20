@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, BasisPointsSigned32, Height, Sats, SatsSigned, Version};
+use brk_types::{Height, PartsPerMillion32, PartsPerMillionSigned64, Sats, SatsSigned, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 };
 
 use crate::internal::{
-    LazyRollingDeltasAmountFromHeight, PercentPerBlock, RatioSatsBp16, ValuePerBlock,
+    LazyRollingDeltasAmountFromHeight, PercentPerBlock, RatioSats, ValuePerBlock,
 };
 
 use crate::distribution::metrics::ImportConfig;
@@ -19,9 +19,9 @@ use crate::distribution::metrics::ImportConfig;
 #[derive(Traversable)]
 pub struct SupplyBase<M: StorageMode = Rw> {
     pub total: ValuePerBlock<M>,
-    pub delta: LazyRollingDeltasAmountFromHeight<Sats, SatsSigned, BasisPointsSigned32>,
+    pub delta: LazyRollingDeltasAmountFromHeight<Sats, SatsSigned, PartsPerMillionSigned64>,
     #[traversable(rename = "dominance")]
-    pub dominance: PercentPerBlock<BasisPoints16, M>,
+    pub dominance: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl SupplyBase {
@@ -30,7 +30,7 @@ impl SupplyBase {
 
         let delta = LazyRollingDeltasAmountFromHeight::new(
             &cfg.name("supply_delta"),
-            cfg.version + Version::ONE,
+            cfg.version + Version::TWO,
             &supply.sats.height,
             cfg.cached_starts,
             cfg.indexes,
@@ -58,7 +58,7 @@ impl SupplyBase {
         vec![
             &mut self.total.sats.height as &mut dyn AnyStoredVec,
             &mut self.total.cents.height,
-            &mut self.dominance.bps.height,
+            &mut self.dominance.raw.height,
         ]
     }
 
@@ -77,12 +77,13 @@ impl SupplyBase {
         all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
-        self.dominance.compute_binary::<Sats, Sats, RatioSatsBp16>(
-            max_from,
-            &self.total.sats.height,
-            all_supply_sats,
-            exit,
-        )
+        self.dominance
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
+                max_from,
+                &self.total.sats.height,
+                all_supply_sats,
+                exit,
+            )
     }
 
     pub(crate) fn compute_from_stateful(

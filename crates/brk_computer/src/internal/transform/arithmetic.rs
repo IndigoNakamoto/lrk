@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use brk_types::{
-    BasisPoints16, Bitcoin, Cents, Dollars, Sats, StoredF32, StoredF64, StoredI8, StoredU16,
+    Bitcoin, Cents, Dollars, PartsPerMillion32, Sats, StoredF32, StoredF64, StoredI8, StoredU16,
     StoredU32, StoredU64, VSize, Weight,
 };
 use vecdb::{BinaryTransform, UnaryTransform, VecValue};
@@ -128,12 +128,12 @@ impl UnaryTransform<StoredF64, StoredF64> for DifficultyToHashF64 {
     }
 }
 
-pub struct OneMinusBp16;
+pub struct OneMinusPpm;
 
-impl UnaryTransform<BasisPoints16, BasisPoints16> for OneMinusBp16 {
+impl UnaryTransform<PartsPerMillion32, PartsPerMillion32> for OneMinusPpm {
     #[inline(always)]
-    fn apply(v: BasisPoints16) -> BasisPoints16 {
-        BasisPoints16::ONE - v
+    fn apply(value: PartsPerMillion32) -> PartsPerMillion32 {
+        PartsPerMillion32::ONE - value
     }
 }
 

@@ -6,18 +6,18 @@ use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, VecVa
 
 use crate::{
     indexes,
-    internal::{BpsType, PercentPerBlock, Windows},
+    internal::{FixedRatio, PercentPerBlock, Windows},
 };
 
-/// 4 rolling window vecs (24h, 1w, 1m, 1y), each storing basis points
+/// 4 rolling window vecs (24h, 1w, 1m, 1y), each storing fixed-point values
 /// with lazy ratio and percent float views.
 #[derive(Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
-pub struct PercentRollingWindows<B: BpsType, M: StorageMode = Rw>(
+pub struct PercentRollingWindows<B: FixedRatio, M: StorageMode = Rw>(
     pub Windows<PercentPerBlock<B, M>>,
 );
 
-impl<B: BpsType> PercentRollingWindows<B> {
+impl<B: FixedRatio> PercentRollingWindows<B> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,

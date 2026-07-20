@@ -14,7 +14,7 @@ use vecdb::{AnyStoredVec, AnyVec, Database, EagerVec, Exit, PcoVec, WritableVec}
 use crate::{indexes, price};
 
 use super::{
-    BpsType, NumericValue, PerBlock, PerBlockCumulativeRolling, PercentPerBlock, ValuePerBlock,
+    FixedRatio, NumericValue, PerBlock, PerBlockCumulativeRolling, PercentPerBlock, ValuePerBlock,
     WindowStartVec, Windows,
 };
 
@@ -276,7 +276,7 @@ impl WithAddrTypes<AvgAmountMetrics> {
     }
 }
 
-impl<B: BpsType> WithAddrTypes<PercentPerBlock<B>> {
+impl<B: FixedRatio> WithAddrTypes<PercentPerBlock<B>> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
@@ -291,9 +291,9 @@ impl<B: BpsType> WithAddrTypes<PercentPerBlock<B>> {
     }
 
     pub(crate) fn reset_height(&mut self) -> Result<()> {
-        self.all.bps.height.reset()?;
+        self.all.raw.height.reset()?;
         for v in self.by_addr_type.values_mut() {
-            v.bps.height.reset()?;
+            v.raw.height.reset()?;
         }
         Ok(())
     }

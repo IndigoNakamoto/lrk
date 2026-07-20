@@ -38,7 +38,7 @@ impl Vecs {
 
         // Inflation rate
         let inflation_rate =
-            PercentPerBlock::forced_import(&db, "inflation_rate", version + Version::ONE, indexes)?;
+            PercentPerBlock::forced_import(&db, "inflation_rate", version + Version::TWO, indexes)?;
 
         // Velocity
         let velocity = super::velocity::Vecs::forced_import(&db, version, indexes)?;
@@ -50,7 +50,7 @@ impl Vecs {
         // Market cap delta (change + rate across 4 windows)
         let market_cap_delta = LazyRollingDeltasFiatFromHeight::new(
             "market_cap_delta",
-            version + Version::new(3),
+            version + Version::new(4),
             &market_cap.cents.height,
             cached_starts,
             indexes,
@@ -59,7 +59,7 @@ impl Vecs {
         let market_minus_realized_cap_growth_rate = RollingWindows::forced_import(
             &db,
             "market_minus_realized_cap_growth_rate",
-            version + Version::TWO,
+            version + Version::new(3),
             indexes,
         )?;
 

@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints32, Cents, Dollars, Height, SatsFract, StoredF32, Version};
+use brk_types::{Cents, Dollars, Height, PartsPerMillion64, SatsFract, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode};
 
@@ -15,8 +15,8 @@ pub struct PriceWithRatioPerBlock<M: StorageMode = Rw> {
     pub usd: LazyPerBlock<Dollars, Cents>,
     pub cents: PerBlock<Cents, M>,
     pub sats: LazyPerBlock<SatsFract, Dollars>,
-    pub bps: PerBlock<BasisPoints32, M>,
-    pub ratio: LazyPerBlock<StoredF32, BasisPoints32>,
+    pub raw: PerBlock<PartsPerMillion64, M>,
+    pub ratio: LazyPerBlock<StoredF32, PartsPerMillion64>,
 }
 
 impl PriceWithRatioPerBlock {
@@ -32,7 +32,7 @@ impl PriceWithRatioPerBlock {
             usd: price.usd,
             cents: price.cents,
             sats: price.sats,
-            bps: ratio.bps,
+            raw: ratio.raw,
             ratio: ratio.ratio,
         })
     }
@@ -44,15 +44,18 @@ impl PriceWithRatioPerBlock {
         close_price: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.bps.height.compute_transform2(
+        self.raw.height.compute_transform2(
             starting_lengths.height,
             close_price,
             &self.cents.height,
             |(i, close, price, ..)| {
                 if price == Cents::ZERO {
-                    (i, BasisPoints32::from(1.0))
+                    (i, PartsPerMillion64::from(1.0))
                 } else {
-                    (i, BasisPoints32::from(f64::from(close) / f64::from(price)))
+                    (
+                        i,
+                        PartsPerMillion64::from(f64::from(close) / f64::from(price)),
+                    )
                 }
             },
             exit,

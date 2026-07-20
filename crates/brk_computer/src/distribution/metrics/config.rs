@@ -1,6 +1,8 @@
 use brk_cohort::Filter;
 use brk_error::Result;
-use brk_types::{BasisPoints16, BasisPoints32, BasisPointsSigned32, Cents, Height, Version};
+use brk_types::{
+    Cents, Height, PartsPerMillion32, PartsPerMillionSigned32, PartsPerMillionSigned64, Version,
+};
 use schemars::JsonSchema;
 use vecdb::{BytesVec, BytesVecValue, Database, ImportableVec};
 
@@ -39,12 +41,11 @@ impl_config_import!(
     ValuePerBlockCumulative,
     PriceWithRatioPerBlock,
     PriceWithRatioExtendedPerBlock,
-    RatioPerBlock<BasisPoints32>,
-    RatioPerBlock<BasisPointsSigned32>,
-    PercentPerBlock<BasisPoints16>,
-    PercentPerBlock<BasisPoints32>,
-    PercentPerBlock<BasisPointsSigned32>,
-    PercentRollingWindows<BasisPoints32>,
+    RatioPerBlock<PartsPerMillionSigned32>,
+    PercentPerBlock<PartsPerMillion32>,
+    PercentPerBlock<PartsPerMillionSigned32>,
+    PercentPerBlock<PartsPerMillionSigned64>,
+    PercentRollingWindows<PartsPerMillion32>,
     Price<PerBlock<Cents>>,
 );
 

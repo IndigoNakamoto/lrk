@@ -1,10 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{BasisPointsSigned32, Bitcoin, Cents, Date, Day1, Dollars, Sats};
+use brk_types::{Bitcoin, Cents, Date, Day1, Dollars, PartsPerMillionSigned64, Sats};
 use vecdb::{AnyVec, Exit, ReadableOptionVec, ReadableVec, VecIndex};
 
 use super::{ByDcaPeriod, Vecs};
-use crate::{blocks, indexes, internal::RatioDiffCentsBps32, market, price};
+use crate::{blocks, indexes, internal::RatioDiffCents, market, price};
 
 const DCA_AMOUNT: Dollars = Dollars::mint(100.0);
 
@@ -102,7 +102,7 @@ impl Vecs {
             .iter_mut()
             .zip(self.period.dca_cost_basis.iter_with_days())
         {
-            returns.compute_binary::<Cents, Cents, RatioDiffCentsBps32>(
+            returns.compute_binary::<Cents, Cents, RatioDiffCents<PartsPerMillionSigned64>>(
                 starting_lengths.height,
                 &prices.spot.cents.height,
                 &average_price.cents.height,
@@ -117,13 +117,13 @@ impl Vecs {
             .zip_mut_with_period(&self.period.dca_return)
         {
             let years = days as f64 / 365.0;
-            cagr.bps.height.compute_transform(
+            cagr.raw.height.compute_transform(
                 starting_lengths.height,
-                &returns.bps.height,
+                &returns.raw.height,
                 |(h, r, ..)| {
                     let ratio = f64::from(r);
                     let v = (ratio + 1.0).powf(1.0 / years) - 1.0;
-                    (h, BasisPointsSigned32::from(v))
+                    (h, PartsPerMillionSigned64::from(v))
                 },
                 exit,
             )?;
@@ -163,7 +163,7 @@ impl Vecs {
             .iter_mut()
             .zip(lookback_dca.iter_with_days())
         {
-            returns.compute_binary::<Cents, Cents, RatioDiffCentsBps32>(
+            returns.compute_binary::<Cents, Cents, RatioDiffCents<PartsPerMillionSigned64>>(
                 starting_lengths.height,
                 &prices.spot.cents.height,
                 &lookback_price.cents.height,
@@ -266,7 +266,7 @@ impl Vecs {
             .iter_mut()
             .zip(self.class.dca_cost_basis.iter())
         {
-            returns.compute_binary::<Cents, Cents, RatioDiffCentsBps32>(
+            returns.compute_binary::<Cents, Cents, RatioDiffCents<PartsPerMillionSigned64>>(
                 starting_lengths.height,
                 &prices.spot.cents.height,
                 &average_price.cents.height,

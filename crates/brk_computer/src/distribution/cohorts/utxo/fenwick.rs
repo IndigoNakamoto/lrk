@@ -1,5 +1,5 @@
 use brk_cohort::{Filter, PROFITABILITY_RANGE_COUNT, compute_profitability_boundaries};
-use brk_types::{Cents, CentsCompact, Sats};
+use brk_types::{Cents, CentsCompact, PartsPerMillion32, Sats};
 
 use crate::{
     distribution::state::PendingDelta,
@@ -332,10 +332,16 @@ impl CostBasisFenwick {
     // -----------------------------------------------------------------------
 
     /// Compute supply density: % of supply with cost basis within ±5% of spot.
-    /// Returns (all_bps, sth_bps, lth_bps) as basis points (0-10000).
-    pub(super) fn density(&self, spot_price: Cents) -> (u16, u16, u16) {
+    pub(super) fn density(
+        &self,
+        spot_price: Cents,
+    ) -> (PartsPerMillion32, PartsPerMillion32, PartsPerMillion32) {
         if self.totals.all_sats <= 0 {
-            return (0, 0, 0);
+            return (
+                PartsPerMillion32::ZERO,
+                PartsPerMillion32::ZERO,
+                PartsPerMillion32::ZERO,
+            );
         }
 
         let range = self.density_range(spot_price);
@@ -345,16 +351,19 @@ impl CostBasisFenwick {
 
         let lth_total = self.totals.all_sats - self.totals.sth_sats;
         (
-            Self::to_bps(all_range, self.totals.all_sats),
-            Self::to_bps(sth_range, self.totals.sth_sats),
-            Self::to_bps(lth_range, lth_total),
+            Self::to_ppm(all_range, self.totals.all_sats),
+            Self::to_ppm(sth_range, self.totals.sth_sats),
+            Self::to_ppm(lth_range, lth_total),
         )
     }
 
-    /// Compute supply density for entry cohorts: (discount_bps, premium_bps).
-    pub(super) fn entry_density(&self, spot_price: Cents) -> (u16, u16) {
+    /// Compute supply density for entry cohorts: (discount, premium).
+    pub(super) fn entry_density(
+        &self,
+        spot_price: Cents,
+    ) -> (PartsPerMillion32, PartsPerMillion32) {
         if self.totals.all_sats <= 0 {
-            return (0, 0);
+            return (PartsPerMillion32::ZERO, PartsPerMillion32::ZERO);
         }
 
         let range = self.density_range(spot_price);
@@ -363,8 +372,8 @@ impl CostBasisFenwick {
         let premium_total = self.totals.all_sats - self.totals.discount_sats;
 
         (
-            Self::to_bps(discount_range, self.totals.discount_sats),
-            Self::to_bps(premium_range, premium_total),
+            Self::to_ppm(discount_range, self.totals.discount_sats),
+            Self::to_ppm(premium_range, premium_total),
         )
     }
 
@@ -394,11 +403,11 @@ impl CostBasisFenwick {
     }
 
     #[inline(always)]
-    fn to_bps(range: i64, total: i64) -> u16 {
+    fn to_ppm(range: i64, total: i64) -> PartsPerMillion32 {
         if total <= 0 {
-            0
+            PartsPerMillion32::ZERO
         } else {
-            (range as f64 / total as f64 * 10000.0).round() as u16
+            PartsPerMillion32::from(range as f64 / total as f64)
         }
     }
 
