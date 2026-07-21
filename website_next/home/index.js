@@ -2,6 +2,7 @@ const links = [
   { href: "/explore", label: "Explore" },
   { href: "/learn", label: "Learn" },
   { href: "/build", label: "Build" },
+  { href: "/ask", label: "Ask" },
   { href: "/wallets", label: "Wallets" },
 ];
 
