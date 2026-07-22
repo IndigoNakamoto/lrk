@@ -1,25 +1,14 @@
+import { createAskComposer } from "./composer/index.js";
 import { prepareContext } from "./context.js";
+import { createAskConversation } from "./conversation/index.js";
+import { createAskHero } from "./hero/index.js";
+import { createAskLayout } from "./layout/index.js";
+import { createAskLoader } from "./loader/index.js";
 import { AskModel } from "./model.js";
-import { ASK_MODEL } from "./models.js";
+import { createAskSidebar } from "./sidebar/index.js";
 import { askStorage } from "./storage.js";
-import { bindHold } from "../utils/hold.js";
-import {
-  appendMessage,
-  createAskView,
-  renderChats,
-  renderMessages,
-  setMessageContent,
-  setSidebarOpen,
-} from "./view.js";
 
 const SIDEBAR_PREFERENCE_KEY = "bitview.ask.sidebar-collapsed.v1";
-
-/** @param {number} bytes */
-function formatBytes(bytes) {
-  return bytes >= 1_000_000
-    ? `${(bytes / 1_000_000).toFixed(0)} MB`
-    : `${(bytes / 1_000).toFixed(0)} KB`;
-}
 
 /** @param {unknown} error */
 function errorMessage(error) {
@@ -27,7 +16,6 @@ function errorMessage(error) {
 }
 
 export function createAskPage() {
-  const view = createAskView();
   const model = new AskModel();
   let workspace = askStorage.load();
   let chat = workspace.activeChat;
@@ -36,80 +24,79 @@ export function createAskPage() {
   let checking = false;
   let loading = false;
   let followingOutput = false;
-  let scrollFrame = 0;
   const sidebarPreference = localStorage.getItem(SIDEBAR_PREFERENCE_KEY);
-  let sidebarCollapsed =
-    sidebarPreference === null
-      ? workspace.chats.length <= 1
-      : sidebarPreference === "true";
+  let sidebarCollapsed = sidebarPreference === null
+    ? workspace.chats.length <= 1
+    : sidebarPreference === "true";
   const mobileSidebar = window.matchMedia("(max-width: 48rem)");
 
-  function isNearBottom() {
-    const { clientHeight, scrollHeight, scrollTop } = view.conversation;
-    return scrollHeight - clientHeight - scrollTop < 96;
+  const hero = createAskHero({
+    onPrompt(prompt) {
+      composer.value = prompt;
+      composer.focus();
+    },
+  });
+  const conversation = createAskConversation({
+    hero: hero.element,
+    onScroll() {
+      if (!busy) return;
+
+      followingOutput = conversation.isNearBottom();
+      if (!followingOutput) conversation.cancelScroll();
+    },
+  });
+  const composer = createAskComposer({
+    onSubmit: submitQuestion,
+    onStop() {
+      model.stop();
+    },
+  });
+  const loader = createAskLoader({
+    onLoad() {
+      void loadModel(false);
+    },
+  });
+  const sidebar = createAskSidebar({
+    onNew: openNewChat,
+    onToggle: toggleSidebar,
+    onSelect: selectChat,
+    onRemove: removeChat,
+  });
+  const { main } = createAskLayout({
+    sidebar,
+    conversation,
+    composer,
+    loader,
+  });
+
+  /** @param {boolean} open */
+  function setSidebarOpen(open) {
+    main.toggleAttribute("data-sidebar-open", open);
   }
 
-  function scrollToBottom() {
-    cancelAnimationFrame(scrollFrame);
-    scrollFrame = requestAnimationFrame(() => {
-      view.conversation.scrollTop = view.conversation.scrollHeight;
-    });
-  }
-
-  function syncConversation() {
-    const hasMessages = view.transcript.childElementCount > 0;
-    view.empty.hidden = hasMessages;
-    view.transcript.hidden = !hasMessages;
-  }
-
-  function syncChatControls() {
-    view.sidebarToggle.disabled = busy;
-
-    for (const button of view.newChatButtons) {
-      button.disabled = busy;
-    }
-
-    for (const button of view.suggestions.querySelectorAll("button")) {
-      button.disabled = !loaded || busy;
-    }
-
-    for (const button of view.chats.querySelectorAll("button")) {
-      button.disabled = busy;
-    }
+  function syncControls() {
+    sidebar.setBusy(busy);
+    hero.setEnabled(loaded && !busy);
   }
 
   function syncSidebar() {
-    const drawerOpen = view.main.hasAttribute("data-sidebar-open");
+    const drawerOpen = main.hasAttribute("data-sidebar-open");
     const expanded = mobileSidebar.matches ? drawerOpen : !sidebarCollapsed;
 
-    view.main.toggleAttribute("data-sidebar-collapsed", sidebarCollapsed);
-    view.sidebarToggle.setAttribute("aria-expanded", String(expanded));
-    view.sidebarToggle.ariaLabel = expanded ? "Hide chats" : "Show chats";
-    view.sidebarToggle.title = view.sidebarToggle.ariaLabel;
+    main.toggleAttribute("data-sidebar-collapsed", sidebarCollapsed);
+    sidebar.setExpanded(expanded);
   }
 
   function renderChatList() {
-    renderChats(view, workspace.chats, chat.id);
-
-    for (const button of view.chats.querySelectorAll(
-      '[data-action="remove"]',
-    )) {
-      if (!(button instanceof HTMLButtonElement)) continue;
-
-      bindHold(button, () => {
-        const id = button.dataset.chatId;
-        if (id) removeChat(id);
-      }, 1_000);
-    }
+    sidebar.render(workspace.chats, chat.id);
   }
 
   function renderChat() {
     renderChatList();
-    renderMessages(view, chat.messages);
-    syncConversation();
-    syncChatControls();
+    conversation.render(chat.messages);
+    syncControls();
     syncSidebar();
-    scrollToBottom();
+    conversation.scrollToBottom();
   }
 
   function setChecking() {
@@ -117,17 +104,10 @@ export function createAskPage() {
     busy = false;
     checking = true;
     loading = false;
-    view.main.dataset.state = "checking";
-    view.loader.hidden = false;
-    view.form.hidden = true;
-    view.fieldset.disabled = true;
-    view.loadButton.hidden = true;
-    view.progress.hidden = false;
-    view.progress.removeAttribute("value");
-    view.activity.hidden = false;
-    view.activity.textContent = "Checking browser cache...";
-    syncConversation();
-    syncChatControls();
+    main.dataset.state = "checking";
+    composer.hide();
+    loader.checking();
+    syncControls();
   }
 
   /** @param {string | undefined} [detail] */
@@ -136,19 +116,10 @@ export function createAskPage() {
     busy = false;
     checking = false;
     loading = false;
-    view.main.dataset.state = "unloaded";
-    view.loader.hidden = false;
-    view.form.hidden = true;
-    view.fieldset.disabled = true;
-    view.loadButton.hidden = false;
-    view.loadButton.disabled = false;
-    view.loadLabel.textContent = "Download & use";
-    view.loadDetail.textContent = ASK_MODEL.size;
-    view.progress.hidden = true;
-    view.activity.hidden = !detail;
-    view.activity.textContent = detail ?? "";
-    syncConversation();
-    syncChatControls();
+    main.dataset.state = "unloaded";
+    composer.hide();
+    loader.unloaded(detail);
+    syncControls();
   }
 
   /** @param {boolean} cached */
@@ -157,20 +128,10 @@ export function createAskPage() {
     busy = false;
     checking = false;
     loading = true;
-    view.main.dataset.state = "loading";
-    view.loader.hidden = false;
-    view.form.hidden = true;
-    view.fieldset.disabled = true;
-    view.loadButton.hidden = true;
-    view.progress.hidden = false;
-    if (cached) view.progress.removeAttribute("value");
-    else view.progress.value = 0;
-    view.activity.hidden = false;
-    view.activity.textContent = cached
-      ? "Loading the model from browser storage..."
-      : "Preparing the one-time local download...";
-    syncConversation();
-    syncChatControls();
+    main.dataset.state = "loading";
+    composer.hide();
+    loader.loading(cached);
+    syncControls();
   }
 
   /** @param {unknown} error */
@@ -179,17 +140,10 @@ export function createAskPage() {
     busy = false;
     checking = false;
     loading = false;
-    view.main.dataset.state = "error";
-    view.loader.hidden = false;
-    view.form.hidden = true;
-    view.fieldset.disabled = true;
-    view.progress.hidden = true;
-    view.loadButton.hidden = false;
-    view.loadButton.disabled = false;
-    view.loadLabel.textContent = "Try again";
-    view.activity.hidden = false;
-    view.activity.textContent = `Load failed · ${errorMessage(error)}`;
-    syncChatControls();
+    main.dataset.state = "error";
+    composer.hide();
+    loader.loadError(errorMessage(error));
+    syncControls();
   }
 
   function setReady() {
@@ -197,16 +151,10 @@ export function createAskPage() {
     busy = false;
     checking = false;
     loading = false;
-    view.main.dataset.state = "ready";
-    view.loader.hidden = true;
-    view.form.hidden = false;
-    view.fieldset.disabled = false;
-    view.input.disabled = false;
-    view.askButton.hidden = false;
-    view.stopButton.hidden = true;
-    view.activity.hidden = true;
-    syncConversation();
-    syncChatControls();
+    main.dataset.state = "ready";
+    loader.ready();
+    composer.ready();
+    syncControls();
   }
 
   /** @param {boolean} cached */
@@ -217,31 +165,13 @@ export function createAskPage() {
 
     try {
       await model.load(
-        ({ progress, loaded: loadedBytes, total }) => {
-          if (!cached) {
-            view.progress.hidden = false;
-            view.progress.value = progress;
-          }
-          view.activity.textContent = total
-            ? cached
-              ? "Loading the model from browser storage..."
-              : `Downloading ${formatBytes(loadedBytes)} of ${formatBytes(total)}...`
-            : cached
-              ? "Starting the cached model..."
-              : `Downloading model... ${progress.toFixed(0)}%`;
-        },
-        (status) => {
-          view.activity.textContent =
-            cached && status.includes("Downloading")
-              ? "Loading the model from browser storage..."
-              : status;
-        },
+        (update) => loader.reportProgress(update, cached),
+        (status) => loader.reportStatus(status, cached),
       );
-
       setReady();
-      view.input.focus();
+      composer.focus();
     } catch (error) {
-      if (view.main.inert) return;
+      if (main.inert) return;
 
       model.terminate();
       setLoadError(error);
@@ -254,12 +184,12 @@ export function createAskPage() {
     setChecking();
     try {
       const modelCached = await model.isCached();
-      if (view.main.inert) return;
+      if (main.inert) return;
 
       if (modelCached) await loadModel(true);
       else setUnloaded();
     } catch {
-      if (view.main.inert) return;
+      if (main.inert) return;
 
       model.terminate();
       setUnloaded("Cache status unavailable. Download the model to continue.");
@@ -271,6 +201,7 @@ export function createAskPage() {
 
     if (chat.messages.length) {
       const wasSingleChat = workspace.chats.length === 1;
+
       workspace = askStorage.create();
       chat = workspace.activeChat;
       if (wasSingleChat) {
@@ -278,19 +209,22 @@ export function createAskPage() {
         localStorage.setItem(SIDEBAR_PREFERENCE_KEY, "false");
       }
       model.reset();
-      view.input.value = "";
+      composer.value = "";
       renderChat();
     }
 
-    setSidebarOpen(view, false);
+    setSidebarOpen(false);
     syncSidebar();
-    if (loaded) view.input.focus();
+    if (loaded) {
+      setReady();
+      composer.focus();
+    }
   }
 
   /** @param {string} id */
   function selectChat(id) {
     if (busy || id === chat.id) {
-      setSidebarOpen(view, false);
+      setSidebarOpen(false);
       syncSidebar();
       return;
     }
@@ -298,14 +232,14 @@ export function createAskPage() {
     workspace = askStorage.select(id);
     chat = workspace.activeChat;
     model.reset();
-    view.input.value = "";
+    composer.value = "";
     renderChat();
-    setSidebarOpen(view, false);
+    setSidebarOpen(false);
     syncSidebar();
 
     if (loaded) {
       setReady();
-      view.input.focus();
+      composer.focus();
     } else if (!checking && !loading) {
       setUnloaded();
     }
@@ -321,27 +255,31 @@ export function createAskPage() {
     workspace = askStorage.remove(id);
     chat = workspace.activeChat;
     model.reset();
-    view.input.value = "";
+    composer.value = "";
     renderChat();
 
     if (loaded) setReady();
     else if (!checking && !loading) setUnloaded();
   }
 
-  renderChat();
+  function toggleSidebar() {
+    if (mobileSidebar.matches) {
+      setSidebarOpen(!main.hasAttribute("data-sidebar-open"));
+    } else {
+      sidebarCollapsed = !sidebarCollapsed;
+      localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(sidebarCollapsed));
+      setSidebarOpen(false);
+    }
+    syncSidebar();
+  }
 
-  view.loadButton.addEventListener("click", () => void loadModel(false));
-
-  view.form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  /** @param {string} question */
+  async function submitQuestion(question) {
     if (!loaded || busy) return;
 
-    const question = view.input.value.trim();
-    if (!question) return;
-
-    view.input.value = "";
-    const questionMessage = appendMessage(view.transcript, "user", question);
-    const answerMessage = appendMessage(view.transcript, "assistant", "");
+    composer.value = "";
+    const questionMessage = conversation.append("user", question);
+    const answerMessage = conversation.append("assistant", "");
     const draft = {
       ...chat,
       messages: [
@@ -349,16 +287,14 @@ export function createAskPage() {
         { role: /** @type {const} */ ("user"), content: question },
       ],
     };
+
     busy = true;
     followingOutput = true;
-    view.main.dataset.state = "generating";
-    view.input.disabled = true;
-    view.askButton.hidden = true;
-    view.stopButton.hidden = false;
-    view.activity.hidden = true;
-    syncConversation();
-    syncChatControls();
-    scrollToBottom();
+    main.dataset.state = "generating";
+    loader.ready();
+    composer.generating();
+    syncControls();
+    conversation.scrollToBottom();
 
     try {
       const prepared = await prepareContext(draft, model, () => {});
@@ -366,12 +302,12 @@ export function createAskPage() {
         prepared.messages,
         ({ text }) => {
           answerMessage.content.append(text);
-          if (followingOutput) scrollToBottom();
+          if (followingOutput) conversation.scrollToBottom();
         },
       );
 
-      setMessageContent(answerMessage.content, "assistant", output);
-      if (followingOutput) scrollToBottom();
+      conversation.setContent(answerMessage.content, "assistant", output);
+      if (followingOutput) conversation.scrollToBottom();
       workspace = askStorage.save({
         ...prepared.chat,
         messages: [
@@ -382,106 +318,44 @@ export function createAskPage() {
       chat = workspace.activeChat;
       renderChatList();
       setReady();
-      view.input.focus();
+      composer.focus();
     } catch (error) {
       questionMessage.item.remove();
       answerMessage.item.remove();
-      view.input.value = question;
-      syncConversation();
+      composer.value = question;
+      conversation.sync();
 
-      if (view.main.inert) {
+      if (main.inert) {
         setUnloaded();
         return;
       }
 
       setReady();
-      view.activity.hidden = false;
-      view.activity.textContent = `Could not answer · ${errorMessage(error)}`;
-      view.input.focus();
+      loader.answerError(errorMessage(error));
+      composer.focus();
     }
-  });
-
-  view.stopButton.addEventListener("click", () => {
-    model.stop();
-  });
-
-  view.conversation.addEventListener("scroll", () => {
-    if (!busy) return;
-
-    followingOutput = isNearBottom();
-    if (!followingOutput) cancelAnimationFrame(scrollFrame);
-  });
-
-  for (const button of view.newChatButtons) {
-    button.addEventListener("click", openNewChat);
   }
 
-  view.sidebarToggle.addEventListener("click", () => {
-    if (mobileSidebar.matches) {
-      setSidebarOpen(view, !view.main.hasAttribute("data-sidebar-open"));
-    } else {
-      sidebarCollapsed = !sidebarCollapsed;
-      localStorage.setItem(
-        SIDEBAR_PREFERENCE_KEY,
-        String(sidebarCollapsed),
-      );
-      setSidebarOpen(view, false);
-    }
+  sidebar.backdrop.addEventListener("click", () => {
+    setSidebarOpen(false);
     syncSidebar();
   });
-  view.backdrop.addEventListener("click", () => {
-    setSidebarOpen(view, false);
-    syncSidebar();
-  });
-
-  view.chats.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-
-    const button = target.closest("button[data-chat-id]");
-    if (!(button instanceof HTMLButtonElement)) return;
-    const id = button.dataset.chatId;
-    if (!id) return;
-    if (button.dataset.action !== "select") return;
-
-    selectChat(id);
-  });
-
-  view.suggestions.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-
-    const button = target.closest("button[data-prompt]");
-    if (!(button instanceof HTMLButtonElement)) return;
-
-    view.input.value = button.dataset.prompt ?? "";
-    view.input.focus();
-  });
-
-  view.input.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-    event.preventDefault();
-    view.form.requestSubmit();
-  });
-
-  view.main.addEventListener("keydown", (event) => {
+  main.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
 
-    setSidebarOpen(view, false);
+    setSidebarOpen(false);
     syncSidebar();
   });
-
   mobileSidebar.addEventListener("change", syncSidebar);
-
-  view.main.addEventListener("pageactive", () => void activateModel());
-
-  view.main.addEventListener("pageinactive", () => {
+  main.addEventListener("pageactive", () => void activateModel());
+  main.addEventListener("pageinactive", () => {
     model.terminate();
-    setSidebarOpen(view, false);
+    setSidebarOpen(false);
     setUnloaded();
     syncSidebar();
   });
 
+  renderChat();
   setUnloaded();
-  return view.main;
+  return main;
 }
