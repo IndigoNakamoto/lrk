@@ -1,8 +1,12 @@
-const MAX_INPUT_TOKENS = 5_600;
+const MAX_INPUT_TOKENS = 2_200;
 const KEEP_RECENT_MESSAGES = 5;
 
 const BASE_INSTRUCTIONS =
-  "You are a helpful assistant. Answer clearly and concisely.";
+  `You are the Bitview assistant for the BRK Bitcoin research project.
+Answer clearly and concisely.
+For BRK questions, current repository evidence supplied by tools is authoritative. Use only that evidence for source-defined behavior, APIs, terminology, and metrics. Mention relevant repository paths.
+In BRK source evidence, sats means Bitcoin satoshis, not products, sales, or shares. Do not reinterpret formulas or add financial meaning that the evidence does not establish.
+Use metric search before building charts. Build an inline chart when it materially helps answer a quantitative Bitcoin question.`;
 
 const MEMORY_INSTRUCTIONS = `You maintain compact memory for a conversation.
 Merge the existing memory with the newly provided dialogue.
@@ -21,7 +25,10 @@ function messagesFor(chat) {
 
   return [
     { role: /** @type {const} */ ("system"), content: instructions },
-    ...chat.messages.slice(chat.compactedCount),
+    ...chat.messages.slice(chat.compactedCount).map(({ role, content }) => ({
+      role,
+      content,
+    })),
   ];
 }
 
@@ -46,11 +53,12 @@ function compactionPrompt(memory, messages) {
 /**
  * @param {StoredChat} chat
  * @param {AskModel} model
+ * @param {readonly unknown[]} tools
  * @param {() => void} onCompacting
  */
-export async function prepareContext(chat, model, onCompacting) {
+export async function prepareContext(chat, model, tools, onCompacting) {
   const messages = messagesFor(chat);
-  const tokenCount = await model.countTokens(messages);
+  const tokenCount = await model.countTokens(messages, tools);
   const compactThrough = chat.messages.length - KEEP_RECENT_MESSAGES;
 
   if (

@@ -2,11 +2,62 @@ const INDEX_KEY = "bitview.ask.chats.v2";
 const CHAT_KEY_PREFIX = "bitview.ask.chat.v2.";
 const LEGACY_KEY = "bitview.ask.v1";
 const NEW_CHAT_TITLE = "New chat";
+const CHART_UNITS = new Set(["addresses", "blocks", "btc", "percent", "utxos", "usd"]);
+const CHART_VIEWS = new Set(["line", "area", "stacked", "bar", "dots"]);
+const CHART_SCALES = new Set(["linear", "log"]);
+const CHART_COLORS = new Set([
+  "orange",
+  "white",
+  "gray",
+  "sky",
+  "cyan",
+  "teal",
+  "yellow",
+  "avocado",
+  "amber",
+  "green",
+  "emerald",
+  "lime",
+  "rose",
+  "pink",
+  "fuchsia",
+  "purple",
+  "violet",
+  "indigo",
+  "blue",
+  "red",
+]);
 
 /**
  * @typedef {Object} StoredMessage
  * @property {"user" | "assistant"} role
  * @property {string} content
+ * @property {number} [elapsedMs]
+ * @property {StoredResponseStep[]} [steps]
+ * @property {StoredArtifact[]} [artifacts]
+ *
+ * @typedef {Object} StoredResponseStep
+ * @property {string} label
+ * @property {number} elapsedMs
+ *
+ * @typedef {Object} ChartSeriesSpec
+ * @property {string} path
+ * @property {string} label
+ * @property {"orange" | "white" | "gray" | "sky" | "cyan" | "teal" | "yellow" | "avocado" | "amber" | "green" | "emerald" | "lime" | "rose" | "pink" | "fuchsia" | "purple" | "violet" | "indigo" | "blue" | "red"} color
+ *
+ * @typedef {Object} ChartSpec
+ * @property {string} title
+ * @property {"addresses" | "blocks" | "btc" | "percent" | "utxos" | "usd"} unit
+ * @property {"line" | "area" | "stacked" | "bar" | "dots"} view
+ * @property {"linear" | "log"} scale
+ * @property {ChartSeriesSpec[]} series
+ *
+ * @typedef {Object} ChartArtifact
+ * @property {"chart"} type
+ * @property {string} id
+ * @property {ChartSpec} chart
+ *
+ * @typedef {ChartArtifact} StoredArtifact
  *
  * @typedef {Object} ChatMeta
  * @property {string} id
@@ -30,15 +81,97 @@ const NEW_CHAT_TITLE = "New chat";
  * @property {ChatMeta[]} chats
  */
 
-/** @param {unknown} value */
-function isStoredMessage(value) {
-  if (!value || typeof value !== "object") return false;
+/** @param {unknown} value @returns {StoredArtifact | undefined} */
+function readArtifact(value) {
+  if (!value || typeof value !== "object") return undefined;
+  const artifact = /** @type {Record<string, any>} */ (value);
+  const chart = artifact.chart;
+  if (
+    artifact.type !== "chart" ||
+    typeof artifact.id !== "string" ||
+    !chart ||
+    typeof chart !== "object" ||
+    typeof chart.title !== "string" ||
+    typeof chart.unit !== "string" ||
+    typeof chart.view !== "string" ||
+    typeof chart.scale !== "string" ||
+    !CHART_UNITS.has(chart.unit) ||
+    !CHART_VIEWS.has(chart.view) ||
+    !CHART_SCALES.has(chart.scale) ||
+    !Array.isArray(chart.series)
+  ) return undefined;
+
+  const series = chart.series.filter(
+    (/** @type {any} */ item) =>
+      item &&
+      typeof item.path === "string" &&
+      typeof item.label === "string" &&
+      typeof item.color === "string" &&
+      CHART_COLORS.has(item.color),
+  );
+  if (!series.length) return undefined;
+
+  return /** @type {StoredArtifact} */ ({
+    type: "chart",
+    id: artifact.id,
+    chart: {
+      title: chart.title,
+      unit: chart.unit,
+      view: chart.view,
+      scale: chart.scale,
+      series,
+    },
+  });
+}
+
+/** @param {unknown} value @returns {StoredResponseStep | undefined} */
+function readResponseStep(value) {
+  if (!value || typeof value !== "object") return undefined;
+
+  const step = /** @type {Record<string, unknown>} */ (value);
+  if (
+    typeof step.label !== "string" ||
+    typeof step.elapsedMs !== "number" ||
+    !Number.isFinite(step.elapsedMs) ||
+    step.elapsedMs < 0
+  ) return undefined;
+
+  return { label: step.label, elapsedMs: step.elapsedMs };
+}
+
+/** @param {unknown} value @returns {StoredMessage | undefined} */
+function readMessage(value) {
+  if (!value || typeof value !== "object") return undefined;
 
   const message = /** @type {Record<string, unknown>} */ (value);
-  return (
-    (message.role === "user" || message.role === "assistant") &&
-    typeof message.content === "string"
-  );
+  if (
+    (message.role !== "user" && message.role !== "assistant") ||
+    typeof message.content !== "string"
+  ) return undefined;
+
+  const artifacts = Array.isArray(message.artifacts)
+    ? /** @type {StoredArtifact[]} */ (
+        message.artifacts.map(readArtifact).filter(Boolean)
+      )
+    : [];
+  const elapsedMs =
+    typeof message.elapsedMs === "number" &&
+    Number.isFinite(message.elapsedMs) &&
+    message.elapsedMs >= 0
+      ? message.elapsedMs
+      : undefined;
+  const steps = Array.isArray(message.steps)
+    ? /** @type {StoredResponseStep[]} */ (
+        message.steps.map(readResponseStep).filter(Boolean)
+      )
+    : [];
+  return {
+    role: message.role,
+    content: message.content,
+    ...(elapsedMs !== undefined ? { elapsedMs } : {}),
+    ...(steps.length ? { steps } : {}),
+    ...(artifacts.length ? { artifacts } : {}),
+  };
 }
 
 /** @param {string} question */
@@ -114,7 +247,7 @@ function readChat(meta) {
 
   const stored = JSON.parse(value);
   const messages = Array.isArray(stored.messages)
-    ? stored.messages.filter(isStoredMessage)
+    ? stored.messages.map(readMessage).filter(Boolean)
     : [];
   const compactedCount = Math.min(
     Number(stored.compactedCount) || 0,
@@ -135,7 +268,7 @@ function initialize() {
   const meta = createMeta();
   const legacy = localStorage.getItem(LEGACY_KEY);
   const messages = /** @type {StoredMessage[]} */ (
-    legacy ? JSON.parse(legacy).filter(isStoredMessage) : []
+    legacy ? JSON.parse(legacy).map(readMessage).filter(Boolean) : []
   );
 
   if (messages.length) {

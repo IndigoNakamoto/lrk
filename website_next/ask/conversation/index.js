@@ -50,9 +50,10 @@ export function createAskConversation(options) {
     /**
      * @param {"user" | "assistant"} role
      * @param {string} text
+     * @param {import("../storage.js").StoredArtifact[]} [artifacts]
      */
-    append(role, text) {
-      const message = createAskMessage(role, text);
+    append(role, text, artifacts = []) {
+      const message = createAskMessage(role, text, { artifacts });
 
       transcript.append(message.item);
       sync();
@@ -70,7 +71,15 @@ export function createAskConversation(options) {
     render(messages) {
       transcript.replaceChildren(
         ...messages.map((message) =>
-          createAskMessage(message.role, message.content).item
+          createAskMessage(
+            message.role,
+            message.content,
+            {
+              artifacts: message.artifacts,
+              elapsedMs: message.elapsedMs,
+              steps: message.steps,
+            },
+          ).item
         ),
       );
       sync();

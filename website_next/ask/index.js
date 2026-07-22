@@ -7,6 +7,8 @@ import { createAskLoader } from "./loader/index.js";
 import { AskModel } from "./model.js";
 import { createAskSidebar } from "./sidebar/index.js";
 import { askStorage } from "./storage.js";
+import { createAskTools } from "./tools/index.js";
+import { createResponseTimer } from "./timing.js";
 
 const SIDEBAR_PREFERENCE_KEY = "bitview.ask.sidebar-collapsed.v1";
 
@@ -17,6 +19,7 @@ function errorMessage(error) {
 
 export function createAskPage() {
   const model = new AskModel();
+  const assistant = createAskTools();
   let workspace = askStorage.load();
   let chat = workspace.activeChat;
   let loaded = false;
@@ -49,6 +52,7 @@ export function createAskPage() {
     onSubmit: submitQuestion,
     onStop() {
       model.stop();
+      assistant.stop();
     },
   });
   const loader = createAskLoader({
@@ -280,6 +284,7 @@ export function createAskPage() {
     composer.value = "";
     const questionMessage = conversation.append("user", question);
     const answerMessage = conversation.append("assistant", "");
+    const timer = createResponseTimer(answerMessage.setSteps);
     const draft = {
       ...chat,
       messages: [
@@ -297,22 +302,45 @@ export function createAskPage() {
     conversation.scrollToBottom();
 
     try {
-      const prepared = await prepareContext(draft, model, () => {});
-      const output = await model.generate(
-        prepared.messages,
-        ({ text }) => {
+      timer.set("Preparing context");
+      const prepared = await prepareContext(
+        draft,
+        model,
+        assistant.toolsFor(),
+        () => timer.set("Compacting conversation"),
+      );
+      timer.set("Routing request");
+      const { output, artifacts } = await assistant.answer({
+        chatId: chat.id,
+        history: prepared.chat.messages,
+        model,
+        messages: prepared.messages,
+        onToken({ text }) {
           answerMessage.content.append(text);
           if (followingOutput) conversation.scrollToBottom();
         },
-      );
+        onStatus(status) {
+          timer.set(status);
+          if (followingOutput) conversation.scrollToBottom();
+        },
+      });
 
+      const { elapsedMs, steps } = timer.finish();
       conversation.setContent(answerMessage.content, "assistant", output);
+      answerMessage.setArtifacts(artifacts);
+      answerMessage.setElapsed(elapsedMs);
       if (followingOutput) conversation.scrollToBottom();
       workspace = askStorage.save({
         ...prepared.chat,
         messages: [
           ...prepared.chat.messages,
-          { role: /** @type {const} */ ("assistant"), content: output },
+          {
+            role: /** @type {const} */ ("assistant"),
+            content: output,
+            elapsedMs,
+            steps,
+            ...(artifacts.length ? { artifacts } : {}),
+          },
         ],
       });
       chat = workspace.activeChat;
@@ -350,6 +378,7 @@ export function createAskPage() {
   main.addEventListener("pageactive", () => void activateModel());
   main.addEventListener("pageinactive", () => {
     model.terminate();
+    assistant.terminate();
     setSidebarOpen(false);
     setUnloaded();
     syncSidebar();

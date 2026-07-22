@@ -1,9 +1,12 @@
 const WORKER_URL = import.meta.resolve("./worker.js");
 
 /**
- * @typedef {{ role: "system" | "user" | "assistant", content: string }} ChatMessage
+ * @typedef {{ name: string, arguments: Record<string, unknown> }} ToolCall
+ * @typedef {{ role: "system" | "user" | "assistant" | "tool", content: string, tool_calls?: ToolCall[] }} ChatMessage
  * @typedef {{ progress: number, loaded: number, total: number }} LoadProgress
  * @typedef {{ text: string, tokensPerSecond?: number }} TokenUpdate
+ * @typedef {{ text: string, toolCalls: ToolCall[], finishReason: string, tokensPerSecond?: number }} GenerationResult
+ * @typedef {"auto" | "none" | { name: string }} ToolChoice
  */
 
 export class AskModel {
@@ -56,24 +59,27 @@ export class AskModel {
   /**
    * @param {ChatMessage[]} messages
    * @param {(update: TokenUpdate) => void} onToken
+   * @param {readonly unknown[]} [tools]
+   * @param {ToolChoice} [toolChoice]
    */
-  generate(messages, onToken) {
-    return /** @type {Promise<string>} */ (
-      this.#request("generate", messages, onToken)
+  generate(messages, onToken, tools = [], toolChoice = "auto") {
+    return /** @type {Promise<GenerationResult>} */ (
+      this.#request("generate", messages, onToken, tools, toolChoice)
     );
   }
 
   /** @param {ChatMessage[]} messages */
-  compact(messages) {
-    return /** @type {Promise<string>} */ (
-      this.#request("compact", messages)
+  async compact(messages) {
+    const result = /** @type {GenerationResult} */ (
+      await this.#request("compact", messages)
     );
+    return result.text;
   }
 
-  /** @param {ChatMessage[]} messages */
-  countTokens(messages) {
+  /** @param {ChatMessage[]} messages @param {readonly unknown[]} [tools] */
+  countTokens(messages, tools = []) {
     return /** @type {Promise<number>} */ (
-      this.#request("count", messages)
+      this.#request("count", messages, undefined, tools)
     );
   }
 
@@ -97,15 +103,20 @@ export class AskModel {
    * @param {"generate" | "compact" | "count"} type
    * @param {ChatMessage[]} messages
    * @param {((update: TokenUpdate) => void) | undefined} [onToken]
+   * @param {readonly unknown[]} [tools]
+   * @param {ToolChoice} [toolChoice]
    */
-  #request(type, messages, onToken) {
+  #request(type, messages, onToken, tools = [], toolChoice = "auto") {
     if (!this.#worker) throw new Error("Model is not loaded");
 
     this.#onToken = onToken;
     return new Promise((resolve, reject) => {
       this.#resolve = resolve;
       this.#reject = reject;
-      this.#worker?.postMessage({ type, data: messages });
+      this.#worker?.postMessage({
+        type,
+        data: { messages, tools, toolChoice },
+      });
     });
   }
 
@@ -146,7 +157,7 @@ export class AskModel {
         });
         break;
       case "complete":
-        this.#settle(message.output);
+        this.#settle(message.result);
         break;
       case "counted":
         this.#settle(message.count);

@@ -1,140 +1,162 @@
 import { ASK_MODEL } from "./models.js";
 
-const TRANSFORMERS_URL =
-  "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0";
+/** @type {any} bitgpu has no local declarations. */
+let engine;
 
-/** @type {any} CDN module without local declarations. */
-let generator;
+/** @type {any} bitgpu/chat has no local declarations. */
+let chat;
 
-/** @type {any} CDN module without local declarations. */
-let stoppingCriteria;
-
-/** @type {any} CDN module without local declarations. */
-let transformers;
+/** @type {AbortController | undefined} */
+let generationController;
 
 /** @param {unknown} error */
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** @param {string} url */
+async function cachedResponse(url) {
+  const cache = await caches.open(ASK_MODEL.cacheName);
+  const cached = await cache.match(url);
+  if (cached) return cached;
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not download model file (${response.status})`);
+
+  void cache.put(url, response.clone()).catch(() => {});
+  return response;
+}
+
+/** @param {string} url */
+async function fetchJson(url) {
+  return (await cachedResponse(url)).json();
+}
+
+/** @param {string} url */
+async function fetchArrayBuffer(url) {
+  return (await cachedResponse(url)).arrayBuffer();
+}
+
+/** @param {string} url */
+async function fetchStream(url) {
+  const body = (await cachedResponse(url)).body;
+  if (!body) throw new Error("The model download did not provide a stream");
+  return body;
+}
+
 async function load() {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) throw new Error("WebGPU is unavailable or no adapter was found");
+  if (chat) {
+    self.postMessage({ status: "ready" });
+    return;
+  }
+
+  if (!navigator.gpu) throw new Error("WebGPU is unavailable in this browser");
 
   self.postMessage({ status: "loading", data: "Loading AI runtime..." });
-  await loadRuntime();
-  stoppingCriteria = new transformers.InterruptableStoppingCriteria();
+  const [{ createEngine }, { createChat }] = await Promise.all([
+    import(ASK_MODEL.runtimeUrl),
+    import(ASK_MODEL.chatUrl),
+  ]);
 
   self.postMessage({ status: "loading", data: `Loading ${ASK_MODEL.name}...` });
-  generator = await transformers.pipeline("text-generation", ASK_MODEL.modelId, {
-    device: "webgpu",
-    dtype: ASK_MODEL.dtype,
-    revision: ASK_MODEL.revision,
-    /** @param {{ status: string, progress?: number, loaded?: number, total?: number }} info */
-    progress_callback: (info) => {
-      if (info.status !== "progress_total") return;
+  engine = await createEngine({
+    manifestUrl: ASK_MODEL.manifestUrl,
+    auxUrl: ASK_MODEL.auxUrl,
+    dataUrl: ASK_MODEL.dataUrl,
+    kvCache: "q8",
+    activation: "f16",
+    maxSeqLen: 4_096,
+    syncSteps: 1,
+    fetchJson,
+    fetchArrayBuffer,
+    fetchStream,
+    /** @param {{ phase: string, loaded?: number, total?: number }} progress */
+    onProgress(progress) {
+      const loaded = Number(progress.loaded ?? 0);
+      const total = Number(progress.total ?? 0);
+      if (progress.phase !== "weights" || !total) return;
 
       self.postMessage({
         status: "progress_total",
-        progress: Number(info.progress ?? 0),
-        loaded: Number(info.loaded ?? 0),
-        total: Number(info.total ?? 0),
+        progress: (loaded / total) * 100,
+        loaded,
+        total,
+      });
+    },
+    /** @param {{ message?: string }} info */
+    onDeviceLost(info) {
+      engine = undefined;
+      chat = undefined;
+      self.postMessage({
+        status: "error",
+        data: info.message || "The GPU device was lost",
       });
     },
   });
+  chat = await createChat(engine, {
+    tokenizerJsonUrl: ASK_MODEL.tokenizerJsonUrl,
+    tokenizerConfigUrl: ASK_MODEL.tokenizerConfigUrl,
+    fetchJson,
+  });
 
-  self.postMessage({ status: "loading", data: "Warming up WebGPU..." });
-  const inputs = generator.tokenizer("a");
-  await generator.model.generate({ ...inputs, max_new_tokens: 1 });
   self.postMessage({ status: "ready" });
 }
 
-async function loadRuntime() {
-  transformers ??= await import(TRANSFORMERS_URL);
-  transformers.env.allowLocalModels = false;
-}
-
 async function checkCache() {
-  await loadRuntime();
-  const cached = await transformers.ModelRegistry.is_pipeline_cached(
-    "text-generation",
-    ASK_MODEL.modelId,
-    {
-      device: "webgpu",
-      dtype: ASK_MODEL.dtype,
-      revision: ASK_MODEL.revision,
-    },
-  );
-  self.postMessage({ status: "cache-status", cached });
+  const cache = await caches.open(ASK_MODEL.cacheName);
+  self.postMessage({
+    status: "cache-status",
+    cached: Boolean(await cache.match(ASK_MODEL.dataUrl)),
+  });
 }
 
 /**
- * @param {{ role: string, content: string }[]} messages
- * @param {{ maxNewTokens: number, stream: boolean }} options
+ * @param {{ role: string, content: string, tool_calls?: { name: string, arguments: Record<string, unknown> }[] }[]} messages
+ * @param {{ maxTokens: number, stream: boolean, tools: readonly any[], toolChoice?: "auto" | "none" | { name: string } }} options
  */
 async function generate(messages, options) {
-  if (!generator || !stoppingCriteria || !transformers) {
-    throw new Error("Model is not loaded");
-  }
+  if (!chat) throw new Error("Model is not loaded");
 
-  let startedAt;
-  let tokenCount = 0;
-  /** @type {number | undefined} */
-  let tokensPerSecond;
-  const streamer = options.stream
-    ? new transformers.TextStreamer(generator.tokenizer, {
-        skip_prompt: true,
-        skip_special_tokens: true,
-        /** @param {string} output */
-        callback_function: (output) => {
-          self.postMessage({ status: "update", output, tokensPerSecond });
-        },
-        token_callback_function: () => {
-          startedAt ??= performance.now();
-          tokenCount += 1;
-
-          if (tokenCount > 1) {
-            tokensPerSecond =
-              (tokenCount / (performance.now() - startedAt)) * 1_000;
-          }
-        },
-      })
-    : undefined;
-  const cache = new transformers.DynamicCache();
+  generationController = new AbortController();
+  const tools = options.tools.length ? options.tools : undefined;
+  const stream = options.stream && (!tools || options.toolChoice === "none");
 
   try {
-    const output = await generator(messages, {
-      max_new_tokens: options.maxNewTokens,
-      do_sample: false,
-      streamer,
-      stopping_criteria: stoppingCriteria,
-      past_key_values: cache,
+    const result = await chat.send(messages, {
+      maxTokens: options.maxTokens,
+      temperature: 0,
+      repetitionPenalty: 1.05,
+      signal: generationController.signal,
+      tools,
+      toolChoice: tools ? options.toolChoice : undefined,
+      onText: stream
+        ? (/** @type {string} */ output) => {
+            self.postMessage({ status: "update", output });
+          }
+        : undefined,
     });
 
     self.postMessage({
       status: "complete",
-      output: output[0].generated_text.at(-1).content,
+      result: {
+        text: result.text,
+        toolCalls: result.toolCalls,
+        finishReason: result.finishReason,
+        tokensPerSecond: result.tokensPerSecond,
+      },
     });
   } finally {
-    cache.dispose?.();
+    generationController = undefined;
   }
 }
 
-function reset() {
-  stoppingCriteria?.reset();
-}
-
-/** @param {{ role: string, content: string }[]} messages */
-function countTokens(messages) {
-  if (!generator) throw new Error("Model is not loaded");
-
-  const tokens = generator.tokenizer.apply_chat_template(messages, {
-    add_generation_prompt: true,
-    tokenize: true,
-    return_tensor: false,
-    return_dict: false,
+/** @param {{ role: string, content: string }[]} messages @param {readonly any[]} tools */
+function countTokens(messages, tools) {
+  if (!chat) throw new Error("Model is not loaded");
+  self.postMessage({
+    status: "counted",
+    count: chat.countTokens(messages, { tools: tools.length ? tools : undefined }),
   });
-  self.postMessage({ status: "counted", count: tokens.length });
 }
 
 self.addEventListener("message", async (event) => {
@@ -149,21 +171,28 @@ self.addEventListener("message", async (event) => {
         await load();
         break;
       case "generate":
-        stoppingCriteria?.reset();
-        await generate(data, { maxNewTokens: 384, stream: true });
+        await generate(data.messages, {
+          maxTokens: 256,
+          stream: true,
+          tools: data.tools,
+          toolChoice: data.toolChoice,
+        });
         break;
       case "compact":
-        stoppingCriteria?.reset();
-        await generate(data, { maxNewTokens: 512, stream: false });
+        await generate(data.messages, {
+          maxTokens: 256,
+          stream: false,
+          tools: [],
+        });
         break;
       case "count":
-        countTokens(data);
+        countTokens(data.messages, data.tools);
         break;
       case "interrupt":
-        stoppingCriteria?.interrupt();
+        generationController?.abort();
         break;
       case "reset":
-        reset();
+        chat?.reset();
         break;
     }
   } catch (error) {

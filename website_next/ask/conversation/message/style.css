@@ -107,6 +107,32 @@ main[data-page="ask"] [data-ask-conversation] > ol > li {
       color: color-mix(in oklch, var(--white) 72%, transparent);
     }
   }
+
+  > :is(ol[data-response-steps], small[data-response-time]) {
+    color: color-mix(in oklch, var(--white) 38%, transparent);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--line-height-xs);
+  }
+
+  > ol[data-response-steps] {
+    display: grid;
+    width: min(100%, 18rem);
+    gap: 0.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    > li {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+
+      &[data-active] > span::after {
+        content: "…";
+      }
+    }
+  }
 }
 
 @media (max-width: 48rem) {
