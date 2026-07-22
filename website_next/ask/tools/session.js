@@ -1,10 +1,12 @@
 import { createChartArtifact } from "./chart.js";
 import { readMetric } from "./data.js";
+import { directChartCommand } from "./direct/chart.js";
 import { searchLearn } from "./learn.js";
 import {
   metricByName,
   metricCategories,
   metricVariants,
+  mentionedMetrics,
   searchMetrics,
 } from "./metrics/index.js";
 import { ASK_STAGE_PROMPTS } from "./prompts.js";
@@ -99,6 +101,15 @@ function isDirectDefinition(request) {
     /\bblock\s+\d+\b/.test(text) ||
     /\b\d{4}-\d{2}-\d{2}\b/.test(text);
   return asks && !needsRouting;
+}
+
+/** @param {string[]} topics @param {() => void} onProgress */
+async function exactTopicMetrics(topics, onProgress) {
+  if (!topics.length) return [];
+
+  const names = new Set(topics.map(normalize));
+  const metrics = await searchMetrics(topics, MAX_OPTIONS, [], onProgress);
+  return metrics.filter((metric) => names.has(normalize(metric.name)));
 }
 
 /** @param {string} request */
@@ -251,22 +262,50 @@ export class AskToolSession {
 
   /** @param {(status: string) => void} onStatus */
   async tryDirect(onStatus) {
+    const chart = directChartCommand(this.request, Boolean(this.activeChart));
+    if (chart) {
+      let metrics = await mentionedMetrics(
+        this.request,
+        () => onStatus("Indexing metrics…"),
+      );
+      if (!metrics.length) {
+        metrics = await exactTopicMetrics(
+          this.previousTopics,
+          () => onStatus("Indexing metrics…"),
+        );
+      }
+
+      if (metrics.length) {
+        const refs = metrics.map((metric) => this.refs.issue("metric", metric, metric.path));
+        this.outcome = chart.kind === "edit"
+          ? "edit_existing_chart"
+          : "build_requested_chart";
+        this.rememberMetrics(refs);
+        onStatus("Building chart…");
+        const result = this.buildChart({ refs, operation: chart.operation });
+        return { output: result.output, artifacts: result.artifacts };
+      }
+    }
+
     if (this.previousTopics.length === 1 && isDirectValueFollowup(this.request)) {
       const action = directReadAction(this.request);
       if (action) {
-        const topic = this.previousTopics[0];
-        const metrics = (await searchMetrics(
-          [topic],
-          3,
-          [],
+        let metrics = await mentionedMetrics(
+          this.request,
           () => onStatus("Indexing metrics…"),
-        )).filter((metric) => normalize(metric.name) === normalize(topic));
+        );
+        if (!metrics.length) {
+          metrics = await exactTopicMetrics(
+            this.previousTopics,
+            () => onStatus("Indexing metrics…"),
+          );
+        }
 
-        if (metrics.length === 1) {
+        if (metrics.length) {
           onStatus("Reading data…");
-          const result = await readMetric(metrics[0], action);
-          this.previousTopics = [label(metrics[0].name)];
-          return { output: renderData([result]), artifacts: [] };
+          const results = await Promise.all(metrics.map((metric) => readMetric(metric, action)));
+          this.previousTopics = metrics.map((metric) => label(metric.name));
+          return { output: renderData(results), artifacts: [] };
         }
       }
     }

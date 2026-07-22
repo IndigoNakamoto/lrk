@@ -64,7 +64,7 @@ class MetricIndex {
   /** @type {Map<string, { resolve: (value: any) => void, reject: (error: Error) => void, onProgress?: () => void }>} */
   #pending = new Map();
 
-  /** @param {"search" | "categories" | "byName" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
+  /** @param {"search" | "mentions" | "categories" | "byName" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
   request(type, data, onProgress) {
     this.#ensureWorker();
     const id = crypto.randomUUID();
@@ -121,6 +121,11 @@ const index = new MetricIndex();
 /** @param {string[]} queries @param {number} [limit] @param {string[]} [prefixes] @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
 export function searchMetrics(queries, limit = 16, prefixes = [], onProgress) {
   return index.request("search", { queries, limit, prefixes }, onProgress);
+}
+
+/** @param {string} query @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
+export function mentionedMetrics(query, onProgress) {
+  return index.request("mentions", { query }, onProgress);
 }
 
 /** @returns {Promise<{ path: string, label: string, count: number, examples: string[] }[]>} */

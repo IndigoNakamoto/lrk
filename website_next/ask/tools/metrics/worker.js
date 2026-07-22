@@ -56,6 +56,8 @@ function buildState() {
   const items = [];
   /** @type {Map<string, CatalogMetric>} */
   const byName = new Map();
+  /** @type {Map<string, CatalogMetric[]>} */
+  const bySearchableName = new Map();
   /** @type {Map<string, CatalogMetric>} */
   const byDocument = new Map();
   const seen = new WeakSet();
@@ -76,6 +78,10 @@ function buildState() {
       const metric = { path, name, endpoint, document };
       items.push(metric);
       if (!byName.has(name)) byName.set(name, metric);
+      const nameKey = searchable(name);
+      const named = bySearchableName.get(nameKey) ?? [];
+      named.push(metric);
+      bySearchableName.set(nameKey, named);
       byDocument.set(document, metric);
     } else {
       for (const [key, child] of Object.entries(value)) {
@@ -88,7 +94,7 @@ function buildState() {
   const matcher = new QuickMatch(items.map(({ document }) => document), config);
   /** @type {Map<string, { matcher: QuickMatch, config: QuickMatchConfig }>} */
   const scoped = new Map();
-  return { items, byName, byDocument, matcher, config, scoped };
+  return { items, byName, bySearchableName, byDocument, matcher, config, scoped };
 }
 
 /** @type {Promise<ReturnType<typeof buildState>> | undefined} */
@@ -199,6 +205,31 @@ function search(index, queries, limit, prefixes) {
   return output;
 }
 
+/** @param {ReturnType<typeof buildState>} index @param {string} query */
+function mentions(index, query) {
+  const words = searchable(query).match(/[a-z0-9]+/g) ?? [];
+  /** @type {{ start: number, end: number, metric: CatalogMetric }[]} */
+  const matches = [];
+
+  for (let start = 0; start < words.length; start += 1) {
+    for (let end = start + 1; end <= words.length; end += 1) {
+      const named = index.bySearchableName.get(words.slice(start, end).join(" "));
+      if (named?.length === 1) matches.push({ start, end, metric: named[0] });
+    }
+  }
+
+  const maximal = matches.filter((match) =>
+    !matches.some((candidate) =>
+      candidate.start <= match.start &&
+      candidate.end >= match.end &&
+      candidate.end - candidate.start > match.end - match.start
+    )
+  );
+  return [...new Map(
+    maximal.map(({ metric }) => [metric.path, publicMetric(metric)]),
+  ).values()];
+}
+
 /** @param {ReturnType<typeof buildState>} index */
 function categories(index) {
   /** @type {Map<string, { path: string, label: string, count: number, branches: Map<string, number>[] }>} */
@@ -301,6 +332,8 @@ self.addEventListener("message", async (event) => {
     let result;
     if (type === "search") {
       result = search(index, data.queries, data.limit, data.prefixes);
+    } else if (type === "mentions") {
+      result = mentions(index, data.query);
     } else if (type === "categories") {
       result = categories(index);
     } else if (type === "byName") {
