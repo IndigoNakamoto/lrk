@@ -303,18 +303,22 @@ export function createAskPage() {
 
     try {
       timer.set("Preparing context");
-      const prepared = await prepareContext(
-        draft,
-        model,
-        assistant.toolsFor(),
-        () => timer.set("Compacting conversation"),
-      );
-      timer.set("Routing request");
-      const { output, artifacts } = await assistant.answer({
+      const { output, artifacts, metricPaths, chat: preparedChat } = await assistant.answer({
         chatId: chat.id,
-        history: prepared.chat.messages,
+        question,
+        history: draft.messages,
         model,
-        messages: prepared.messages,
+        async prepare() {
+          timer.set("Preparing context");
+          const prepared = await prepareContext(
+            draft,
+            model,
+            assistant.toolsFor(),
+            () => timer.set("Compacting conversation"),
+          );
+          timer.set("Routing request");
+          return prepared;
+        },
         onToken({ text }) {
           answerMessage.content.append(text);
           if (followingOutput) conversation.scrollToBottom();
@@ -330,15 +334,17 @@ export function createAskPage() {
       answerMessage.setArtifacts(artifacts);
       answerMessage.setElapsed(elapsedMs);
       if (followingOutput) conversation.scrollToBottom();
+      const answeredChat = preparedChat ?? draft;
       workspace = askStorage.save({
-        ...prepared.chat,
+        ...answeredChat,
         messages: [
-          ...prepared.chat.messages,
+          ...answeredChat.messages,
           {
             role: /** @type {const} */ ("assistant"),
             content: output,
             elapsedMs,
             steps,
+            metricPaths,
             ...(artifacts.length ? { artifacts } : {}),
           },
         ],

@@ -11,12 +11,8 @@ const MAX_TOOL_ROUNDS = 8;
  * @property {boolean} [general]
  * @property {string} [output]
  * @property {import("../storage.js").StoredArtifact[]} [artifacts]
+ * @property {string[]} [metricPaths]
  */
-
-/** @param {import("../model.js").ChatMessage[]} messages */
-function latestQuestion(messages) {
-  return messages.findLast((message) => message.role === "user")?.content ?? "";
-}
 
 export function createAskTools() {
   const source = new AskSource();
@@ -43,22 +39,29 @@ export function createAskTools() {
     /**
      * @param {Object} options
      * @param {string} options.chatId
+     * @param {string} options.question
      * @param {import("../storage.js").StoredMessage[]} options.history
      * @param {import("../model.js").AskModel} options.model
-     * @param {import("../model.js").ChatMessage[]} options.messages
+     * @param {() => Promise<{ chat: import("../storage.js").StoredChat, messages: import("../model.js").ChatMessage[] }>} options.prepare
      * @param {(update: import("../model.js").TokenUpdate) => void} options.onToken
      * @param {(status: string) => void} options.onStatus
      */
-    async answer({ chatId, history, model, messages, onStatus }) {
+    async answer({ chatId, question, history, model, prepare, onToken, onStatus }) {
       controller = new AbortController();
       const { signal } = controller;
-      const question = latestQuestion(messages);
       const session = sessionFor(chatId);
-      session.begin(question, history);
+      await session.begin(
+        question,
+        history,
+        () => onStatus("Indexing metrics…"),
+      );
 
       try {
         const direct = await session.tryDirect(onStatus);
-        if (direct) return direct;
+        if (direct) return { ...direct, metricPaths: session.metricPaths() };
+
+        const prepared = await prepare();
+        const { messages } = prepared;
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
           signal.throwIfAborted();
@@ -90,9 +93,26 @@ export function createAskTools() {
             await session.execute(call.arguments, onStatus)
           );
           if (!outcome.done) continue;
+          if (outcome.general) {
+            onStatus("Answering…");
+            const answer = await model.generate(
+              messages,
+              onToken,
+              [],
+              "none",
+            );
+            return {
+              output: answer.text,
+              artifacts: [],
+              metricPaths: [],
+              chat: prepared.chat,
+            };
+          }
           return {
             output: outcome.output ?? "",
             artifacts: outcome.artifacts ?? [],
+            metricPaths: session.metricPaths(),
+            chat: prepared.chat,
           };
         }
         throw new Error("The AI used too many tool steps. Try a more specific question.");

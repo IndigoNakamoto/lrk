@@ -1,4 +1,5 @@
 import { brk } from "../../../utils/client.js";
+import { expandMetricQueries } from "./language.js";
 
 const WORKER_URL = import.meta.resolve("./worker.js");
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
@@ -64,7 +65,7 @@ class MetricIndex {
   /** @type {Map<string, { resolve: (value: any) => void, reject: (error: Error) => void, onProgress?: () => void }>} */
   #pending = new Map();
 
-  /** @param {"search" | "mentions" | "categories" | "byName" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
+  /** @param {"search" | "mentions" | "categories" | "byName" | "byPaths" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
   request(type, data, onProgress) {
     this.#ensureWorker();
     const id = crypto.randomUUID();
@@ -120,7 +121,11 @@ const index = new MetricIndex();
 
 /** @param {string[]} queries @param {number} [limit] @param {string[]} [prefixes] @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
 export function searchMetrics(queries, limit = 16, prefixes = [], onProgress) {
-  return index.request("search", { queries, limit, prefixes }, onProgress);
+  return index.request(
+    "search",
+    { queries: expandMetricQueries(queries), limit, prefixes },
+    onProgress,
+  );
 }
 
 /** @param {string} query @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
@@ -136,6 +141,11 @@ export function metricCategories() {
 /** @param {string} name @returns {Promise<CatalogMetric | undefined>} */
 export function metricByName(name) {
   return index.request("byName", { name });
+}
+
+/** @param {string[]} paths @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
+export function metricsByPaths(paths, onProgress) {
+  return index.request("byPaths", { paths }, onProgress);
 }
 
 /** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: CatalogMetric[] } | undefined>} */

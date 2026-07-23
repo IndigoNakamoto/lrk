@@ -15,8 +15,8 @@ function actionTool(properties, required) {
   };
 }
 
-/** @param {boolean} hasActiveChart @param {boolean} hasPrevious @param {{ path: string, label: string }[]} [categories] */
-export function searchTool(hasActiveChart = false, hasPrevious = false, categories = []) {
+/** @param {boolean} hasActiveChart @param {boolean} hasPrevious */
+export function searchTool(hasActiveChart = false, hasPrevious = false) {
   return actionTool({
     action: { type: "string", enum: ["search"] },
     context: {
@@ -38,13 +38,6 @@ export function searchTool(hasActiveChart = false, hasPrevious = false, categori
       enum: ["single", "multiple"],
       description: "Use multiple whenever the user requests a comparison or more than one distinct metric, even if queries accidentally contains one item.",
     },
-    families: {
-      type: "array",
-      minItems: 1,
-      maxItems: 3,
-      items: { type: "string", enum: ["auto", ...categories.map(({ path }) => path)] },
-      description: `Use auto for exact terminology. Otherwise choose the narrowest source-derived family that expresses the user's meaning: ${categories.map(({ path, label }) => `${path}=${label}`).join("; ") || "auto only"}.`,
-    },
     outcome: {
       type: "string",
       enum: [
@@ -52,14 +45,10 @@ export function searchTool(hasActiveChart = false, hasPrevious = false, categori
         "build_requested_chart",
         ...(hasActiveChart ? ["edit_existing_chart"] : []),
         "explain_from_verified_facts",
+        "answer_general",
       ],
     },
-    focus: {
-      type: "string",
-      enum: ["definition", "variants", "implementation", "data"],
-      description: "Choose variants for cohorts or availability, implementation for source code or calculation details, definition for conceptual explanations, and data for values or charts.",
-    },
-  }, ["action", "context", "queries", "cardinality", "families", "outcome", "focus"]);
+  }, ["action", "context", "queries", "cardinality", "outcome"]);
 }
 
 /** @param {{ ref: string, label: string }[]} options */
@@ -85,7 +74,7 @@ export function rewriteTool(queries) {
       minItems: queries.length,
       maxItems: queries.length,
       items: { type: "string" },
-      description: `Rewrite each input independently, in the same order, without merging them: ${queries.map((query, index) => `${index + 1}=${query}`).join("; ")}. For what one bitcoin is worth or trades for, use bitcoin spot price. Never use cointime unless explicitly requested.`,
+      description: `Rewrite each input independently, in the same order, without merging them: ${queries.map((query, index) => `${index + 1}=${query}`).join("; ")}.`,
     },
   }, ["action", "queries"]);
 }

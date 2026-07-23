@@ -56,6 +56,8 @@ function buildState() {
   const items = [];
   /** @type {Map<string, CatalogMetric>} */
   const byName = new Map();
+  /** @type {Map<string, CatalogMetric>} */
+  const byPath = new Map();
   /** @type {Map<string, CatalogMetric[]>} */
   const bySearchableName = new Map();
   /** @type {Map<string, CatalogMetric>} */
@@ -78,6 +80,7 @@ function buildState() {
       const metric = { path, name, endpoint, document };
       items.push(metric);
       if (!byName.has(name)) byName.set(name, metric);
+      byPath.set(path, metric);
       const nameKey = searchable(name);
       const named = bySearchableName.get(nameKey) ?? [];
       named.push(metric);
@@ -94,7 +97,7 @@ function buildState() {
   const matcher = new QuickMatch(items.map(({ document }) => document), config);
   /** @type {Map<string, { matcher: QuickMatch, config: QuickMatchConfig }>} */
   const scoped = new Map();
-  return { items, byName, bySearchableName, byDocument, matcher, config, scoped };
+  return { items, byName, byPath, bySearchableName, byDocument, matcher, config, scoped };
 }
 
 /** @type {Promise<ReturnType<typeof buildState>> | undefined} */
@@ -339,6 +342,11 @@ self.addEventListener("message", async (event) => {
     } else if (type === "byName") {
       const metric = index.byName.get(data.name);
       result = metric ? publicMetric(metric) : undefined;
+    } else if (type === "byPaths") {
+      result = data.paths
+        .map((/** @type {string} */ path) => index.byPath.get(path))
+        .filter(Boolean)
+        .map(publicMetric);
     } else if (type === "variants") {
       result = variants(index, data.name, data.query);
     } else {

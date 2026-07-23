@@ -35,6 +35,7 @@ const CHART_COLORS = new Set([
  * @property {number} [elapsedMs]
  * @property {StoredResponseStep[]} [steps]
  * @property {StoredArtifact[]} [artifacts]
+ * @property {string[]} [metricPaths]
  *
  * @typedef {Object} StoredResponseStep
  * @property {string} label
@@ -165,12 +166,20 @@ function readMessage(value) {
         message.steps.map(readResponseStep).filter(Boolean)
       )
     : [];
+  const rawMetricPaths = message.metricPaths;
+  const hasMetricPaths = Array.isArray(rawMetricPaths);
+  const metricPaths = hasMetricPaths
+    ? [...new Set(/** @type {string[]} */ (rawMetricPaths.filter(
+        (/** @type {unknown} */ path) => typeof path === "string" && path.trim(),
+      )))].slice(0, 6)
+    : [];
   return {
     role: message.role,
     content: message.content,
     ...(elapsedMs !== undefined ? { elapsedMs } : {}),
     ...(steps.length ? { steps } : {}),
     ...(artifacts.length ? { artifacts } : {}),
+    ...(hasMetricPaths ? { metricPaths } : {}),
   };
 }
 

@@ -1,11 +1,13 @@
 import { createChartArtifact } from "./chart.js";
 import { readMetric } from "./data.js";
 import { directChartCommand } from "./direct/chart.js";
+import { directEvidenceFocus } from "./direct/evidence.js";
 import { searchLearn } from "./learn.js";
 import {
   metricByName,
   metricCategories,
   metricVariants,
+  metricsByPaths,
   mentionedMetrics,
   searchMetrics,
 } from "./metrics/index.js";
@@ -70,6 +72,11 @@ function isExplicitComparison(value) {
 /** @param {string} value */
 function referencesPrevious(value) {
   return /\b(?:it|its|that|this|they|their|them|those|these|same)\b/i.test(value);
+}
+
+/** @param {string} value */
+function referencesSingular(value) {
+  return /\b(?:it|its|that|this)\b/i.test(value);
 }
 
 /** @param {string} request */
@@ -146,6 +153,19 @@ function latestChart(history) {
   return undefined;
 }
 
+/** @param {any[]} history @returns {string[] | undefined} */
+function latestMetricPaths(history) {
+  for (const message of [...history].reverse()) {
+    if (Array.isArray(message.metricPaths)) return message.metricPaths;
+
+    const chart = message.artifacts?.findLast?.(
+      (/** @type {any} */ artifact) => artifact.type === "chart",
+    );
+    if (chart) return chart.chart.series.map((/** @type {any} */ item) => item.path);
+  }
+  return undefined;
+}
+
 /** @param {any[]} items */
 function uniqueMetricOptions(items) {
   return [...new Map(items.map((/** @type {any} */ item) => [item.ref, item])).values()];
@@ -214,6 +234,10 @@ export class AskToolSession {
   request = "";
   /** @type {string[]} */
   previousTopics = [];
+  /** @type {any[]} */
+  previousMetrics = [];
+  /** @type {any[]} */
+  contextMetrics = [];
   query = "";
   /** @type {string[]} */
   queries = [];
@@ -238,8 +262,8 @@ export class AskToolSession {
   /** @type {ChartArtifact | undefined} */
   activeChart;
 
-  /** @param {string} request @param {any[]} history */
-  begin(request, history) {
+  /** @param {string} request @param {any[]} history @param {() => void} onProgress */
+  async begin(request, history, onProgress) {
     this.refs = new AskRefs();
     this.request = request.trim();
     this.query = "";
@@ -251,6 +275,7 @@ export class AskToolSession {
     this.rewritten = false;
     this.rewriteChanged = false;
     this.comparison = false;
+    this.contextMetrics = [];
     this.categoryPaths = [];
     this.observation = undefined;
     this.options = [];
@@ -258,21 +283,39 @@ export class AskToolSession {
     this.formula = undefined;
     this.sourceSearched = false;
     this.activeChart ??= latestChart(history);
+
+    const paths = latestMetricPaths(history);
+    if (paths === undefined) return;
+
+    const current = this.previousMetrics.map((metric) => metric.path);
+    if (paths.length === current.length && paths.every((path, index) => path === current[index])) {
+      return;
+    }
+    const metrics = paths.length ? await metricsByPaths(paths, onProgress) : [];
+    this.rememberMetricValues(metrics);
   }
 
   /** @param {(status: string) => void} onStatus */
   async tryDirect(onStatus) {
-    const chart = directChartCommand(this.request, Boolean(this.activeChart));
+    const evidence = directEvidenceFocus(this.request);
+    const chart = evidence
+      ? undefined
+      : directChartCommand(this.request, Boolean(this.activeChart));
     if (chart) {
       let metrics = await mentionedMetrics(
         this.request,
         () => onStatus("Indexing metrics…"),
       );
       if (!metrics.length) {
-        metrics = await exactTopicMetrics(
-          this.previousTopics,
-          () => onStatus("Indexing metrics…"),
-        );
+        if (this.previousTopics.length > 1 && referencesSingular(this.request)) {
+          return undefined;
+        }
+        metrics = this.previousMetrics.length
+          ? this.previousMetrics
+          : await exactTopicMetrics(
+              this.previousTopics,
+              () => onStatus("Indexing metrics…"),
+            );
       }
 
       if (metrics.length) {
@@ -280,10 +323,49 @@ export class AskToolSession {
         this.outcome = chart.kind === "edit"
           ? "edit_existing_chart"
           : "build_requested_chart";
-        this.rememberMetrics(refs);
         onStatus("Building chart…");
         const result = this.buildChart({ refs, operation: chart.operation });
         return { output: result.output, artifacts: result.artifacts };
+      }
+    }
+
+    if (evidence) {
+      let metrics = await mentionedMetrics(
+        this.request,
+        () => onStatus("Indexing metrics…"),
+      );
+      if (!metrics.length && this.previousMetrics.length === 1 && referencesPrevious(this.request)) {
+        metrics = this.previousMetrics;
+      }
+
+      if (metrics.length) {
+        if (evidence === "implementation" && metrics.length !== 1) return undefined;
+        if (evidence === "variants") {
+          const supported = await Promise.all(
+            metrics.map(async (metric) =>
+              await metricVariants(metric, this.request) ? metric : undefined
+            ),
+          );
+          metrics = supported.filter((metric) => metric !== undefined);
+          if (!metrics.length) return undefined;
+        }
+        if (evidence === "implementation") {
+          onStatus("Searching source…");
+          this.formula = await this.source.explain(
+            [this.request, ...metrics.map((metric) => metric.name)].join("\n"),
+            ({ loaded, total }) => onStatus(`Indexing source · ${loaded} / ${total}`),
+          );
+          if (
+            !this.formula ||
+            !metrics.some((metric) => normalize(metric.name) === normalize(this.formula.fact.metric))
+          ) return undefined;
+        }
+
+        this.focus = evidence;
+        const refs = metrics.map((metric) => this.refs.issue("metric", metric, metric.path));
+        onStatus("Inspecting results…");
+        const result = await this.inspect(refs);
+        return { output: result.output, artifacts: [] };
       }
     }
 
@@ -295,16 +377,18 @@ export class AskToolSession {
           () => onStatus("Indexing metrics…"),
         );
         if (!metrics.length) {
-          metrics = await exactTopicMetrics(
-            this.previousTopics,
-            () => onStatus("Indexing metrics…"),
-          );
+          metrics = this.previousMetrics.length
+            ? this.previousMetrics
+            : await exactTopicMetrics(
+                this.previousTopics,
+                () => onStatus("Indexing metrics…"),
+              );
         }
 
         if (metrics.length) {
           onStatus("Reading data…");
           const results = await Promise.all(metrics.map((metric) => readMetric(metric, action)));
-          this.previousTopics = metrics.map((metric) => label(metric.name));
+          this.rememberMetricValues(metrics);
           return { output: renderData(results), artifacts: [] };
         }
       }
@@ -312,12 +396,23 @@ export class AskToolSession {
 
     if (!isDirectDefinition(this.request)) return undefined;
 
-    const [metric] = await searchMetrics(
-      [this.request],
-      1,
-      [],
+    const mentioned = await mentionedMetrics(
+      this.request,
       () => onStatus("Indexing metrics…"),
     );
+    if (mentioned.length > 1) return undefined;
+    let [metric] = mentioned;
+    if (!metric && this.previousMetrics.length === 1 && referencesPrevious(this.request)) {
+      [metric] = this.previousMetrics;
+    }
+    if (!metric) {
+      [metric] = await searchMetrics(
+        [this.request],
+        1,
+        [],
+        () => onStatus("Indexing metrics…"),
+      );
+    }
     if (!metric) return undefined;
 
     onStatus("Searching source…");
@@ -327,17 +422,15 @@ export class AskToolSession {
     );
     if (!formula || normalize(formula.fact.metric) !== normalize(metric.name)) return undefined;
 
-    this.previousTopics = [label(formula.fact.metric)];
+    this.rememberMetricValues([metric]);
     return { output: formula.answer, artifacts: [] };
   }
 
   async tool() {
     if (this.stage === "search") {
-      const categories = await metricCategories();
       return searchTool(
         Boolean(this.activeChart),
         this.previousTopics.length > 0,
-        categories,
       );
     }
     if (this.stage === "rewrite") return rewriteTool(this.queries);
@@ -386,7 +479,7 @@ export class AskToolSession {
 
   /** @param {(status: string) => void} onStatus */
   async search(onStatus) {
-    const [globalMetrics, rawMetrics, scopedMetrics, guideGroups] = await Promise.all([
+    const [globalMetrics, rawMetrics, guideGroups] = await Promise.all([
       searchMetrics(
         this.queries,
         MAX_OPTIONS,
@@ -399,16 +492,17 @@ export class AskToolSession {
         [],
         () => onStatus("Indexing metrics…"),
       ),
-      searchMetrics(
-        this.queries,
-        MAX_OPTIONS,
-        this.categoryPaths,
-        () => onStatus("Indexing metrics…"),
-      ),
       Promise.all(this.queries.map((query) => searchLearn(query, MAX_OPTIONS))),
     ]);
-    const foundMetrics = mergeMetricGroups([globalMetrics, rawMetrics, scopedMetrics]);
-    const metrics = [...foundMetrics];
+    const foundMetrics = mergeMetricGroups([globalMetrics, rawMetrics]);
+    const contextualMetrics = this.contextMetrics.map((metric) => ({
+      ...metric,
+      matchedQuery: label(metric.name),
+      score: 2_000,
+    }));
+    const metrics = [...new Map(
+      [...foundMetrics, ...contextualMetrics].map((metric) => [metric.path, metric]),
+    ).values()];
     const metricNames = new Set(metrics.map((metric) => metric.name));
     const guides = [...new Map(
       guideGroups.flat().map((/** @type {any} */ guide) => [guide.breadcrumbs.join("/"), guide]),
@@ -655,12 +749,16 @@ export class AskToolSession {
     };
     /** @type {string[]} */
     const topics = [];
+    /** @type {any[]} */
+    const rememberedMetrics = [];
 
     for (const ref of selected) {
       const kind = this.refs.kind(ref);
       if (kind === "fact") {
         const fact = this.refs.get(ref, "fact");
         topics.push(label(fact.fact.metric));
+        const metric = await metricByName(fact.fact.metric);
+        if (metric) rememberedMetrics.push(metric);
         evidence.facts.push(fact.answer);
         evidence.sources.push(`${fact.fact.path}:${fact.fact.line}`);
       } else if (kind === "source") {
@@ -672,9 +770,14 @@ export class AskToolSession {
         const guide = this.refs.get(ref, "guide");
         if (guide.description) evidence.facts.push(guide.description);
         topics.push(...guide.series.map((/** @type {any} */ series) => label(series.name)));
+        for (const series of guide.series) {
+          const metric = await metricByName(series.name);
+          if (metric) rememberedMetrics.push(metric);
+        }
       } else if (kind === "metric") {
         const metric = this.refs.get(ref, "metric");
         topics.push(label(metric.name));
+        rememberedMetrics.push(metric);
         const variants = this.focus === "variants"
           ? await metricVariants(metric, this.query)
           : undefined;
@@ -694,7 +797,12 @@ export class AskToolSession {
       evidence.sources.push(`${this.formula.fact.path}:${this.formula.fact.line}`);
     }
 
-    this.previousTopics = [...new Set(topics.length ? topics : this.queries)].slice(0, 4);
+    if (rememberedMetrics.length) {
+      this.rememberMetricValues(rememberedMetrics);
+    } else {
+      this.previousMetrics = [];
+      this.previousTopics = [...new Set(topics.length ? topics : this.queries)].slice(0, 4);
+    }
     return { done: true, output: renderEvidence(evidence) };
   }
 
@@ -716,6 +824,9 @@ export class AskToolSession {
   buildChart(action) {
     const selected = uniqueRefs(action.refs);
     const chosen = selected.map((ref) => this.refs.get(ref, "metric"));
+    const knownMetrics = new Map(
+      [...this.previousMetrics, ...chosen].map((metric) => [metric.path, metric]),
+    );
     const existingChart = this.outcome === "edit_existing_chart"
       ? this.activeChart
       : undefined;
@@ -744,6 +855,9 @@ export class AskToolSession {
       series,
     });
     this.activeChart = artifact;
+    this.rememberMetricValues(
+      artifact.chart.series.map((item) => knownMetrics.get(item.path)).filter(Boolean),
+    );
     return {
       done: true,
       output: `${existingChart ? "Updated" : "Built"} **${artifact.chart.title}** with ${artifact.chart.series.map((item) => item.label).join(", ")}.`,
@@ -762,27 +876,29 @@ export class AskToolSession {
       const context = requiredString(action.context, "context");
       const proposed = requiredStrings(action.queries, "queries");
       const cardinality = requiredString(action.cardinality, "cardinality");
-      const families = requiredStrings(action.families, "families")
-        .filter((family) => family !== "auto");
-      const dependent = this.previousTopics.length > 0 && referencesPrevious(this.request);
-      const effectiveContext = dependent
-        ? isExplicitComparison(this.request) ? "extend_previous" : "reuse_previous"
-        : context;
+      const effectiveContext = context;
       if (effectiveContext !== "new_topic" && !this.previousTopics.length) {
         throw new Error("There is no previous verified topic to reuse");
       }
+      const previousTopics = [...this.previousTopics];
+      const previousMetrics = [...this.previousMetrics];
       const routedQueries = effectiveContext === "reuse_previous"
-        ? [...this.previousTopics]
+        ? previousTopics
         : effectiveContext === "extend_previous"
-          ? [...new Set([...this.previousTopics, ...proposed])]
+          ? [...new Set([...previousTopics, ...proposed])]
           : proposed;
+      this.contextMetrics = effectiveContext === "new_topic" ? [] : previousMetrics;
+      if (effectiveContext === "new_topic") this.rememberMetricValues([]);
       this.outcome = requiredString(action.outcome, "outcome");
-      this.focus = evidenceFocus(this.request, requiredString(action.focus, "focus"));
+      if (this.outcome === "answer_general") {
+        return { done: true, general: true };
+      }
+      this.focus = evidenceFocus(this.request, "definition");
       this.comparison = cardinality === "multiple" || isExplicitComparison(this.request);
       this.queries = this.comparison
         ? completeComparisonQueries(routedQueries)
         : routedQueries.slice(0, 1);
-      this.categoryPaths = this.comparison || dependent ? [] : families;
+      this.categoryPaths = [];
       this.query = this.queries.join(" / ");
       return await this.search(onStatus) ?? { done: false };
     }
@@ -811,7 +927,6 @@ export class AskToolSession {
       if (name !== "build_chart" && name !== "edit_chart") {
         throw new Error("The AI chose an invalid chart action");
       }
-      this.rememberMetrics(uniqueRefs(action.refs));
       onStatus("Building chart…");
       return this.buildChart(action);
     }
@@ -821,9 +936,18 @@ export class AskToolSession {
 
   /** @param {string[]} refs */
   rememberMetrics(refs) {
-    this.previousTopics = refs
-      .map((ref) => label(this.refs.get(ref, "metric").name))
-      .filter((topic, index, topics) => topics.indexOf(topic) === index)
-      .slice(0, 4);
+    this.rememberMetricValues(refs.map((ref) => this.refs.get(ref, "metric")));
+  }
+
+  /** @param {any[]} metrics */
+  rememberMetricValues(metrics) {
+    this.previousMetrics = [...new Map(
+      metrics.map((metric) => [metric.path, metric]),
+    ).values()].slice(0, 6);
+    this.previousTopics = this.previousMetrics.map((metric) => label(metric.name));
+  }
+
+  metricPaths() {
+    return this.previousMetrics.map((metric) => metric.path);
   }
 }
