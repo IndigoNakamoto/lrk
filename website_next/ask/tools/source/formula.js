@@ -160,8 +160,7 @@ export function explainFormula(question, formulas) {
   return {
     answer:
       `${metric} is a weighted average of ${values}. ` +
-      `Each ${fact.value} is weighted by \`${fact.weight}\`.${consequence}\n\n` +
-      `Source: \`${fact.path}:${fact.line}\``,
+      `Each ${fact.value} is weighted by \`${fact.weight}\`.${consequence}`,
     fact,
   };
 }

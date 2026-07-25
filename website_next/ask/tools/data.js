@@ -2,19 +2,6 @@ import { brk } from "../../utils/client.js";
 
 const RANGE_POINTS = 120;
 
-/** @type {Map<string, Promise<{ indexes: string[], type: string }>>} */
-const infoCache = new Map();
-
-/** @param {string} name */
-function seriesInfo(name) {
-  let request = infoCache.get(name);
-  if (!request) {
-    request = brk.getSeriesInfo(name);
-    infoCache.set(name, request);
-  }
-  return request;
-}
-
 /** @param {string} type */
 export function unitFromType(type) {
   const value = type.toLowerCase();
@@ -45,21 +32,21 @@ export function formatValue(value, unit) {
   return affix === "$" ? `$${number}` : `${number}${affix}`;
 }
 
-/** @param {{ name: string, suggestedUnit?: string }} metric @param {Record<string, unknown>} action */
+/** @param {{ name: string, indexes: string[], type: string, suggestedUnit?: string }} metric @param {Record<string, unknown>} action */
 export async function readMetric(metric, action) {
-  const info = await seriesInfo(metric.name);
   const rawIndex = typeof action.index === "string" ? action.index : "";
   const indexLooksLikeValue = /^-?\d+$/.test(rawIndex) || /^\d{4}-\d{2}-\d{2}$/.test(rawIndex);
   const at = action.at ?? (indexLooksLikeValue ? rawIndex : undefined);
   const dateLike = typeof at === "string" && !/^-?\d+$/.test(at);
   const preferredIndex = indexLooksLikeValue ? "" : rawIndex;
-  const index = info.indexes.includes(preferredIndex)
+  const index = metric.indexes.includes(preferredIndex)
     ? preferredIndex
-    : dateLike && info.indexes.includes("day1")
+    : dateLike && metric.indexes.includes("day1")
       ? "day1"
-      : info.indexes.includes("height")
+      : metric.indexes.includes("height")
         ? "height"
-        : info.indexes[0];
+        : metric.indexes[0];
+  if (!index) throw new Error(`No supported index for ${metric.name}`);
   const mode = typeof action.mode === "string" ? action.mode : "latest";
   let response;
 
@@ -97,7 +84,7 @@ export async function readMetric(metric, action) {
   return {
     name: metric.name,
     label: metric.name.replaceAll("_", " "),
-    unit: metric.suggestedUnit ?? unitFromType(info.type),
+    unit: metric.suggestedUnit ?? unitFromType(metric.type),
     index: response.index,
     start: response.start,
     end: response.end,

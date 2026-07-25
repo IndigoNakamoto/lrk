@@ -60,13 +60,14 @@
  * @property {Addr} address
  */
 /**
- * Address information compatible with mempool.space API format
+ * Address information compatible with mempool.space API format.
  *
  * @typedef {Object} AddrStats
  * @property {Addr} address - Bitcoin address string
  * @property {OutputType} addrType - Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
  * @property {AddrChainStats} chainStats - Statistics for confirmed transactions on the blockchain
  * @property {AddrMempoolStats} mempoolStats - Statistics for unconfirmed transactions in the mempool
+ * @property {Sats} balance - Current balance in satoshis, including unconfirmed mempool changes
  */
 /**
  * Address validation result
@@ -12012,7 +12013,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address information
    *
-   * Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+   * Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
    *

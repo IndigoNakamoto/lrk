@@ -57,6 +57,14 @@ impl Query {
             }
         };
 
+        let mempool_stats = self
+            .mempool()
+            .and_then(|m| m.addr_stats(&bytes))
+            .unwrap_or_default();
+        let balance = addr_data.received + mempool_stats.funded_txo_sum
+            - addr_data.sent
+            - mempool_stats.spent_txo_sum;
+
         Ok(AddrStats {
             addr,
             addr_type: output_type,
@@ -69,10 +77,8 @@ impl Query {
                 tx_count: addr_data.tx_count,
                 realized_price,
             },
-            mempool_stats: self
-                .mempool()
-                .and_then(|m| m.addr_stats(&bytes))
-                .unwrap_or_default(),
+            mempool_stats,
+            balance,
         })
     }
 }

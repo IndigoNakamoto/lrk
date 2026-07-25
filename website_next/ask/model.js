@@ -61,10 +61,11 @@ export class AskModel {
    * @param {(update: TokenUpdate) => void} onToken
    * @param {readonly unknown[]} [tools]
    * @param {ToolChoice} [toolChoice]
+   * @param {{ maxTokens?: number }} [options]
    */
-  generate(messages, onToken, tools = [], toolChoice = "auto") {
+  generate(messages, onToken, tools = [], toolChoice = "auto", options = {}) {
     return /** @type {Promise<GenerationResult>} */ (
-      this.#request("generate", messages, onToken, tools, toolChoice)
+      this.#request("generate", messages, onToken, tools, toolChoice, options)
     );
   }
 
@@ -105,8 +106,9 @@ export class AskModel {
    * @param {((update: TokenUpdate) => void) | undefined} [onToken]
    * @param {readonly unknown[]} [tools]
    * @param {ToolChoice} [toolChoice]
+   * @param {{ maxTokens?: number }} [options]
    */
-  #request(type, messages, onToken, tools = [], toolChoice = "auto") {
+  #request(type, messages, onToken, tools = [], toolChoice = "auto", options = {}) {
     if (!this.#worker) throw new Error("Model is not loaded");
 
     this.#onToken = onToken;
@@ -115,7 +117,7 @@ export class AskModel {
       this.#reject = reject;
       this.#worker?.postMessage({
         type,
-        data: { messages, tools, toolChoice },
+        data: { messages, tools, toolChoice, ...options },
       });
     });
   }

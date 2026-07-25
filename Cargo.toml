@@ -79,7 +79,7 @@ serde_bytes = "0.11.19"
 serde_derive = "1.0.229"
 serde_json = { version = "1.0.151", features = ["float_roundtrip", "preserve_order"] }
 smallvec = "1.15.2"
-tokio = { version = "1.53.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread"] }
 tower-http = { version = "0.7.0", features = ["catch-panic", "compression-br", "compression-gzip", "compression-zstd", "cors", "normalize-path", "timeout", "trace"] }
 tower-layer = "0.3"
 tracing = { version = "0.1", default-features = false, features = ["std"] }

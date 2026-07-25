@@ -1,8 +1,8 @@
-use crate::{Addr, AddrChainStats, AddrMempoolStats, OutputType};
+use crate::{Addr, AddrChainStats, AddrMempoolStats, OutputType, Sats};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Address information compatible with mempool.space API format
+/// Address information compatible with mempool.space API format.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct AddrStats {
     /// Bitcoin address string
@@ -20,4 +20,7 @@ pub struct AddrStats {
 
     /// Statistics for unconfirmed transactions in the mempool
     pub mempool_stats: AddrMempoolStats,
+
+    /// Current balance in satoshis, including unconfirmed mempool changes
+    pub balance: Sats,
 }

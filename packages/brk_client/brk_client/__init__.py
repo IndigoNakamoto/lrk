@@ -336,18 +336,20 @@ class AddrParam(TypedDict):
 
 class AddrStats(TypedDict):
     """
-    Address information compatible with mempool.space API format
+    Address information compatible with mempool.space API format.
 
     Attributes:
         address: Bitcoin address string
         addr_type: Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
         chain_stats: Statistics for confirmed transactions on the blockchain
         mempool_stats: Statistics for unconfirmed transactions in the mempool
+        balance: Current balance in satoshis, including unconfirmed mempool changes
     """
     address: Addr
     addr_type: OutputType
     chain_stats: AddrChainStats
     mempool_stats: AddrMempoolStats
+    balance: Sats
 
 class AddrValidation(TypedDict):
     """
@@ -8768,7 +8770,7 @@ class BrkClient(BrkClientBase):
     def get_address(self, address: Addr) -> AddrStats:
         """Address information.
 
-        Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+        Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
 

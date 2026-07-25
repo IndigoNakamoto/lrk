@@ -1,4 +1,5 @@
 import { createAskComposer } from "./composer/index.js";
+import { createAskCompactor } from "./compactor.js";
 import { prepareContext } from "./context.js";
 import { createAskConversation } from "./conversation/index.js";
 import { createAskHero } from "./hero/index.js";
@@ -27,6 +28,16 @@ export function createAskPage() {
   let checking = false;
   let loading = false;
   let followingOutput = false;
+  const compactor = createAskCompactor({
+    model,
+    tools: assistant.toolsFor(),
+    onCompacted(id, update) {
+      const saved = askStorage.saveMemory(id, update);
+      if (!saved || chat.id !== id) return;
+      chat = saved;
+      workspace = { ...workspace, activeChat: saved };
+    },
+  });
   const sidebarPreference = localStorage.getItem(SIDEBAR_PREFERENCE_KEY);
   let sidebarCollapsed = sidebarPreference === null
     ? workspace.chats.length <= 1
@@ -168,10 +179,12 @@ export function createAskPage() {
     setLoading(cached);
 
     try {
-      await model.load(
+      const modelLoading = model.load(
         (update) => loader.reportProgress(update, cached),
         (status) => loader.reportStatus(status, cached),
       );
+      void assistant.prewarm().catch(() => {});
+      await modelLoading;
       setReady();
       composer.focus();
     } catch (error) {
@@ -200,8 +213,13 @@ export function createAskPage() {
     }
   }
 
-  function openNewChat() {
+  async function openNewChat() {
     if (busy) return;
+    busy = true;
+    syncControls();
+    await compactor.cancel();
+    if (main.inert) return;
+    busy = false;
 
     if (chat.messages.length) {
       const wasSingleChat = workspace.chats.length === 1;
@@ -222,16 +240,21 @@ export function createAskPage() {
     if (loaded) {
       setReady();
       composer.focus();
-    }
+    } else syncControls();
   }
 
   /** @param {string} id */
-  function selectChat(id) {
+  async function selectChat(id) {
     if (busy || id === chat.id) {
       setSidebarOpen(false);
       syncSidebar();
       return;
     }
+    busy = true;
+    syncControls();
+    await compactor.cancel();
+    if (main.inert) return;
+    busy = false;
 
     workspace = askStorage.select(id);
     chat = workspace.activeChat;
@@ -250,11 +273,16 @@ export function createAskPage() {
   }
 
   /** @param {string} id */
-  function removeChat(id) {
+  async function removeChat(id) {
     if (busy) return;
 
     const item = workspace.chats.find((candidate) => candidate.id === id);
     if (!item) return;
+    busy = true;
+    syncControls();
+    await compactor.cancel();
+    if (main.inert) return;
+    busy = false;
 
     workspace = askStorage.remove(id);
     chat = workspace.activeChat;
@@ -285,13 +313,6 @@ export function createAskPage() {
     const questionMessage = conversation.append("user", question);
     const answerMessage = conversation.append("assistant", "");
     const timer = createResponseTimer(answerMessage.setSteps);
-    const draft = {
-      ...chat,
-      messages: [
-        ...chat.messages,
-        { role: /** @type {const} */ ("user"), content: question },
-      ],
-    };
 
     busy = true;
     followingOutput = true;
@@ -303,7 +324,21 @@ export function createAskPage() {
 
     try {
       timer.set("Preparing context");
-      const { output, artifacts, metricPaths, chat: preparedChat } = await assistant.answer({
+      await compactor.cancel();
+      const draft = {
+        ...chat,
+        messages: [
+          ...chat.messages,
+          { role: /** @type {const} */ ("user"), content: question },
+        ],
+      };
+      const {
+        output,
+        artifacts = [],
+        metricPaths,
+        apiContext,
+        chat: preparedChat,
+      } = await assistant.answer({
         chatId: chat.id,
         question,
         history: draft.messages,
@@ -314,7 +349,6 @@ export function createAskPage() {
             draft,
             model,
             assistant.toolsFor(),
-            () => timer.set("Compacting conversation"),
           );
           timer.set("Routing request");
           return prepared;
@@ -330,7 +364,8 @@ export function createAskPage() {
       });
 
       const { elapsedMs, steps } = timer.finish();
-      conversation.setContent(answerMessage.content, "assistant", output);
+      const response = output ?? "";
+      conversation.setContent(answerMessage.content, "assistant", response);
       answerMessage.setArtifacts(artifacts);
       answerMessage.setElapsed(elapsedMs);
       if (followingOutput) conversation.scrollToBottom();
@@ -341,10 +376,11 @@ export function createAskPage() {
           ...answeredChat.messages,
           {
             role: /** @type {const} */ ("assistant"),
-            content: output,
+            content: response,
             elapsedMs,
             steps,
             metricPaths,
+            ...(apiContext ? { apiContext } : {}),
             ...(artifacts.length ? { artifacts } : {}),
           },
         ],
@@ -353,6 +389,7 @@ export function createAskPage() {
       renderChatList();
       setReady();
       composer.focus();
+      compactor.schedule(chat);
     } catch (error) {
       questionMessage.item.remove();
       answerMessage.item.remove();
@@ -383,6 +420,7 @@ export function createAskPage() {
   mobileSidebar.addEventListener("change", syncSidebar);
   main.addEventListener("pageactive", () => void activateModel());
   main.addEventListener("pageinactive", () => {
+    compactor.stop();
     model.terminate();
     assistant.terminate();
     setSidebarOpen(false);

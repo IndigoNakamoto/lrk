@@ -1,6 +1,7 @@
 import { normalize } from "../text.js";
 
-const CHART_REQUEST = /\b(?:chart|graph|plot)\b/;
+const CHART_REQUEST =
+  /\b(?:chart|graph|plot|trend|visualize|visualise)\b|\b(?:over|through)\s+time\b|\btime\s+series\b/;
 const ADD_REQUEST = /\b(?:add|include|overlay)\b/;
 const REMOVE_REQUEST = /\b(?:remove|drop)\b/;
 

@@ -63,7 +63,7 @@ impl AddrRoutes for ApiRouter<AppState> {
                 .id("get_address")
                 .addrs_tag()
                 .summary("Address information")
-                .description("Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).\n\n*[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*")
+                .description("Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).\n\n*[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*")
                 .json_response::<AddrStats>()
                 .not_modified()
                 .bad_request()

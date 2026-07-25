@@ -1,10 +1,11 @@
-import { brk } from "../../../utils/client.js";
-import { expandMetricQueries } from "./language.js";
+import { BRK_BASE_URL, brk } from "../../../utils/client.js";
+import { canonicalMetricQuery, expandMetricQueries } from "./language.js";
 
 const WORKER_URL = import.meta.resolve("./worker.js");
+const SERIES_URL = `${BRK_BASE_URL}/api/series`;
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
-/** @typedef {{ path: string, name: string, endpoint: string, suggestedUnit?: string, matchedQuery?: string, score?: number }} CatalogMetric */
+/** @typedef {{ path: string, name: string, endpoint: string, indexes: string[], type: string, suggestedUnit?: string, matchedQuery?: string, score?: number }} CatalogMetric */
 
 /** @param {unknown} value */
 function isMetric(value) {
@@ -65,14 +66,14 @@ class MetricIndex {
   /** @type {Map<string, { resolve: (value: any) => void, reject: (error: Error) => void, onProgress?: () => void }>} */
   #pending = new Map();
 
-  /** @param {"search" | "mentions" | "categories" | "byName" | "byPaths" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
+  /** @param {"prewarm" | "search" | "mentions" | "byName" | "byPaths" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
   request(type, data, onProgress) {
     this.#ensureWorker();
     const id = crypto.randomUUID();
 
     return new Promise((resolve, reject) => {
       this.#pending.set(id, { resolve, reject, onProgress });
-      this.#worker?.postMessage({ id, type, data });
+      this.#worker?.postMessage({ id, type, data: { ...data, url: SERIES_URL } });
     });
   }
 
@@ -119,6 +120,10 @@ class MetricIndex {
 
 const index = new MetricIndex();
 
+export function prewarmMetricIndex() {
+  return index.request("prewarm", {});
+}
+
 /** @param {string[]} queries @param {number} [limit] @param {string[]} [prefixes] @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
 export function searchMetrics(queries, limit = 16, prefixes = [], onProgress) {
   return index.request(
@@ -130,12 +135,7 @@ export function searchMetrics(queries, limit = 16, prefixes = [], onProgress) {
 
 /** @param {string} query @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
 export function mentionedMetrics(query, onProgress) {
-  return index.request("mentions", { query }, onProgress);
-}
-
-/** @returns {Promise<{ path: string, label: string, count: number, examples: string[] }[]>} */
-export function metricCategories() {
-  return index.request("categories", {});
+  return index.request("mentions", { query: canonicalMetricQuery(query) }, onProgress);
 }
 
 /** @param {string} name @returns {Promise<CatalogMetric | undefined>} */

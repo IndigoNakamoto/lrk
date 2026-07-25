@@ -7,6 +7,10 @@ export class AskSource {
   /** @type {Map<string, { resolve: (value: any) => void, reject: (error: Error) => void, onProgress?: (progress: { loaded: number, total: number }) => void }>} */
   #pending = new Map();
 
+  prewarm() {
+    return this.#request("prewarm", {});
+  }
+
   /**
    * @param {string} query
    * @param {string | undefined} path
@@ -34,7 +38,7 @@ export class AskSource {
   }
 
   /**
-   * @param {"search" | "read" | "explain"} type
+   * @param {"prewarm" | "search" | "read" | "explain"} type
    * @param {Record<string, unknown>} data
    * @param {((progress: { loaded: number, total: number }) => void) | undefined} [onProgress]
    */

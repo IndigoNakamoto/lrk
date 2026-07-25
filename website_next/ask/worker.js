@@ -50,9 +50,15 @@ async function load() {
     return;
   }
 
-  if (!navigator.gpu) throw new Error("WebGPU is unavailable in this browser");
+  if (!/** @type {any} */ (navigator).gpu) {
+    throw new Error("WebGPU is unavailable in this browser");
+  }
 
   self.postMessage({ status: "loading", data: "Loading AI runtime..." });
+  // BitGPU 0.19.1's smaller prefill segments keep the UI responsive during
+  // long grounded prompts. Replace this compatibility hook when BitGPU
+  // exposes the segment size as a public engine option.
+  /** @type {any} */ (globalThis).__SEG = 64;
   const [{ createEngine }, { createChat }] = await Promise.all([
     import(ASK_MODEL.runtimeUrl),
     import(ASK_MODEL.chatUrl),
@@ -125,7 +131,7 @@ async function generate(messages, options) {
     const result = await chat.send(messages, {
       maxTokens: options.maxTokens,
       temperature: 0,
-      repetitionPenalty: 1.05,
+      repetitionPenalty: 1,
       signal: generationController.signal,
       tools,
       toolChoice: tools ? options.toolChoice : undefined,
@@ -172,7 +178,7 @@ self.addEventListener("message", async (event) => {
         break;
       case "generate":
         await generate(data.messages, {
-          maxTokens: 256,
+          maxTokens: data.maxTokens ?? 256,
           stream: true,
           tools: data.tools,
           toolChoice: data.toolChoice,

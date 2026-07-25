@@ -1,24 +1,9 @@
 import { QuickMatch, QuickMatchConfig } from "../../../modules/quickmatch-js/0.5.0/src/index.js";
-import { brk } from "../../../utils/client.js";
+import { metricsFromSeries } from "./series.js";
 
 const SEARCH_CANDIDATES = 1_024;
 
-/** @typedef {{ path: string, name: string, endpoint: string, document: string }} CatalogMetric */
-
-/** @param {unknown} value */
-function isMetric(value) {
-  if (!value || typeof value !== "object") return false;
-  const by = /** @type {{ by?: Record<string, unknown> }} */ (value).by;
-  return Boolean(
-    by &&
-      Object.values(by).some(
-        (endpoint) =>
-          endpoint &&
-          typeof endpoint === "object" &&
-          typeof /** @type {{ fetch?: unknown }} */ (endpoint).fetch === "function",
-      ),
-  );
-}
+/** @typedef {{ path: string, name: string, indexes: string[], type: string, document: string }} CatalogMetric */
 
 /** @param {string} value */
 function searchable(value) {
@@ -30,8 +15,14 @@ function searchable(value) {
     .toLowerCase();
 }
 
-/** @param {string} path */
-function suggestedUnit(path) {
+/** @param {string} path @param {string} type */
+function suggestedUnit(path, type) {
+  if (/(dollar|usd|cents)/i.test(type)) return "usd";
+  if (/(bitcoin|btc)/i.test(type)) return "btc";
+  if (/(percent|ratio)/i.test(type)) return "percent";
+  if (/address/i.test(type)) return "addresses";
+  if (/(utxo|output)/i.test(type)) return "utxos";
+  if (/(block|height)/i.test(type)) return "blocks";
   if (/(percent|ratio|dominance|rate)/i.test(path)) return "percent";
   if (/(usd|price|cap)/i.test(path)) return "usd";
   if (/(btc|supply|value)/i.test(path)) return "btc";
@@ -51,9 +42,14 @@ function createConfig(limit = SEARCH_CANDIDATES) {
     .withSeparators("_- :/.|");
 }
 
-function buildState() {
-  /** @type {CatalogMetric[]} */
-  const items = [];
+/** @param {string} url */
+async function buildState(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Series catalog unavailable (${response.status})`);
+  const items = metricsFromSeries(await response.json()).map((metric) => ({
+    ...metric,
+    document: searchable(`${metric.name} ${metric.path}`),
+  }));
   /** @type {Map<string, CatalogMetric>} */
   const byName = new Map();
   /** @type {Map<string, CatalogMetric>} */
@@ -62,35 +58,14 @@ function buildState() {
   const bySearchableName = new Map();
   /** @type {Map<string, CatalogMetric>} */
   const byDocument = new Map();
-  const seen = new WeakSet();
-  /** @type {{ value: unknown, keys: string[] }[]} */
-  const pending = [{ value: brk.series, keys: [] }];
-
-  while (pending.length) {
-    const { value, keys } = /** @type {{ value: unknown, keys: string[] }} */ (pending.pop());
-    if (!value || typeof value !== "object" || seen.has(value)) continue;
-    seen.add(value);
-
-    if (isMetric(value)) {
-      const raw = /** @type {{ name?: string, by: Record<string, { path?: string }> }} */ (value);
-      const path = keys.join(".");
-      const name = raw.name ?? keys.at(-1) ?? "";
-      const endpoint = Object.values(raw.by).find((item) => item.path)?.path ?? "";
-      const document = searchable(`${name} | ${path} | ${endpoint}`);
-      const metric = { path, name, endpoint, document };
-      items.push(metric);
-      if (!byName.has(name)) byName.set(name, metric);
-      byPath.set(path, metric);
-      const nameKey = searchable(name);
-      const named = bySearchableName.get(nameKey) ?? [];
-      named.push(metric);
-      bySearchableName.set(nameKey, named);
-      byDocument.set(document, metric);
-    } else {
-      for (const [key, child] of Object.entries(value)) {
-        if (key !== "by") pending.push({ value: child, keys: [...keys, key] });
-      }
-    }
+  for (const metric of items) {
+    if (!byName.has(metric.name)) byName.set(metric.name, metric);
+    byPath.set(metric.path, metric);
+    const nameKey = searchable(metric.name);
+    const named = bySearchableName.get(nameKey) ?? [];
+    named.push(metric);
+    bySearchableName.set(nameKey, named);
+    if (!byDocument.has(metric.document)) byDocument.set(metric.document, metric);
   }
 
   const config = createConfig();
@@ -100,14 +75,16 @@ function buildState() {
   return { items, byName, byPath, bySearchableName, byDocument, matcher, config, scoped };
 }
 
-/** @type {Promise<ReturnType<typeof buildState>> | undefined} */
+/** @type {Promise<Awaited<ReturnType<typeof buildState>>> | undefined} */
 let statePromise;
+let stateUrl = "";
 
-/** @param {string} id */
-function state(id) {
-  if (!statePromise) {
+/** @param {string} id @param {string} url */
+function state(id, url) {
+  if (!statePromise || url !== stateUrl) {
+    stateUrl = url;
     self.postMessage({ id, status: "progress" });
-    statePromise = Promise.resolve().then(buildState);
+    statePromise = buildState(url);
   }
   return statePromise;
 }
@@ -117,12 +94,13 @@ function publicMetric(metric) {
   return {
     path: metric.path,
     name: metric.name,
-    endpoint: metric.endpoint,
-    suggestedUnit: suggestedUnit(metric.path),
+    indexes: metric.indexes,
+    type: metric.type,
+    suggestedUnit: suggestedUnit(metric.path, metric.type),
   };
 }
 
-/** @param {ReturnType<typeof buildState>} index @param {string[]} prefixes */
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string[]} prefixes */
 function scopedIndex(index, prefixes) {
   const inScope = (/** @type {CatalogMetric} */ metric) =>
     !prefixes.length || prefixes.some((prefix) =>
@@ -141,7 +119,7 @@ function scopedIndex(index, prefixes) {
   return { ...scoped, inScope };
 }
 
-/** @param {ReturnType<typeof buildState>} index @param {string} query @param {number} limit @param {string[]} prefixes */
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} query @param {number} limit @param {string[]} prefixes */
 function searchOne(index, query, limit, prefixes) {
   const scope = scopedIndex(index, prefixes);
   const normalizedQuery = searchable(query);
@@ -187,7 +165,7 @@ function searchOne(index, query, limit, prefixes) {
     }));
 }
 
-/** @param {ReturnType<typeof buildState>} index @param {string[]} queries @param {number} limit @param {string[]} prefixes */
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string[]} queries @param {number} limit @param {string[]} prefixes */
 function search(index, queries, limit, prefixes) {
   const groups = queries.map((query) => searchOne(index, query, limit, prefixes));
   const output = [];
@@ -208,7 +186,7 @@ function search(index, queries, limit, prefixes) {
   return output;
 }
 
-/** @param {ReturnType<typeof buildState>} index @param {string} query */
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} query */
 function mentions(index, query) {
   const words = searchable(query).match(/[a-z0-9]+/g) ?? [];
   /** @type {{ start: number, end: number, metric: CatalogMetric }[]} */
@@ -233,42 +211,7 @@ function mentions(index, query) {
   ).values()];
 }
 
-/** @param {ReturnType<typeof buildState>} index */
-function categories(index) {
-  /** @type {Map<string, { path: string, label: string, count: number, branches: Map<string, number>[] }>} */
-  const values = new Map();
-  for (const metric of index.items) {
-    const [root, branch] = metric.path.split(".");
-    if (!root) continue;
-    const category = values.get(root) ?? {
-      path: root,
-      label: searchable(root),
-      count: 0,
-      branches: [new Map(), new Map()],
-    };
-    category.count += 1;
-    if (branch) {
-      category.branches[0].set(branch, (category.branches[0].get(branch) ?? 0) + 1);
-      const selector = metric.path.split(".").slice(1, 3).join(" / ");
-      if (selector !== branch) {
-        category.branches[1].set(selector, (category.branches[1].get(selector) ?? 0) + 1);
-      }
-    }
-    values.set(root, category);
-  }
-  return [...values.values()]
-    .map(({ branches, ...category }) => ({
-      ...category,
-      examples: branches.flatMap((level, index) => [...level]
-        .sort((left, right) => right[1] - left[1])
-        .slice(0, index === 0 ? 4 : 8)
-        .map(([name]) => searchable(name)))
-        .slice(0, 8),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
-}
-
-/** @param {ReturnType<typeof buildState>} index @param {string} name @param {string} query */
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} name @param {string} query */
 function variants(index, name, query) {
   const suffix = `_${name}`;
   const candidates = index.items.filter((candidate) =>
@@ -319,10 +262,9 @@ function variants(index, name, query) {
   return {
     totalSeries: ranked.length,
     groups: [...groups.values()].slice(0, 8),
-    series: ranked.slice(0, 16).map(({ path, name: metricName, endpoint, suggestedUnit }) => ({
+    series: ranked.slice(0, 16).map(({ path, name: metricName, suggestedUnit }) => ({
       path,
       name: metricName,
-      endpoint,
       suggestedUnit,
     })),
   };
@@ -331,14 +273,14 @@ function variants(index, name, query) {
 self.addEventListener("message", async (event) => {
   const { id, type, data } = event.data;
   try {
-    const index = await state(id);
+    const index = await state(id, data.url);
     let result;
-    if (type === "search") {
+    if (type === "prewarm") {
+      result = true;
+    } else if (type === "search") {
       result = search(index, data.queries, data.limit, data.prefixes);
     } else if (type === "mentions") {
       result = mentions(index, data.query);
-    } else if (type === "categories") {
-      result = categories(index);
     } else if (type === "byName") {
       const metric = index.byName.get(data.name);
       result = metric ? publicMetric(metric) : undefined;

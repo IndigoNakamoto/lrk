@@ -1,4 +1,5 @@
 const PREFIX = /** @type {const} */ ({
+  api: "a",
   category: "c",
   fact: "f",
   guide: "g",

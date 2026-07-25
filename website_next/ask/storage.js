@@ -36,6 +36,11 @@ const CHART_COLORS = new Set([
  * @property {StoredResponseStep[]} [steps]
  * @property {StoredArtifact[]} [artifacts]
  * @property {string[]} [metricPaths]
+ * @property {ApiContext} [apiContext]
+ *
+ * @typedef {Object} ApiContext
+ * @property {string} key
+ * @property {Record<string, string | number | boolean | (string | number | boolean)[]>} arguments
  *
  * @typedef {Object} StoredResponseStep
  * @property {string} label
@@ -140,6 +145,36 @@ function readResponseStep(value) {
   return { label: step.label, elapsedMs: step.elapsedMs };
 }
 
+/** @param {unknown} value @returns {ApiContext | undefined} */
+function readApiContext(value) {
+  if (!value || typeof value !== "object") return undefined;
+  const context = /** @type {Record<string, unknown>} */ (value);
+  if (typeof context.key !== "string" || !context.key.startsWith("GET /")) return undefined;
+  const rawArguments = context.arguments;
+  if (!rawArguments || typeof rawArguments !== "object" || Array.isArray(rawArguments)) {
+    return { key: context.key, arguments: {} };
+  }
+  const arguments_ = Object.fromEntries(
+    Object.entries(rawArguments)
+      .filter(([key, item]) =>
+        key.length <= 64 &&
+        (
+          typeof item === "string" ||
+          typeof item === "number" ||
+          typeof item === "boolean" ||
+          Array.isArray(item) &&
+            item.every((part) =>
+              typeof part === "string" ||
+              typeof part === "number" ||
+              typeof part === "boolean"
+            )
+        )
+      )
+      .slice(0, 16),
+  );
+  return /** @type {ApiContext} */ ({ key: context.key, arguments: arguments_ });
+}
+
 /** @param {unknown} value @returns {StoredMessage | undefined} */
 function readMessage(value) {
   if (!value || typeof value !== "object") return undefined;
@@ -173,6 +208,7 @@ function readMessage(value) {
         (/** @type {unknown} */ path) => typeof path === "string" && path.trim(),
       )))].slice(0, 6)
     : [];
+  const apiContext = readApiContext(message.apiContext);
   return {
     role: message.role,
     content: message.content,
@@ -180,6 +216,7 @@ function readMessage(value) {
     ...(steps.length ? { steps } : {}),
     ...(artifacts.length ? { artifacts } : {}),
     ...(hasMetricPaths ? { metricPaths } : {}),
+    ...(apiContext ? { apiContext } : {}),
   };
 }
 
@@ -353,6 +390,31 @@ function save(chat) {
   return { chats, activeChat: saved };
 }
 
+/**
+ * @param {string} id
+ * @param {{ messageCount: number, previousCompactedCount: number, previousMemory: string, memory: string, compactedCount: number }} update
+ */
+function saveMemory(id, update) {
+  const index = readIndex() ?? initialize();
+  const meta = index.chats.find((chat) => chat.id === id);
+  if (!meta) return undefined;
+
+  const chat = readChat(meta);
+  if (
+    chat.messages.length !== update.messageCount ||
+    chat.compactedCount !== update.previousCompactedCount ||
+    chat.memory !== update.previousMemory
+  ) return undefined;
+
+  const saved = {
+    ...chat,
+    memory: update.memory,
+    compactedCount: update.compactedCount,
+  };
+  writeChat(saved);
+  return saved;
+}
+
 /** @param {string} id */
 function remove(id) {
   const index = readIndex() ?? initialize();
@@ -377,5 +439,6 @@ export const askStorage = /** @type {const} */ ({
   create,
   select,
   save,
+  saveMemory,
   remove,
 });

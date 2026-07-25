@@ -10359,7 +10359,7 @@ impl BrkClient {
 
     /// Address information
     ///
-    /// Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+    /// Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
     ///

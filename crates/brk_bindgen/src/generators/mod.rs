@@ -1,6 +1,6 @@
 //! Code generators for client libraries.
 //!
-//! Each language has its own submodule with focused files:
+//! Each client has its own submodule. Language clients use focused files:
 //! - `types.rs` - Type definitions
 //! - `client.rs` - Base client and pattern factories
 //! - `tree.rs` - Tree structure generation
@@ -10,10 +10,12 @@
 use std::{fmt::Write, fs, io, path::Path};
 
 pub mod javascript;
+pub mod llm;
 pub mod python;
 pub mod rust;
 
 pub use javascript::generate_javascript_client;
+pub use llm::generate_llm_clients;
 pub use python::generate_python_client;
 pub use rust::generate_rust_client;
 
