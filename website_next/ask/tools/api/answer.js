@@ -121,6 +121,7 @@ function fieldScore(phrase, context, field) {
     (sum, word) => sum + (new Set(words(name)).has(word) ? 8 : 3),
     0,
   );
+  score += phraseWords.length * 10;
   const normalizedPhrase = normalize(phrase);
   if (name.includes(normalizedPhrase)) score += 12;
   if (description.includes(normalizedPhrase)) score += 5;
@@ -139,66 +140,102 @@ function fieldScore(phrase, context, field) {
  * @param {any} grounding
  */
 export function directApiCalculation(question, fields, grounding) {
-  /** @type {{ left: string, right: string, context: string, label: string } | undefined} */
+  /** @type {{ left: string, right: string, context: string } | undefined} */
   let expression;
-  const minus = question.match(/^(.*?)(?:,\s*)?([^,;?.]+?)\s+minus\s+([^,;?.]+)[?.]*$/i);
+  const cleaned = question.replace(/[?.;]+$/g, "").trim();
+  const minus = cleaned.match(/^(.*?)\s+minus\s+(.+)$/i);
   if (minus) {
+    const comma = minus[1].lastIndexOf(",");
+    const context = comma >= 0 ? minus[1].slice(0, comma) : "";
+    const left = (comma >= 0 ? minus[1].slice(comma + 1) : minus[1]).trim();
     expression = {
-      context: minus[1],
-      left: minus[2],
-      right: minus[3],
-      label: `${minus[2].trim()} minus ${minus[3].trim()}`,
+      context,
+      left,
+      right: minus[2],
     };
   } else {
-    const difference = question.match(
-      /^(.*?)\bdifference\s+between\s+([^,;?.]+?)\s+and\s+([^,;?.]+)[?.]*$/i,
+    const difference = cleaned.match(
+      /^(.*?)\bdifference\s+between\s+(.+?)\s+and\s+(.+)$/i,
     );
     if (difference) {
       expression = {
         context: difference[1],
         left: difference[2],
         right: difference[3],
-        label: `difference between ${difference[2].trim()} and ${difference[3].trim()}`,
       };
     } else {
-      const subtract = question.match(
-        /^(.*?)\bsubtract\s+([^,;?.]+?)\s+from\s+([^,;?.]+)[?.]*$/i,
+      const subtract = cleaned.match(
+        /^(.*?)\bsubtract\s+(.+?)\s+from\s+(.+)$/i,
       );
       if (subtract) {
         expression = {
           context: subtract[1],
           left: subtract[3],
           right: subtract[2],
-          label: `${subtract[3].trim()} minus ${subtract[2].trim()}`,
         };
       }
     }
   }
   if (!expression) return undefined;
 
-  /** @param {string} phrase */
-  const select = (phrase) => {
-    const ranked = fields
-      .map((field) => ({
-        field,
-        score: fieldScore(phrase, expression.context, field),
-      }))
+  /** @param {string} value */
+  const phraseVariants = (value) => {
+    const values = words(value);
+    const phrases = [];
+    for (let length = 1; length <= Math.min(values.length, 6); length += 1) {
+      for (let start = 0; start + length <= values.length; start += 1) {
+        phrases.push(values.slice(start, start + length).join(" "));
+      }
+    }
+    return phrases;
+  };
+
+  /** @param {string} phrase @param {string} context */
+  const rank = (phrase, context) =>
+    fields
+      .map((field) => phraseVariants(phrase)
+        .map((variant) => ({
+          field,
+          phrase: variant,
+          score: fieldScore(variant, context, field),
+        }))
+        .sort((left, right) => right.score - left.score)[0])
       .filter(({ score }) => score > 0)
       .sort((left, right) => right.score - left.score);
-    if (!ranked.length || ranked[1]?.score === ranked[0].score) return undefined;
-    return ranked[0].field;
-  };
-  const left = select(expression.left);
-  const right = select(expression.right);
-  if (!left || !right || left.ref === right.ref) return undefined;
+
+  const leftCandidates = rank(
+    expression.left,
+    `${expression.context} ${expression.right}`,
+  );
+  const rightCandidates = rank(
+    expression.right,
+    `${expression.context} ${expression.left}`,
+  );
+  /** @param {ApiNumericField} field */
+  const parent = (field) => field.name.split(".").slice(0, -1).join(".");
+  const pairs = leftCandidates.flatMap((left) =>
+    rightCandidates
+      .filter((right) =>
+        left.field.ref !== right.field.ref &&
+        normalize(left.field.type) === normalize(right.field.type)
+      )
+      .map((right) => ({
+        left,
+        right,
+        score: left.score + right.score +
+          (parent(left.field) === parent(right.field) ? 5 : 0),
+      }))
+  ).sort((left, right) => right.score - left.score);
+  const [pair, second] = pairs;
+  if (!pair || second?.score === pair.score) return undefined;
 
   return finishApiAnswer(
     {
       action: "calculate",
-      label: expression.label,
+      label: `${pair.left.phrase} minus ${pair.right.phrase}`,
       terms: [
-        { ref: left.ref, sign: "add" },
-        { ref: right.ref, sign: "subtract" },
+        { ref: pair.left.field.ref, sign: "add" },
+        { ref: pair.right.field.ref, sign: "subtract" },
       ],
     },
     fields,

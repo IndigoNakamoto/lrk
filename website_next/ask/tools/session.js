@@ -24,11 +24,11 @@ import {
   rewriteTool,
   searchTool,
 } from "./schemas.js";
-import { normalize } from "./text.js";
+import { normalize, tokenAffinity } from "./text.js";
 
 const MAX_OPTIONS = 12;
 const MAX_API_OPTIONS = 6;
-const MAX_API_HINTS = 12;
+const MAX_API_HINTS = 24;
 
 /** @typedef {import("../storage.js").ChartArtifact} ChartArtifact */
 
@@ -81,7 +81,8 @@ function mayRequestMultiple(value) {
 /** @param {string} value */
 function referencesPrevious(value) {
   return /\b(?:it|its|that|this|they|their|them|those|these|same)\b/i.test(value) ||
-    /^(?:and|also|what about)\b/i.test(value.trim());
+    /^(?:and|also|what about)\b/i.test(value.trim()) ||
+    /^(?:at\s+block\s+\d+|(?:at|on)\s+\d{4}(?:[- ]\d{2}){2})\b/i.test(value.trim());
 }
 
 /** @param {string} value */
@@ -102,15 +103,36 @@ function literalArguments(value) {
   )];
 }
 
+/** @param {string} request */
+function apiRequestWords(request) {
+  const words = new Set(normalize(request).match(/[a-z0-9]+/g) ?? []);
+  if (normalize(request).includes("how many")) {
+    words.add("count");
+    words.add("number");
+  }
+  return words;
+}
+
+/** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
+function apiResponseMatchCount(request, operation) {
+  const requestWords = apiRequestWords(request);
+  const nameWords = new Set(operation.response.fields.flatMap((field) =>
+    normalize(field.name).match(/[a-z0-9]+/g) ?? []
+  ));
+  const descriptionWords = new Set(operation.response.fields.flatMap((field) =>
+    (normalize(field.description).match(/[a-z0-9]+/g) ?? [])
+      .filter((word) => word.length >= 4)
+  ));
+  return [...requestWords].filter((candidate) =>
+    [...nameWords].some((word) => tokenAffinity(word, candidate) >= 0.7) ||
+    candidate.length >= 4 &&
+      [...descriptionWords].some((word) => tokenAffinity(word, candidate) >= 0.65)
+  ).length;
+}
+
 /** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
 function matchesApiResponse(request, operation) {
-  const words = new Set(normalize(request).match(/[a-z0-9]+/g) ?? []);
-  return operation.response.fields.some((field) => {
-    const names = normalize(field.name).match(/[a-z0-9]+/g) ?? [];
-    if (names.some((word) => words.has(word))) return true;
-    const description = normalize(field.description).match(/[a-z0-9]+/g) ?? [];
-    return description.some((word) => word.length >= 4 && words.has(word));
-  });
+  return apiResponseMatchCount(request, operation) > 0;
 }
 
 /** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
@@ -126,8 +148,16 @@ function matchesApiIntent(request, operation) {
   return [...words].filter((word) => document.has(word)).length >= 2;
 }
 
+/** @param {string} request */
+function requestsExplanation(request) {
+  const text = normalize(request);
+  return /^(?:why|how(?! many\b| much\b))\b/.test(text) ||
+    /\b(?:describe|explain|meaning|mean|works?|working)\b/.test(text);
+}
+
 /** @param {string} value */
 function literalType(value) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return "date";
   if (/^-?\d+(?:\.\d+)?$/.test(value) && value.replace(/[^0-9]/g, "").length <= 15) {
     return "number";
   }
@@ -137,6 +167,7 @@ function literalType(value) {
 
 /** @param {import("./api/index.js").ApiParameter} parameter */
 function parameterType(parameter) {
+  if (/^date(?:-time)?$/.test(normalize(parameter.format ?? ""))) return "date";
   const type = normalize(parameter.valueType ?? parameter.type);
   if (/\b(?:integer|number)\b/.test(type)) return "number";
   if (/\bboolean\b/.test(type)) return "boolean";
@@ -154,6 +185,11 @@ function parameterType(parameter) {
 function argumentAffinity(values, operation, request = "") {
   const required = operation.parameters.filter((parameter) => parameter.required);
   if (required.length !== values.length) return -1;
+  if (required.some((parameter, index) => {
+    const expected = parameterType(parameter);
+    const actual = literalType(values[index]);
+    return expected !== "unknown" && expected !== actual;
+  })) return -1;
   const requestTokens = normalize(request).split(" ");
   return required.reduce((score, parameter, index) => {
     const expected = parameterType(parameter);
@@ -176,10 +212,15 @@ function argumentAffinity(values, operation, request = "") {
  * @param {string} request
  */
 function directApiCandidate(hints, values, request) {
+  if (requestsExplanation(request)) return undefined;
   if (!values.length) {
     return hints.find((operation) =>
       operation.parameters.every((parameter) => !parameter.required) &&
-      (operation.matchedTerms ?? 0) >= 2 &&
+      (
+        (operation.matchedTerms ?? 0) >= 2 ||
+        (operation.matchedTerms ?? 0) >= 1 &&
+          apiResponseMatchCount(request, operation) >= 1
+      ) &&
       matchesApiIntent(request, operation)
     );
   }
@@ -188,17 +229,25 @@ function directApiCandidate(hints, values, request) {
       operation,
       rank,
       affinity: argumentAffinity(values, operation, request),
+      responseMatches: apiResponseMatchCount(request, operation),
+    }))
+    .map((candidate) => ({
+      ...candidate,
+      evidence: candidate.affinity + candidate.responseMatches * 2,
     }))
     .filter(({ operation, affinity }) =>
       affinity >= 0 && (operation.matchedTerms ?? 0) > 0
     )
     .sort((left, right) =>
-      right.affinity - left.affinity || left.rank - right.rank
+      right.evidence - left.evidence ||
+      right.affinity - left.affinity ||
+      right.responseMatches - left.responseMatches ||
+      left.rank - right.rank
     );
   const [first, second] = ranked;
   if (!first || !matchesApiIntent(request, first.operation)) return undefined;
   const numericAmbiguity = values.some((value) => literalType(value) === "number") &&
-    second?.affinity === first.affinity &&
+    second?.evidence === first.evidence &&
     second.operation.parameters
       .filter((parameter) => parameter.required)
       .map((parameter) => parameter.name)
@@ -232,7 +281,7 @@ function isDirectValueFollowup(request) {
   const text = normalize(request);
   const hasPoint = /\b(?:current|currently|latest|now|today)\b/.test(text) ||
     /\bblock\s+\d{4,}\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(text);
+    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
   const needsInterpretation = /^(?:how|why)\b/.test(text) ||
     /\b(?:available|availability|chart|cohorts?|code|explain|formula|graph|history|plot|source|trend|variants?)\b/.test(text);
   return referencesPrevious(text) && hasPoint && !needsInterpretation;
@@ -243,7 +292,7 @@ function isDirectValueRequest(request) {
   const text = normalize(request);
   const hasPoint = /\b(?:current|currently|latest|now|today)\b/.test(text) ||
     /\bblock\s+\d{4,}\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(text);
+    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
   const needsDifferentTool =
     /\b(?:available|availability|chart|cohorts?|code|explain|formula|graph|history|plot|source|trend|variants?|visualize|visualise)\b/.test(text) ||
     /\b(?:over|through)\s+time\b/.test(text);
@@ -266,7 +315,7 @@ function isDirectDefinition(request) {
     /^(?:what is|what are)\b/.test(text);
   const needsRouting = /\b(?:available|availability|chart|cohorts?|code|current|file|graph|history|latest|now|path|plot|source|today|trend|variants?)\b/.test(text) ||
     /\bblock\s+\d+\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(text);
+    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
   return asks && !needsRouting;
 }
 
@@ -386,6 +435,12 @@ function recentMetricPaths(history) {
 function latestApiContext(history) {
   for (const message of [...history].reverse()) {
     if (message.apiContext) return message.apiContext;
+    if (
+      Array.isArray(message.metricPaths) ||
+      message.artifacts?.some?.(
+        (/** @type {any} */ artifact) => artifact.type === "chart",
+      )
+    ) return undefined;
   }
   return undefined;
 }
@@ -544,28 +599,74 @@ export class AskToolSession {
       this.previousApi = undefined;
     }
 
-    const dependsOnPrevious = Boolean(this.previousApi) && referencesPrevious(this.request);
-    const apiQuery = dependsOnPrevious
-      ? `${this.request} ${this.previousApi?.operation.summary || this.previousApi?.operation.label}`
-      : this.request;
+    const focusPaths = latestMetricPaths(history);
     const literals = literalArguments(this.request);
+    const hasResourceIdentifier = literals.some((value) => literalType(value) === "string");
+    const dependsOnMetric = Boolean(focusPaths?.length) &&
+      !this.previousApi &&
+      referencesPrevious(this.request) &&
+      !hasResourceIdentifier;
+    let prefersMetricTool = dependsOnMetric ||
+      Boolean(directChartCommand(this.request, Boolean(this.activeChart)));
+    const dependsOnPrevious = Boolean(this.previousApi) && referencesPrevious(this.request);
+    const previousApiContext = this.previousApi
+      ? [
+          this.previousApi.operation.summary || this.previousApi.operation.label,
+          ...this.previousApi.operation.parameters.flatMap((parameter) => [
+            parameter.name,
+            parameter.type,
+            parameter.description,
+          ]),
+        ].filter(Boolean).join(" ")
+      : "";
+    const apiQuery = dependsOnPrevious
+      ? `${this.request} ${previousApiContext}`
+      : this.request;
     this.apiHints = await searchApi([apiQuery], MAX_API_HINTS, onProgress).catch(() => []);
-    this.apiCandidates = literals.length
+    this.apiCandidates = !prefersMetricTool && literals.length
       ? this.apiHints.filter((operation) =>
           argumentAffinity(literals, operation, this.request) >= 0 &&
           (operation.matchedTerms ?? 0) > 0
         )
       : [];
-    this.directApiHint = directApiCandidate(this.apiHints, literals, this.request);
+    this.directApiHint = prefersMetricTool
+      ? undefined
+      : directApiCandidate(this.apiHints, literals, this.request);
+    if (
+      !prefersMetricTool &&
+      !this.directApiHint &&
+      isDirectValueRequest(this.request) &&
+      literals.some((value) => literalType(value) !== "string")
+    ) {
+      const pointMetrics = await mentionedMetrics(this.request, onProgress);
+      if (pointMetrics.length) {
+        prefersMetricTool = true;
+        this.apiCandidates = [];
+      }
+    }
     this.requiresTools = Boolean(this.directApiHint) || this.apiCandidates.length > 0;
 
-    if (this.previousApi && referencesPrevious(this.request)) {
+    if (
+      !prefersMetricTool &&
+      this.previousApi &&
+      (
+        referencesPrevious(this.request) ||
+        matchesApiResponse(this.request, this.previousApi.operation)
+      )
+    ) {
       this.requiresTools = true;
-      const contextual = this.apiHints.find((operation) =>
-        (operation.matchedTerms ?? 0) >= 2 &&
-        matchesApiIntent(this.request, operation) &&
-        reusableArguments(operation, this.previousApi) !== undefined
-      );
+      const contextual = this.apiHints
+        .filter((operation) =>
+          (operation.matchedTerms ?? 0) >= 2 &&
+          matchesApiIntent(this.request, operation) &&
+          reusableArguments(operation, this.previousApi) !== undefined
+        )
+        .sort((left, right) =>
+          apiResponseMatchCount(this.request, right) -
+            apiResponseMatchCount(this.request, left) ||
+          (right.matchedTerms ?? 0) - (left.matchedTerms ?? 0) ||
+          (right.score ?? 0) - (left.score ?? 0)
+        )[0];
       if (contextual) {
         this.directApiHint = contextual;
       } else if (matchesApiResponse(this.request, this.previousApi.operation)) {
@@ -573,7 +674,6 @@ export class AskToolSession {
       }
     }
 
-    const focusPaths = latestMetricPaths(history);
     if (focusPaths === undefined) return;
     const recentPaths = recentMetricPaths(history);
     const currentFocus = this.previousMetrics.map((metric) => metric.path);
@@ -655,8 +755,16 @@ export class AskToolSession {
           ? "edit_existing_chart"
           : "build_requested_chart";
         onStatus("Building chart…");
-        const result = this.buildChart({ refs, operation: chart.operation });
-        return { output: result.output, artifacts: result.artifacts };
+        try {
+          const result = this.buildChart({ refs, operation: chart.operation });
+          return { output: result.output, artifacts: result.artifacts };
+        } catch (error) {
+          if (chart.kind !== "edit") throw error;
+          return {
+            output: error instanceof Error ? error.message : String(error),
+            artifacts: [],
+          };
+        }
       }
       this.requiresTools = true;
     }
@@ -746,6 +854,10 @@ export class AskToolSession {
               );
         }
 
+        if (metrics.length > 1 && referencesSingular(this.request)) {
+          this.requiresTools = true;
+          return undefined;
+        }
         if (metrics.length) {
           onStatus("Reading data…");
           const results = await Promise.all(metrics.map((metric) => readMetric(metric, action)));
@@ -1156,6 +1268,8 @@ export class AskToolSession {
   async callApi(operation, arguments_, onStatus, signal) {
     onStatus("Reading API…");
     const result = await executeApi(operation, arguments_, signal);
+    this.previousMetrics = [];
+    this.previousTopics = [];
     this.previousApi = { operation, arguments: result.arguments };
     return {
       done: true,
@@ -1479,6 +1593,7 @@ export class AskToolSession {
 
   /** @param {any[]} metrics */
   rememberMetricValues(metrics) {
+    this.previousApi = undefined;
     this.previousMetrics = [...new Map(
       metrics.map((metric) => [metric.path, metric]),
     ).values()].slice(0, 6);

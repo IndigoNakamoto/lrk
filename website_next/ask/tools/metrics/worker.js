@@ -1,18 +1,15 @@
 import { QuickMatch, QuickMatchConfig } from "../../../modules/quickmatch-js/0.5.0/src/index.js";
+import { normalize, tokenAffinity } from "../text.js";
 import { metricsFromSeries } from "./series.js";
 
 const SEARCH_CANDIDATES = 1_024;
+const MAX_MENTION_WORDS = 12;
 
 /** @typedef {{ path: string, name: string, indexes: string[], type: string, document: string }} CatalogMetric */
 
 /** @param {string} value */
 function searchable(value) {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[_./|:-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return normalize(value);
 }
 
 /** @param {string} path @param {string} type */
@@ -23,13 +20,13 @@ function suggestedUnit(path, type) {
   if (/address/i.test(type)) return "addresses";
   if (/(utxo|output)/i.test(type)) return "utxos";
   if (/(block|height)/i.test(type)) return "blocks";
-  if (/(percent|ratio|dominance|rate)/i.test(path)) return "percent";
+  if (/(percent|ratio|dominance)/i.test(path)) return "percent";
   if (/(usd|price|cap)/i.test(path)) return "usd";
   if (/(btc|supply|value)/i.test(path)) return "btc";
   if (/(address|addr)/i.test(path)) return "addresses";
   if (/(utxo|output)/i.test(path)) return "utxos";
   if (/(block|height|epoch)/i.test(path)) return "blocks";
-  return undefined;
+  return "number";
 }
 
 /** @param {number} limit */
@@ -70,9 +67,26 @@ async function buildState(url) {
 
   const config = createConfig();
   const matcher = new QuickMatch(items.map(({ document }) => document), config);
+  const nameConfig = createConfig(12).withTrigramBudget(4);
+  const nameMatcher = new QuickMatch([...bySearchableName.keys()], nameConfig);
+  const nameWords = new Set(
+    [...bySearchableName.keys()].flatMap((name) => name.split(" ")),
+  );
   /** @type {Map<string, { matcher: QuickMatch, config: QuickMatchConfig }>} */
   const scoped = new Map();
-  return { items, byName, byPath, bySearchableName, byDocument, matcher, config, scoped };
+  return {
+    items,
+    byName,
+    byPath,
+    bySearchableName,
+    byDocument,
+    matcher,
+    config,
+    nameMatcher,
+    nameConfig,
+    nameWords,
+    scoped,
+  };
 }
 
 /** @type {Promise<Awaited<ReturnType<typeof buildState>>> | undefined} */
@@ -193,9 +207,56 @@ function mentions(index, query) {
   const matches = [];
 
   for (let start = 0; start < words.length; start += 1) {
-    for (let end = start + 1; end <= words.length; end += 1) {
-      const named = index.bySearchableName.get(words.slice(start, end).join(" "));
-      if (named?.length === 1) matches.push({ start, end, metric: named[0] });
+    for (
+      let end = start + 1;
+      end <= Math.min(words.length, start + MAX_MENTION_WORDS);
+      end += 1
+    ) {
+      const phraseWords = words.slice(start, end);
+      const phrase = phraseWords.join(" ");
+      const named = index.bySearchableName.get(phrase);
+      if (named?.length === 1) {
+        matches.push({ start, end, metric: named[0] });
+        continue;
+      }
+
+      if (
+        phraseWords.every((word) => index.nameWords.has(word)) ||
+        phraseWords.length === 1 && phrase.length < 5
+      ) continue;
+      const fuzzy = index.nameMatcher.matchesWith(phrase, index.nameConfig)
+        .map((name) => ({
+          name,
+          named: index.bySearchableName.get(name),
+          candidateWords: name.split(" "),
+        }))
+        .filter(({ named, candidateWords }) =>
+          named?.length === 1 && candidateWords.length === phraseWords.length
+        )
+        .map((candidate) => {
+          const affinities = phraseWords.map((word, index_) =>
+            tokenAffinity(word, candidate.candidateWords[index_])
+          );
+          return {
+            ...candidate,
+            affinities,
+            score: affinities.reduce((sum, affinity) => sum + affinity, 0) /
+              affinities.length,
+          };
+        })
+        .filter(({ affinities, score }) =>
+          score >= 0.82 && affinities.every((affinity) => affinity >= 0.65)
+        )
+        .sort((left, right) => right.score - left.score)[0];
+      if (fuzzy) {
+        const [metric] = fuzzy.named ?? [];
+        if (!metric) continue;
+        matches.push({
+          start,
+          end,
+          metric,
+        });
+      }
     }
   }
 

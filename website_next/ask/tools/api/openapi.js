@@ -66,7 +66,7 @@ function compactText(value, limit) {
  * @param {Record<string, any>} shape
  * @param {string} prefix
  * @param {number} depth
- * @returns {{ name: string, type: string, required: boolean, description: string }[]}
+ * @returns {{ name: string, type: string, required: boolean, description: string, ownDescription: string }[]}
  */
 function schemaFields(spec, shape, prefix = "", depth = 0, context = "") {
   const required = new Set(Array.isArray(shape.required) ? shape.required : []);
@@ -92,6 +92,7 @@ function schemaFields(spec, shape, prefix = "", depth = 0, context = "") {
       type: schemaName(raw),
       required: required.has(name),
       description,
+      ownDescription,
     });
     if (depth < 1 && isObject(resolved.properties)) {
       fields.push(...schemaFields(spec, resolved, path, depth + 1, description));
@@ -121,6 +122,7 @@ function parameterDetails(spec, raw) {
     required: location === "path" || parameter.required === true,
     type: schemaName(rawSchema),
     valueType: schemaName(schema),
+    ...(typeof schema.format === "string" ? { format: schema.format } : {}),
     ...(Array.isArray(schema.enum) ? { enum: schema.enum.slice(0, 64) } : {}),
     description: compactText(
       parameter.description !== undefined ? parameter.description : schema.description,

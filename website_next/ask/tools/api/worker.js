@@ -1,4 +1,5 @@
 import { QuickMatch, QuickMatchConfig } from "../../../modules/quickmatch-js/0.5.0/src/index.js";
+import { normalize } from "../text.js";
 import { operationsFromOpenApi } from "./openapi.js";
 
 const SEARCH_CANDIDATES = 256;
@@ -10,12 +11,7 @@ const SEARCH_CANDIDATES = 256;
 
 /** @param {string} value */
 function searchable(value) {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[_./{}|:-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return normalize(value);
 }
 
 /** @param {ApiOperation} operation @returns {IndexedOperation} */

@@ -2,7 +2,15 @@ const INDEX_KEY = "bitview.ask.chats.v2";
 const CHAT_KEY_PREFIX = "bitview.ask.chat.v2.";
 const LEGACY_KEY = "bitview.ask.v1";
 const NEW_CHAT_TITLE = "New chat";
-const CHART_UNITS = new Set(["addresses", "blocks", "btc", "percent", "utxos", "usd"]);
+const CHART_UNITS = new Set([
+  "addresses",
+  "blocks",
+  "btc",
+  "number",
+  "percent",
+  "utxos",
+  "usd",
+]);
 const CHART_VIEWS = new Set(["line", "area", "stacked", "bar", "dots"]);
 const CHART_SCALES = new Set(["linear", "log"]);
 const CHART_COLORS = new Set([
@@ -53,7 +61,7 @@ const CHART_COLORS = new Set([
  *
  * @typedef {Object} ChartSpec
  * @property {string} title
- * @property {"addresses" | "blocks" | "btc" | "percent" | "utxos" | "usd"} unit
+ * @property {"addresses" | "blocks" | "btc" | "number" | "percent" | "utxos" | "usd"} unit
  * @property {"line" | "area" | "stacked" | "bar" | "dots"} view
  * @property {"linear" | "log"} scale
  * @property {ChartSeriesSpec[]} series

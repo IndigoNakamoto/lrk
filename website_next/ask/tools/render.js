@@ -1,6 +1,6 @@
 import { formatValue } from "./data.js";
 import { focusApiData } from "./api/result.js";
-import { normalize } from "./text.js";
+import { normalize, tokenAffinity } from "./text.js";
 
 /**
  * @typedef {Object} MetricRead
@@ -21,6 +21,7 @@ import { normalize } from "./text.js";
  */
 
 const SOURCE_URL = "https://github.com/bitcoinresearchkit/brk/blob";
+const MIN_FIELD_AFFINITY = 0.65;
 
 /** @param {SourceEvidence} source */
 function sourceKey(source) {
@@ -124,20 +125,20 @@ function renderApiField(candidate) {
     .map((type) => type.trim());
   const semanticTypes = types.filter((type) => !genericTypes.has(type.toLowerCase()));
   const unit = semanticTypes.length === 1 ? ` ${semanticTypes[0]}` : "";
-  const label = candidate.field.name.replaceAll("_", " ").replaceAll(".", " · ");
+  const label = candidate.field.name.split(".").map(normalize).join(" · ");
   return `**${label}**: ${displayScalar(candidate.value)}${unit}`;
 }
 
 /**
- * Render scalar fields selected directly by exact OpenAPI field-name overlap.
+ * Render scalar fields selected directly from OpenAPI names and descriptions.
  * Equal-scoring fields are returned together rather than asking the model to
  * choose, which is both faster and safer for questions such as "which block?".
  * Field names, parameter names, and units all come from OpenAPI.
- * @param {{ question: string, data: unknown, arguments?: Record<string, unknown>, operation: { method: string, path: string, parameters?: { name: string }[], response: { type?: string, fields?: { name: string, type: string, description?: string }[] } } }} grounding
+ * @param {{ question: string, data: unknown, arguments?: Record<string, unknown>, operation: { method: string, path: string, parameters?: { name: string }[], response: { type?: string, fields?: { name: string, type: string, description?: string, ownDescription?: string }[] } } }} grounding
  */
 export function renderDirectApiAnswer(grounding) {
   if (
-    /\b(?:add(?:ed)?|combined?|difference|minus|net|plus|subtract(?:ed)?|sum)\b/i
+    /\b(?:add(?:ed)?|altogether|combined?|difference|including|minus|net|plus|subtract(?:ed)?|sum|total)\b/i
       .test(grounding.question)
   ) return undefined;
 
@@ -150,17 +151,26 @@ export function renderDirectApiAnswer(grounding) {
   }
 
   const words = new Set(
-    normalize(grounding.question).match(/[a-z0-9]+/g) ?? [],
+    (normalize(grounding.question).match(/[a-z0-9]+/g) ?? [])
+      .filter((word) => word.length >= 3),
   );
+  if (normalize(grounding.question).includes("how many")) {
+    words.add("count");
+    words.add("number");
+  }
   const parameters = new Set(
     (grounding.operation.parameters ?? []).map(({ name }) => normalize(name)),
   );
-  const fields = responseFields.map((field) => {
+  const asksForIdentity = words.has("which") || words.has("where");
+  const fields = responseFields.map((field, index) => {
     const nameTokens = new Set(normalize(field.name).match(/[a-z0-9]+/g) ?? []);
+    const ownTokens = new Set(
+      normalize(field.ownDescription ?? field.description ?? "").match(/[a-z0-9]+/g) ?? [],
+    );
     const tokens = new Set(
       normalize(`${field.name} ${field.description ?? ""}`).match(/[a-z0-9]+/g) ?? [],
     );
-    return { field, nameTokens, tokens };
+    return { field, index, nameTokens, ownTokens, tokens };
   });
   const frequencies = new Map();
   for (const { tokens } of fields) {
@@ -175,30 +185,61 @@ export function renderDirectApiAnswer(grounding) {
       let matches = 0;
       let score = 0;
       for (const word of words) {
-        if (!field.tokens.has(word)) continue;
+        const match = [...field.tokens]
+          .map((token) => ({
+            token,
+            affinity: tokenAffinity(word, token),
+          }))
+          .sort((left, right) => right.affinity - left.affinity)[0];
+        if (!match || match.affinity < MIN_FIELD_AFFINITY) continue;
         matches += 1;
-        const frequency = frequencies.get(word) ?? fields.length;
+        const frequency = frequencies.get(match.token) ?? fields.length;
         const idf = Math.log((fields.length + 1) / (frequency + 1)) + 1;
-        score += idf * (field.nameTokens.has(word) ? 3 : 1);
+        const nameMatch = [...field.nameTokens].some((token) =>
+          tokenAffinity(word, token) >= MIN_FIELD_AFFINITY
+        );
+        const ownMatch = [...field.ownTokens].some((token) =>
+          tokenAffinity(word, token) >= MIN_FIELD_AFFINITY
+        );
+        score += idf * (nameMatch ? 3 : ownMatch ? 2 : 1) * match.affinity;
       }
+      if (
+        asksForIdentity &&
+        normalize(field.field.type).split(" ").includes("boolean")
+      ) score *= 0.5;
       return {
         field: field.field,
+        index: field.index,
         path,
         value: valueAt(data, path),
         matches,
         score,
         parameter: parameters.has(normalize(leaf)),
+        unmatchedName: [...field.nameTokens].filter((token) =>
+          ![...words].some((word) =>
+            tokenAffinity(word, token) >= MIN_FIELD_AFFINITY
+          )
+        ).length,
       };
     })
     .filter(({ matches, parameter, value }) =>
       matches > 0 && !parameter && scalar(value) && value !== null
     )
-    .sort((left, right) => right.score - left.score || right.matches - left.matches);
+    .sort((left, right) =>
+      right.score - left.score ||
+      right.matches - left.matches ||
+      left.unmatchedName - right.unmatchedName
+    );
   if (!candidates.length) return undefined;
 
   const selected = candidates
-    .filter(({ score }) => score === candidates[0].score)
-    .slice(0, 6);
+    .filter(({ score, matches, unmatchedName }) =>
+      score === candidates[0].score &&
+      matches === candidates[0].matches &&
+      (matches === 1 || unmatchedName === candidates[0].unmatchedName)
+    )
+    .slice(0, 6)
+    .sort((left, right) => left.index - right.index);
   const answer = selected.length === 1
     ? renderApiField(selected[0])
     : selected.map((candidate) => `- ${renderApiField(candidate)}`).join("\n");

@@ -37,6 +37,15 @@ export function similarity(left, right) {
   return (2 * overlap) / (a.size + b.size);
 }
 
+/** @param {unknown} left @param {unknown} right */
+export function tokenAffinity(left, right) {
+  const a = normalize(left);
+  const b = normalize(right);
+  if (a === b) return 1;
+  if (a.length < 4 || b.length < 4) return 0;
+  return similarity(a, b);
+}
+
 /** @param {unknown} query @param {unknown} document @param {number} [boost] */
 export function relevance(query, document, boost = 0) {
   const needle = normalize(query);
