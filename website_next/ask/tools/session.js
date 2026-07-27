@@ -2,9 +2,41 @@ import { createChartArtifact } from "./chart.js";
 import { resolveChartUnit } from "./chart/units.js";
 import { apiByKey, searchApi } from "./api/index.js";
 import { executeApi } from "./api/execute.js";
+import {
+  apiResponseMatchCount,
+  apiOperationMatchCount,
+  argumentAffinity,
+  directApiCandidate,
+  literalArguments,
+  literalType,
+  matchesApiIntent,
+  matchesApiResponse,
+  reusableArguments,
+} from "./api/routing.js";
 import { readMetric } from "./data.js";
 import { directChartCommand } from "./direct/chart.js";
 import { directEvidenceFocus } from "./direct/evidence.js";
+import {
+  completeComparisonQueries,
+  directReadAction,
+  evidenceFocus,
+  isDirectDefinition,
+  isDirectValueFollowup,
+  isDirectValueRequest,
+  isExplicitComparison,
+  mayRequestMultiple,
+  referencesPlural,
+  referencesPrevious,
+  referencesSingular,
+} from "./direct/request.js";
+import {
+  latestApiContext,
+  latestChart,
+  latestKnowledgeContext,
+  latestMetricPaths,
+  latestSourceContext,
+  recentMetricPaths,
+} from "./history.js";
 import { searchLearn } from "./learn.js";
 import {
   metricByName,
@@ -13,10 +45,23 @@ import {
   mentionedMetrics,
   searchMetrics,
 } from "./metrics/index.js";
+import {
+  balancedOptions,
+  coordinatedMetrics,
+  exactTopicMetrics,
+  MAX_OPTIONS,
+  mergeMetricGroups,
+  uniqueMetricOptions,
+} from "./metrics/options.js";
 import { canonicalMetricQuery } from "./metrics/language.js";
 import { ASK_STAGE_PROMPTS } from "./prompts.js";
 import { AskRefs } from "./refs.js";
 import { renderData, renderEvidence } from "./render.js";
+import {
+  directSourceFact,
+  hasDirectSourceComputation,
+  sourceFocus,
+} from "./source/answer.js";
 import {
   apiResolveTool,
   clarifyTool,
@@ -24,9 +69,8 @@ import {
   rewriteTool,
   searchTool,
 } from "./schemas.js";
-import { normalize, tokenAffinity } from "./text.js";
+import { normalize } from "./text.js";
 
-const MAX_OPTIONS = 12;
 const MAX_API_OPTIONS = 6;
 const MAX_API_HINTS = 24;
 
@@ -68,381 +112,24 @@ function label(value) {
   return value.replaceAll("_", " ");
 }
 
-/** @param {string} value */
-function isExplicitComparison(value) {
-  return /\b(?:vs\.?|versus|compare|compared|comparison)\b/i.test(value);
+/** @param {string} formulaMetric @param {string} metricName */
+function formulaMatchesMetric(formulaMetric, metricName) {
+  const formula = normalize(formulaMetric);
+  const metric = normalize(metricName);
+  return metric === formula || metric.endsWith(` ${formula}`);
 }
 
-/** @param {string} value */
-function mayRequestMultiple(value) {
-  return isExplicitComparison(value) || /\b(?:and|both|together)\b/i.test(value);
-}
-
-/** @param {string} value */
-function referencesPrevious(value) {
-  return /\b(?:it|its|that|this|they|their|them|those|these|same)\b/i.test(value) ||
-    /^(?:and|also|what about)\b/i.test(value.trim()) ||
-    /^(?:at\s+block\s+\d+|(?:at|on)\s+\d{4}(?:[- ]\d{2}){2})\b/i.test(value.trim());
-}
-
-/** @param {string} value */
-function referencesSingular(value) {
-  return /\b(?:it|its|that|this)\b/i.test(value);
-}
-
-/** @param {string} value */
-function referencesPlural(value) {
-  return /\b(?:they|their|them|those|these)\b/i.test(value);
-}
-
-/** @param {string} value */
-function literalArguments(value) {
-  return [...new Set(
-    (value.match(/\b(?=[A-Za-z0-9:_-]*\d)[A-Za-z0-9][A-Za-z0-9:_-]*\b/g) ?? [])
-      .filter((item) => item.length > 1 || /^\d$/.test(item)),
-  )];
-}
-
-/** @param {string} request */
-function apiRequestWords(request) {
-  const words = new Set(normalize(request).match(/[a-z0-9]+/g) ?? []);
-  if (normalize(request).includes("how many")) {
-    words.add("count");
-    words.add("number");
-  }
-  return words;
-}
-
-/** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
-function apiResponseMatchCount(request, operation) {
-  const requestWords = apiRequestWords(request);
-  const nameWords = new Set(operation.response.fields.flatMap((field) =>
-    normalize(field.name).match(/[a-z0-9]+/g) ?? []
-  ));
-  const descriptionWords = new Set(operation.response.fields.flatMap((field) =>
-    (normalize(field.description).match(/[a-z0-9]+/g) ?? [])
-      .filter((word) => word.length >= 4)
-  ));
-  return [...requestWords].filter((candidate) =>
-    [...nameWords].some((word) => tokenAffinity(word, candidate) >= 0.7) ||
-    candidate.length >= 4 &&
-      [...descriptionWords].some((word) => tokenAffinity(word, candidate) >= 0.65)
-  ).length;
-}
-
-/** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
-function matchesApiResponse(request, operation) {
-  return apiResponseMatchCount(request, operation) > 0;
-}
-
-/** @param {string} request @param {import("./api/index.js").ApiOperation} operation */
-function matchesApiIntent(request, operation) {
-  if (matchesApiResponse(request, operation)) return true;
-  const words = new Set(
-    (normalize(request).match(/[a-z0-9]+/g) ?? []).filter((word) => word.length >= 3),
-  );
-  const document = new Set(
-    (normalize(`${operation.summary} ${operation.path}`).match(/[a-z0-9]+/g) ?? [])
-      .filter((word) => word.length >= 3),
-  );
-  return [...words].filter((word) => document.has(word)).length >= 2;
-}
-
-/** @param {string} request */
-function requestsExplanation(request) {
-  const text = normalize(request);
-  return /^(?:why|how(?! many\b| much\b))\b/.test(text) ||
-    /\b(?:describe|explain|meaning|mean|works?|working)\b/.test(text);
-}
-
-/** @param {string} value */
-function literalType(value) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return "date";
-  if (/^-?\d+(?:\.\d+)?$/.test(value) && value.replace(/[^0-9]/g, "").length <= 15) {
-    return "number";
-  }
-  if (value === "true" || value === "false") return "boolean";
-  return "string";
-}
-
-/** @param {import("./api/index.js").ApiParameter} parameter */
-function parameterType(parameter) {
-  if (/^date(?:-time)?$/.test(normalize(parameter.format ?? ""))) return "date";
-  const type = normalize(parameter.valueType ?? parameter.type);
-  if (/\b(?:integer|number)\b/.test(type)) return "number";
-  if (/\bboolean\b/.test(type)) return "boolean";
-  if (/\bstring\b/.test(type)) return "string";
-  return "unknown";
-}
-
-/**
- * Prefer candidates whose source-derived parameter schemas fit the supplied
- * literals, while retaining catalog rank for equal fits.
- * @param {string[]} values
- * @param {import("./api/index.js").ApiOperation} operation
- * @param {string} [request]
- */
-function argumentAffinity(values, operation, request = "") {
-  const required = operation.parameters.filter((parameter) => parameter.required);
-  if (required.length !== values.length) return -1;
-  if (required.some((parameter, index) => {
-    const expected = parameterType(parameter);
-    const actual = literalType(values[index]);
-    return expected !== "unknown" && expected !== actual;
-  })) return -1;
-  const requestTokens = normalize(request).split(" ");
-  return required.reduce((score, parameter, index) => {
-    const expected = parameterType(parameter);
-    const actual = literalType(values[index]);
-    let next = expected === actual ? score + 2 : expected === "unknown" ? score + 1 : score;
-    const valueIndex = requestTokens.indexOf(normalize(values[index]));
-    const context = valueIndex > 0 ? requestTokens[valueIndex - 1] : "";
-    const placeholder = `{${parameter.name}}`;
-    const parts = operation.path.split("/");
-    const parameterIndex = parts.indexOf(placeholder);
-    const pathContext = parameterIndex > 0 ? normalize(parts[parameterIndex - 1]) : "";
-    if (context && pathContext.split(" ").includes(context)) next += 2;
-    return next;
-  }, 0);
-}
-
-/**
- * @param {import("./api/index.js").ApiOperation[]} hints
- * @param {string[]} values
- * @param {string} request
- */
-function directApiCandidate(hints, values, request) {
-  if (requestsExplanation(request)) return undefined;
-  if (!values.length) {
-    return hints.find((operation) =>
-      operation.parameters.every((parameter) => !parameter.required) &&
-      (
-        (operation.matchedTerms ?? 0) >= 2 ||
-        (operation.matchedTerms ?? 0) >= 1 &&
-          apiResponseMatchCount(request, operation) >= 1
-      ) &&
-      matchesApiIntent(request, operation)
-    );
-  }
-  const ranked = hints
-    .map((operation, rank) => ({
-      operation,
-      rank,
-      affinity: argumentAffinity(values, operation, request),
-      responseMatches: apiResponseMatchCount(request, operation),
-    }))
-    .map((candidate) => ({
-      ...candidate,
-      evidence: candidate.affinity + candidate.responseMatches * 2,
-    }))
-    .filter(({ operation, affinity }) =>
-      affinity >= 0 && (operation.matchedTerms ?? 0) > 0
-    )
-    .sort((left, right) =>
-      right.evidence - left.evidence ||
-      right.affinity - left.affinity ||
-      right.responseMatches - left.responseMatches ||
-      left.rank - right.rank
-    );
-  const [first, second] = ranked;
-  if (!first || !matchesApiIntent(request, first.operation)) return undefined;
-  const numericAmbiguity = values.some((value) => literalType(value) === "number") &&
-    second?.evidence === first.evidence &&
-    second.operation.parameters
-      .filter((parameter) => parameter.required)
-      .map((parameter) => parameter.name)
-      .join("|") !== first.operation.parameters
-      .filter((parameter) => parameter.required)
-      .map((parameter) => parameter.name)
-      .join("|");
-  return numericAmbiguity ? undefined : first.operation;
-}
-
-/**
- * @param {import("./api/index.js").ApiOperation} operation
- * @param {{ operation: import("./api/index.js").ApiOperation, arguments: Record<string, unknown> } | undefined} previous
- */
-function reusableArguments(operation, previous) {
-  if (!previous) return undefined;
-  const required = operation.parameters.filter((parameter) => parameter.required);
-  if (!required.length && previous.operation.key !== operation.key) return undefined;
-  if (!required.every((parameter) => Object.hasOwn(previous.arguments, parameter.name))) {
-    return undefined;
-  }
-  return Object.fromEntries(
-    operation.parameters
-      .filter((parameter) => Object.hasOwn(previous.arguments, parameter.name))
-      .map((parameter) => [parameter.name, previous.arguments[parameter.name]]),
-  );
-}
-
-/** @param {string} request */
-function isDirectValueFollowup(request) {
-  const text = normalize(request);
-  const hasPoint = /\b(?:current|currently|latest|now|today)\b/.test(text) ||
-    /\bblock\s+\d{4,}\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
-  const needsInterpretation = /^(?:how|why)\b/.test(text) ||
-    /\b(?:available|availability|chart|cohorts?|code|explain|formula|graph|history|plot|source|trend|variants?)\b/.test(text);
-  return referencesPrevious(text) && hasPoint && !needsInterpretation;
-}
-
-/** @param {string} request */
-function isDirectValueRequest(request) {
-  const text = normalize(request);
-  const hasPoint = /\b(?:current|currently|latest|now|today)\b/.test(text) ||
-    /\bblock\s+\d{4,}\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
-  const needsDifferentTool =
-    /\b(?:available|availability|chart|cohorts?|code|explain|formula|graph|history|plot|source|trend|variants?|visualize|visualise)\b/.test(text) ||
-    /\b(?:over|through)\s+time\b/.test(text);
-  return hasPoint && !needsDifferentTool;
-}
-
-/** @param {string} request @param {string} proposed */
-function evidenceFocus(request, proposed) {
-  if (/\b(?:cohorts?|variants?|availability|available)\b/i.test(request)) return "variants";
-  if (/\b(?:source|code|implemented?|implementation|calculated?|calculation|formula)\b/i.test(request)) {
-    return "implementation";
-  }
-  return proposed;
-}
-
-/** @param {string} request */
-function isDirectDefinition(request) {
-  const text = normalize(request);
-  const asks = /\b(?:define|explain|meaning)\b/.test(text) ||
-    /^(?:what is|what are)\b/.test(text);
-  const needsRouting = /\b(?:available|availability|chart|cohorts?|code|current|file|graph|history|latest|now|path|plot|source|today|trend|variants?)\b/.test(text) ||
-    /\bblock\s+\d+\b/.test(text) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(request);
-  return asks && !needsRouting;
-}
-
-/** @param {string[]} topics @param {() => void} onProgress */
-async function exactTopicMetrics(topics, onProgress) {
-  if (!topics.length) return [];
-
-  const names = new Set(topics.map(normalize));
-  const metrics = await searchMetrics(topics, MAX_OPTIONS, [], onProgress);
-  return metrics.filter((metric) => names.has(normalize(metric.name)));
-}
-
-/**
- * Resolve coordinated metric wording only when expanding its shared suffix
- * produces two exact generated catalog names.
- * @param {string} request
- * @param {() => void} onProgress
- */
-async function coordinatedMetrics(request, onProgress) {
-  const expression = canonicalMetricQuery(request)
-    .replace(
-      /^(?:(?:compare|chart|graph|plot|show|visualize|visualise)(?: me)?|comparison of)\s+/,
-      "",
-    )
-    .replace(/^both\s+/, "")
-    .trim();
-  const parts = expression
-    .split(/\s+(?:and|against|versus|vs)\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length !== 2) return [];
-
-  const [left, right] = parts;
-  const candidates = [[left, right]];
-  const leftWords = left.split(" ");
-  const rightWords = right.split(" ");
-  for (let index = 1; index < rightWords.length; index += 1) {
-    candidates.push([`${left} ${rightWords.slice(index).join(" ")}`, right]);
-  }
-  for (let index = 1; index < leftWords.length; index += 1) {
-    candidates.push([left, `${right} ${leftWords.slice(index).join(" ")}`]);
-  }
-
-  for (const topics of candidates) {
-    const metrics = await exactTopicMetrics(topics, onProgress);
-    if (new Set(metrics.map((metric) => metric.path)).size === 2) return metrics;
-  }
-  return [];
-}
-
-/** @param {string} request */
-function directReadAction(request) {
-  const block = request.match(/\bblock\s+(\d{4,})\b/i)?.[1];
-  const dates = [...request.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(([date]) => date);
-  if (block) return { mode: "at", index: "height", at: block };
-  if (dates.length === 1) return { mode: "at", index: "day1", at: dates[0] };
-  if (dates.length > 1 || /\b(?:ago|before|after|between|from|last|previous|since|yesterday)\b/i.test(request)) {
-    return undefined;
-  }
-  return { mode: "latest" };
-}
-
-/** @param {string[]} queries */
-function completeComparisonQueries(queries) {
-  if (queries.length < 3) return queries;
-
-  const shared = queries.at(-1) ?? "";
-  const qualifiers = queries.slice(0, -1);
-  if (!qualifiers.every((query) => normalize(query).split(" ").length === 1)) return queries;
-
-  return qualifiers.map((qualifier) => `${qualifier} ${shared}`);
-}
-
-/** @param {any[]} history */
-function latestChart(history) {
-  for (const message of [...history].reverse()) {
-    const chart = message.artifacts?.findLast?.(
-      (/** @type {any} */ artifact) => artifact.type === "chart",
-    );
-    if (chart) return chart;
-  }
-  return undefined;
-}
-
-/** @param {any[]} history @returns {string[] | undefined} */
-function latestMetricPaths(history) {
-  for (const message of [...history].reverse()) {
-    if (Array.isArray(message.metricPaths)) return message.metricPaths;
-
-    const chart = message.artifacts?.findLast?.(
-      (/** @type {any} */ artifact) => artifact.type === "chart",
-    );
-    if (chart) return chart.chart.series.map((/** @type {any} */ item) => item.path);
-  }
-  return undefined;
-}
-
-/** @param {any[]} history */
-function recentMetricPaths(history) {
-  /** @type {string[]} */
-  const paths = [];
-  for (const message of [...history].reverse()) {
-    const remembered = Array.isArray(message.metricPaths)
-      ? message.metricPaths
-      : message.artifacts?.findLast?.(
-          (/** @type {any} */ artifact) => artifact.type === "chart",
-        )?.chart.series.map((/** @type {any} */ item) => item.path);
-    for (const path of remembered ?? []) {
-      if (!paths.includes(path)) paths.push(path);
-      if (paths.length === 6) return paths;
-    }
-  }
-  return paths;
-}
-
-/** @param {any[]} history */
-function latestApiContext(history) {
-  for (const message of [...history].reverse()) {
-    if (message.apiContext) return message.apiContext;
-    if (
-      Array.isArray(message.metricPaths) ||
-      message.artifacts?.some?.(
-        (/** @type {any} */ artifact) => artifact.type === "chart",
-      )
-    ) return undefined;
-  }
-  return undefined;
+/** @param {any} formula @param {any} metric */
+function metricFormulaAnswer(formula, metric) {
+  if (!formula.fact.summary) return formula.answer;
+  const name = label(metric.name);
+  const displayName = !name.includes(" ") && name.length <= 4
+    ? name.toUpperCase()
+    : `${name[0].toUpperCase()}${name.slice(1)}`;
+  const unit = metric.suggestedUnit && metric.suggestedUnit !== "number"
+    ? ` (${String(metric.suggestedUnit).toUpperCase()})`
+    : "";
+  return `${displayName}${unit} ${formula.fact.summary}.`;
 }
 
 /** @param {any} formula */
@@ -452,63 +139,6 @@ function formulaCitation(formula) {
     path: formula.fact.path,
     startLine: formula.fact.line,
   };
-}
-
-/** @param {any[]} items */
-function uniqueMetricOptions(items) {
-  return [...new Map(items.map((/** @type {any} */ item) => [item.ref, item])).values()];
-}
-
-/** @param {any[][]} groups */
-function mergeMetricGroups(groups) {
-  const output = [];
-  const positions = new Map();
-  const ranks = Math.max(...groups.map((group) => group.length), 0);
-
-  for (let rank = 0; rank < ranks && output.length < MAX_OPTIONS; rank += 1) {
-    for (const group of groups) {
-      const metric = group[rank];
-      if (!metric) continue;
-
-      const position = positions.get(metric.path);
-      if (position !== undefined) {
-        const current = output[position];
-        const exact = normalize(metric.name) === normalize(metric.matchedQuery ?? "");
-        const currentExact = normalize(current.name) === normalize(current.matchedQuery ?? "");
-        if (exact && !currentExact) output[position] = metric;
-        continue;
-      }
-      positions.set(metric.path, output.length);
-      output.push(metric);
-      if (output.length === MAX_OPTIONS) break;
-    }
-  }
-  return output;
-}
-
-/** @param {any[]} items */
-function balancedOptions(items) {
-  const order = ["fact", "guide", "metric", "source"];
-  const groups = order
-    .map((kind) => items
-      .filter((item) => item.kind === kind)
-      .sort((left, right) => right.score - left.score))
-    .filter((group) => group.length);
-  const output = [];
-
-  for (let rank = 0; output.length < MAX_OPTIONS; rank += 1) {
-    let added = false;
-    for (const group of groups) {
-      const item = group[rank];
-      if (!item) continue;
-      const { score, ...option } = item;
-      output.push(option);
-      added = true;
-      if (output.length === MAX_OPTIONS) break;
-    }
-    if (!added) break;
-  }
-  return output;
 }
 
 export class AskToolSession {
@@ -552,12 +182,17 @@ export class AskToolSession {
   apiCandidates = [];
   /** @type {import("./api/index.js").ApiOperation | undefined} */
   directApiHint;
+  verifyDirectApiIntent = false;
   /** @type {{ operation: import("./api/index.js").ApiOperation, arguments: Record<string, unknown> } | undefined} */
   previousApi;
   reuseApiContext = false;
   /** @type {any} */
   formula;
   sourceSearched = false;
+  /** @type {import("../storage.js").SourceContext[]} */
+  previousSource = [];
+  /** @type {import("../storage.js").KnowledgeContext | undefined} */
+  previousKnowledge;
   requiresTools = false;
   /** @type {ChartArtifact | undefined} */
   activeChart;
@@ -583,9 +218,12 @@ export class AskToolSession {
     this.apiHints = [];
     this.apiCandidates = [];
     this.directApiHint = undefined;
+    this.verifyDirectApiIntent = false;
     this.reuseApiContext = false;
     this.formula = undefined;
     this.sourceSearched = false;
+    this.previousSource = latestSourceContext(history) ?? [];
+    this.previousKnowledge = latestKnowledgeContext(history);
     this.requiresTools = false;
     this.activeChart ??= latestChart(history);
 
@@ -629,12 +267,9 @@ export class AskToolSession {
           (operation.matchedTerms ?? 0) > 0
         )
       : [];
-    this.directApiHint = prefersMetricTool
-      ? undefined
-      : directApiCandidate(this.apiHints, literals, this.request);
     if (
       !prefersMetricTool &&
-      !this.directApiHint &&
+      !this.previousApi &&
       isDirectValueRequest(this.request) &&
       literals.some((value) => literalType(value) !== "string")
     ) {
@@ -644,6 +279,15 @@ export class AskToolSession {
         this.apiCandidates = [];
       }
     }
+    this.directApiHint = prefersMetricTool
+      ? undefined
+      : directApiCandidate(this.apiHints, literals, this.request);
+    this.verifyDirectApiIntent = Boolean(
+      this.directApiHint &&
+        !this.previousApi &&
+        !literals.length &&
+        this.apiHints[0]?.key !== this.directApiHint.key,
+    );
     this.requiresTools = Boolean(this.directApiHint) || this.apiCandidates.length > 0;
 
     if (
@@ -725,6 +369,39 @@ export class AskToolSession {
       ? undefined
       : directChartCommand(this.request, Boolean(this.activeChart));
     if (chart) {
+      if (chart.kind === "missing") {
+        return {
+          output: "Which metric should I chart?",
+          artifacts: [],
+        };
+      }
+      if (chart.kind === "missing_add") {
+        const added = await mentionedMetrics(
+          this.request,
+          () => onStatus("Indexing metrics…"),
+        );
+        const metrics = [...new Map(
+          [...this.previousMetrics, ...added].map((metric) => [metric.path, metric]),
+        ).values()];
+        if (metrics.length > 1) {
+          this.rememberMetricValues(metrics);
+          return {
+            output: `Do you want me to chart ${metrics.map((metric) => label(metric.name)).join(" and ")} together?`,
+            artifacts: [],
+          };
+        }
+        return {
+          output: "What should I add it to?",
+          artifacts: [],
+        };
+      }
+      if (chart.kind === "style") {
+        this.outcome = "edit_existing_chart";
+        onStatus("Updating chart…");
+        const result = this.restyleChart(chart);
+        return { output: result.output, artifacts: result.artifacts };
+      }
+
       let metrics = await mentionedMetrics(
         this.request,
         () => onStatus("Indexing metrics…"),
@@ -770,6 +447,7 @@ export class AskToolSession {
     }
 
     if (evidence) {
+      this.requiresTools = true;
       let metrics = await mentionedMetrics(
         this.request,
         () => onStatus("Indexing metrics…"),
@@ -779,7 +457,9 @@ export class AskToolSession {
       }
 
       if (metrics.length) {
-        if (evidence === "implementation" && metrics.length !== 1) return undefined;
+        if (evidence === "implementation" && metrics.length !== 1) {
+          metrics = [];
+        }
         if (evidence === "variants") {
           const supported = await Promise.all(
             metrics.map(async (metric) =>
@@ -789,7 +469,7 @@ export class AskToolSession {
           metrics = supported.filter((metric) => metric !== undefined);
           if (!metrics.length) return undefined;
         }
-        if (evidence === "implementation") {
+        if (evidence === "implementation" && metrics.length) {
           onStatus("Searching source…");
           this.formula = await this.source.explain(
             [this.request, ...metrics.map((metric) => metric.name)].join("\n"),
@@ -797,17 +477,36 @@ export class AskToolSession {
           );
           if (
             !this.formula ||
-            !metrics.some((metric) => normalize(metric.name) === normalize(this.formula.fact.metric))
-          ) return undefined;
+            !metrics.some((metric) =>
+              formulaMatchesMetric(this.formula.fact.metric, metric.name)
+            )
+          ) {
+            metrics = [];
+          }
         }
 
-        this.focus = evidence;
-        const refs = metrics.map((metric) => this.refs.issue("metric", metric, metric.path));
-        onStatus("Inspecting results…");
-        const result = await this.inspect(refs);
-        return { output: result.output, artifacts: [] };
+        if (metrics.length) {
+          this.focus = evidence;
+          const refs = metrics.map((metric) => this.refs.issue("metric", metric, metric.path));
+          onStatus("Inspecting results…");
+          const result = await this.inspect(refs);
+          return { output: result.output, artifacts: [] };
+        }
       }
       if (evidence === "implementation") {
+        if (
+          this.previousSource.length &&
+          directSourceFact(this.request, this.previousSource)
+        ) {
+          return {
+            output: "",
+            artifacts: [],
+            grounding: {
+              question: this.request,
+              excerpts: this.previousSource,
+            },
+          };
+        }
         onStatus("Searching source…");
         const result = await this.source.search(
           this.request,
@@ -815,6 +514,19 @@ export class AskToolSession {
           ({ loaded, total }) => onStatus(`Indexing source · ${loaded} / ${total}`),
         );
         if (result.matches.length) {
+          const [match] = result.matches;
+          const excerpt = { ...match, revision: result.revision };
+          if (hasDirectSourceComputation(this.request, [excerpt])) {
+            const focus = sourceFocus(this.request, [excerpt]);
+            return {
+              output: "",
+              artifacts: [],
+              grounding: {
+                question: this.request,
+                excerpts: [{ ...excerpt, ...(focus ? { focus } : {}) }],
+              },
+            };
+          }
           const options = result.matches.slice(0, 6).map((/** @type {any} */ match) => {
             const value = { ...match, revision: result.revision };
             return {
@@ -833,6 +545,83 @@ export class AskToolSession {
         }
       }
       this.requiresTools = true;
+    }
+
+    if (
+      this.previousSource.length &&
+      (
+        directSourceFact(this.request, this.previousSource) ||
+        referencesPrevious(this.request) &&
+          /^(?:are|does|how|is|what|which|why)\b/i.test(this.request.trim())
+      ) &&
+      !isDirectValueRequest(this.request)
+    ) {
+      this.requiresTools = true;
+      return {
+        output: "",
+        artifacts: [],
+        grounding: {
+          question: this.request,
+          excerpts: this.previousSource,
+        },
+      };
+    }
+
+    if (isExplicitComparison(this.request)) {
+      let metrics = await mentionedMetrics(
+        this.request,
+        () => onStatus("Indexing metrics…"),
+      );
+      if (referencesPrevious(this.request)) {
+        metrics = [...this.previousMetrics, ...metrics];
+      }
+      metrics = [...new Map(metrics.map((metric) => [metric.path, metric])).values()];
+      if (metrics.length >= 2) {
+        onStatus("Searching source…");
+        const formulas = (
+          await Promise.all(metrics.map((metric) =>
+            this.source.explain(
+              `${this.request}\n${metric.name}`,
+              ({ loaded, total }) => onStatus(`Indexing source · ${loaded} / ${total}`),
+            )
+          ))
+        ).filter(Boolean);
+        if (formulas.length) {
+          const facts = formulas.map((formula) => {
+            const metric = metrics.find((item) =>
+              formulaMatchesMetric(formula.fact.metric, item.name)
+            );
+            return metric ? metricFormulaAnswer(formula, metric) : formula.answer;
+          });
+          for (const formula of formulas) {
+            if (formula.fact.kind !== "ratio") continue;
+            const denominator = normalize(formula.fact.denominator ?? "");
+            const related = metrics.find((metric) =>
+              normalize(metric.name) === denominator ||
+              normalize(metric.name).endsWith(` ${denominator}`)
+            );
+            if (related?.suggestedUnit) {
+              facts.push(
+                `${label(related.name)} is the ${String(related.suggestedUnit).toUpperCase()} denominator in ${formula.fact.metric.toUpperCase()}.`,
+              );
+            }
+          }
+          this.rememberMetricValues(metrics);
+          return {
+            output: renderEvidence({
+              facts,
+              sources: formulas.map(formulaCitation),
+              excerpts: [],
+            }),
+            artifacts: [],
+          };
+        }
+        this.rememberMetricValues(metrics);
+        return {
+          output: "Do you want their latest values, definitions, or a chart?",
+          artifacts: [],
+        };
+      }
     }
 
     if (
@@ -868,6 +657,44 @@ export class AskToolSession {
       }
     }
 
+    if (mayRequestMultiple(this.request)) {
+      const metrics = await mentionedMetrics(
+        this.request,
+        () => onStatus("Indexing metrics…"),
+      );
+      if (metrics.length >= 2) {
+        this.rememberMetricValues(metrics);
+        return {
+          output: "Do you want their latest values, definitions, or a chart?",
+          artifacts: [],
+        };
+      }
+    }
+
+    if (
+      this.previousKnowledge &&
+      (
+        referencesPrevious(this.request) ||
+        /\b(?:analogy|trade-?off)\b/i.test(this.request)
+      )
+    ) {
+      if (/\btrade-?off\b/i.test(this.request)) {
+        return {
+          output: `Which tradeoff about ${this.previousKnowledge.title} do you mean?`,
+          artifacts: [],
+          knowledgeContext: this.previousKnowledge,
+        };
+      }
+      return {
+        output: "",
+        artifacts: [],
+        knowledgeGrounding: {
+          question: this.request,
+          context: this.previousKnowledge,
+        },
+      };
+    }
+
     if (!isDirectDefinition(this.request)) return undefined;
 
     const explicitlyNamesMetric = /\b(?:indicator|metric|series)\b/i.test(this.request);
@@ -880,7 +707,26 @@ export class AskToolSession {
     if (!metric && this.previousMetrics.length === 1 && referencesPrevious(this.request)) {
       [metric] = this.previousMetrics;
     }
-    if (!metric && !explicitlyNamesMetric) return undefined;
+    if (!metric && !explicitlyNamesMetric) {
+      const [guide] = await searchLearn(this.request, 1);
+      if (guide?.titleCoverage === 1 && guide.description) {
+        const guideMetrics = (
+          await Promise.all(
+            guide.series.map((/** @type {any} */ series) => metricByName(series.name)),
+          )
+        ).filter(Boolean);
+        if (guideMetrics.length) this.rememberMetricValues(guideMetrics);
+        return {
+          output: guide.description,
+          artifacts: [],
+          knowledgeContext: {
+            title: guide.title,
+            description: guide.description,
+          },
+        };
+      }
+      return undefined;
+    }
     if (!metric) {
       [metric] = await searchMetrics(
         [this.request],
@@ -899,15 +745,44 @@ export class AskToolSession {
       `${this.request}\n${metric.name}`,
       ({ loaded, total }) => onStatus(`Indexing source · ${loaded} / ${total}`),
     );
-    if (!formula || normalize(formula.fact.metric) !== normalize(metric.name)) {
-      this.requiresTools = true;
-      return undefined;
+    if (!formula || !formulaMatchesMetric(formula.fact.metric, metric.name)) {
+      const result = await this.source.search(
+        `${metric.name} compute calculation definition state`,
+        undefined,
+        ({ loaded, total }) => onStatus(`Indexing source · ${loaded} / ${total}`),
+      );
+      const [match] = result.matches;
+      if (!match) {
+        this.requiresTools = true;
+        return undefined;
+      }
+
+      onStatus("Inspecting results…");
+      const excerpt = await this.source.read(
+        match.path,
+        match.startLine,
+        match.endLine,
+      );
+      this.rememberMetricValues([metric]);
+      return {
+        output: "",
+        artifacts: [],
+        grounding: {
+          question: this.request,
+          metric: {
+            name: label(metric.name),
+            path: metric.path,
+            unit: metric.suggestedUnit,
+          },
+          excerpts: [excerpt],
+        },
+      };
     }
 
     this.rememberMetricValues([metric]);
     return {
       output: renderEvidence({
-        facts: [formula.answer],
+        facts: [metricFormulaAnswer(formula, metric)],
         sources: [formulaCitation(formula)],
         excerpts: [],
       }),
@@ -1195,7 +1070,9 @@ export class AskToolSession {
     candidates.sort((left, right) => {
       const leftRequired = left.parameters.filter((parameter) => parameter.required).length;
       const rightRequired = right.parameters.filter((parameter) => parameter.required).length;
-      return argumentAffinity(values, right, this.request) -
+      return apiOperationMatchCount(this.request, right) -
+          apiOperationMatchCount(this.request, left) ||
+        argumentAffinity(values, right, this.request) -
           argumentAffinity(values, left, this.request) ||
         Number(rightRequired === values.length) - Number(leftRequired === values.length) ||
         (right.score ?? 0) - (left.score ?? 0);
@@ -1256,6 +1133,28 @@ export class AskToolSession {
     const arguments_ = Object.fromEntries(
       required.map((parameter, index) => [parameter.name, values[index]]),
     );
+    if (
+      isExplicitComparison(this.request) &&
+      this.previousApi?.operation.key === operation.key &&
+      required.every((parameter) =>
+        Object.hasOwn(this.previousApi?.arguments ?? {}, parameter.name)
+      )
+    ) {
+      onStatus("Comparing API data…");
+      const [previous, current] = await Promise.all([
+        executeApi(operation, this.previousApi.arguments, signal),
+        executeApi(operation, arguments_, signal),
+      ]);
+      this.previousApi = { operation, arguments: current.arguments };
+      return {
+        done: true,
+        apiGroundings: [previous, current].map((result) => ({
+          question: this.request,
+          queries: this.queries,
+          ...result,
+        })),
+      };
+    }
     return await this.callApi(operation, arguments_, onStatus, signal);
   }
 
@@ -1352,7 +1251,8 @@ export class AskToolSession {
       } else if (kind === "source") {
         const match = this.refs.get(ref, "source");
         const excerpt = await this.source.read(match.path, match.startLine, match.endLine);
-        evidence.excerpts.push(excerpt);
+        const focus = sourceFocus(this.request, [excerpt]);
+        evidence.excerpts.push({ ...excerpt, ...(focus ? { focus } : {}) });
       } else if (kind === "guide") {
         const guide = this.refs.get(ref, "guide");
         if (guide.description) evidence.facts.push(guide.description);
@@ -1450,7 +1350,7 @@ export class AskToolSession {
     if (conflicts.length) {
       return {
         done: true,
-        output: `Those metrics use different units (${conflicts.map((value) => `**${value.toUpperCase()}**`).join(" and ")}), so they need separate charts. Which one should I chart?`,
+        output: `Those metrics use different units (${conflicts.map((value) => value === "number" ? "**unitless**" : `**${value.toUpperCase()}**`).join(" and ")}), so they need separate charts. Which one should I chart?`,
         artifacts: [],
       };
     }
@@ -1468,6 +1368,29 @@ export class AskToolSession {
     return {
       done: true,
       output: `${existingChart ? "Updated" : "Built"} **${artifact.chart.title}** with ${artifact.chart.series.map((item) => item.label).join(", ")}.`,
+      artifacts: [artifact],
+    };
+  }
+
+  /** @param {{ scale?: string, view?: string }} action */
+  restyleChart(action) {
+    if (!this.activeChart) throw new Error("There is no chart to update");
+    const current = this.activeChart.chart;
+    const artifact = createChartArtifact({
+      title: current.title,
+      unit: current.unit,
+      view: action.view ?? current.view,
+      scale: action.scale ?? current.scale,
+      series: current.series,
+    });
+    this.activeChart = artifact;
+    const changes = [
+      action.view ? `${action.view} view` : "",
+      action.scale ? `${action.scale} scale` : "",
+    ].filter(Boolean).join(" and ");
+    return {
+      done: true,
+      output: `Updated **${artifact.chart.title}** to use ${changes}.`,
       artifacts: [artifact],
     };
   }

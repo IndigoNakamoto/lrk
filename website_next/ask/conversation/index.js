@@ -64,9 +64,7 @@ export function createAskConversation(options) {
      * @param {"user" | "assistant"} role
      * @param {string} text
      */
-    setContent(content, role, text) {
-      setMessageContent(content, role, text);
-    },
+    setContent: setMessageContent,
     /** @param {StoredMessage[]} messages */
     render(messages) {
       transcript.replaceChildren(

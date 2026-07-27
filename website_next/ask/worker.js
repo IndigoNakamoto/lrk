@@ -9,6 +9,9 @@ let chat;
 /** @type {AbortController | undefined} */
 let generationController;
 
+const PROMPT_HEADROOM = 32;
+const TRIMMED = "\n[…context trimmed to fit the local model…]\n";
+
 /** @param {unknown} error */
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
@@ -71,7 +74,7 @@ async function load() {
     dataUrl: ASK_MODEL.dataUrl,
     kvCache: "q8",
     activation: "f16",
-    maxSeqLen: 4_096,
+    maxSeqLen: ASK_MODEL.maxSeqLen,
     syncSteps: 1,
     fetchJson,
     fetchArrayBuffer,
@@ -116,6 +119,67 @@ async function checkCache() {
   });
 }
 
+/** @param {string} content @param {number} length */
+function trimContent(content, length) {
+  if (length >= content.length) return content;
+  if (length <= TRIMMED.length) return content.slice(0, Math.max(0, length));
+
+  const available = length - TRIMMED.length;
+  const head = Math.ceil(available * 0.6);
+  return `${content.slice(0, head)}${TRIMMED}${content.slice(-(available - head))}`;
+}
+
+/**
+ * Fit every request against the same tokenizer and sequence limit used by
+ * BitGPU. Old complete turns go first; only an individually oversized newest
+ * message is shortened.
+ *
+ * @param {{ role: string, content: string, tool_calls?: { name: string, arguments: Record<string, unknown> }[] }[]} messages
+ * @param {readonly any[] | undefined} tools
+ * @param {number} maxTokens
+ */
+function fitMessages(messages, tools, maxTokens) {
+  const limit = ASK_MODEL.maxSeqLen - maxTokens - PROMPT_HEADROOM;
+  let fitted = messages.map((message) => ({ ...message }));
+  const count = () => chat.countTokens(fitted, { tools });
+
+  while (count() > limit) {
+    const assistant = fitted
+      .slice(1, -1)
+      .findIndex((message) => message.role === "assistant");
+    if (assistant < 0) break;
+
+    let end = assistant + 2;
+    while (end < fitted.length - 1 && fitted[end].role !== "user") end += 1;
+    fitted.splice(1, end - 1);
+  }
+  if (count() <= limit) return fitted;
+
+  while (count() > limit) {
+    const index = fitted
+      .map((message, index_) => ({ index: index_, length: message.content.length }))
+      .filter(({ index: index_, length }) =>
+        fitted[index_].role !== "system" && length > 0
+      )
+      .sort((left, right) => right.length - left.length)[0]?.index;
+    if (index === undefined) {
+      throw new Error("The assistant instructions exceed the local model context window");
+    }
+
+    const content = fitted[index].content;
+    let low = 0;
+    let high = content.length;
+    while (low < high) {
+      const length = Math.ceil((low + high) / 2);
+      fitted[index].content = trimContent(content, length);
+      if (count() <= limit) low = length;
+      else high = length - 1;
+    }
+    fitted[index].content = trimContent(content, low);
+  }
+  return fitted;
+}
+
 /**
  * @param {{ role: string, content: string, tool_calls?: { name: string, arguments: Record<string, unknown> }[] }[]} messages
  * @param {{ maxTokens: number, stream: boolean, tools: readonly any[], toolChoice?: "auto" | "none" | { name: string } }} options
@@ -125,10 +189,12 @@ async function generate(messages, options) {
 
   generationController = new AbortController();
   const tools = options.tools.length ? options.tools : undefined;
+  const promptTools = tools && options.toolChoice !== "none" ? tools : undefined;
   const stream = options.stream && (!tools || options.toolChoice === "none");
+  const fitted = fitMessages(messages, promptTools, options.maxTokens);
 
   try {
-    const result = await chat.send(messages, {
+    const result = await chat.send(fitted, {
       maxTokens: options.maxTokens,
       temperature: 0,
       repetitionPenalty: 1,

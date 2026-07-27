@@ -24,7 +24,7 @@ function suggestedUnit(path, type) {
   if (/(usd|price|cap)/i.test(path)) return "usd";
   if (/(btc|supply|value)/i.test(path)) return "btc";
   if (/(address|addr)/i.test(path)) return "addresses";
-  if (/(utxo|output)/i.test(path)) return "utxos";
+  if (/(?:^|\.)(?:outputs?|unspentCount|spentCount)(?:\.|$)/i.test(path)) return "utxos";
   if (/(block|height|epoch)/i.test(path)) return "blocks";
   return "number";
 }
@@ -272,12 +272,32 @@ function mentions(index, query) {
   ).values()];
 }
 
-/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} name @param {string} query */
-function variants(index, name, query) {
-  const suffix = `_${name}`;
-  const candidates = index.items.filter((candidate) =>
-    candidate.name === name || candidate.name.endsWith(suffix)
-  );
+/**
+ * @param {Awaited<ReturnType<typeof buildState>>} index
+ * @param {string} name
+ * @param {string} path
+ * @param {string} query
+ */
+function variants(index, name, path, query) {
+  const selectedPath = path.split(".");
+  /** @type {typeof index.items} */
+  let candidates = [];
+  for (let length = selectedPath.length - 1; length >= 2; length -= 1) {
+    const suffix = selectedPath.slice(-length).join(".");
+    const matching = index.items.filter((candidate) =>
+      candidate.path === suffix || candidate.path.endsWith(`.${suffix}`)
+    );
+    if (matching.length > 1) {
+      candidates = matching;
+      break;
+    }
+  }
+  if (!candidates.length) {
+    const suffix = `_${name}`;
+    candidates = index.items.filter((candidate) =>
+      candidate.name === name || candidate.name.endsWith(suffix)
+    );
+  }
   if (candidates.length <= 1) return undefined;
 
   const preferredPaths = new Map(
@@ -351,7 +371,7 @@ self.addEventListener("message", async (event) => {
         .filter(Boolean)
         .map(publicMetric);
     } else if (type === "variants") {
-      result = variants(index, data.name, data.query);
+      result = variants(index, data.name, data.path ?? "", data.query);
     } else {
       throw new Error(`Unknown metric request: ${type}`);
     }

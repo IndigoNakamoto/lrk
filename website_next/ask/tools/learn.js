@@ -1,5 +1,5 @@
 import { brk } from "../../utils/client.js";
-import { relevance } from "./text.js";
+import { normalize, relevance, tokenAffinity } from "./text.js";
 
 /** @type {Promise<any[]> | undefined} */
 let catalogPromise;
@@ -49,17 +49,30 @@ async function learnCatalog() {
 
 /** @param {string} query @param {number} [limit] */
 export async function searchLearn(query, limit = 12) {
+  const queryTokens = normalize(query).split(" ").filter(Boolean);
   return (await learnCatalog())
-    .map((/** @type {any} */ item) => ({
-      ...item,
-      score:
+    .map((/** @type {any} */ item) => {
+      const titleTokens = normalize(item.title)
+        .split(" ")
+        .filter((token) => token.length >= 4);
+      const titleCoverage = titleTokens.length
+        ? titleTokens.filter((title) =>
+            queryTokens.some((token) => tokenAffinity(title, token) >= 0.7)
+          ).length / titleTokens.length
+        : 0;
+      return {
+        ...item,
+        titleCoverage,
+        score:
+          titleCoverage * 50 +
         relevance(query, `${item.title} ${item.sectionTitle}`) * 3 +
         relevance(query, item.breadcrumbs.join(" ")) * 2 +
         relevance(
           query,
           `${item.description} ${item.series.flatMap((/** @type {any} */ series) => [series.label, series.name]).join(" ")}`,
         ),
-    }))
+      };
+    })
     .filter(({ score }) => score >= 16)
     .sort((left, right) => right.score - left.score)
     .slice(0, limit);

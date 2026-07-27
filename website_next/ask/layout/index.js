@@ -22,7 +22,6 @@ export function createAskLayout(options) {
   const dock = document.createElement("footer");
 
   main.dataset.page = "ask";
-  main.dataset.state = "unloaded";
   header.append(options.sidebar.controls);
   dock.append(options.composer.element, options.loader.element);
   workspace.append(header, options.conversation.element, dock);

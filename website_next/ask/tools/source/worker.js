@@ -4,7 +4,7 @@ import { createSourceSearchIndex, searchSource } from "./search.js";
 const CATALOG_URL = import.meta.resolve("./catalog.jsonl.gz");
 const MAX_READ_LINES = 120;
 const MAX_READ_CHARACTERS = 2_500;
-const READ_CONTEXT_BEFORE = 4;
+const READ_CONTEXT_BEFORE = 32;
 const READ_CONTEXT_AFTER = 40;
 
 /** @type {Promise<{ sha: string, files: { path: string, text: string }[] }> | undefined} */

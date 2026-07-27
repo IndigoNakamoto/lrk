@@ -1,6 +1,7 @@
 import { renderApiAnswer } from "../render.js";
 import { normalize } from "../text.js";
 import { focusApiData } from "./result.js";
+import { apiRequestWords } from "./routing.js";
 
 const MAX_FIELDS = 64;
 
@@ -52,6 +53,7 @@ export function createApiAnswerTool(grounding) {
       `${field.ref}=${field.name} (${field.type}): ${field.value}${field.description ? ` — ${field.description}` : ""}`
     )
     .join("; ");
+  const canCalculate = fields.length > 0;
 
   return {
     fields,
@@ -59,34 +61,59 @@ export function createApiAnswerTool(grounding) {
       type: "function",
       function: {
         name: "answer_from_api",
-        description: "Answer only from verified API data. Use calculate whenever the requested numeric result combines fields.",
+        description: canCalculate
+          ? "Answer only from verified API data. Use calculate whenever the requested numeric result combines fields."
+          : "Answer only from verified API data.",
         parameters: {
           type: "object",
           properties: {
-            action: { type: "string", enum: ["calculate", "answer"] },
+            action: {
+              type: "string",
+              enum: canCalculate ? ["calculate", "answer"] : ["answer"],
+            },
             label: {
               type: "string",
               description: "Short user-facing name for a calculated result.",
             },
-            terms: {
-              type: "array",
-              minItems: 1,
-              maxItems: 12,
-              items: {
-                type: "object",
-                properties: {
-                  ref: {
+            ...(canCalculate
+              ? {
+                operator: {
+                  type: "string",
+                  enum: ["add", "subtract", "multiply", "divide"],
+                  description: "Arithmetic operator for operands. Use terms instead for a signed sum.",
+                },
+                operands: {
+                  type: "array",
+                  minItems: 2,
+                  maxItems: 12,
+                  items: {
                     type: "string",
                     enum: fields.map(({ ref }) => ref),
                     description: `Verified numeric fields: ${fieldDescription}`,
                   },
-                  sign: { type: "string", enum: ["add", "subtract"] },
+                  description: "Ordered source fields for operator arithmetic.",
                 },
-                required: ["ref", "sign"],
-                additionalProperties: false,
-              },
-              description: "Exact arithmetic expression, one signed term per source field.",
-            },
+                terms: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 12,
+                  items: {
+                    type: "object",
+                    properties: {
+                      ref: {
+                        type: "string",
+                        enum: fields.map(({ ref }) => ref),
+                        description: `Verified numeric fields: ${fieldDescription}`,
+                      },
+                      sign: { type: "string", enum: ["add", "subtract"] },
+                    },
+                    required: ["ref", "sign"],
+                    additionalProperties: false,
+                  },
+                  description: "Exact arithmetic expression, one signed term per source field.",
+                },
+              }
+              : {}),
             text: {
               type: "string",
               description: "For answer only: concise answer copied or summarized from verified data, with no invented values.",
@@ -102,7 +129,7 @@ export function createApiAnswerTool(grounding) {
 
 /** @param {string} value */
 function words(value) {
-  return normalize(value).split(" ").filter(Boolean);
+  return [...apiRequestWords(value)];
 }
 
 /**
@@ -140,6 +167,72 @@ function fieldScore(phrase, context, field) {
  * @param {any} grounding
  */
 export function directApiCalculation(question, fields, grounding) {
+  const normalizedQuestion = normalize(question);
+  const virtualSizeRequested =
+    /\bvsize\b/.test(normalizedQuestion) ||
+    /\bvirtual size\b/.test(normalizedQuestion);
+  const weight = fields.find((field) =>
+    /\bweight\b/.test(normalize(`${field.name} ${field.type}`))
+  );
+  const explicitVsize = fields.find((field) =>
+    /\b(?:vsize|virtual size)\b/.test(normalize(`${field.name} ${field.description ?? ""}`))
+  );
+  if (virtualSizeRequested && (explicitVsize || weight)) {
+    const value = explicitVsize?.value ?? Math.ceil(/** @type {ApiNumericField} */ (weight).value / 4);
+    return renderApiAnswer(
+      `**virtual size**: ${new Intl.NumberFormat("en-US").format(value)} VSize`,
+      grounding.operation,
+    );
+  }
+
+  const totalNoun =
+    normalizedQuestion.match(/\btotal\s+([a-z0-9]+)\b/)?.[1] ??
+    normalizedQuestion.match(/\b([a-z0-9]+)\s+(?:in\s+)?total\b/)?.[1];
+  if (totalNoun) {
+    const selected = fields.filter((field) =>
+      fieldScore(totalNoun, "total", field) > 0
+    );
+    if (
+      selected.length > 1 &&
+      new Set(selected.map(({ type }) => normalize(type))).size === 1
+    ) {
+      return finishApiAnswer(
+        {
+          action: "calculate",
+          label: `total ${totalNoun}`,
+          operator: "add",
+          operands: selected.map(({ ref }) => ref),
+        },
+        fields,
+        grounding,
+      );
+    }
+  }
+
+  if (/\bfee\s*rate\b/i.test(question) && /\b(?:imply|derive|calculate|per)\b/i.test(question)) {
+    const fee = fields.filter((field) => /\bfee\b/.test(normalize(field.name)));
+    if (fee.length === 1 && explicitVsize) {
+      return finishApiAnswer(
+        {
+          action: "calculate",
+          label: "fee rate",
+          operator: "divide",
+          operands: [fee[0].ref, explicitVsize.ref],
+        },
+        fields,
+        grounding,
+      );
+    }
+    if (fee.length === 1 && weight) {
+      const vsize = Math.ceil(weight.value / 4);
+      const rate = fee[0].value / vsize;
+      return renderApiAnswer(
+        `**fee rate**: ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(rate)} ${fee[0].type}/VSize`,
+        grounding.operation,
+      );
+    }
+  }
+
   /** @type {{ left: string, right: string, context: string } | undefined} */
   let expression;
   const cleaned = question.replace(/[?.;]+$/g, "").trim();
@@ -213,6 +306,34 @@ export function directApiCalculation(question, fields, grounding) {
   );
   /** @param {ApiNumericField} field */
   const parent = (field) => field.name.split(".").slice(0, -1).join(".");
+  const leaf = (/** @type {ApiNumericField} */ field) => field.name.split(".").at(-1);
+  if (!/\b(?:confirmed|mempool|pending|unconfirmed)\b/i.test(question)) {
+    const leftLeaf = leftCandidates[0] ? leaf(leftCandidates[0].field) : undefined;
+    const rightLeaf = rightCandidates[0] ? leaf(rightCandidates[0].field) : undefined;
+    const leftGroup = leftCandidates.filter(({ field }) => leaf(field) === leftLeaf);
+    const rightGroup = rightCandidates.filter(({ field }) => leaf(field) === rightLeaf);
+    if (
+      leftGroup.length &&
+      rightGroup.length &&
+      (leftGroup.length > 1 || rightGroup.length > 1) &&
+      new Set(
+        [...leftGroup, ...rightGroup].map(({ field }) => normalize(field.type)),
+      ).size === 1
+    ) {
+      return finishApiAnswer(
+        {
+          action: "calculate",
+          label: `${leftGroup[0].phrase} minus ${rightGroup[0].phrase}`,
+          terms: [
+            ...leftGroup.map(({ field }) => ({ ref: field.ref, sign: "add" })),
+            ...rightGroup.map(({ field }) => ({ ref: field.ref, sign: "subtract" })),
+          ],
+        },
+        fields,
+        grounding,
+      );
+    }
+  }
   const pairs = leftCandidates.flatMap((left) =>
     rightCandidates
       .filter((right) =>
@@ -250,10 +371,41 @@ export function finishApiAnswer(action, fields, grounding) {
     if (!text) throw new Error("The AI returned an empty API answer");
     return renderApiAnswer(text, grounding.operation);
   }
-  if (action.action !== "calculate" || !Array.isArray(action.terms) || !action.terms.length) {
+  if (action.action !== "calculate") {
     throw new Error("The AI returned an invalid API calculation");
   }
   const byRef = new Map(fields.map((field) => [field.ref, field]));
+  if (
+    typeof action.operator === "string" &&
+    ["add", "subtract", "multiply", "divide"].includes(action.operator) &&
+    Array.isArray(action.operands) &&
+    action.operands.length >= 2
+  ) {
+    const selected = action.operands.map((ref) => byRef.get(String(ref)));
+    if (selected.some((field) => !field)) throw new Error("Unknown calculation field");
+    const numeric = /** @type {ApiNumericField[]} */ (selected);
+    const [first, ...rest] = numeric;
+    const value = rest.reduce((result, field) => {
+      if (action.operator === "add") return result + field.value;
+      if (action.operator === "subtract") return result - field.value;
+      if (action.operator === "multiply") return result * field.value;
+      if (field.value === 0) throw new Error("Cannot divide by zero");
+      return result / field.value;
+    }, first.value);
+    const unit = action.operator === "divide" && numeric.length === 2
+      ? ` ${first.type}/${numeric[1].type}`
+      : new Set(numeric.map(({ type }) => type)).size === 1
+        ? ` ${first.type}`
+        : "";
+    const label = typeof action.label === "string" && action.label.trim()
+      ? action.label.trim()
+      : "result";
+    const formatted = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(value);
+    return renderApiAnswer(`**${label}**: ${formatted}${unit}`, grounding.operation);
+  }
+  if (!Array.isArray(action.terms) || !action.terms.length) {
+    throw new Error("The AI returned an invalid API calculation");
+  }
   const selected = action.terms.map((raw) => {
     if (!raw || typeof raw !== "object") throw new Error("Invalid calculation term");
     const term = /** @type {Record<string, unknown>} */ (raw);

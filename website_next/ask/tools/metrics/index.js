@@ -1,4 +1,5 @@
 import { BRK_BASE_URL, brk } from "../../../utils/client.js";
+import { WorkerClient } from "../worker-client.js";
 import { canonicalMetricQuery, expandMetricQueries } from "./language.js";
 
 const WORKER_URL = import.meta.resolve("./worker.js");
@@ -37,7 +38,7 @@ function normalizePath(path) {
 }
 
 /** @param {typeof brk} client @param {string} path */
-export function resolveMetric(client, path) {
+function resolveMetric(client, path) {
   const keys = normalizePath(path);
   /** @type {unknown} */
   let value = client.series;
@@ -59,66 +60,11 @@ export function createMetric(path) {
   return (/** @type {typeof brk} */ client) => resolveMetric(client, path);
 }
 
-class MetricIndex {
-  /** @type {Worker | undefined} */
-  #worker;
-
-  /** @type {Map<string, { resolve: (value: any) => void, reject: (error: Error) => void, onProgress?: () => void }>} */
-  #pending = new Map();
-
-  /** @param {"prewarm" | "search" | "mentions" | "byName" | "byPaths" | "variants"} type @param {Record<string, unknown>} data @param {(() => void) | undefined} [onProgress] */
-  request(type, data, onProgress) {
-    this.#ensureWorker();
-    const id = crypto.randomUUID();
-
-    return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject, onProgress });
-      this.#worker?.postMessage({ id, type, data: { ...data, url: SERIES_URL } });
-    });
-  }
-
-  #ensureWorker() {
-    if (this.#worker) return;
-    this.#worker = new Worker(WORKER_URL, { type: "module" });
-    this.#worker.addEventListener("message", this.#handleMessage);
-    this.#worker.addEventListener("error", this.#handleError);
-  }
-
-  terminate() {
-    const error = new Error("Metric search stopped");
-    for (const request of this.#pending.values()) request.reject(error);
-    this.#pending.clear();
-    this.#worker?.terminate();
-    this.#worker = undefined;
-  }
-
-  /** @param {MessageEvent} event */
-  #handleMessage = (event) => {
-    const message = event.data;
-    const request = this.#pending.get(message.id);
-    if (!request) return;
-
-    if (message.status === "progress") {
-      request.onProgress?.();
-      return;
-    }
-
-    this.#pending.delete(message.id);
-    if (message.status === "complete") request.resolve(message.data);
-    else request.reject(new Error(message.data));
-  };
-
-  /** @param {ErrorEvent} event */
-  #handleError = (event) => {
-    const error = new Error(event.message || "The metric index failed");
-    for (const request of this.#pending.values()) request.reject(error);
-    this.#pending.clear();
-    this.#worker?.terminate();
-    this.#worker = undefined;
-  };
-}
-
-const index = new MetricIndex();
+const index = new WorkerClient(WORKER_URL, {
+  data: { url: SERIES_URL },
+  failed: "The metric index failed",
+  stopped: "Metric search stopped",
+});
 
 export function prewarmMetricIndex() {
   return index.request("prewarm", {});
@@ -150,7 +96,11 @@ export function metricsByPaths(paths, onProgress) {
 
 /** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: CatalogMetric[] } | undefined>} */
 export function metricVariants(metric, query = "") {
-  return index.request("variants", { name: metric.name, query });
+  return index.request("variants", {
+    name: metric.name,
+    path: /** @type {{ path?: string }} */ (metric).path,
+    query,
+  });
 }
 
 export function terminateMetricIndex() {

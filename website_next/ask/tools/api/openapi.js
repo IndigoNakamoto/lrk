@@ -35,6 +35,7 @@ function dereference(spec, value) {
 function schemaName(schema) {
   if (!isObject(schema)) return "value";
   if (typeof schema.$ref === "string") return schema.$ref.split("/").at(-1) || "value";
+  if (typeof schema.title === "string" && schema.title.trim()) return schema.title.trim();
   for (const key of ["allOf", "oneOf", "anyOf"]) {
     if (Array.isArray(schema[key])) return schema[key].map(schemaName).join(" | ");
   }

@@ -8,6 +8,7 @@ const ALIASES = [
   [/\blong term\b/g, "lth"],
   [/\bshort term\b/g, "sth"],
   [/\b(lth|sth)\s+holders?\b/g, "$1"],
+  [/\btransactions?\s+count\b/g, "tx count"],
   [/\b(?:one )?(?:bitcoin|btc) worth\b/g, "bitcoin spot price"],
 ];
 

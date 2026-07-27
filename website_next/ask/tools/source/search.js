@@ -1,18 +1,13 @@
+import { normalize } from "../text.js";
+
 const MAX_EXCERPT_CHARACTERS = 500;
-
-/** @param {string} value */
-function normalize(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/** @param {string} text @param {number} index */
-function lineAt(text, index) {
-  return text.slice(0, index).split("\n").length;
-}
+const EXCERPT_WINDOW_LINES = 21;
+const SOURCE_ALIASES = new Map([
+  ["address", ["addr"]],
+  ["addresses", ["addr", "addrs"]],
+  ["transaction", ["tx"]],
+  ["transactions", ["tx", "txs"]],
+]);
 
 /** @param {string} text @param {number} line */
 function excerptAt(text, line) {
@@ -55,14 +50,60 @@ export function createSourceSearchIndex(files) {
 /** @param {string} left @param {string} right */
 function relatedToken(left, right) {
   if (left === right) return true;
-  const shortest = Math.min(left.length, right.length);
-  if (shortest < 5) return false;
+  /** @param {string} value */
+  const stems = (value) => {
+    const values = new Set([value]);
+    if (value.length > 5 && value.endsWith("ies")) values.add(`${value.slice(0, -3)}y`);
+    for (const suffix of ["ation", "tion", "ion", "ing", "ed", "es", "s"]) {
+      if (value.length - suffix.length >= 4 && value.endsWith(suffix)) {
+        values.add(value.slice(0, -suffix.length));
+      }
+    }
+    for (const stem of [...values]) {
+      if (stem.length >= 5 && stem.endsWith("e")) values.add(stem.slice(0, -1));
+    }
+    return values;
+  };
+  const leftStems = stems(left);
+  const rightStems = stems(right);
+  return [...leftStems].some((value) => rightStems.has(value));
+}
 
-  let prefix = 0;
-  while (prefix < shortest && left[prefix] === right[prefix]) prefix += 1;
-  return left.startsWith(right) ||
-    right.startsWith(left) ||
-    prefix >= Math.max(4, shortest - 2);
+/** @param {string} text @param {string[]} tokens @param {number[]} weights */
+function bestExcerptLine(text, tokens, weights) {
+  const lines = text.split("\n");
+  const normalized = lines.map((line) => normalize(line));
+  let bestLine = 1;
+  let bestScore = 0;
+
+  for (let start = 0; start < lines.length; start += 1) {
+    const words = new Set(
+      normalized
+        .slice(start, start + EXCERPT_WINDOW_LINES)
+        .join(" ")
+        .split(" ")
+        .filter(Boolean),
+    );
+    const score = tokens.reduce((sum, token, index) =>
+      words.has(token) ? sum + weights[index] : sum, 0);
+    if (!score || score < bestScore) continue;
+    bestScore = score;
+    bestLine = start + Math.ceil(EXCERPT_WINDOW_LINES / 2);
+  }
+  return Math.min(bestLine, lines.length);
+}
+
+/** @param {string} text @param {string[]} tokens */
+function implementationLine(text, tokens) {
+  const lines = text.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const window = lines.slice(index, index + 5).join("\n");
+    if (!/[+\-*/]/.test(window)) continue;
+    if (tokens.some((token) =>
+      new RegExp(`\\b(?:const|let)\\s+${token}\\s*=`).test(lines[index])
+    )) return index + 1;
+  }
+  return undefined;
 }
 
 /**
@@ -91,7 +132,13 @@ export function searchSource(index, rawQuery, pathPrefix = "") {
   const query = normalize(rawQuery);
   if (!query) throw new Error("Search query is empty");
 
-  const tokens = [...new Set(query.split(" "))];
+  const words = query.split(" ");
+  const tokens = [...new Set(
+    words.flatMap((word) => [word, ...(SOURCE_ALIASES.get(word) ?? [])]),
+  )];
+  const seeksImplementation =
+    /\b(?:calculat|comput|formula|implement|source)\w*\b/.test(query) ||
+    /^(?:how|where)\b/.test(query);
   const tokenMatches = tokens
     .map((token) => ({ token, files: candidateFiles(index, token) }))
     .filter(({ files }) => files.length)
@@ -101,8 +148,12 @@ export function searchSource(index, rawQuery, pathPrefix = "") {
       weight: Math.log2((index.files.length + 1) / (files.length + 1)) + 1,
     }));
   if (!tokenMatches.length) return [];
+  const maxWeight = Math.max(...tokenMatches.map(({ weight }) => weight));
+  const implementationTokens = tokenMatches
+    .filter(({ weight }) => weight >= maxWeight * 0.45)
+    .map(({ token }) => token);
 
-  /** @type {Map<number, { weights: number[], queryTokens: string[], matched: number, excerptToken: string, excerptWeight: number }>} */
+  /** @type {Map<number, { weights: number[], queryTokens: string[], matched: number }>} */
   const candidates = new Map();
   for (const { token, files, weight } of tokenMatches) {
     for (const fileIndex of files) {
@@ -110,16 +161,10 @@ export function searchSource(index, rawQuery, pathPrefix = "") {
         weights: [],
         queryTokens: [],
         matched: 0,
-        excerptToken: token,
-        excerptWeight: 0,
       };
       candidate.weights.push(weight);
       candidate.queryTokens.push(token);
       candidate.matched += 1;
-      if (weight > candidate.excerptWeight) {
-        candidate.excerptToken = token;
-        candidate.excerptWeight = weight;
-      }
       candidates.set(fileIndex, candidate);
     }
   }
@@ -133,32 +178,45 @@ export function searchSource(index, rawQuery, pathPrefix = "") {
     const exact = normalized.includes(query);
     const normalizedPath = index.paths[fileIndex];
     const pathTokens = normalizedPath.split(" ");
-    const pathMatches = tokenMatches.filter(({ token }) =>
+    const pathScore = tokenMatches.reduce((score, { token, weight }) =>
       pathTokens.some((pathToken) => relatedToken(pathToken, token))
-    ).length;
-    const source = file.text.toLowerCase();
-    let rawIndex = source.indexOf(candidate.excerptToken);
-    if (rawIndex < 0) {
-      for (const { token } of [...tokenMatches].sort((left, right) => right.weight - left.weight)) {
-        rawIndex = source.indexOf(token);
-        if (rawIndex >= 0) break;
-      }
-    }
-    const line = lineAt(file.text, Math.max(0, rawIndex));
+        ? score + weight
+        : score, 0);
+    const implementation = seeksImplementation
+      ? implementationLine(file.text, implementationTokens)
+      : undefined;
+    const line = implementation ?? bestExcerptLine(
+      file.text,
+      candidate.queryTokens,
+      candidate.weights,
+    );
     const semanticScore = [...candidate.weights]
       .sort((left, right) => right - left)
       .slice(0, 3)
       .reduce((sum, weight) => sum + weight, 0);
+    const excerpt = excerptAt(file.text, line);
+    const arithmetic = seeksImplementation &&
+      /\blet\s+[a-zA-Z0-9_]+\s*=[^;]{0,300}[+\-*/][^;]*;/s.test(excerpt.content);
+    const supportFile = /(?:^|\/)(?:tests?|examples?)(?:\/|$)|(?:^|\/)test[_-]/.test(file.path);
+    const supportPenalty =
+      seeksImplementation &&
+        supportFile &&
+        !/\b(?:example|test)\w*\b/.test(query)
+        ? 15
+        : 0;
     matches.push({
       path: file.path,
       score: semanticScore +
-        pathMatches * 6 +
+        pathScore * 6 +
         (exact ? 10 : 0) +
-        (normalizedPath.includes(query) ? 10 : 0),
+        (normalizedPath.includes(query) ? 10 : 0) +
+        (implementation ? 20 : 0) +
+        (arithmetic ? 10 : 0) -
+        supportPenalty,
       matched: candidate.matched,
       queryTokens: candidate.queryTokens,
       pathTokens,
-      ...excerptAt(file.text, line),
+      ...excerpt,
     });
   }
 
@@ -184,5 +242,5 @@ export function searchSource(index, rawQuery, pathPrefix = "") {
 
   return [...new Map(diversified.map((match) => [match.path, match])).values()]
     .slice(0, 8)
-    .map(({ score, matched, queryTokens, pathTokens, ...match }) => match);
+    .map(({ queryTokens, pathTokens, ...match }) => match);
 }

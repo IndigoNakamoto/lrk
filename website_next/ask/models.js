@@ -9,6 +9,7 @@ const TOKENIZER_FILES =
 export const ASK_MODEL = /** @type {const} */ ({
   name: "Bonsai 4B",
   size: "~580 MB",
+  maxSeqLen: 4_096,
   runtimeUrl: `https://esm.sh/bitgpu@${BITGPU_VERSION}`,
   chatUrl: `https://esm.sh/bitgpu@${BITGPU_VERSION}/chat`,
   manifestUrl: `${MODEL_FILES}/manifest.json`,

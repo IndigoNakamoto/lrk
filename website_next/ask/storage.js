@@ -45,10 +45,24 @@ const CHART_COLORS = new Set([
  * @property {StoredArtifact[]} [artifacts]
  * @property {string[]} [metricPaths]
  * @property {ApiContext} [apiContext]
+ * @property {SourceContext[]} [sourceContext]
+ * @property {KnowledgeContext} [knowledgeContext]
  *
  * @typedef {Object} ApiContext
  * @property {string} key
  * @property {Record<string, string | number | boolean | (string | number | boolean)[]>} arguments
+ *
+ * @typedef {Object} SourceContext
+ * @property {string} revision
+ * @property {string} path
+ * @property {number} startLine
+ * @property {number} [endLine]
+ * @property {string} content
+ * @property {string} [focus]
+ *
+ * @typedef {Object} KnowledgeContext
+ * @property {string} title
+ * @property {string} description
  *
  * @typedef {Object} StoredResponseStep
  * @property {string} label
@@ -183,6 +197,52 @@ function readApiContext(value) {
   return /** @type {ApiContext} */ ({ key: context.key, arguments: arguments_ });
 }
 
+/** @param {unknown} value @returns {SourceContext | undefined} */
+function readSourceContext(value) {
+  if (!value || typeof value !== "object") return undefined;
+  const context = /** @type {Record<string, unknown>} */ (value);
+  if (
+    typeof context.revision !== "string" ||
+    typeof context.path !== "string" ||
+    typeof context.startLine !== "number" ||
+    !Number.isInteger(context.startLine) ||
+    context.startLine < 1 ||
+    typeof context.content !== "string"
+  ) return undefined;
+  const endLine =
+    typeof context.endLine === "number" &&
+    Number.isInteger(context.endLine) &&
+    context.endLine >= context.startLine
+      ? context.endLine
+      : undefined;
+  return {
+    revision: context.revision.slice(0, 64),
+    path: context.path.slice(0, 512),
+    startLine: context.startLine,
+    ...(endLine === undefined ? {} : { endLine }),
+    content: context.content.slice(0, 1_000),
+    ...(typeof context.focus === "string" && context.focus.trim()
+      ? { focus: context.focus.trim().slice(0, 160) }
+      : {}),
+  };
+}
+
+/** @param {unknown} value @returns {KnowledgeContext | undefined} */
+function readKnowledgeContext(value) {
+  if (!value || typeof value !== "object") return undefined;
+  const context = /** @type {Record<string, unknown>} */ (value);
+  if (
+    typeof context.title !== "string" ||
+    !context.title.trim() ||
+    typeof context.description !== "string" ||
+    !context.description.trim()
+  ) return undefined;
+  return {
+    title: context.title.trim().slice(0, 160),
+    description: context.description.trim().slice(0, 1_500),
+  };
+}
+
 /** @param {unknown} value @returns {StoredMessage | undefined} */
 function readMessage(value) {
   if (!value || typeof value !== "object") return undefined;
@@ -217,6 +277,12 @@ function readMessage(value) {
       )))].slice(0, 6)
     : [];
   const apiContext = readApiContext(message.apiContext);
+  const sourceContext = Array.isArray(message.sourceContext)
+    ? /** @type {SourceContext[]} */ (
+        message.sourceContext.map(readSourceContext).filter(Boolean).slice(0, 3)
+      )
+    : [];
+  const knowledgeContext = readKnowledgeContext(message.knowledgeContext);
   return {
     role: message.role,
     content: message.content,
@@ -225,6 +291,8 @@ function readMessage(value) {
     ...(artifacts.length ? { artifacts } : {}),
     ...(hasMetricPaths ? { metricPaths } : {}),
     ...(apiContext ? { apiContext } : {}),
+    ...(sourceContext.length ? { sourceContext } : {}),
+    ...(knowledgeContext ? { knowledgeContext } : {}),
   };
 }
 

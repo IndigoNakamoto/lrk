@@ -37,7 +37,7 @@ main[data-page="ask"] {
 
       > li {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
         align-items: center;
         min-width: 0;
         border-radius: 0.25rem;
@@ -79,6 +79,23 @@ main[data-page="ask"] {
 
           &:is(:hover, :active, [data-press], [aria-current="page"]) {
             color: var(--black);
+            background: transparent;
+          }
+        }
+
+        > button:nth-child(2):not(:last-child) {
+          color: color-mix(in oklch, var(--gray) 76%, transparent);
+          background: transparent;
+
+          @media (hover: hover) and (pointer: fine) {
+            &:hover {
+              color: var(--orange);
+              background: transparent;
+            }
+          }
+
+          &:is(:focus-visible, :active, [data-press]) {
+            color: var(--orange);
             background: transparent;
           }
         }
@@ -138,7 +155,7 @@ main[data-page="ask"] {
         &:has(> button:first-child:is(:hover, :active, [data-press], [aria-current="page"])) {
           background: var(--white);
 
-          > button:last-child:not(:hover, :active, [data-active]) {
+          > button:not(:first-child):not(:hover, :active, [data-press], [data-active]) {
             color: var(--black);
           }
         }
@@ -159,7 +176,11 @@ main[data-page="ask"] {
         var(--ask-sidebar-gutter)
     );
     min-width: 0;
-    pointer-events: auto;
+    pointer-events: none;
+
+    > button {
+      pointer-events: auto;
+    }
 
     > button:last-child {
       > span {

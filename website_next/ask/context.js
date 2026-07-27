@@ -58,15 +58,22 @@ function compactionPrompt(memory, messages) {
  * @param {readonly unknown[]} tools
  */
 export async function prepareContext(chat, model, tools) {
-  const messages = messagesFor(chat);
-  const tokenCount = await model.countTokens(messages, tools);
+  let start = chat.compactedCount;
+  let messages = messagesFor(chat, start);
+  let tokenCount = await model.countTokens(messages, tools);
   if (tokenCount <= MAX_INPUT_TOKENS) return { chat, messages };
 
-  const recentStart = Math.max(
-    chat.compactedCount,
-    chat.messages.length - KEEP_RECENT_MESSAGES,
-  );
-  return { chat, messages: messagesFor(chat, recentStart) };
+  start = Math.max(start, chat.messages.length - KEEP_RECENT_MESSAGES);
+  while (tokenCount > MAX_INPUT_TOKENS && start < chat.messages.length - 1) {
+    start += 1;
+    while (
+      start < chat.messages.length - 1 &&
+      chat.messages[start].role !== "user"
+    ) start += 1;
+    messages = messagesFor(chat, start);
+    tokenCount = await model.countTokens(messages, tools);
+  }
+  return { chat, messages };
 }
 
 /**

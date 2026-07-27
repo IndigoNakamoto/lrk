@@ -1,5 +1,6 @@
 import { formatValue } from "./data.js";
 import { focusApiData } from "./api/result.js";
+import { apiRequestWords } from "./api/routing.js";
 import { normalize, tokenAffinity } from "./text.js";
 
 /**
@@ -109,6 +110,23 @@ function displayScalar(value) {
   return JSON.stringify(value);
 }
 
+/** @param {unknown} data */
+function apiRecords(data) {
+  if (Array.isArray(data)) return { count: data.length, items: data };
+  if (
+    data &&
+    typeof data === "object" &&
+    typeof /** @type {{ count?: unknown }} */ (data).count === "number" &&
+    Array.isArray(/** @type {{ sample?: unknown }} */ (data).sample)
+  ) {
+    return {
+      count: /** @type {{ count: number }} */ (data).count,
+      items: /** @type {{ sample: unknown[] }} */ (data).sample,
+    };
+  }
+  return { count: undefined, items: [data] };
+}
+
 /** @param {{ field: { name: string, type: string }, value: unknown }} candidate */
 function renderApiField(candidate) {
   const genericTypes = new Set([
@@ -130,20 +148,63 @@ function renderApiField(candidate) {
 }
 
 /**
+ * Render a compact schema-derived sample when the user requests a resource
+ * generally rather than one specific response field.
+ *
+ * @param {{ data: unknown, arguments?: Record<string, unknown>, operation: { method: string, path: string, summary?: string, response: { fields?: { name: string, type: string }[] } } }} grounding
+ */
+function renderApiOverview(grounding) {
+  const data = focusApiData(grounding.data, grounding.arguments);
+  const { count, items } = apiRecords(data);
+  const fields = grounding.operation.response.fields ?? [];
+  const samples = items.slice(0, 3).map((item) =>
+    fields
+      .map((field) => ({ field, value: valueAt(item, field.name.split(".")) }))
+      .filter(({ value }) => scalar(value) && value !== null)
+      .slice(0, 6)
+  ).filter((sample) => sample.length);
+  if (!samples.length) return undefined;
+
+  const title = grounding.operation.summary?.trim() ||
+    normalize(grounding.operation.path);
+  const heading = `**${title}**${count === undefined ? "" : `: ${count} record${count === 1 ? "" : "s"} returned`}.`;
+  const details = samples.map((sample, index) => {
+    const label = samples.length > 1 ? `Sample ${index + 1}\n` : "";
+    return `${label}${sample.map((candidate) => `- ${renderApiField(candidate)}`).join("\n")}`;
+  });
+  return renderApiAnswer([heading, ...details].join("\n\n"), grounding.operation);
+}
+
+/**
  * Render scalar fields selected directly from OpenAPI names and descriptions.
  * Equal-scoring fields are returned together rather than asking the model to
  * choose, which is both faster and safer for questions such as "which block?".
  * Field names, parameter names, and units all come from OpenAPI.
- * @param {{ question: string, data: unknown, arguments?: Record<string, unknown>, operation: { method: string, path: string, parameters?: { name: string }[], response: { type?: string, fields?: { name: string, type: string, description?: string, ownDescription?: string }[] } } }} grounding
+ * @param {{ question: string, data: unknown, arguments?: Record<string, unknown>, operation: { method: string, path: string, summary?: string, parameters?: { name: string }[], response: { type?: string, fields?: { name: string, type: string, description?: string, ownDescription?: string }[] } } }} grounding
  */
 export function renderDirectApiAnswer(grounding) {
+  const responseFields = grounding.operation.response.fields ?? [];
+  const normalizedQuestion = normalize(grounding.question);
+  const totalNoun =
+    normalizedQuestion.match(/\btotal\s+([a-z0-9]+)\b/)?.[1] ??
+    normalizedQuestion.match(/\b([a-z0-9]+)\s+(?:in\s+)?total\b/)?.[1];
+  const directTotalFields = totalNoun
+    ? responseFields.filter((field) => {
+        const document = new Set(
+          normalize(`${field.name} ${field.ownDescription ?? field.description ?? ""}`)
+            .split(" "),
+        );
+        return document.has("total") &&
+          [...document].some((word) => tokenAffinity(word, totalNoun) >= MIN_FIELD_AFFINITY);
+      })
+    : [];
   if (
-    /\b(?:add(?:ed)?|altogether|combined?|difference|including|minus|net|plus|subtract(?:ed)?|sum|total)\b/i
-      .test(grounding.question)
+    /\b(?:add(?:ed)?|altogether|combined?|difference|minus|net|plus|subtract(?:ed)?|sum)\b/i
+      .test(grounding.question) ||
+    totalNoun && directTotalFields.length !== 1
   ) return undefined;
 
   const data = focusApiData(grounding.data, grounding.arguments);
-  const responseFields = grounding.operation.response.fields ?? [];
   if (scalar(data) && !responseFields.length) {
     const type = grounding.operation.response.type ?? "value";
     const label = normalize(type) || "value";
@@ -151,8 +212,7 @@ export function renderDirectApiAnswer(grounding) {
   }
 
   const words = new Set(
-    (normalize(grounding.question).match(/[a-z0-9]+/g) ?? [])
-      .filter((word) => word.length >= 3),
+    [...apiRequestWords(grounding.question)].filter((word) => word.length >= 3),
   );
   if (normalize(grounding.question).includes("how many")) {
     words.add("count");
@@ -214,6 +274,11 @@ export function renderDirectApiAnswer(grounding) {
         value: valueAt(data, path),
         matches,
         score,
+        explicitNameMatches: [...words].filter((word) =>
+          [...field.nameTokens].some((token) =>
+            tokenAffinity(word, token) >= MIN_FIELD_AFFINITY
+          )
+        ).length,
         parameter: parameters.has(normalize(leaf)),
         unmatchedName: [...field.nameTokens].filter((token) =>
           ![...words].some((word) =>
@@ -230,14 +295,18 @@ export function renderDirectApiAnswer(grounding) {
       right.matches - left.matches ||
       left.unmatchedName - right.unmatchedName
     );
-  if (!candidates.length) return undefined;
+  if (!candidates.length) return renderApiOverview(grounding);
 
-  const selected = candidates
-    .filter(({ score, matches, unmatchedName }) =>
-      score === candidates[0].score &&
-      matches === candidates[0].matches &&
-      (matches === 1 || unmatchedName === candidates[0].unmatchedName)
-    )
+  const explicit = candidates.filter(({ explicitNameMatches }) => explicitNameMatches > 0);
+  const selected = (
+    /\band\b/i.test(grounding.question) && explicit.length > 1
+      ? explicit
+      : candidates.filter(({ score, matches, unmatchedName }) =>
+          score === candidates[0].score &&
+          matches === candidates[0].matches &&
+          (matches === 1 || unmatchedName === candidates[0].unmatchedName)
+        )
+  )
     .slice(0, 6)
     .sort((left, right) => left.index - right.index);
   const answer = selected.length === 1

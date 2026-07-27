@@ -10,6 +10,7 @@ import { createAskSidebar } from "./sidebar/index.js";
 import { askStorage } from "./storage.js";
 import { createAskTools } from "./tools/index.js";
 import { createResponseTimer } from "./timing.js";
+import { conversationMarkdown } from "./transcript.js";
 
 const SIDEBAR_PREFERENCE_KEY = "bitview.ask.sidebar-collapsed.v1";
 
@@ -23,10 +24,9 @@ export function createAskPage() {
   const assistant = createAskTools();
   let workspace = askStorage.load();
   let chat = workspace.activeChat;
-  let loaded = false;
   let busy = false;
-  let checking = false;
-  let loading = false;
+  /** @type {"unloaded" | "checking" | "loading" | "error" | "ready"} */
+  let modelState = "unloaded";
   let followingOutput = false;
   const compactor = createAskCompactor({
     model,
@@ -73,6 +73,9 @@ export function createAskPage() {
   });
   const sidebar = createAskSidebar({
     onNew: openNewChat,
+    async onCopy() {
+      await navigator.clipboard.writeText(conversationMarkdown(chat));
+    },
     onToggle: toggleSidebar,
     onSelect: selectChat,
     onRemove: removeChat,
@@ -89,9 +92,14 @@ export function createAskPage() {
     main.toggleAttribute("data-sidebar-open", open);
   }
 
+  /** @param {"unloaded" | "checking" | "loading" | "error" | "ready"} nextState */
+  function setModelState(nextState) {
+    modelState = nextState;
+  }
+
   function syncControls() {
     sidebar.setBusy(busy);
-    hero.setEnabled(loaded && !busy);
+    hero.setEnabled(modelState === "ready" && !busy);
   }
 
   function syncSidebar() {
@@ -115,11 +123,8 @@ export function createAskPage() {
   }
 
   function setChecking() {
-    loaded = false;
     busy = false;
-    checking = true;
-    loading = false;
-    main.dataset.state = "checking";
+    setModelState("checking");
     composer.hide();
     loader.checking();
     syncControls();
@@ -127,11 +132,8 @@ export function createAskPage() {
 
   /** @param {string | undefined} [detail] */
   function setUnloaded(detail) {
-    loaded = false;
     busy = false;
-    checking = false;
-    loading = false;
-    main.dataset.state = "unloaded";
+    setModelState("unloaded");
     composer.hide();
     loader.unloaded(detail);
     syncControls();
@@ -139,11 +141,8 @@ export function createAskPage() {
 
   /** @param {boolean} cached */
   function setLoading(cached) {
-    loaded = false;
     busy = false;
-    checking = false;
-    loading = true;
-    main.dataset.state = "loading";
+    setModelState("loading");
     composer.hide();
     loader.loading(cached);
     syncControls();
@@ -151,22 +150,16 @@ export function createAskPage() {
 
   /** @param {unknown} error */
   function setLoadError(error) {
-    loaded = false;
     busy = false;
-    checking = false;
-    loading = false;
-    main.dataset.state = "error";
+    setModelState("error");
     composer.hide();
     loader.loadError(errorMessage(error));
     syncControls();
   }
 
   function setReady() {
-    loaded = true;
     busy = false;
-    checking = false;
-    loading = false;
-    main.dataset.state = "ready";
+    setModelState("ready");
     loader.ready();
     composer.ready();
     syncControls();
@@ -174,7 +167,7 @@ export function createAskPage() {
 
   /** @param {boolean} cached */
   async function loadModel(cached) {
-    if (loaded || loading) return;
+    if (modelState === "ready" || modelState === "loading") return;
 
     setLoading(cached);
 
@@ -196,7 +189,9 @@ export function createAskPage() {
   }
 
   async function activateModel() {
-    if (loaded || loading || checking) return;
+    if (modelState === "ready" || modelState === "loading" || modelState === "checking") {
+      return;
+    }
 
     setChecking();
     try {
@@ -237,7 +232,7 @@ export function createAskPage() {
 
     setSidebarOpen(false);
     syncSidebar();
-    if (loaded) {
+    if (modelState === "ready") {
       setReady();
       composer.focus();
     } else syncControls();
@@ -264,10 +259,10 @@ export function createAskPage() {
     setSidebarOpen(false);
     syncSidebar();
 
-    if (loaded) {
+    if (modelState === "ready") {
       setReady();
       composer.focus();
-    } else if (!checking && !loading) {
+    } else if (modelState !== "checking" && modelState !== "loading") {
       setUnloaded();
     }
   }
@@ -290,8 +285,8 @@ export function createAskPage() {
     composer.value = "";
     renderChat();
 
-    if (loaded) setReady();
-    else if (!checking && !loading) setUnloaded();
+    if (modelState === "ready") setReady();
+    else if (modelState !== "checking" && modelState !== "loading") setUnloaded();
   }
 
   function toggleSidebar() {
@@ -307,7 +302,7 @@ export function createAskPage() {
 
   /** @param {string} question */
   async function submitQuestion(question) {
-    if (!loaded || busy) return;
+    if (modelState !== "ready" || busy) return;
 
     composer.value = "";
     const questionMessage = conversation.append("user", question);
@@ -316,7 +311,6 @@ export function createAskPage() {
 
     busy = true;
     followingOutput = true;
-    main.dataset.state = "generating";
     loader.ready();
     composer.generating();
     syncControls();
@@ -337,9 +331,10 @@ export function createAskPage() {
         artifacts = [],
         metricPaths,
         apiContext,
+        sourceContext,
+        knowledgeContext,
         chat: preparedChat,
       } = await assistant.answer({
-        chatId: chat.id,
         question,
         history: draft.messages,
         model,
@@ -381,6 +376,8 @@ export function createAskPage() {
             steps,
             metricPaths,
             ...(apiContext ? { apiContext } : {}),
+            ...(sourceContext?.length ? { sourceContext } : {}),
+            ...(knowledgeContext ? { knowledgeContext } : {}),
             ...(artifacts.length ? { artifacts } : {}),
           },
         ],

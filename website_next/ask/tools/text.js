@@ -12,7 +12,7 @@ export function normalize(value) {
 }
 
 /** @param {unknown} value */
-export function tokens(value) {
+function tokens(value) {
   return normalize(value).split(" ").filter((token) => token.length > 1);
 }
 
@@ -27,7 +27,7 @@ function trigrams(value) {
 }
 
 /** @param {unknown} left @param {unknown} right */
-export function similarity(left, right) {
+function similarity(left, right) {
   const a = trigrams(left);
   const b = trigrams(right);
   if (!a.size || !b.size) return 0;

@@ -12,6 +12,7 @@ Examples:
 - With no previous topic, "Which holder group?" is clarify_request.
 - After a verified capitalized price answer, "Which holder groups have it?" reuses the previous topic and explains verified variants.
 - "Why does Bitcoin have a fixed supply?" is answer_general.
+- "Tell me something about on-chain data" is answer_general.
 - "Write a haiku about Bitcoin" is answer_general.
 Choose the requested outcome and translate the user's meaning into terse catalog-style Bitcoin or BRK metric names or technical noun phrases. Never copy a question or include request verbs, pronouns, time words, or punctuation in a query.
 Use one query for one metric. For X vs Y, return separate complete X and Y metric phrases; never leave vs or both sides inside one query.
