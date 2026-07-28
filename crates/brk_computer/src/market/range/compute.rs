@@ -72,7 +72,7 @@ impl Vecs {
             exit,
         )?;
 
-        self.choppiness_index_2w.raw.height.compute_transform4(
+        self.choppiness_index_2w.ppm.height.compute_transform4(
             starting_height,
             &self.true_range_sum_2w.height,
             &self.max._2w.cents.height,

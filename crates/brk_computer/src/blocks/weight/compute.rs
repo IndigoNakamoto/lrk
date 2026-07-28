@@ -8,7 +8,7 @@ use super::Vecs;
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
-        self.fullness.raw.compute_transform(
+        self.fullness.ppm.compute_transform(
             starting_height,
             &indexer.vecs.blocks.weight,
             |(h, weight, ..)| (h, PartsPerMillion32::from(weight.fullness())),

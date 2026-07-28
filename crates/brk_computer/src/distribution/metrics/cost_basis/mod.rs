@@ -88,7 +88,7 @@ impl CostBasis {
             .height
             .len()
             .min(self.max.cents.height.len())
-            .min(self.supply_density.raw.height.len())
+            .min(self.supply_density.ppm.height.len())
     }
 
     #[inline(always)]
@@ -109,7 +109,7 @@ impl CostBasis {
 
     #[inline(always)]
     pub(crate) fn push_density(&mut self, density: PartsPerMillion32) {
-        self.supply_density.raw.height.push(density);
+        self.supply_density.ppm.height.push(density);
     }
 
     pub(crate) fn validate_computed_versions(&mut self, base_version: Version) -> Result<()> {
@@ -128,7 +128,7 @@ impl CostBasis {
             &mut self.in_loss.per_dollar.cents.height,
             &mut self.min.cents.height,
             &mut self.max.cents.height,
-            &mut self.supply_density.raw.height,
+            &mut self.supply_density.ppm.height,
         ];
         vecs.extend(
             self.per_coin

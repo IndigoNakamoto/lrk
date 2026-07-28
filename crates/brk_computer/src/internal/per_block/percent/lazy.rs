@@ -7,7 +7,7 @@ use crate::internal::{FixedRatio, LazyPerBlock, Percent, PercentPerBlock};
 
 /// Fully lazy variant of `PercentPerBlock` — no stored vecs.
 ///
-/// Raw values are lazily derived from a source `PercentPerBlock` via a unary transform,
+/// PPM values are lazily derived from a source `PercentPerBlock` via a unary transform,
 /// and ratio/percent float views are chained from them.
 #[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
@@ -22,20 +22,20 @@ impl<B: FixedRatio> LazyPercentPerBlock<B> {
         version: Version,
         source: &PercentPerBlock<B>,
     ) -> Self {
-        let raw = LazyPerBlock::from_computed::<F>(
+        let ppm = LazyPerBlock::from_computed::<F>(
             &format!("{name}_{}", B::SUFFIX),
             version,
-            source.raw.height.read_only_boxed_clone(),
-            &source.raw,
+            source.ppm.height.read_only_boxed_clone(),
+            &source.ppm,
         );
 
         let ratio =
-            LazyPerBlock::from_lazy::<B::ToRatio, B>(&format!("{name}_ratio"), version, &raw);
+            LazyPerBlock::from_lazy::<B::ToRatio, B>(&format!("{name}_ratio"), version, &ppm);
 
-        let percent = LazyPerBlock::from_lazy::<B::ToPercent, B>(name, version, &raw);
+        let percent = LazyPerBlock::from_lazy::<B::ToPercent, B>(name, version, &ppm);
 
         Self(Percent {
-            raw,
+            ppm,
             ratio,
             percent,
         })

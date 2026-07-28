@@ -10,7 +10,7 @@ use crate::internal::{
 ///
 /// Mirrors the flat shape of `PercentCumulativeRolling`: cumulative and
 /// rolling window fields are both flattened to the same tree level, so
-/// consumers see `{ raw, percent, ratio, _24h, _1w, _1m, _1y }`.
+/// consumers see `{ ppm, percent, ratio, _24h, _1w, _1m, _1y }`.
 #[derive(Clone, Traversable)]
 pub struct LazyPercentCumulativeRolling<B: FixedRatio> {
     #[traversable(flatten)]

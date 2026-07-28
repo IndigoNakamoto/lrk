@@ -47,7 +47,7 @@ pub(super) fn compute(
         exit,
     )?;
 
-    chain.rsi.raw.height.compute_transform2(
+    chain.rsi.ppm.height.compute_transform2(
         starting_height,
         &chain.average_gain.height,
         &chain.average_loss.height,
@@ -59,25 +59,25 @@ pub(super) fn compute(
         exit,
     )?;
 
-    chain.rsi_min.raw.height.compute_rolling_min_from_starts(
+    chain.rsi_min.ppm.height.compute_rolling_min_from_starts(
         starting_height,
         ws_rma,
-        &chain.rsi.raw.height,
+        &chain.rsi.ppm.height,
         exit,
     )?;
 
-    chain.rsi_max.raw.height.compute_rolling_max_from_starts(
+    chain.rsi_max.ppm.height.compute_rolling_max_from_starts(
         starting_height,
         ws_rma,
-        &chain.rsi.raw.height,
+        &chain.rsi.ppm.height,
         exit,
     )?;
 
-    chain.stoch_rsi.raw.height.compute_transform3(
+    chain.stoch_rsi.ppm.height.compute_transform3(
         starting_height,
-        &chain.rsi.raw.height,
-        &chain.rsi_min.raw.height,
-        &chain.rsi_max.raw.height,
+        &chain.rsi.ppm.height,
+        &chain.rsi_min.ppm.height,
+        &chain.rsi_max.ppm.height,
         |(h, r, mn, mx, ..)| {
             let range = f64::from(*mx) - f64::from(*mn);
             let stoch = if range == 0.0 {
@@ -90,17 +90,17 @@ pub(super) fn compute(
         exit,
     )?;
 
-    chain.stoch_rsi_k.raw.height.compute_rolling_average(
+    chain.stoch_rsi_k.ppm.height.compute_rolling_average(
         starting_height,
         ws_sma,
-        &chain.stoch_rsi.raw.height,
+        &chain.stoch_rsi.ppm.height,
         exit,
     )?;
 
-    chain.stoch_rsi_d.raw.height.compute_rolling_average(
+    chain.stoch_rsi_d.ppm.height.compute_rolling_average(
         starting_height,
         ws_sma,
-        &chain.stoch_rsi_k.raw.height,
+        &chain.stoch_rsi_k.ppm.height,
         exit,
     )?;
 

@@ -22,20 +22,20 @@ impl<B: FixedRatio> PercentVec<B> {
         name: &str,
         version: Version,
     ) -> brk_error::Result<Self> {
-        let raw: EagerVec<PcoVec<Height, B>> =
+        let ppm: EagerVec<PcoVec<Height, B>> =
             EagerVec::forced_import(db, &format!("{name}_{}", B::SUFFIX), version)?;
-        let raw_clone = raw.read_only_boxed_clone();
+        let ppm_clone = ppm.read_only_boxed_clone();
 
         let ratio = LazyVecFrom1::transformed::<B::ToRatio>(
             &format!("{name}_ratio"),
             version,
-            raw_clone.clone(),
+            ppm_clone.clone(),
         );
 
-        let percent = LazyVecFrom1::transformed::<B::ToPercent>(name, version, raw_clone);
+        let percent = LazyVecFrom1::transformed::<B::ToPercent>(name, version, ppm_clone);
 
         Ok(Self(Percent {
-            raw,
+            ppm,
             ratio,
             percent,
         }))

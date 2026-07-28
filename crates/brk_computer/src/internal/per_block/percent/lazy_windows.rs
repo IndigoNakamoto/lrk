@@ -8,7 +8,7 @@ use crate::internal::{FixedRatio, PercentRollingWindows, Windows};
 use super::LazyPercentPerBlock;
 
 /// Fully lazy rolling percent windows — 4 windows (24h, 1w, 1m, 1y),
-/// each with lazy raw + lazy ratio/percent float views.
+/// each with lazy PPM + lazy ratio/percent float views.
 ///
 /// No stored vecs. All values derived from a source `PercentRollingWindows`.
 #[derive(Clone, Deref, DerefMut, Traversable)]

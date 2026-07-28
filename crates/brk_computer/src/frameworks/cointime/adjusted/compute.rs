@@ -17,10 +17,10 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.inflation_rate.raw.height.compute_transform2(
+        self.inflation_rate.ppm.height.compute_transform2(
             starting_height,
             &activity.ratio.height,
-            &supply.inflation_rate.raw.height,
+            &supply.inflation_rate.ppm.height,
             |(h, a2vr, inflation, ..)| {
                 (
                     h,

@@ -35,7 +35,7 @@ impl Vecs {
         // i.e. the lookback points to block 0 or 1 in the genesis era.
         let circulating_supply = &distribution.utxo_cohorts.all.metrics.supply.total.sats;
         self.inflation_rate
-            .raw
+            .ppm
             .height
             .compute_rolling_from_window_starts(
                 starting_height,
@@ -61,16 +61,16 @@ impl Vecs {
         let diff_arr = self.market_minus_realized_cap_growth_rate.0.as_mut_array();
 
         let rcr_rates = [
-            &all_realized.cap.delta.rate._24h.raw.height,
-            &all_realized.cap.delta.rate._1w.raw.height,
-            &all_realized.cap.delta.rate._1m.raw.height,
-            &all_realized.cap.delta.rate._1y.raw.height,
+            &all_realized.cap.delta.rate._24h.ppm.height,
+            &all_realized.cap.delta.rate._1w.ppm.height,
+            &all_realized.cap.delta.rate._1m.ppm.height,
+            &all_realized.cap.delta.rate._1y.ppm.height,
         ];
 
         for i in 0..4 {
             diff_arr[i].height.compute_subtract(
                 starting_height,
-                &mcr_arr[i].raw.height,
+                &mcr_arr[i].ppm.height,
                 rcr_rates[i],
                 exit,
             )?;

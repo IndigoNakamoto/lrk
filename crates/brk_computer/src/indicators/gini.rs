@@ -34,13 +34,13 @@ pub(super) fn compute(
             .iter()
             .fold(Version::ZERO, |acc, v| acc + v.version());
 
-    gini.raw
+    gini.ppm
         .height
         .validate_computed_version_or_reset(source_version)?;
 
-    let min_len = gini.raw.height.len().min(starting_height.to_usize());
+    let min_len = gini.ppm.height.len().min(starting_height.to_usize());
 
-    gini.raw.height.truncate_if_needed_at(min_len)?;
+    gini.ppm.height.truncate_if_needed_at(min_len)?;
 
     let total_heights = supply_vecs
         .iter()
@@ -49,7 +49,7 @@ pub(super) fn compute(
         .unwrap_or(0)
         .min(count_vecs.iter().map(|v| v.len()).min().unwrap_or(0));
 
-    let start_height = gini.raw.height.len();
+    let start_height = gini.ppm.height.len();
     if start_height >= total_heights {
         return Ok(());
     }
@@ -73,12 +73,12 @@ pub(super) fn compute(
             let count: u64 = count_data[c][offset].into();
             buckets.push((count, supply));
         }
-        gini.raw.height.push(gini_from_lorenz(&buckets));
+        gini.ppm.height.push(gini_from_lorenz(&buckets));
     }
 
     {
         let _lock = exit.lock();
-        gini.raw.height.write()?;
+        gini.ppm.height.write()?;
     }
 
     Ok(())

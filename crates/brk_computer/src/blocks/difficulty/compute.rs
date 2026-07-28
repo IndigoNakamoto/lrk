@@ -14,7 +14,7 @@ impl Vecs {
         exit: &Exit,
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
-        self.adjustment.raw.height.compute_ratio_change(
+        self.adjustment.ppm.height.compute_ratio_change(
             starting_height,
             &indexer.vecs.blocks.difficulty,
             2016,

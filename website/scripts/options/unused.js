@@ -20,6 +20,7 @@ function walkSeries(node, map, path) {
         key === "emaFast" ||
         kn === "cents" ||
         kn === "bps" ||
+        kn === "ppm" ||
         kn === "constants" ||
         kn === "ohlc" ||
         kn === "split" ||

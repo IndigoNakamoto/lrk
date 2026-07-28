@@ -291,9 +291,9 @@ impl<B: FixedRatio> WithAddrTypes<PercentPerBlock<B>> {
     }
 
     pub(crate) fn reset_height(&mut self) -> Result<()> {
-        self.all.raw.height.reset()?;
+        self.all.ppm.height.reset()?;
         for v in self.by_addr_type.values_mut() {
-            v.raw.height.reset()?;
+            v.ppm.height.reset()?;
         }
         Ok(())
     }

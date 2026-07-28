@@ -27,20 +27,20 @@ impl<B: FixedRatio> PercentPerBlock<B> {
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let raw = PerBlock::forced_import(db, &format!("{name}_{}", B::SUFFIX), version, indexes)?;
-        let raw_clone = raw.height.read_only_boxed_clone();
+        let ppm = PerBlock::forced_import(db, &format!("{name}_{}", B::SUFFIX), version, indexes)?;
+        let ppm_clone = ppm.height.read_only_boxed_clone();
 
         let ratio = LazyPerBlock::from_computed::<B::ToRatio>(
             &format!("{name}_ratio"),
             version,
-            raw_clone.clone(),
-            &raw,
+            ppm_clone.clone(),
+            &ppm,
         );
 
-        let percent = LazyPerBlock::from_computed::<B::ToPercent>(name, version, raw_clone, &raw);
+        let percent = LazyPerBlock::from_computed::<B::ToPercent>(name, version, ppm_clone, &ppm);
 
         Ok(Self(Percent {
-            raw,
+            ppm,
             ratio,
             percent,
         }))
@@ -58,7 +58,7 @@ impl<B: FixedRatio> PercentPerBlock<B> {
         S2T: VecValue,
         F: BinaryTransform<S1T, S2T, B>,
     {
-        self.raw
+        self.ppm
             .compute_binary::<S1T, S2T, F>(max_from, source1, source2, exit)
     }
 
@@ -75,7 +75,7 @@ impl<B: FixedRatio> PercentPerBlock<B> {
         f64: From<C> + From<A>,
         vecdb::EagerVec<vecdb::PcoVec<Height, B>>: ComputeDrawdown<Height>,
     {
-        self.raw
+        self.ppm
             .height
             .compute_drawdown(max_from, current, ath, exit)
     }

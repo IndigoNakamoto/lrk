@@ -499,7 +499,7 @@ export const ROUTE_INSTRUCTION = `Choose one capability for the newest request f
 The requested output wins: edit an active chart with its edit/style capability; otherwise choose the matching chart, latest-value, historical-value, range, variant-list, or variant-selection capability.
 Use call_api for a concrete blockchain resource or its contextual follow-up, explain_evidence for a metric definition, find_chart_metrics to discover real chart series when none matched yet, describe_capabilities only for a request about the assistant itself, and answer_general for ordinary Bitcoin knowledge or conversation.
 Use search_source only when the request explicitly asks about BRK repository code, source location, implementation, or callers. Never choose it merely because source matches exist.
-Use clarify only when essential information is missing. With call_api select apiRef. With search_source provide sourceQuery.
+Use clarify when essential information is missing. In particular, a requested quantitative result without a matched metric, API resource, or quantitative context needs one concise clarification instead of a qualitative answer or guessed dataset. With call_api select apiRef. With search_source provide sourceQuery.
 Call choose_capability exactly once.`;
 
 /** @param {string} action */

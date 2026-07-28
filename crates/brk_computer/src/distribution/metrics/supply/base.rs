@@ -58,7 +58,7 @@ impl SupplyBase {
         vec![
             &mut self.total.sats.height as &mut dyn AnyStoredVec,
             &mut self.total.cents.height,
-            &mut self.dominance.raw.height,
+            &mut self.dominance.ppm.height,
         ]
     }
 

@@ -205,7 +205,7 @@ impl Vecs {
             .metrics
             .relative
             .supply_in_loss_share
-            .raw
+            .ppm
             .day1;
         let weighted_loss_shares: Vec<_> = [
             &cointime.supply.active_supply_in_loss_share.day1,

@@ -110,7 +110,7 @@ where
             );
             let rate_resolutions =
                 Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
-            let raw = LazyDeltaFromHeight {
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
@@ -120,12 +120,12 @@ where
                 height: LazyVecFrom1::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
@@ -134,17 +134,17 @@ where
                 height: LazyVecFrom1::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                raw,
+                ppm,
                 ratio,
                 percent,
             });
@@ -256,7 +256,7 @@ where
             );
             let rate_resolutions =
                 Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
-            let raw = LazyDeltaFromHeight {
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
@@ -266,12 +266,12 @@ where
                 height: LazyVecFrom1::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
@@ -280,17 +280,17 @@ where
                 height: LazyVecFrom1::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                raw,
+                ppm,
                 ratio,
                 percent,
             });
@@ -401,7 +401,7 @@ where
             );
             let rate_resolutions =
                 Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
-            let raw = LazyDeltaFromHeight {
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
@@ -411,12 +411,12 @@ where
                 height: LazyVecFrom1::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
@@ -425,17 +425,17 @@ where
                 height: LazyVecFrom1::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    raw.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &raw.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                raw,
+                ppm,
                 ratio,
                 percent,
             });
