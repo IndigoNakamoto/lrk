@@ -19,7 +19,7 @@ use crate::{
 pub struct OutputsBase<M: StorageMode = Rw> {
     pub unspent_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
     pub spent_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
-    pub spending_rate: PerBlock<StoredF32, M>,
+    pub utxo_turnover_1y: PerBlock<StoredF32, M>,
 }
 
 impl OutputsBase {
@@ -35,7 +35,7 @@ impl OutputsBase {
                 cfg.cached_starts,
             )?,
             spent_count: cfg.import("spent_utxo_count", v1)?,
-            spending_rate: cfg.import("spending_rate", Version::TWO)?,
+            utxo_turnover_1y: cfg.import("utxo_turnover_1y", Version::TWO)?,
         })
     }
 
@@ -73,7 +73,7 @@ impl OutputsBase {
         all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
-        self.spending_rate
+        self.utxo_turnover_1y
             .compute_binary::<StoredU64, StoredU64, RatioU64F32>(
                 max_from,
                 &self.spent_count.sum.0._1y.height,

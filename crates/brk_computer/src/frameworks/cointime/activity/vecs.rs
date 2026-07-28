@@ -1,0 +1,23 @@
+use brk_traversable::Traversable;
+use brk_types::StoredF64;
+use derive_more::{Deref, DerefMut};
+use vecdb::{Rw, StorageMode};
+
+use crate::internal::{LazyPerBlock, PerBlock, PerBlockCumulativeRolling};
+
+#[derive(Traversable)]
+pub struct DerivedVecs<M: StorageMode = Rw> {
+    pub liveliness: PerBlock<StoredF64, M>,
+    pub vaultedness: LazyPerBlock<StoredF64>,
+    pub ratio: PerBlock<StoredF64, M>,
+}
+
+#[derive(Deref, DerefMut, Traversable)]
+pub struct Vecs<M: StorageMode = Rw> {
+    pub coinblocks_created: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coinblocks_stored: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    #[deref]
+    #[deref_mut]
+    #[traversable(flatten)]
+    pub derived: DerivedVecs<M>,
+}

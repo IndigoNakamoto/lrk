@@ -55,12 +55,11 @@ function compactionPrompt(memory, messages) {
 /**
  * @param {StoredChat} chat
  * @param {AskModel} model
- * @param {readonly unknown[]} tools
  */
-export async function prepareContext(chat, model, tools) {
+export async function prepareContext(chat, model) {
   let start = chat.compactedCount;
   let messages = messagesFor(chat, start);
-  let tokenCount = await model.countTokens(messages, tools);
+  let tokenCount = await model.countTokens(messages);
   if (tokenCount <= MAX_INPUT_TOKENS) return { chat, messages };
 
   start = Math.max(start, chat.messages.length - KEEP_RECENT_MESSAGES);
@@ -71,7 +70,7 @@ export async function prepareContext(chat, model, tools) {
       chat.messages[start].role !== "user"
     ) start += 1;
     messages = messagesFor(chat, start);
-    tokenCount = await model.countTokens(messages, tools);
+    tokenCount = await model.countTokens(messages);
   }
   return { chat, messages };
 }
@@ -79,11 +78,10 @@ export async function prepareContext(chat, model, tools) {
 /**
  * @param {StoredChat} chat
  * @param {AskModel} model
- * @param {readonly unknown[]} tools
  * @param {AbortSignal} signal
  */
-export async function compactContext(chat, model, tools, signal) {
-  const tokenCount = await model.countTokens(messagesFor(chat), tools);
+export async function compactContext(chat, model, signal) {
+  const tokenCount = await model.countTokens(messagesFor(chat));
   signal.throwIfAborted();
   const compactThrough = chat.messages.length - KEEP_RECENT_MESSAGES;
   if (

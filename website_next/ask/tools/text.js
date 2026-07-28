@@ -53,9 +53,10 @@ export function relevance(query, document, boost = 0) {
   if (!needle || !haystack) return 0;
 
   const words = tokens(needle);
-  const exact = haystack.includes(needle) ? 30 : 0;
+  const haystackWords = new Set(tokens(haystack));
+  const exact = ` ${haystack} `.includes(` ${needle} `) ? 30 : 0;
   const coverage = words.length
-    ? words.filter((word) => haystack.includes(word)).length / words.length
+    ? words.filter((word) => haystackWords.has(word)).length / words.length
     : 0;
   return boost + exact + coverage * 20 + similarity(needle, haystack) * 10;
 }

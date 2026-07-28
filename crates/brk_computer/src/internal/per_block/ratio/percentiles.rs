@@ -159,11 +159,7 @@ impl RatioPerBlockPercentiles {
                 self.$band
                     .price
                     .cents
-                    .compute_binary::<
-                        Cents,
-                        PartsPerMillion32,
-                        PriceTimesRatio<PartsPerMillion32>,
-                    >(
+                    .compute_binary::<Cents, PartsPerMillion32, PriceTimesRatio<PartsPerMillion32>>(
                         starting_lengths.height,
                         series_price,
                         &self.$band.ratio.raw.height,

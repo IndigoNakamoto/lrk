@@ -1,92 +1,131 @@
-import { searchTool } from "./schemas.js";
-import { AskToolSession } from "./session.js";
-import { AskSource } from "./source/index.js";
 import {
   createApiAnswerTool,
-  directApiCalculation,
   finishApiAnswer,
+  summarizeApiAnswer,
 } from "./api/answer.js";
 import { prewarmApiIndex, terminateApiIndex } from "./api/index.js";
 import { prewarmMetricIndex, terminateMetricIndex } from "./metrics/index.js";
-import { renderDirectApiAnswer, renderEvidence } from "./render.js";
-import { directSourceFact } from "./source/answer.js";
+import { renderEvidence } from "./render.js";
+import { AskToolSession } from "./session/index.js";
+import { AskSource } from "./source/index.js";
+import { normalize } from "./text.js";
 
-const MAX_TOOL_ROUNDS = 8;
-const GATE_PROMPT = `You are the front door for Bitview's local Bitcoin assistant.
-Respond directly in at most 60 words when ordinary Bitcoin knowledge, conversation, or writing is enough.
-For follow-ups, keep the subject established by the recent conversation unless the user clearly changes it. Never silently substitute a different Bitcoin topic.
-Separate protocol facts from interpretations. Never claim a Bitcoin mechanism guarantees price, value, security, identity, or fraud detection. Do not say fixed supply makes price stable or prevents all inflation. On-chain records identify scripts and addresses, not verified people.
-When an essential subject or previous topic is missing, output only one clarification question of at most 15 words. Never guess it, explain possibilities, or list examples.
-If and only if the request needs current or historical Bitview data, a concrete public blockchain record, server/API state, metric lookup, charts, cohorts, variants, or BRK repository evidence, return exactly:
-TOOLS
-BRK is software, not a cryptocurrency or token.
+const NUMBER = /\d+(?:[.,]\d+)*/g;
 
-Examples:
-User: Which holder group?
-Assistant: Which metric or Bitcoin concept do you mean?
-User: What can you do?
-Assistant: I can explain Bitcoin concepts, search current BRK source, read Bitview metrics and blockchain records, and build charts. Everything runs locally in your browser.
-User: Why does Bitcoin have a fixed supply?
-Assistant: Bitcoin's consensus rules cap issuance at 21 million BTC. The block subsidy halves roughly every four years, so new issuance declines until the cap is approached.
-User: Tell me something about on-chain data.
-Assistant: On-chain data is the public record written to Bitcoin's blockchain, including transactions, amounts, fees, and block details. Analysts aggregate it to study network activity and holder behavior.
-User: Chart capitalized price.
-Assistant: TOOLS
-User: What fee did transaction 4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b pay?
-Assistant: TOOLS`;
-
-/** @param {import("../model.js").AskModel} model @param {import("../model.js").ChatMessage[]} messages */
-async function useFrontDoor(model, messages) {
-  const [, ...dialogue] = messages;
-  const result = await model.generate(
-    [
-      {
-        role: "system",
-        content: GATE_PROMPT,
-      },
-      ...dialogue,
-    ],
-    () => {},
-    [],
-    "none",
-    { maxTokens: 96 },
-  );
-  const text = result.text.trim();
-  return text === "TOOLS"
-    ? { kind: "tools" }
-    : { kind: "answer", text };
+/** @param {unknown} value */
+function numbers(value) {
+  return String(value)
+    .match(NUMBER)
+    ?.map((number) => number.replaceAll(",", "")) ?? [];
 }
 
-/** @param {AskToolSession} session */
-function modelStatus(session) {
-  if (session.stage === "rewrite") return "Refining search…";
-  if (session.stage === "resolve") {
-    if (session.outcome === "read_api") return "Selecting API…";
-    if (session.outcome === "explain_from_verified_facts") {
-      return session.options.some((option) => option.kind === "source")
-        ? "Selecting source…"
-        : "Selecting evidence…";
-    }
-    return "Selecting metrics…";
-  }
-  return "Understanding request…";
+/**
+ * Quantities in an ungrounded answer are worth a second look. This deliberately
+ * checks syntax rather than guessing the user's intent or maintaining a list of
+ * Bitcoin concepts.
+ *
+ * @param {string} answer
+ * @param {import("../model.js").ChatMessage[]} messages
+ */
+function unsupportedNumbers(answer, messages) {
+  const supported = new Set(numbers(
+    messages
+      .filter(({ role }) => role === "user")
+      .map(({ content }) => content)
+      .join(" "),
+  ));
+  return new Set(numbers(answer).filter((number) => !supported.has(number)));
+}
+
+/**
+ * The small model can repeat an unsupported quantity after being asked to
+ * revise it. Keep the useful grounded sentences instead of trusting a second
+ * model pass to police itself.
+ *
+ * @param {string} answer
+ * @param {import("../model.js").ChatMessage[]} messages
+ */
+function removeUnsupportedQuantitySentences(answer, messages) {
+  const unsupported = unsupportedNumbers(answer, messages);
+  if (!unsupported.size) return answer.trim();
+
+  const kept = [...new Intl.Segmenter(undefined, { granularity: "sentence" })
+    .segment(answer)]
+    .map(({ segment }) => segment.trim())
+    .filter((segment) =>
+      !numbers(segment).some((number) => unsupported.has(number))
+    );
+  return kept.join(" ").trim();
 }
 
 /**
  * @typedef {Object} ToolOutcome
  * @property {boolean} done
- * @property {boolean} [general]
  * @property {string} [output]
  * @property {import("../storage.js").StoredArtifact[]} [artifacts]
  * @property {string[]} [metricPaths]
- * @property {{ key: string, arguments: Record<string, unknown> }} [apiContext]
+ * @property {import("../storage.js").ApiContext} [apiContext]
  * @property {import("../storage.js").SourceContext[]} [sourceContext]
  * @property {import("../storage.js").KnowledgeContext} [knowledgeContext]
- * @property {{ question: string, metric?: { name: string, path: string, unit?: string }, excerpts: { revision: string, path: string, startLine: number, endLine?: number, content: string }[] }} [grounding]
- * @property {{ question: string, context: import("../storage.js").KnowledgeContext }} [knowledgeGrounding]
- * @property {{ question: string, operation: { key: string, method: string, path: string, summary: string, description: string, parameters: { name: string }[], response: { fields?: { name: string, type: string, description?: string }[] } }, arguments: Record<string, unknown>, requestPath: string, data: unknown, truncated: boolean }} [apiGrounding]
- * @property {NonNullable<ToolOutcome["apiGrounding"]>[]} [apiGroundings]
+ * @property {{ question: string, metrics: { name: string, path: string, unit?: string }[], facts: string[], excerpts: import("../storage.js").SourceContext[] }} [grounding]
+ * @property {{ question: string, previousFields: string[], operation: { key: string, method: string, path: string, summary: string, description: string, parameters: { name: string }[], response: { fields?: { name: string, type: string, description?: string }[] } }, arguments: Record<string, unknown>, requestPath: string, data: unknown, truncated: boolean }} [apiGrounding]
+ *
+ * @typedef {Object} AskAnswer
+ * @property {string} output
+ * @property {import("../storage.js").StoredArtifact[]} artifacts
+ * @property {string[]} [metricPaths]
+ * @property {import("../storage.js").ApiContext} [apiContext]
+ * @property {import("../storage.js").SourceContext[]} [sourceContext]
+ * @property {import("../storage.js").KnowledgeContext} [knowledgeContext]
+ * @property {import("../storage.js").StoredChat} chat
  */
+
+/**
+ * @param {import("../model.js").AskModel} model
+ * @param {NonNullable<ToolOutcome["grounding"]>} grounding
+ * @param {(status: string) => void} onStatus
+ */
+async function answerFromEvidence(model, grounding, onStatus) {
+  onStatus("Answering from source…");
+  const result = await model.generate(
+    [
+      {
+        role: "system",
+        content: "Answer the exact request in at most 45 words and normal sentence casing using only verified facts, metric metadata, and source excerpts. Evidence is strongest first; ignore later excerpts unless needed. A declaration proves its definition and literal return type; a call expression proves its caller. Copy provided metric names, code identifiers, and types exactly; never respell, expand, or abbreviate them. Answer directly, never discuss the request's wording. Do not add background knowledge or guesses.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify(grounding),
+      },
+    ],
+    () => {},
+    [],
+    "none",
+    { maxTokens: 72 },
+  );
+  const answer = result.text.trim();
+  const sources = grounding.excerpts.slice(0, 2);
+  const fallback = !answer && sources[0]
+    ? `The strongest verified source match is \`${sources[0].path}:${sources[0].startLine}${sources[0].endLine ? `-${sources[0].endLine}` : ""}\`.`
+    : "";
+  return {
+    output: renderEvidence({
+      facts: [
+        answer || fallback,
+        ...grounding.facts,
+      ].filter(Boolean),
+      sources,
+      excerpts: [],
+    }),
+    sourceContext: sources,
+    knowledgeContext: answer
+      ? {
+          title: grounding.metrics[0]?.name ?? grounding.question.slice(0, 160),
+          description: answer,
+        }
+      : undefined,
+  };
+}
 
 /**
  * @param {import("../model.js").AskModel} model
@@ -95,137 +134,199 @@ function modelStatus(session) {
  */
 async function answerFromApi(model, grounding, onStatus) {
   const apiAnswer = createApiAnswerTool(grounding);
-  const calculation = directApiCalculation(
-    grounding.question,
-    apiAnswer.fields,
-    grounding,
+  const question = ` ${normalize(grounding.question)} `;
+  const parameterNames = new Set(
+    grounding.operation.parameters.map(({ name }) => normalize(name)),
   );
-  if (calculation) return calculation;
-  const direct = renderDirectApiAnswer(grounding);
-  if (direct) return direct;
-
+  const mentionedResponse = (
+    grounding.operation.response.fields ?? []
+  ).some(({ name }) => {
+    const field = normalize(name.split(".").at(-1));
+    return field && !parameterNames.has(field) &&
+      question.includes(` ${field} `);
+  });
+  const directFields = apiAnswer.fields.filter((field) => {
+    const name = normalize(field.name.split(".").at(-1));
+    return name && question.includes(` ${name} `);
+  });
+  const requestTokens = new Set(
+    normalize(grounding.question).split(" ").filter((token) => token.length > 2),
+  );
+  const canSelectDirectly = (/** @type {typeof apiAnswer.fields[number]} */ field) => {
+    const ownTokens = new Set(normalize(field.name).split(" "));
+    const qualifiers = [...requestTokens].filter((token) => !ownTokens.has(token));
+    return !apiAnswer.fields.some((candidate) =>
+      candidate.name !== field.name &&
+      qualifiers.some((token) =>
+        normalize(`${candidate.name} ${candidate.description ?? ""}`)
+          .split(" ")
+          .includes(token)
+      )
+    );
+  };
+  if (directFields.length === 1 && canSelectDirectly(directFields[0])) {
+    const field = directFields[0];
+    return {
+      output: finishApiAnswer(
+        "select_api_field",
+        {
+          field: field.ref,
+          label: field.name.split(".").at(-1)?.replaceAll("_", " "),
+        },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: [field.name],
+    };
+  }
+  if (apiAnswer.resolved && canSelectDirectly(apiAnswer.resolved)) {
+    const field = apiAnswer.resolved;
+    return {
+      output: finishApiAnswer(
+        "select_api_field",
+        { field: field.ref },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: [field.name],
+    };
+  }
+  if (apiAnswer.ambiguous.length > 1) {
+    const choices = apiAnswer.ambiguous
+      .map((field) =>
+        `**${field.name.replaceAll(".", " · ").replaceAll("_", " ")}**${
+          field.description ? ` — ${field.description}` : ""
+        }`
+      )
+      .join("\n- ");
+    return {
+      output: finishApiAnswer(
+        "answer_api_text",
+        {
+          text: `I found multiple matching fields:\n- ${choices}\n\nWhich one do you mean?`,
+        },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: apiAnswer.ambiguous.map(({ name }) => name),
+    };
+  }
+  if (
+    !grounding.previousFields?.length &&
+    !mentionedResponse &&
+    !apiAnswer.direct
+  ) {
+    return summarizeApiAnswer(grounding);
+  }
+  if (apiAnswer.direct) {
+    const field = apiAnswer.direct;
+    return {
+      output: finishApiAnswer(
+        "select_api_field",
+        { field: field.ref },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: [field.name],
+    };
+  }
   onStatus("Answering from API…");
   const instruction = apiAnswer.fields.length
-    ? "Answer the user's exact question using only the verified API result and schema. Call answer_from_api once. Choose calculate whenever the requested numeric value combines fields. Use operator with ordered operands for ordinary arithmetic, or terms for a signed sum. Choose answer only when no arithmetic is required. Preserve identifiers and units. Never invent missing values."
-    : "Answer the user's exact question using only the verified API result and schema. Call answer_from_api once with answer. Preserve identifiers and units. Never invent missing values.";
-  const answer = await model.generate(
-    [
-      {
-        role: "system",
-        content: instruction,
-      },
-      {
-        role: "user",
-        content: JSON.stringify(grounding),
-      },
-    ],
-    () => {},
-    [apiAnswer.tool],
-    { name: "answer_from_api" },
-    { maxTokens: 128 },
-  );
-  const call = answer.toolCalls[0];
-  if (!call || call.name !== "answer_from_api") {
-    throw new Error("The AI did not produce a valid API answer");
+    ? `Answer the exact newest request using only the verified API result. Call exactly one matching tool. Select a raw field only when that field itself was requested${apiAnswer.previous ? "; continue the preceding numeric answer when the request applies arithmetic to it" : ""}. When the requested concept is narrower than an aggregate field, derive it from matching component fields. Never replace requested arithmetic with a convenient field. For subtraction and division, keep operands in the request's arithmetic order: minuend or dividend first. Preserve identifiers and units. Never invent missing values.`
+    : "Answer the exact request using only the verified API result. Call answer_api_text exactly once. Preserve identifiers and units. Never invent missing values.";
+  const prompt = {
+    question: grounding.question,
+    previous: apiAnswer.previous
+      ? {
+        ref: apiAnswer.previous.ref,
+        name: apiAnswer.previous.name,
+        type: apiAnswer.previous.type,
+        value: apiAnswer.previous.value,
+      }
+      : undefined,
+    fields: apiAnswer.fields.map(({ ref, name, type, description, value }) => ({
+      ref,
+      name,
+      type,
+      description,
+      value,
+    })),
+    ...(!apiAnswer.previous ? { data: grounding.data } : {}),
+  };
+  const generateAnswer = (extra = "") =>
+    model.generate(
+      [
+        {
+          role: "system",
+          content: extra ? `${instruction} ${extra}` : instruction,
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+      () => {},
+      apiAnswer.tools,
+      { name: "answer_api" },
+      { maxTokens: 72 },
+    );
+  let answer = await generateAnswer();
+  let call = answer.toolCalls[0];
+  if (!call || call.name !== "answer_api") {
+    return summarizeApiAnswer(grounding);
   }
-  return finishApiAnswer(call.arguments, apiAnswer.fields, grounding);
-}
-
-/** @param {NonNullable<ToolOutcome["apiGrounding"]>[]} groundings */
-function answerFromApiComparison(groundings) {
-  const rows = groundings.map((grounding) => {
-    const answer = renderDirectApiAnswer(grounding);
-    if (!answer) return undefined;
-    const label = Object.values(grounding.arguments).join(", ") || grounding.requestPath;
-    return `**${label}**\n${answer.replace(/\n\nData:.*$/s, "")}`;
-  });
-  if (rows.some((row) => !row)) {
-    throw new Error("The API comparison was ambiguous");
+  const actionFor = (/** @type {Record<string, unknown>} */ arguments_) =>
+    arguments_.action === "select"
+    ? "select_api_field"
+    : arguments_.action === "continue"
+      ? "continue_api_calculation"
+      : arguments_.action === "calculate"
+        ? "calculate_api_fields"
+        : arguments_.action === "text"
+          ? "answer_api_text"
+          : "";
+  let actionName = actionFor(call.arguments);
+  const selectedField = actionName === "select_api_field"
+    ? apiAnswer.fields.find(({ ref }) => ref === call.arguments.field)
+    : undefined;
+  if (selectedField && !canSelectDirectly(selectedField)) {
+    answer = await generateAnswer(
+      `Do not select ${selectedField.ref} (${selectedField.name}): its schema scope does not satisfy all request qualifiers. Derive the requested result from matching component fields or choose an exact narrower field.`,
+    );
+    call = answer.toolCalls[0];
+    if (!call || call.name !== "answer_api") {
+      return summarizeApiAnswer(grounding);
+    }
+    actionName = actionFor(call.arguments);
   }
-  const operation = groundings[0].operation;
-  return `${rows.join("\n\n")}\n\nData: \`${operation.method} ${operation.path}\``;
-}
-
-/**
- * @param {import("../model.js").AskModel} model
- * @param {NonNullable<ToolOutcome["grounding"]>} grounding
- * @param {(update: import("../model.js").TokenUpdate) => void} onToken
- * @param {(status: string) => void} onStatus
- */
-async function answerFromSource(model, grounding, onToken, onStatus) {
-  const direct = directSourceFact(grounding.question, grounding.excerpts);
-  if (direct) {
-    return renderEvidence({
-      facts: [direct],
-      sources: grounding.excerpts,
-      excerpts: [],
-    });
+  if (!actionName) return summarizeApiAnswer(grounding);
+  const selectedRefs = actionName === "select_api_field"
+    ? [call.arguments.field]
+    : actionName === "continue_api_calculation"
+      ? [apiAnswer.previous?.ref, call.arguments.operand]
+      : typeof call.arguments.left === "string" &&
+          typeof call.arguments.right === "string"
+        ? [call.arguments.left, call.arguments.right]
+      : Array.isArray(call.arguments.operands)
+        ? call.arguments.operands
+        : [];
+  const selected = new Set(selectedRefs.map(String));
+  try {
+    return {
+      output: finishApiAnswer(
+        actionName,
+        call.arguments,
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: apiAnswer.fields
+        .filter(({ ref }) => selected.has(ref))
+        .map(({ name }) => name),
+    };
+  } catch {
+    return summarizeApiAnswer(grounding);
   }
-  onStatus("Answering from source…");
-  const instruction = grounding.metric
-    ? "Explain only the verified metric in plain language in at most 45 words. Start with its exact metric name in normal words and state its verified unit. Never describe the metric as denominated in another unit; source quantities may use other units only in its calculation. Use the source excerpt only for its computation; ignore sibling metrics. Preserve every comparison direction and arithmetic operation literally. Never change unrealized into realized. Do not add unsupported details."
-    : "Answer in at most 45 words using only the supplied source excerpt. Describe operations in source order. Preserve the exact subject, object, and identifiers of each relationship; never merge separate statements. Do not add background knowledge, guesses, or uncited details.";
-  const answer = await model.generate(
-    [
-      {
-        role: "system",
-        content: instruction,
-      },
-      {
-        role: "user",
-        content: JSON.stringify(grounding),
-      },
-    ],
-    onToken,
-    [],
-    "none",
-    { maxTokens: 64 },
-  );
-  const text = answer.text.trim();
-  if (!text || /\?\s*$/.test(text)) {
-    return renderEvidence({
-      facts: [],
-      sources: [],
-      excerpts: grounding.excerpts,
-    });
-  }
-  return renderEvidence({
-    facts: [text],
-    sources: grounding.excerpts,
-    excerpts: [],
-  });
-}
-
-/**
- * @param {import("../model.js").AskModel} model
- * @param {NonNullable<ToolOutcome["knowledgeGrounding"]>} grounding
- * @param {(update: import("../model.js").TokenUpdate) => void} onToken
- * @param {(status: string) => void} onStatus
- */
-async function answerFromKnowledge(model, grounding, onToken, onStatus) {
-  onStatus("Answering from context…");
-  const answer = await model.generate(
-    [
-      {
-        role: "system",
-        content: "Answer the follow-up in at most 55 words using only the verified concept description. Keep the exact subject. An analogy may simplify the description but must preserve its meaning. Do not invent benefits, risks, mechanisms, or tradeoffs. If the description is insufficient, ask one short clarification question.",
-      },
-      {
-        role: "user",
-        content: JSON.stringify(grounding),
-      },
-    ],
-    onToken,
-    [],
-    "none",
-    { maxTokens: 80 },
-  );
-  return answer.text.trim();
 }
 
 export function createAskTools() {
   const source = new AskSource();
-  const contextTools = [searchTool()];
   /** @type {AbortController | undefined} */
   let controller;
 
@@ -238,10 +339,6 @@ export function createAskTools() {
       ]);
     },
 
-    toolsFor() {
-      return contextTools;
-    },
-
     /**
      * @param {Object} options
      * @param {string} options.question
@@ -250,177 +347,234 @@ export function createAskTools() {
      * @param {() => Promise<{ chat: import("../storage.js").StoredChat, messages: import("../model.js").ChatMessage[] }>} options.prepare
      * @param {(update: import("../model.js").TokenUpdate) => void} options.onToken
      * @param {(status: string) => void} options.onStatus
+     * @returns {Promise<AskAnswer>}
      */
-    async answer({ question, history, model, prepare, onToken, onStatus }) {
+    async answer({
+      question,
+      history,
+      model,
+      prepare,
+      onToken: _onToken,
+      onStatus,
+    }) {
       controller = new AbortController();
       const { signal } = controller;
-      const session = new AskToolSession(source);
-      await session.begin(
-        question,
-        history,
-        () => onStatus("Indexing tools…"),
-      );
 
       try {
-        let prepared;
-        if (session.verifyDirectApiIntent) {
-          prepared = await prepare();
-          onStatus("Understanding request…");
-          const frontDoor = await useFrontDoor(model, prepared.messages);
-          if (frontDoor.kind === "answer") {
-            return {
-              output: frontDoor.text,
-              artifacts: [],
-              metricPaths: [],
-              chat: prepared.chat,
-            };
-          }
-        }
+        const session = new AskToolSession(source);
+        const [prepared] = await Promise.all([
+          prepare(),
+          session.begin(question, history, onStatus),
+        ]);
+        signal.throwIfAborted();
 
-        const direct = /** @type {ToolOutcome | undefined} */ (
-          await session.tryDirect(onStatus, signal)
-        );
-        if (direct?.apiGrounding) {
-          return {
-            output: await answerFromApi(model, direct.apiGrounding, onStatus),
-            artifacts: [],
-            metricPaths: session.metricPaths(),
-            apiContext: session.apiContext(),
-          };
-        }
-        if (direct?.apiGroundings) {
-          return {
-            output: answerFromApiComparison(direct.apiGroundings),
-            artifacts: [],
-            metricPaths: session.metricPaths(),
-            apiContext: session.apiContext(),
-          };
-        }
-        if (direct?.grounding) {
-          return {
-            output: await answerFromSource(
-              model,
-              direct.grounding,
-              onToken,
-              onStatus,
-            ),
-            artifacts: [],
-            metricPaths: session.metricPaths(),
-            sourceContext: direct.grounding.excerpts,
-          };
-        }
-        if (direct?.knowledgeGrounding) {
-          return {
-            output: await answerFromKnowledge(
-              model,
-              direct.knowledgeGrounding,
-              onToken,
-              onStatus,
-            ),
-            artifacts: [],
-            metricPaths: session.metricPaths(),
-            knowledgeContext: direct.knowledgeGrounding.context,
-          };
-        }
-        if (direct) return { ...direct, metricPaths: session.metricPaths() };
-
-        prepared ??= await prepare();
-        const { messages } = prepared;
-        if (!session.requiresTools) {
-          onStatus("Understanding request…");
-          const frontDoor = await useFrontDoor(model, messages);
-          if (frontDoor.kind === "answer") {
-            return {
-              output: frontDoor.text,
-              artifacts: [],
-              metricPaths: [],
-              chat: prepared.chat,
-            };
-          }
-        }
-
-        for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-          signal.throwIfAborted();
-          onStatus(modelStatus(session));
-          const newestUser = messages.findLast((message) => message.role === "user");
-          const stagedMessages = [
-            { role: /** @type {const} */ ("system"), content: session.instruction() },
-            ...(newestUser ? [newestUser] : []),
-            ...(session.observation
-              ? [{
-                  role: /** @type {const} */ ("user"),
-                  content: `Available source-derived result:\n${JSON.stringify(session.observation)}`,
-                }]
-              : []),
-          ];
-          const result = await model.generate(
-            stagedMessages,
+        /** @type {{ action: string, call?: import("../model.js").ToolCall } | undefined} */
+        const direct = session.directRoute();
+        let call = direct?.call;
+        let action = direct?.action ?? "";
+        if (!action) {
+          onStatus("Choosing capability…");
+          const routeTools = session.routeTools();
+          const route = await model.generate(
+            session.routeMessages(),
             () => {},
-            [await session.tool()],
-            { name: "next_action" },
-            { maxTokens: 64 },
+            routeTools,
+            { name: "choose_capability" },
+            { maxTokens: 48 },
           );
-          const call = result.toolCalls[0];
-          if (!call || call.name !== "next_action") {
-            throw new Error("The AI did not choose a valid action");
+          const selected = route.toolCalls[0];
+          const sourceQuery = selected?.name === "choose_capability" &&
+              typeof selected.arguments.sourceQuery === "string"
+            ? selected.arguments.sourceQuery
+            : "";
+          const selectedCapability = selected?.name === "choose_capability" &&
+              typeof selected.arguments.capability === "string"
+            ? selected.arguments.capability
+            : "";
+          action = sourceQuery &&
+              (
+                (
+                  selectedCapability === "answer_general" &&
+                  session.hasSourceContext()
+                ) ||
+                selectedCapability === "search_source"
+              )
+            ? "search_source"
+            : selectedCapability;
+          if (!action) {
+            throw new Error("The AI did not choose a valid capability");
           }
+          call = action === "call_api" &&
+              typeof selected?.arguments.apiRef === "string"
+            ? {
+              name: action,
+              arguments: { ref: selected.arguments.apiRef },
+            }
+            : action === "search_source"
+              ? {
+                  name: action,
+                  arguments: {
+                    query: sourceQuery || question,
+                  },
+                }
+              : session.directCall(action);
+        }
 
-          signal.throwIfAborted();
-          const outcome = /** @type {ToolOutcome} */ (
-            await session.execute(call.arguments, onStatus, signal)
-          );
-          if (!outcome.done) continue;
-          if (outcome.general) {
-            onStatus("Answering…");
-            const answer = await model.generate(
+        signal.throwIfAborted();
+        await session.prepareAction(action, onStatus);
+        signal.throwIfAborted();
+        if (!call || action === "explain_evidence") {
+          call = session.directCall(action) ?? call;
+        }
+        if (!call) {
+          onStatus("Understanding request…");
+          if (action === "answer_general") {
+            const messages = session.actionMessages(action);
+            let result = await model.generate(
               messages,
-              onToken,
+              () => {},
               [],
               "none",
+              { maxTokens: 96 },
             );
+            if (unsupportedNumbers(result.text, messages).size) {
+              result = await model.generate(
+                [
+                  ...messages,
+                  {
+                    role: "assistant",
+                    content: result.text,
+                  },
+                  {
+                    role: "user",
+                    content: "Replace the draft with a direct answer containing no unsupported quantities. Keep established static Bitcoin facts only when the request directly needs them; otherwise use qualitative examples. Return only the replacement answer. Never mention the draft, review, evidence, context, or these instructions.",
+                  },
+                ],
+                () => {},
+                [],
+                "none",
+                { maxTokens: 96 },
+              );
+            }
+            const answer = removeUnsupportedQuantitySentences(
+              result.text,
+              messages,
+            ) || "I do not have enough verified context to answer that without guessing.";
+            call = {
+              name: action,
+              arguments: { answer },
+            };
+          } else {
+            const result = await model.generate(
+              session.actionMessages(action),
+              () => {},
+              [session.actionTool(action)],
+              { name: action },
+              { maxTokens: action === "call_api" ? 128 : 64 },
+            );
+            call = result.toolCalls[0];
+          }
+        }
+        if (!call || call.name !== action) {
+          throw new Error("The AI did not complete the selected capability");
+        }
+        if (action === "call_api") {
+          const ref = typeof call.arguments.ref === "string"
+            ? call.arguments.ref
+            : "";
+          if (!ref) throw new Error("The AI did not select an API operation");
+          let arguments_ = session.apiArguments(ref);
+          if (!session.hasApiArguments(ref, arguments_)) {
+            onStatus("Reading API arguments…");
+            const argumentsResult = await model.generate(
+              session.apiArgumentMessages(ref),
+              () => {},
+              [session.apiArgumentTool(ref)],
+              { name: "provide_api_arguments" },
+              { maxTokens: 96 },
+            );
+            const argumentsCall = argumentsResult.toolCalls[0];
+            if (
+              !argumentsCall ||
+              argumentsCall.name !== "provide_api_arguments"
+            ) {
+              throw new Error("The AI did not provide valid API arguments");
+            }
+            arguments_ = {
+              ...(argumentsCall.arguments.arguments ?? {}),
+              ...arguments_,
+            };
+          }
+          arguments_ = session.validateApiArguments(ref, arguments_);
+          const missing = session.missingApiArguments(ref, arguments_);
+          if (missing.length) {
+            const subject = missing
+              .map((/** @type {any} */ parameter) =>
+                parameter.description || parameter.name
+              )
+              .join(" and ");
             return {
-              output: answer.text,
+              output: `Which ${subject} should I use?`,
               artifacts: [],
-              metricPaths: [],
               chat: prepared.chat,
             };
           }
-          if (outcome.grounding) {
-            return {
-              output: await answerFromSource(
-                model,
-                outcome.grounding,
-                onToken,
-                onStatus,
-              ),
-              artifacts: [],
-              metricPaths: session.metricPaths(),
-              sourceContext: outcome.grounding.excerpts,
-              chat: prepared.chat,
-            };
-          }
-          if (outcome.apiGrounding) {
-            return {
-              output: await answerFromApi(
-                model,
-                outcome.apiGrounding,
-                onStatus,
-              ),
-              artifacts: [],
-              metricPaths: session.metricPaths(),
-              apiContext: session.apiContext(),
-              chat: prepared.chat,
-            };
-          }
+          call = {
+            name: action,
+            arguments: {
+              ref,
+              arguments: arguments_,
+            },
+          };
+        }
+
+        const outcome = /** @type {ToolOutcome} */ (
+          await session.execute(call, onStatus, signal)
+        );
+        if (outcome.apiGrounding) {
+          const answered = await answerFromApi(
+            model,
+            outcome.apiGrounding,
+            onStatus,
+          );
           return {
-            output: outcome.output ?? "",
-            artifacts: outcome.artifacts ?? [],
-            metricPaths: session.metricPaths(),
-            apiContext: session.apiContext(),
+            output: answered.output,
+            artifacts: [],
+            apiContext: outcome.apiContext
+              ? {
+                ...outcome.apiContext,
+                ...(answered.fields.length
+                  ? { fields: answered.fields }
+                  : {}),
+              }
+              : undefined,
             chat: prepared.chat,
           };
         }
-        throw new Error("The AI used too many tool steps. Try a more specific question.");
+        if (outcome.grounding) {
+          const grounded = await answerFromEvidence(
+            model,
+            outcome.grounding,
+            onStatus,
+          );
+          return {
+            output: grounded.output,
+            artifacts: [],
+            metricPaths: outcome.metricPaths,
+            sourceContext: grounded.sourceContext,
+            knowledgeContext: grounded.knowledgeContext,
+            chat: prepared.chat,
+          };
+        }
+        return {
+          output: outcome.output ?? "",
+          artifacts: outcome.artifacts ?? [],
+          metricPaths: outcome.metricPaths,
+          apiContext: outcome.apiContext,
+          sourceContext: outcome.sourceContext,
+          knowledgeContext: outcome.knowledgeContext,
+          chat: prepared.chat,
+        };
       } finally {
         controller = undefined;
         onStatus("");

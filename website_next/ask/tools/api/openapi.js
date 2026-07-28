@@ -123,6 +123,7 @@ function parameterDetails(spec, raw) {
     required: location === "path" || parameter.required === true,
     type: schemaName(rawSchema),
     valueType: schemaName(schema),
+    ...(typeof schema.type === "string" ? { primitive: schema.type } : {}),
     ...(typeof schema.format === "string" ? { format: schema.format } : {}),
     ...(Array.isArray(schema.enum) ? { enum: schema.enum.slice(0, 64) } : {}),
     description: compactText(

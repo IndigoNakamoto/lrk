@@ -198,10 +198,7 @@ fn compute_data_share(
     exit: &Exit,
 ) -> Result<()> {
     target.compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
-        max_from,
-        data,
-        block_size,
-        exit,
+        max_from, data, block_size, exit,
     )
 }
 

@@ -1,8 +1,6 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{
-    CheckedSub, Dollars, Halving, PartsPerMillion32, PartsPerMillion64, Sats,
-};
+use brk_types::{CheckedSub, Dollars, Halving, PartsPerMillion32, PartsPerMillion64, Sats};
 use vecdb::{Exit, ReadableVec, VecIndex};
 
 use super::Vecs;

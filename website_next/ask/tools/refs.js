@@ -6,6 +6,16 @@ const PREFIX = /** @type {const} */ ({
   source: "s",
 });
 
+/** @param {string} value */
+function slug(value) {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+}
+
 export class AskRefs {
   /** @type {Map<string, number>} */
   #counts = new Map();
@@ -20,14 +30,16 @@ export class AskRefs {
    * @param {keyof typeof PREFIX} kind
    * @param {any} value
    * @param {string} stableKey
+   * @param {string} [hint]
    */
-  issue(kind, value, stableKey) {
+  issue(kind, value, stableKey, hint) {
     const key = `${kind}:${stableKey}`;
     const existing = this.#keys.get(key);
     if (existing) return existing;
 
     const count = (this.#counts.get(kind) ?? 0) + 1;
-    const ref = `${PREFIX[kind]}${count}`;
+    const suffix = hint ? slug(hint) : "";
+    const ref = `${PREFIX[kind]}${count}${suffix ? `_${suffix}` : ""}`;
     this.#counts.set(kind, count);
     this.#items.set(ref, { kind, value });
     this.#keys.set(key, ref);

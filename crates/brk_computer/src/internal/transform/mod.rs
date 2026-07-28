@@ -16,13 +16,13 @@ pub use currency::{
     NegCentsUnsignedToDollars, SatsSignedToBitcoin, SatsToBitcoin, SatsToCents,
 };
 pub use derived::{
-    Days1, Days7, Days30, Days365, DaysToYears, PriceTimesRatio, PriceTimesRatioCents, RatioCents64,
-    TimesSqrt,
+    Days1, Days7, Days30, Days365, DaysToYears, PriceTimesRatio, PriceTimesRatioCents,
+    RatioCents64, TimesSqrt,
 };
 pub use fixed_ratio::{FixedToPercent, FixedToRatio};
 pub use ratio::{
-    RatioCents, RatioCentsSignedCents, RatioCentsSignedDollars, RatioDiffCents,
-    RatioDiffDollars, RatioDiffF32, RatioDollars, RatioSats, RatioU64, RatioU64F32,
+    RatioCents, RatioCentsSignedCents, RatioCentsSignedDollars, RatioDiffCents, RatioDiffDollars,
+    RatioDiffF32, RatioDollars, RatioSats, RatioU64, RatioU64F32,
 };
 pub use specialized::{
     BlockCountTarget1m, BlockCountTarget1w, BlockCountTarget1y, BlockCountTarget24h,

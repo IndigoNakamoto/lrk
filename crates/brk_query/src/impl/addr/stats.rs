@@ -69,6 +69,7 @@ impl Query {
             addr,
             addr_type: output_type,
             chain_stats: AddrChainStats {
+                balance: addr_data.received - addr_data.sent,
                 type_index,
                 funded_txo_count: addr_data.funded_txo_count,
                 funded_txo_sum: addr_data.received,

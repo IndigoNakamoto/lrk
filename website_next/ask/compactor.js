@@ -13,10 +13,9 @@ function cancelIdle(scheduled) {
 /**
  * @param {Object} options
  * @param {import("./model.js").AskModel} options.model
- * @param {readonly unknown[]} options.tools
  * @param {(id: string, update: NonNullable<Awaited<ReturnType<typeof compactContext>>>) => void} options.onCompacted
  */
-export function createAskCompactor({ model, tools, onCompacted }) {
+export function createAskCompactor({ model, onCompacted }) {
   /** @type {import("./storage.js").StoredChat | undefined} */
   let pending;
   /** @type {number | undefined} */
@@ -37,7 +36,7 @@ export function createAskCompactor({ model, tools, onCompacted }) {
     if (!target) return;
     pending = undefined;
     const controller = new AbortController();
-    const promise = compactContext(target, model, tools, controller.signal);
+    const promise = compactContext(target, model, controller.signal);
     const task = { controller, promise };
     active = task;
 

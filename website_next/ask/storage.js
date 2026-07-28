@@ -51,6 +51,7 @@ const CHART_COLORS = new Set([
  * @typedef {Object} ApiContext
  * @property {string} key
  * @property {Record<string, string | number | boolean | (string | number | boolean)[]>} arguments
+ * @property {string[]} [fields]
  *
  * @typedef {Object} SourceContext
  * @property {string} revision
@@ -58,7 +59,6 @@ const CHART_COLORS = new Set([
  * @property {number} startLine
  * @property {number} [endLine]
  * @property {string} content
- * @property {string} [focus]
  *
  * @typedef {Object} KnowledgeContext
  * @property {string} title
@@ -194,7 +194,16 @@ function readApiContext(value) {
       )
       .slice(0, 16),
   );
-  return /** @type {ApiContext} */ ({ key: context.key, arguments: arguments_ });
+  const fields = Array.isArray(context.fields)
+    ? context.fields
+      .filter((field) => typeof field === "string" && field.length <= 256)
+      .slice(0, 12)
+    : [];
+  return /** @type {ApiContext} */ ({
+    key: context.key,
+    arguments: arguments_,
+    ...(fields.length ? { fields } : {}),
+  });
 }
 
 /** @param {unknown} value @returns {SourceContext | undefined} */
@@ -221,9 +230,6 @@ function readSourceContext(value) {
     startLine: context.startLine,
     ...(endLine === undefined ? {} : { endLine }),
     content: context.content.slice(0, 1_000),
-    ...(typeof context.focus === "string" && context.focus.trim()
-      ? { focus: context.focus.trim().slice(0, 160) }
-      : {}),
   };
 }
 

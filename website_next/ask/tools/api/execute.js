@@ -46,7 +46,7 @@ function compact(value, depth, state) {
 
 /** @param {unknown} value @param {import("./index.js").ApiParameter} parameter */
 function parameterValue(value, parameter) {
-  const type = parameter.valueType ?? parameter.type;
+  const type = parameter.primitive ?? parameter.valueType ?? parameter.type;
   if (type.includes("integer")) {
     const number = Number(value);
     if (!Number.isInteger(number)) throw new Error(`${parameter.name} must be an integer`);

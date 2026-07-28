@@ -1,9 +1,9 @@
 import { QuickMatch, QuickMatchConfig } from "../../../modules/quickmatch-js/0.5.0/src/index.js";
-import { normalize, tokenAffinity } from "../text.js";
+import { normalize, relevance } from "../text.js";
 import { metricsFromSeries } from "./series.js";
+import { unitFromType } from "./unit.js";
 
 const SEARCH_CANDIDATES = 1_024;
-const MAX_MENTION_WORDS = 12;
 
 /** @typedef {{ path: string, name: string, indexes: string[], type: string, document: string }} CatalogMetric */
 
@@ -12,21 +12,22 @@ function searchable(value) {
   return normalize(value);
 }
 
-/** @param {string} path @param {string} type */
-function suggestedUnit(path, type) {
-  if (/(dollar|usd|cents)/i.test(type)) return "usd";
-  if (/(bitcoin|btc)/i.test(type)) return "btc";
-  if (/(percent|ratio)/i.test(type)) return "percent";
-  if (/address/i.test(type)) return "addresses";
-  if (/(utxo|output)/i.test(type)) return "utxos";
-  if (/(block|height)/i.test(type)) return "blocks";
-  if (/(percent|ratio|dominance)/i.test(path)) return "percent";
-  if (/(usd|price|cap)/i.test(path)) return "usd";
-  if (/(btc|supply|value)/i.test(path)) return "btc";
-  if (/(address|addr)/i.test(path)) return "addresses";
-  if (/(?:^|\.)(?:outputs?|unspentCount|spentCount)(?:\.|$)/i.test(path)) return "utxos";
-  if (/(block|height|epoch)/i.test(path)) return "blocks";
-  return "number";
+/** @param {string} value */
+function queryVocabulary(value) {
+  const words = searchable(value).split(" ").filter(Boolean);
+  const vocabulary = new Set(words);
+  for (let start = 0; start < words.length; start += 1) {
+    for (
+      let length = 2;
+      length <= 5 && start + length <= words.length;
+      length += 1
+    ) {
+      vocabulary.add(
+        words.slice(start, start + length).map((word) => word[0]).join(""),
+      );
+    }
+  }
+  return vocabulary;
 }
 
 /** @param {number} limit */
@@ -51,42 +52,55 @@ async function buildState(url) {
   const byName = new Map();
   /** @type {Map<string, CatalogMetric>} */
   const byPath = new Map();
-  /** @type {Map<string, CatalogMetric[]>} */
-  const bySearchableName = new Map();
+  const metricNames = [...new Set(items.map((metric) => searchable(metric.name)))];
   /** @type {Map<string, CatalogMetric>} */
   const byDocument = new Map();
+  const documentFrequency = new Map();
   for (const metric of items) {
     if (!byName.has(metric.name)) byName.set(metric.name, metric);
+    const normalizedName = searchable(metric.name);
+    if (!byName.has(normalizedName)) byName.set(normalizedName, metric);
     byPath.set(metric.path, metric);
-    const nameKey = searchable(metric.name);
-    const named = bySearchableName.get(nameKey) ?? [];
-    named.push(metric);
-    bySearchableName.set(nameKey, named);
     if (!byDocument.has(metric.document)) byDocument.set(metric.document, metric);
+    for (const token of new Set(metric.document.split(" ").filter(Boolean))) {
+      documentFrequency.set(
+        token,
+        (documentFrequency.get(token) ?? 0) + 1,
+      );
+    }
   }
 
   const config = createConfig();
   const matcher = new QuickMatch(items.map(({ document }) => document), config);
-  const nameConfig = createConfig(12).withTrigramBudget(4);
-  const nameMatcher = new QuickMatch([...bySearchableName.keys()], nameConfig);
-  const nameWords = new Set(
-    [...bySearchableName.keys()].flatMap((name) => name.split(" ")),
-  );
   /** @type {Map<string, { matcher: QuickMatch, config: QuickMatchConfig }>} */
   const scoped = new Map();
   return {
     items,
     byName,
     byPath,
-    bySearchableName,
+    metricNames,
     byDocument,
+    documentFrequency,
     matcher,
     config,
-    nameMatcher,
-    nameConfig,
-    nameWords,
     scoped,
   };
+}
+
+/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} query */
+function mentions(index, query) {
+  const value = ` ${searchable(query)} `;
+  const names = index.metricNames
+    .filter((name) => name && value.includes(` ${name} `))
+    .filter((name, _, matches) =>
+      !matches.some((candidate) =>
+        candidate !== name &&
+        candidate.length > name.length &&
+        ` ${candidate} `.includes(` ${name} `)
+      )
+    )
+    .sort((left, right) => right.length - left.length || left.localeCompare(right));
+  return names.slice(0, 4);
 }
 
 /** @type {Promise<Awaited<ReturnType<typeof buildState>>> | undefined} */
@@ -110,7 +124,7 @@ function publicMetric(metric) {
     name: metric.name,
     indexes: metric.indexes,
     type: metric.type,
-    suggestedUnit: suggestedUnit(metric.path, metric.type),
+    suggestedUnit: unitFromType(metric.type),
   };
 }
 
@@ -172,11 +186,27 @@ function searchOne(index, query, limit, prefixes) {
     .map((document) => index.byDocument.get(document))
     .filter((metric) => metric && scope.inScope(metric))
     .slice(0, limit)
-    .map((metric, rank) => ({
-      ...publicMetric(/** @type {CatalogMetric} */ (metric)),
-      matchedQuery: query,
-      score: 1_000 - rank,
-    }));
+    .map((metric, rank) => {
+      const value = /** @type {CatalogMetric} */ (metric);
+      const documentTokens = new Set(value.document.split(" "));
+      const queryTokens = [...new Set(normalizedQuery.split(" ").filter(Boolean))];
+      const matchedTokens = queryTokens.filter((token) =>
+        documentTokens.has(token)
+      );
+      return {
+        ...publicMetric(value),
+        matchedQuery: query,
+        matchedTerms: matchedTokens.length,
+        specificity: matchedTokens.reduce((sum, token) => {
+          const frequency = index.documentFrequency.get(token) ??
+            index.items.length;
+          return sum +
+            Math.log((index.items.length + 1) / (frequency + 1)) + 1;
+        }, 0),
+        relevance: relevance(query, value.document),
+        score: 1_000 - rank,
+      };
+    });
 }
 
 /** @param {Awaited<ReturnType<typeof buildState>>} index @param {string[]} queries @param {number} limit @param {string[]} prefixes */
@@ -198,78 +228,6 @@ function search(index, queries, limit, prefixes) {
     if (!added) break;
   }
   return output;
-}
-
-/** @param {Awaited<ReturnType<typeof buildState>>} index @param {string} query */
-function mentions(index, query) {
-  const words = searchable(query).match(/[a-z0-9]+/g) ?? [];
-  /** @type {{ start: number, end: number, metric: CatalogMetric }[]} */
-  const matches = [];
-
-  for (let start = 0; start < words.length; start += 1) {
-    for (
-      let end = start + 1;
-      end <= Math.min(words.length, start + MAX_MENTION_WORDS);
-      end += 1
-    ) {
-      const phraseWords = words.slice(start, end);
-      const phrase = phraseWords.join(" ");
-      const named = index.bySearchableName.get(phrase);
-      if (named?.length === 1) {
-        matches.push({ start, end, metric: named[0] });
-        continue;
-      }
-
-      if (
-        phraseWords.every((word) => index.nameWords.has(word)) ||
-        phraseWords.length === 1 && phrase.length < 5
-      ) continue;
-      const fuzzy = index.nameMatcher.matchesWith(phrase, index.nameConfig)
-        .map((name) => ({
-          name,
-          named: index.bySearchableName.get(name),
-          candidateWords: name.split(" "),
-        }))
-        .filter(({ named, candidateWords }) =>
-          named?.length === 1 && candidateWords.length === phraseWords.length
-        )
-        .map((candidate) => {
-          const affinities = phraseWords.map((word, index_) =>
-            tokenAffinity(word, candidate.candidateWords[index_])
-          );
-          return {
-            ...candidate,
-            affinities,
-            score: affinities.reduce((sum, affinity) => sum + affinity, 0) /
-              affinities.length,
-          };
-        })
-        .filter(({ affinities, score }) =>
-          score >= 0.82 && affinities.every((affinity) => affinity >= 0.65)
-        )
-        .sort((left, right) => right.score - left.score)[0];
-      if (fuzzy) {
-        const [metric] = fuzzy.named ?? [];
-        if (!metric) continue;
-        matches.push({
-          start,
-          end,
-          metric,
-        });
-      }
-    }
-  }
-
-  const maximal = matches.filter((match) =>
-    !matches.some((candidate) =>
-      candidate.start <= match.start &&
-      candidate.end >= match.end &&
-      candidate.end - candidate.start > match.end - match.start
-    )
-  );
-  return [...new Map(
-    maximal.map(({ metric }) => [metric.path, publicMetric(metric)]),
-  ).values()];
 }
 
 /**
@@ -304,12 +262,17 @@ function variants(index, name, path, query) {
     index.matcher.matchesWith(searchable(query), index.config.withLimit(SEARCH_CANDIDATES))
       .map((document, rank) => [index.byDocument.get(document)?.path, rank]),
   );
+  const queryTerms = queryVocabulary(query);
   const ranked = candidates
     .map((candidate) => ({
       ...publicMetric(candidate),
       rank: preferredPaths.get(candidate.path) ?? SEARCH_CANDIDATES,
+      queryMatches: searchable(candidate.path)
+        .split(" ")
+        .filter((token) => queryTerms.has(token)).length,
     }))
     .sort((left, right) =>
+      right.queryMatches - left.queryMatches ||
       Number(right.name === name) - Number(left.name === name) ||
       left.rank - right.rank ||
       left.path.localeCompare(right.path)
@@ -327,13 +290,26 @@ function variants(index, name, path, query) {
     commonSuffix = count ? commonSuffix.slice(-count) : [];
   }
 
+  const selectors = ranked.map((candidate) => {
+    const path = candidate.path.split(".");
+    return commonSuffix.length ? path.slice(0, -commonSuffix.length) : path;
+  });
+  let commonPrefix = selectors[0] ?? [];
+  for (const selector of selectors.slice(1)) {
+    let count = 0;
+    while (
+      count < commonPrefix.length &&
+      count < selector.length &&
+      commonPrefix[count] === selector[count]
+    ) count += 1;
+    commonPrefix = commonPrefix.slice(0, count);
+  }
+
   const groups = new Map();
-  for (const candidate of ranked) {
-    const selector = candidate.path.split(".").slice(0, -commonSuffix.length);
-    const cohortIndex = selector.indexOf("cohorts");
-    const cohort = selector.slice(cohortIndex < 0 ? 0 : cohortIndex + 1);
-    const family = cohort.length > 2 ? cohort.slice(0, 2).join(" / ") : cohort[0] ?? "root";
-    const value = cohort.length > 2 ? cohort.slice(2).join(" / ") : cohort[1] ?? "all";
+  for (const selector of selectors) {
+    const varying = selector.slice(commonPrefix.length);
+    const family = varying[0] ?? commonPrefix.at(-1) ?? "root";
+    const value = varying.slice(1).join(" / ") || varying[0] || "all";
     const group = groups.get(family) ?? { family, count: 0, examples: [] };
     group.count += 1;
     if (group.examples.length < 5) group.examples.push(value);
@@ -343,11 +319,26 @@ function variants(index, name, path, query) {
   return {
     totalSeries: ranked.length,
     groups: [...groups.values()].slice(0, 8),
-    series: ranked.slice(0, 16).map(({ path, name: metricName, suggestedUnit }) => ({
-      path,
-      name: metricName,
-      suggestedUnit,
-    })),
+    series: ranked.slice(0, 16).map((
+      { path, name: metricName, suggestedUnit, indexes, type },
+      index,
+    ) => {
+      const selector = selectors[index]
+        .slice(commonPrefix.length)
+        .join(" ") || selectors[index].at(-1) || "";
+      const selectorTokens = new Set(searchable(selector).split(" "));
+      return {
+        path,
+        name: metricName,
+        suggestedUnit,
+        indexes,
+        type,
+        selector,
+        matchedTerms: [...selectorTokens].filter((token) =>
+          token && queryTerms.has(token)
+        ).length,
+      };
+    }),
   };
 }
 

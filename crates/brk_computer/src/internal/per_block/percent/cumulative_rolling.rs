@@ -85,15 +85,7 @@ impl PercentCumulativeRolling<PartsPerMillion32> {
         starting_height: Height,
         exit: &Exit,
     ) -> Result<()> {
-        self.compute_binary::<
-            StoredU64,
-            StoredU64,
-            RatioU64<PartsPerMillion32>,
-            _,
-            _,
-            _,
-            _,
-        >(
+        self.compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>, _, _, _, _>(
             starting_height,
             &numerator.cumulative.height,
             &denominator.cumulative.height,

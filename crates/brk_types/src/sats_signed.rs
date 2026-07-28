@@ -16,6 +16,7 @@ use super::{Bitcoin, Sats};
     Debug,
     PartialEq,
     Eq,
+    Hash,
     PartialOrd,
     Ord,
     Clone,

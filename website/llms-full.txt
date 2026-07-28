@@ -4,7 +4,7 @@
 
 - Version: `v0.3.6`
 - Base URL: https://bitview.space
-- Metrics: 55667
+- Metrics: 56973
 - Operations: 97
 
 For machine-readable tool construction, use [https://bitview.space/openapi.json](https://bitview.space/openapi.json). For the complete source-derived series tree, use [https://bitview.space/api/series](https://bitview.space/api/series).
@@ -1450,6 +1450,7 @@ curl -s "https://bitview.space/version"
 
 ### `AddrChainStats`
 
+- `balance`: `Sats` (required) — Current confirmed balance in satoshis
 - `funded_txo_count`: `integer` (required) — Total number of transaction outputs that funded this address
 - `funded_txo_sum`: `Sats` (required) — Total amount in satoshis received by this address across all funded outputs
 - `spent_txo_count`: `integer` (required) — Total number of transaction outputs spent from this address
@@ -1467,6 +1468,7 @@ curl -s "https://bitview.space/version"
 
 ### `AddrMempoolStats`
 
+- `balance_delta`: `SatsSigned` (required) — Net unconfirmed balance change in satoshis; negative when pending spends exceed receipts
 - `funded_txo_count`: `integer` (required) — Number of unconfirmed transaction outputs funding this address
 - `funded_txo_sum`: `Sats` (required) — Total amount in satoshis being received in unconfirmed transactions
 - `spent_txo_count`: `integer` (required) — Number of unconfirmed transaction inputs spending from this address
@@ -1905,6 +1907,10 @@ curl -s "https://bitview.space/version"
 - `totalTx`: `integer` (required) — Total number of transactions
 
 ### `Sats`
+
+`integer`
+
+### `SatsSigned`
 
 `integer`
 

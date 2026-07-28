@@ -15,35 +15,15 @@ export class AskSource {
   /**
    * @param {string} query
    * @param {string | undefined} path
+   * @param {"definition" | "implementation" | "availability" | undefined} focus
    * @param {(progress: { loaded: number, total: number }) => void} onProgress
    */
-  search(query, path, onProgress) {
+  search(query, path, focus, onProgress) {
     return this.#client.request(
       "search",
-      { query, path },
+      { query, path, focus },
       ({ loaded, total }) => onProgress({ loaded, total }),
     );
-  }
-
-  /**
-   * @param {string} question
-   * @param {(progress: { loaded: number, total: number }) => void} onProgress
-   */
-  explain(question, onProgress) {
-    return this.#client.request(
-      "explain",
-      { question },
-      ({ loaded, total }) => onProgress({ loaded, total }),
-    );
-  }
-
-  /**
-   * @param {string} path
-   * @param {number} startLine
-   * @param {number} endLine
-   */
-  read(path, startLine, endLine) {
-    return this.#client.request("read", { path, startLine, endLine });
   }
 
   terminate() {

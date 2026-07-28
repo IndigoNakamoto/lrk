@@ -17,6 +17,109 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** @param {string} text */
+function firstJsonObject(text) {
+  const start = text.indexOf("{");
+  if (start < 0) return undefined;
+
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === "\"") quoted = false;
+      continue;
+    }
+    if (character === "\"") quoted = true;
+    else if (character === "{") depth += 1;
+    else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+  return undefined;
+}
+
+/** @param {any} schema @param {unknown} value @returns {unknown} */
+function sanitizeSchemaValue(schema, value) {
+  if (!schema || typeof schema !== "object") return undefined;
+  if (schema.type === "string") {
+    if (typeof value !== "string") return undefined;
+    return !schema.enum || schema.enum.includes(value) ? value : undefined;
+  }
+  if (schema.type === "integer") {
+    if (typeof value !== "number" || !Number.isInteger(value)) return undefined;
+    if (schema.minimum !== undefined && value < schema.minimum) return undefined;
+    if (schema.maximum !== undefined && value > schema.maximum) return undefined;
+    return value;
+  }
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) return undefined;
+    const items = /** @type {unknown[]} */ (value
+      .map((item) => sanitizeSchemaValue(schema.items, item))
+      .filter((item) => item !== undefined));
+    return [...new Set(items.map((item) => JSON.stringify(item)))]
+      .map((item) => JSON.parse(item));
+  }
+  if (schema.type === "object") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const input = /** @type {Record<string, unknown>} */ (value);
+    return Object.fromEntries(
+      Object.entries(schema.properties ?? {})
+        .map(([key, property]) => [
+          key,
+          sanitizeSchemaValue(property, input[key]),
+        ])
+        .filter(([, item]) => item !== undefined),
+    );
+  }
+  return value;
+}
+
+/**
+ * BitGPU 0.19.1 can return a valid multi-tool call in text while leaving
+ * toolCalls empty. Normalize that transport quirk against the supplied schema.
+ *
+ * @param {any} result
+ * @param {readonly any[] | undefined} tools
+ */
+function normalizedToolCalls(result, tools) {
+  const available = new Map(
+    (tools ?? []).map((tool) => [tool.function?.name, tool.function]),
+  );
+  const calls = Array.isArray(result.toolCalls) ? result.toolCalls : [];
+  const recovered = calls.length
+    ? calls
+    : (() => {
+        const raw = firstJsonObject(String(result.text ?? ""));
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          return typeof parsed.name === "string" &&
+              parsed.arguments &&
+              typeof parsed.arguments === "object"
+            ? [{ name: parsed.name, arguments: parsed.arguments, raw }]
+            : [];
+        } catch {
+          return [];
+        }
+      })();
+
+  return recovered.flatMap((/** @type {any} */ call) => {
+    const tool = available.get(call.name);
+    if (!tool) return [];
+    const arguments_ = sanitizeSchemaValue(
+      tool.parameters,
+      call.arguments,
+    );
+    if (!arguments_ || typeof arguments_ !== "object") return [];
+    return [{ ...call, arguments: arguments_ }];
+  });
+}
+
 /** @param {string} url */
 async function cachedResponse(url) {
   const cache = await caches.open(ASK_MODEL.cacheName);
@@ -212,7 +315,7 @@ async function generate(messages, options) {
       status: "complete",
       result: {
         text: result.text,
-        toolCalls: result.toolCalls,
+        toolCalls: normalizedToolCalls(result, tools),
         finishReason: result.finishReason,
         tokensPerSecond: result.tokensPerSecond,
       },

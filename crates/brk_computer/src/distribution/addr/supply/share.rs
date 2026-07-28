@@ -48,11 +48,11 @@ impl AddrSupplyShareVecs {
     ) -> Result<()> {
         self.all
             .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
-            max_from,
-            &supply.all.sats.height,
-            all_supply_sats,
-            exit,
-        )?;
+                max_from,
+                &supply.all.sats.height,
+                all_supply_sats,
+                exit,
+            )?;
         for ((_, share), ((_, cat), (_, denom))) in self
             .by_addr_type
             .iter_mut()

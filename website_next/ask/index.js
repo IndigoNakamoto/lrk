@@ -30,7 +30,6 @@ export function createAskPage() {
   let followingOutput = false;
   const compactor = createAskCompactor({
     model,
-    tools: assistant.toolsFor(),
     onCompacted(id, update) {
       const saved = askStorage.saveMemory(id, update);
       if (!saved || chat.id !== id) return;
@@ -340,11 +339,7 @@ export function createAskPage() {
         model,
         async prepare() {
           timer.set("Preparing context");
-          const prepared = await prepareContext(
-            draft,
-            model,
-            assistant.toolsFor(),
-          );
+          const prepared = await prepareContext(draft, model);
           timer.set("Routing request");
           return prepared;
         },

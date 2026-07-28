@@ -1,18 +1,7 @@
 import { brk } from "../../utils/client.js";
+import { unitFromType } from "./metrics/unit.js";
 
 const RANGE_POINTS = 120;
-
-/** @param {string} type */
-export function unitFromType(type) {
-  const value = type.toLowerCase();
-  if (value.includes("dollar") || value.includes("usd") || value.includes("cents")) return "usd";
-  if (value.includes("bitcoin") || value === "btc") return "btc";
-  if (value.includes("percent") || value.includes("ratio")) return "percent";
-  if (value.includes("address")) return "addresses";
-  if (value.includes("utxo") || value.includes("output")) return "utxos";
-  if (value.includes("block") || value.includes("height")) return "blocks";
-  return undefined;
-}
 
 /** @param {string} unit */
 function displayedUnit(unit) {
@@ -35,19 +24,23 @@ export function formatValue(value, unit) {
 /** @param {{ name: string, indexes: string[], type: string, suggestedUnit?: string }} metric @param {Record<string, unknown>} action */
 export async function readMetric(metric, action) {
   const rawIndex = typeof action.index === "string" ? action.index : "";
-  const indexLooksLikeValue = /^-?\d+$/.test(rawIndex) || /^\d{4}-\d{2}-\d{2}$/.test(rawIndex);
-  const at = action.at ?? (indexLooksLikeValue ? rawIndex : undefined);
+  const at = action.at;
   const dateLike = typeof at === "string" && !/^-?\d+$/.test(at);
-  const preferredIndex = indexLooksLikeValue ? "" : rawIndex;
-  const index = metric.indexes.includes(preferredIndex)
-    ? preferredIndex
+  const index = metric.indexes.includes(rawIndex)
+    ? rawIndex
     : dateLike && metric.indexes.includes("day1")
       ? "day1"
       : metric.indexes.includes("height")
         ? "height"
         : metric.indexes[0];
   if (!index) throw new Error(`No supported index for ${metric.name}`);
-  const mode = typeof action.mode === "string" ? action.mode : "latest";
+  if (
+    typeof action.mode !== "string" ||
+    !["latest", "at", "range"].includes(action.mode)
+  ) {
+    throw new Error(`A valid position is required for ${metric.name}`);
+  }
+  const mode = action.mode;
   let response;
 
   if (mode === "at") {
@@ -90,5 +83,6 @@ export async function readMetric(metric, action) {
     end: response.end,
     stamp: response.stamp,
     values: response.data,
+    ...(mode === "at" ? { requested: String(at) } : {}),
   };
 }

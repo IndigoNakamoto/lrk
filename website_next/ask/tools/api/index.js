@@ -11,6 +11,7 @@ const OPENAPI_URL = `${BRK_BASE_URL}/openapi.json`;
  * @property {boolean} required
  * @property {string} type
  * @property {string} [valueType]
+ * @property {string} [primitive]
  * @property {string} [format]
  * @property {unknown[]} [enum]
  * @property {string} description
@@ -26,6 +27,8 @@ const OPENAPI_URL = `${BRK_BASE_URL}/openapi.json`;
  * @property {{ contentType: string, type: string, description: string, fields: { name: string, type: string, required: boolean, description: string, ownDescription: string }[] }} response
  * @property {string} [matchedQuery]
  * @property {number} [matchedTerms]
+ * @property {number} [titleMatchedTerms]
+ * @property {number} [specificity]
  * @property {number} [score]
  */
 

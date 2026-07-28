@@ -26,6 +26,7 @@ function indexOperation(operation) {
       parameter.name,
       parameter.type,
       parameter.valueType,
+      parameter.primitive,
       parameter.description,
       ...(parameter.enum ?? []),
     ])
@@ -106,15 +107,19 @@ function searchOne(index, query, limit) {
       const tokens = new Set(operation.tokens);
       const titleTokens = new Set(operation.titleTokens);
       let score = 0;
+      let specificity = 0;
       let matched = 0;
+      let titleMatched = 0;
       for (const word of words) {
         if (!tokens.has(word)) continue;
         matched += 1;
         const frequency = index.documentFrequency.get(word) ?? index.operations.length;
         const idf = Math.log((index.operations.length + 1) / (frequency + 1)) + 1;
+        specificity += idf;
+        if (titleTokens.has(word)) titleMatched += 1;
         score += idf * (titleTokens.has(word) ? 3 : 1);
       }
-      return { operation, matched, score };
+      return { operation, matched, titleMatched, score, specificity };
     })
     .filter(({ matched }) => matched > 0)
     .sort((left, right) =>
@@ -125,10 +130,18 @@ function searchOne(index, query, limit) {
       left.operation.path.localeCompare(right.operation.path)
     );
   if (lexical.length) {
-    return lexical.slice(0, limit).map(({ operation, matched, score }, rank) => ({
+    return lexical.slice(0, limit).map(({
+      operation,
+      matched,
+      titleMatched,
+      score,
+      specificity,
+    }, rank) => ({
       ...publicOperation(operation),
       matchedQuery: query,
       matchedTerms: matched,
+      titleMatchedTerms: titleMatched,
+      specificity,
       score: Math.round(score * 1_000) - rank,
     }));
   }
@@ -164,6 +177,7 @@ function searchOne(index, query, limit) {
       ),
       matchedQuery: query,
       matchedTerms: 0,
+      titleMatchedTerms: 0,
       score: 1_000 - rank,
     }));
 }

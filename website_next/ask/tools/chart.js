@@ -32,6 +32,14 @@ export function createChartArtifact(args) {
     throw new Error("A chart needs between one and six series");
   }
 
+  const usedColors = new Set(
+    args.series.flatMap((value) =>
+      value && typeof value === "object" &&
+        typeof /** @type {Record<string, unknown>} */ (value).color === "string"
+        ? [/** @type {Record<string, string>} */ (value).color]
+        : []
+    ),
+  );
   const series = args.series.map((value, index) => {
     if (!value || typeof value !== "object") throw new Error("Invalid chart series");
     const item = /** @type {Record<string, unknown>} */ (value);
@@ -40,10 +48,11 @@ export function createChartArtifact(args) {
       .replace(/^series\./, "");
     const label = requiredString(item.label, "series label");
     const color = item.color === undefined
-      ? PALETTE[index]
+      ? PALETTE.find((candidate) => !usedColors.has(candidate)) ?? PALETTE[index]
       : requiredString(item.color, "series color");
 
     if (!Object.hasOwn(colors, color)) throw new Error(`Unknown chart color: ${color}`);
+    usedColors.add(color);
     createMetric(path);
     return {
       path,

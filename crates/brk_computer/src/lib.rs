@@ -10,9 +10,9 @@ use tracing::info;
 use vecdb::{AnyExportableVec, Exit, Ro, Rw, StorageMode};
 
 mod blocks;
-mod cointime;
 mod constants;
 mod distribution;
+mod frameworks;
 pub mod indexes;
 mod indicators;
 mod inputs;
@@ -20,6 +20,7 @@ mod internal;
 mod investing;
 mod market;
 mod mining;
+mod models;
 mod op_return;
 mod outputs;
 mod pools;
@@ -27,12 +28,17 @@ pub mod price;
 mod supply;
 mod transactions;
 
+use frameworks::{coinflow, cointime};
+use models::bedrock;
+
 #[derive(Traversable)]
 pub struct Computer<M: StorageMode = Rw> {
     pub blocks: Box<blocks::Vecs<M>>,
     pub mining: Box<mining::Vecs<M>>,
     pub transactions: Box<transactions::Vecs<M>>,
     pub cointime: Box<cointime::Vecs<M>>,
+    pub coinflow: Box<coinflow::Vecs<M>>,
+    pub bedrock: Box<bedrock::Vecs<M>>,
     pub constants: Box<constants::Vecs>,
     pub indexes: Box<indexes::Vecs<M>>,
     pub indicators: Box<indicators::Vecs<M>>,
@@ -89,8 +95,8 @@ impl Computer {
 
         let cached_starts = blocks.lookback.cached_window_starts();
 
-        let (inputs, outputs, mining, transactions, pools, cointime, op_return) = timed(
-            "Imported inputs/outputs/mining/tx/pools/cointime/op_return",
+        let (inputs, outputs, mining, transactions, pools, cointime, coinflow, op_return) = timed(
+            "Imported inputs/outputs/mining/tx/pools/cointime/coinflow/op_return",
             || {
                 thread::scope(|s| -> Result<_> {
                     let inputs_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -146,6 +152,12 @@ impl Computer {
                         &cached_starts,
                     )?);
 
+                    let coinflow = Box::new(coinflow::Vecs::forced_import(
+                        &computed_path,
+                        VERSION,
+                        &indexes,
+                    )?);
+
                     let op_return_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(op_return::Vecs::forced_import(
                             &computed_path,
@@ -169,6 +181,7 @@ impl Computer {
                         transactions,
                         pools,
                         cointime,
+                        coinflow,
                         op_return,
                     ))
                 })
@@ -229,6 +242,14 @@ impl Computer {
             )?))
         })?;
 
+        let bedrock = timed("Imported bedrock", || -> Result<_> {
+            Ok(Box::new(bedrock::Vecs::forced_import(
+                &computed_path,
+                VERSION,
+                &indexes,
+            )?))
+        })?;
+
         info!("Total import time: {:?}", import_start.elapsed());
 
         let this = Self {
@@ -243,6 +264,8 @@ impl Computer {
             supply,
             pools,
             cointime,
+            coinflow,
+            bedrock,
             indexes,
             inputs,
             price,
@@ -262,6 +285,8 @@ impl Computer {
             mining::DB_NAME,
             transactions::DB_NAME,
             cointime::DB_NAME,
+            coinflow::DB_NAME,
+            bedrock::DB_NAME,
             indicators::DB_NAME,
             indexes::DB_NAME,
             investing::DB_NAME,
@@ -422,8 +447,8 @@ impl Computer {
             Ok(())
         })?;
 
-        // Indicators doesn't depend on supply or cointime — run it in the
-        // background alongside supply + cointime to save a scope barrier.
+        // Indicators doesn't depend on supply or either framework — run it in
+        // the background alongside their sequential computation.
         thread::scope(|scope| -> Result<()> {
             let indicators = scope.spawn(|| {
                 timed("Computed indicators", || {
@@ -454,11 +479,34 @@ impl Computer {
             timed("Computed cointime", || {
                 self.cointime.compute(
                     indexer,
+                    &self.indexes,
                     &self.price,
                     &self.blocks,
                     &self.mining,
                     &self.supply,
                     &self.distribution,
+                    exit,
+                )
+            })?;
+
+            timed("Computed coinflow", || {
+                self.coinflow.compute(
+                    indexer,
+                    &self.indexes,
+                    &self.price,
+                    &self.distribution,
+                    &self.cointime,
+                    exit,
+                )
+            })?;
+
+            timed("Computed bedrock", || {
+                self.bedrock.compute(
+                    indexer,
+                    &self.indexes,
+                    &self.distribution,
+                    &self.cointime,
+                    &self.coinflow,
                     exit,
                 )
             })?;
@@ -516,6 +564,8 @@ impl_iter_named!(
     mining,
     transactions,
     cointime,
+    coinflow,
+    bedrock,
     constants,
     indicators,
     indexes,

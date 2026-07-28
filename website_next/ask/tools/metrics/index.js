@@ -1,12 +1,11 @@
 import { BRK_BASE_URL, brk } from "../../../utils/client.js";
 import { WorkerClient } from "../worker-client.js";
-import { canonicalMetricQuery, expandMetricQueries } from "./language.js";
 
 const WORKER_URL = import.meta.resolve("./worker.js");
 const SERIES_URL = `${BRK_BASE_URL}/api/series`;
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
-/** @typedef {{ path: string, name: string, endpoint: string, indexes: string[], type: string, suggestedUnit?: string, matchedQuery?: string, score?: number }} CatalogMetric */
+/** @typedef {{ path: string, name: string, endpoint: string, indexes: string[], type: string, suggestedUnit?: string, matchedQuery?: string, matchedTerms?: number, specificity?: number, relevance?: number, score?: number }} CatalogMetric */
 
 /** @param {unknown} value */
 function isMetric(value) {
@@ -74,14 +73,14 @@ export function prewarmMetricIndex() {
 export function searchMetrics(queries, limit = 16, prefixes = [], onProgress) {
   return index.request(
     "search",
-    { queries: expandMetricQueries(queries), limit, prefixes },
+    { queries, limit, prefixes },
     onProgress,
   );
 }
 
-/** @param {string} query @param {(() => void) | undefined} [onProgress] @returns {Promise<CatalogMetric[]>} */
-export function mentionedMetrics(query, onProgress) {
-  return index.request("mentions", { query: canonicalMetricQuery(query) }, onProgress);
+/** @param {string} query @param {(() => void) | undefined} [onProgress] @returns {Promise<string[]>} */
+export function mentionedMetricNames(query, onProgress) {
+  return index.request("mentions", { query }, onProgress);
 }
 
 /** @param {string} name @returns {Promise<CatalogMetric | undefined>} */
@@ -94,7 +93,7 @@ export function metricsByPaths(paths, onProgress) {
   return index.request("byPaths", { paths }, onProgress);
 }
 
-/** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: CatalogMetric[] } | undefined>} */
+/** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: (CatalogMetric & { selector: string, matchedTerms: number })[] } | undefined>} */
 export function metricVariants(metric, query = "") {
   return index.request("variants", {
     name: metric.name,
