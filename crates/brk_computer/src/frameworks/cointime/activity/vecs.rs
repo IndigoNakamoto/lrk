@@ -14,8 +14,8 @@ pub struct DerivedVecs<M: StorageMode = Rw> {
 
 #[derive(Deref, DerefMut, Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    pub coinblocks_created: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
-    pub coinblocks_stored: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coinblocks_created: PerBlockCumulativeRolling<StoredF64, M>,
+    pub coinblocks_stored: PerBlockCumulativeRolling<StoredF64, M>,
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]

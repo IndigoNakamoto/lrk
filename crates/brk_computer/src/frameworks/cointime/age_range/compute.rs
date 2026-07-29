@@ -2,7 +2,7 @@ use brk_cohort::AGE_RANGE_BOUNDS;
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_types::{Bitcoin, Height, ONE_DAY_IN_SEC_F64, Sats, StoredF64, Timestamp, Version};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, WritableVec};
+use vecdb::{AnyVec, Exit, ReadableVec};
 
 use super::super::activity;
 use super::{CohortVecs, Vecs};
@@ -72,19 +72,18 @@ impl Vecs {
         for cohort in cohorts.iter_mut() {
             cohort
                 .coindays_created
-                .block
                 .validate_computed_version_or_reset(created_version)?;
         }
 
         let start = cohorts
             .iter()
-            .map(|cohort| cohort.coindays_created.block.len())
+            .map(|cohort| cohort.coindays_created.cumulative.height.len())
             .min()
             .unwrap_or_default()
             .min(usize::from(starting_height));
 
         for cohort in cohorts.iter_mut() {
-            cohort.coindays_created.block.truncate_if_needed_at(start)?;
+            cohort.coindays_created.truncate_if_needed_at(start)?;
         }
 
         let source_end = supplies
@@ -109,7 +108,7 @@ impl Vecs {
                     monotonic_interval_seconds(&timestamp_batch, chunk_start, offset);
 
                 for (index, cohort) in cohorts.iter_mut().enumerate() {
-                    cohort.coindays_created.block.push(coindays_created(
+                    cohort.coindays_created.push_block(coindays_created(
                         supply_batches[index][offset],
                         interval_seconds,
                     ));
@@ -119,16 +118,10 @@ impl Vecs {
             {
                 let _lock = exit.lock();
                 for cohort in cohorts.iter_mut() {
-                    cohort.coindays_created.block.write()?;
+                    cohort.coindays_created.write()?;
                 }
             }
             chunk_start = chunk_end;
-        }
-
-        for cohort in cohorts {
-            cohort
-                .coindays_created
-                .compute_rest(starting_height, exit)?;
         }
 
         Ok(())
@@ -158,22 +151,18 @@ impl Vecs {
         for cohort in cohorts.iter_mut() {
             cohort
                 .coindays_consumed
-                .block
                 .validate_computed_version_or_reset(destroyed_version)?;
         }
 
         let start = cohorts
             .iter()
-            .map(|cohort| cohort.coindays_consumed.block.len())
+            .map(|cohort| cohort.coindays_consumed.cumulative.height.len())
             .min()
             .unwrap_or_default()
             .min(usize::from(starting_height));
 
         for cohort in cohorts.iter_mut() {
-            cohort
-                .coindays_consumed
-                .block
-                .truncate_if_needed_at(start)?;
+            cohort.coindays_consumed.truncate_if_needed_at(start)?;
         }
 
         let source_end = transfer_volumes
@@ -207,24 +196,17 @@ impl Vecs {
                 for (index, cohort) in cohorts.iter_mut().enumerate() {
                     cohort
                         .coindays_consumed
-                        .block
-                        .push(StoredF64::from(consumed[index]));
+                        .push_block(StoredF64::from(consumed[index]));
                 }
             }
 
             {
                 let _lock = exit.lock();
                 for cohort in cohorts.iter_mut() {
-                    cohort.coindays_consumed.block.write()?;
+                    cohort.coindays_consumed.write()?;
                 }
             }
             chunk_start = chunk_end;
-        }
-
-        for cohort in cohorts {
-            cohort
-                .coindays_consumed
-                .compute_rest(starting_height, exit)?;
         }
 
         Ok(())

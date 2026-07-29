@@ -613,7 +613,8 @@ impl UTXOCohorts<Rw> {
             .realized
             .sopr
             .value_destroyed
-            .block
+            .cumulative
+            .height
             .read_only_clone();
 
         // "all" cohort computed first (no all_supply_sats needed).

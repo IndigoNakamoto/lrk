@@ -23,7 +23,7 @@ pub struct ActivityCore<M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub minimal: ActivityMinimal<M>,
 
-    pub coindays_destroyed: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coindays_destroyed: PerBlockCumulativeRolling<StoredF64, M>,
     #[traversable(wrap = "transfer_volume", rename = "in_profit")]
     pub transfer_volume_in_profit: ValuePerBlockCumulativeRolling<M>,
     #[traversable(wrap = "transfer_volume", rename = "in_loss")]
@@ -53,8 +53,7 @@ impl ActivityCore {
     pub(crate) fn push_state(&mut self, state: &CohortState<impl RealizedOps, impl CostBasisOps>) {
         self.minimal.push_state(state);
         self.coindays_destroyed
-            .block
-            .push(StoredF64::from(Bitcoin::from(state.satdays_destroyed)));
+            .push_block(StoredF64::from(Bitcoin::from(state.satdays_destroyed)));
         self.transfer_volume_in_profit
             .block
             .sats
@@ -67,7 +66,7 @@ impl ActivityCore {
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let mut vecs = self.minimal.collect_vecs_mut();
-        vecs.push(&mut self.coindays_destroyed.block);
+        vecs.push(self.coindays_destroyed.stored_mut());
         vecs.push(&mut self.transfer_volume_in_profit.inner.block.sats);
         vecs.push(&mut self.transfer_volume_in_profit.inner.block.cents);
         vecs.push(&mut self.transfer_volume_in_loss.inner.block.sats);
@@ -89,7 +88,7 @@ impl ActivityCore {
         self.minimal
             .compute_from_stateful(starting_lengths, &minimal_refs, exit)?;
 
-        sum_others!(self, starting_lengths, others, exit; coindays_destroyed.block);
+        sum_others!(self, starting_lengths, others, exit; coindays_destroyed.cumulative.height);
         sum_others!(self, starting_lengths, others, exit; transfer_volume_in_profit.block.sats);
         sum_others!(self, starting_lengths, others, exit; transfer_volume_in_loss.block.sats);
 
@@ -104,8 +103,6 @@ impl ActivityCore {
     ) -> Result<()> {
         self.minimal
             .compute_rest_part1(prices, starting_lengths, exit)?;
-        self.coindays_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
         self.transfer_volume_in_profit
             .compute_rest(starting_lengths.height, prices, exit)?;
         self.transfer_volume_in_loss

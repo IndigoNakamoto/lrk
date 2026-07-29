@@ -14,7 +14,7 @@ use super::TotalAddrCountVecs;
 /// New address count per block (global + per-type).
 #[derive(Deref, DerefMut, Traversable)]
 pub struct NewAddrCountVecs<M: StorageMode = Rw>(
-    #[traversable(flatten)] pub WithAddrTypes<PerBlockCumulativeRolling<StoredU64, StoredU64, M>>,
+    #[traversable(flatten)] pub WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
 );
 
 impl NewAddrCountVecs {
@@ -24,15 +24,15 @@ impl NewAddrCountVecs {
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
-        Ok(Self(WithAddrTypes::<
-            PerBlockCumulativeRolling<StoredU64, StoredU64>,
-        >::forced_import(
-            db,
-            "new_addr_count",
-            version,
-            indexes,
-            cached_starts,
-        )?))
+        Ok(Self(
+            WithAddrTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import(
+                db,
+                "new_addr_count",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+        ))
     }
 
     pub(crate) fn compute(
@@ -41,9 +41,12 @@ impl NewAddrCountVecs {
         total_addr_count: &TotalAddrCountVecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.0.all.compute(max_from, exit, |height_vec| {
-            Ok(height_vec.compute_change(max_from, &total_addr_count.all.height, 1, exit)?)
-        })?;
+        self.0.all.cumulative.height.compute_transform(
+            max_from,
+            &total_addr_count.all.height,
+            |(height, total, ..)| (height, StoredU64::from(total)),
+            exit,
+        )?;
 
         for ((_, new), (_, total)) in self
             .0
@@ -51,9 +54,12 @@ impl NewAddrCountVecs {
             .iter_mut()
             .zip(total_addr_count.by_addr_type.iter())
         {
-            new.compute(max_from, exit, |height_vec| {
-                Ok(height_vec.compute_change(max_from, &total.height, 1, exit)?)
-            })?;
+            new.cumulative.height.compute_transform(
+                max_from,
+                &total.height,
+                |(height, total, ..)| (height, StoredU64::from(total)),
+                exit,
+            )?;
         }
 
         Ok(())

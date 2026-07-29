@@ -1,7 +1,7 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
 use brk_types::{OutputType, StoredU64};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
 use super::{Vecs, WithOutputTypes};
 use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
@@ -20,7 +20,6 @@ impl Vecs {
         self.output_count
             .validate_and_truncate(dep_version, starting_lengths.height)?;
         self.spendable_output_count
-            .block
             .validate_and_truncate(dep_version, starting_lengths.height)?;
         self.tx_count
             .validate_and_truncate(dep_version, starting_lengths.height)?;
@@ -35,9 +34,7 @@ impl Vecs {
         let end = first_tx_index.len();
         if skip < end {
             self.output_count.truncate_if_needed_at(skip)?;
-            self.spendable_output_count
-                .block
-                .truncate_if_needed_at(skip)?;
+            self.spendable_output_count.truncate_if_needed_at(skip)?;
             self.tx_count.truncate_if_needed_at(skip)?;
 
             let fi_batch = first_tx_index.collect_range_at(skip, end);
@@ -77,14 +74,13 @@ impl Vecs {
                     let spendable_total =
                         agg.entries_all - agg.entries_per_type[OutputType::OpReturn as usize];
                     self.spendable_output_count
-                        .block
-                        .push(StoredU64::from(spendable_total));
+                        .push_block(StoredU64::from(spendable_total));
 
                     height += 1;
                     if height.is_multiple_of(WRITE_INTERVAL) {
                         let _lock = exit.lock();
                         self.output_count.write()?;
-                        self.spendable_output_count.block.write()?;
+                        self.spendable_output_count.write()?;
                         self.tx_count.write()?;
                     }
                     Ok(())
@@ -94,16 +90,10 @@ impl Vecs {
             {
                 let _lock = exit.lock();
                 self.output_count.write()?;
-                self.spendable_output_count.block.write()?;
+                self.spendable_output_count.write()?;
                 self.tx_count.write()?;
             }
         }
-
-        self.output_count
-            .compute_rest(starting_lengths.height, exit)?;
-        self.spendable_output_count
-            .compute_rest(starting_lengths.height, exit)?;
-        self.tx_count.compute_rest(starting_lengths.height, exit)?;
 
         for (otype, source) in self.output_count.by_type.iter_typed() {
             self.output_share.get_mut(otype).compute_count_ratio(
@@ -128,12 +118,12 @@ impl Vecs {
 
 #[inline]
 fn push_block(
-    metric: &mut WithOutputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
+    metric: &mut WithOutputTypes<PerBlockCumulativeRolling<StoredU64>>,
     total: u64,
     per_type: &[u64; 12],
 ) {
-    metric.all.block.push(StoredU64::from(total));
+    metric.all.push_block(StoredU64::from(total));
     for (otype, vec) in metric.by_type.iter_typed_mut() {
-        vec.block.push(StoredU64::from(per_type[otype as usize]));
+        vec.push_block(StoredU64::from(per_type[otype as usize]));
     }
 }

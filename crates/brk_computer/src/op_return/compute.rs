@@ -150,7 +150,6 @@ impl Vecs {
             self.write()?;
         }
 
-        self.compute_cumulative(starting_lengths.height, exit)?;
         let block_size = &blocks.size.size.cumulative.height;
         compute_data_share(
             starting_lengths.height,
@@ -226,7 +225,7 @@ impl Vecs {
 fn compute_fee_share(
     max_from: Height,
     target: &mut PercentCumulativeRolling<PartsPerMillion32>,
-    numerator: &PerBlockCumulativeRolling<Sats, Sats>,
+    numerator: &PerBlockCumulativeRolling<Sats>,
     denominator: &ValuePerBlockCumulativeRolling,
     exit: &Exit,
 ) -> Result<()> {

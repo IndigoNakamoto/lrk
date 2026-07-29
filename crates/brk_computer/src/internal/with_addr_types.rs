@@ -94,10 +94,9 @@ where
     }
 }
 
-impl<T, C> WithAddrTypes<PerBlockCumulativeRolling<T, C>>
+impl<T> WithAddrTypes<PerBlockCumulativeRolling<T>>
 where
-    T: NumericValue + JsonSchema + Into<C>,
-    C: NumericValue + JsonSchema,
+    T: NumericValue + JsonSchema,
 {
     pub(crate) fn forced_import(
         db: &Database,
@@ -123,26 +122,26 @@ where
     pub(crate) fn min_stateful_len(&self) -> usize {
         self.by_addr_type
             .values()
-            .map(|v| v.block.len())
+            .map(|v| v.cumulative.height.len())
             .min()
             .unwrap()
-            .min(self.all.block.len())
+            .min(self.all.cumulative.height.len())
     }
 
     pub(crate) fn par_iter_height_mut(
         &mut self,
     ) -> impl ParallelIterator<Item = &mut dyn AnyStoredVec> {
-        rayon::iter::once(&mut self.all.block as &mut dyn AnyStoredVec).chain(
+        rayon::iter::once(&mut self.all.cumulative.height as &mut dyn AnyStoredVec).chain(
             self.by_addr_type
                 .par_values_mut()
-                .map(|v| &mut v.block as &mut dyn AnyStoredVec),
+                .map(|v| &mut v.cumulative.height as &mut dyn AnyStoredVec),
         )
     }
 
     pub(crate) fn reset_height(&mut self) -> Result<()> {
-        self.all.block.reset()?;
+        self.all.cumulative.height.reset()?;
         for v in self.by_addr_type.values_mut() {
-            v.block.reset()?;
+            v.cumulative.height.reset()?;
         }
         Ok(())
     }
@@ -152,19 +151,10 @@ where
     where
         U: Into<T>,
     {
-        self.all.block.push(total.into());
+        self.all.push_block(total.into());
         for (v, value) in self.by_addr_type.values_mut().zip(per_type) {
-            v.block.push(value.into());
+            v.push_block(value.into());
         }
-    }
-
-    /// Finalize `cumulative` / `sum` / `average` for `all` and every per-type vec.
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.all.compute_rest(max_from, exit)?;
-        for v in self.by_addr_type.values_mut() {
-            v.compute_rest(max_from, exit)?;
-        }
-        Ok(())
     }
 }
 

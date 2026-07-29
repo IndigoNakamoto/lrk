@@ -8,16 +8,18 @@ use crate::{distribution, internal::PerBlockCumulativeRolling};
 
 pub(crate) fn compute_rest(
     starting_height: brk_types::Height,
-    created: &PerBlockCumulativeRolling<StoredF64, StoredF64>,
-    consumed: &PerBlockCumulativeRolling<StoredF64, StoredF64>,
-    stored: &mut PerBlockCumulativeRolling<StoredF64, StoredF64>,
+    created: &PerBlockCumulativeRolling<StoredF64>,
+    consumed: &PerBlockCumulativeRolling<StoredF64>,
+    stored: &mut PerBlockCumulativeRolling<StoredF64>,
     derived: &mut DerivedVecs,
     exit: &Exit,
 ) -> Result<()> {
-    stored.compute(starting_height, exit, |vec| {
-        vec.compute_subtract(starting_height, &created.block, &consumed.block, exit)?;
-        Ok(())
-    })?;
+    stored.cumulative.height.compute_subtract(
+        starting_height,
+        &created.cumulative.height,
+        &consumed.cumulative.height,
+        exit,
+    )?;
 
     derived.liveliness.height.compute_divide(
         starting_height,
@@ -47,16 +49,12 @@ impl Vecs {
         let all_metrics = &distribution.utxo_cohorts.all.metrics;
         let circulating_supply = &all_metrics.supply.total.sats.height;
 
-        self.coinblocks_created
-            .compute(starting_height, exit, |vec| {
-                vec.compute_transform(
-                    starting_height,
-                    circulating_supply,
-                    |(i, v, ..)| (i, StoredF64::from(Bitcoin::from(v))),
-                    exit,
-                )?;
-                Ok(())
-            })?;
+        self.coinblocks_created.compute_cumulative_transformed(
+            starting_height,
+            circulating_supply,
+            |value| StoredF64::from(Bitcoin::from(value)),
+            exit,
+        )?;
 
         compute_rest(
             starting_height,

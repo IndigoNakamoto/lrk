@@ -12,8 +12,8 @@ use crate::{
 #[derive(Traversable)]
 pub struct AdjustedSopr<M: StorageMode = Rw> {
     pub ratio: RollingWindows<StoredF64, M>,
-    pub transfer_volume: PerBlockCumulativeRolling<Cents, Cents, M>,
-    pub value_destroyed: PerBlockCumulativeRolling<Cents, Cents, M>,
+    pub transfer_volume: PerBlockCumulativeRolling<Cents, M>,
+    pub value_destroyed: PerBlockCumulativeRolling<Cents, M>,
 }
 
 impl AdjustedSopr {
@@ -35,23 +35,18 @@ impl AdjustedSopr {
         under_1h_value_destroyed: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.transfer_volume.block.compute_subtract(
+        self.transfer_volume.cumulative.height.compute_subtract(
             starting_lengths.height,
             base_transfer_volume,
             under_1h_transfer_volume,
             exit,
         )?;
-        self.value_destroyed.block.compute_subtract(
+        self.value_destroyed.cumulative.height.compute_subtract(
             starting_lengths.height,
             base_value_destroyed,
             under_1h_value_destroyed,
             exit,
         )?;
-
-        self.transfer_volume
-            .compute_rest(starting_lengths.height, exit)?;
-        self.value_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
 
         for ((sopr, tv), vd) in self
             .ratio

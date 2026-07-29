@@ -65,12 +65,10 @@ use super::state::AddrTypeToAddrEventCount;
 /// address can appear in multiple blocks.
 #[derive(Traversable)]
 pub struct AddrEventsVecs<M: StorageMode = Rw> {
-    pub output_to_reused_addr_count:
-        WithAddrTypes<PerBlockCumulativeRolling<StoredU64, StoredU64, M>>,
+    pub output_to_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
     pub output_to_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
     pub spendable_output_to_reused_addr_share: PercentCumulativeRolling<PartsPerMillion32, M>,
-    pub input_from_reused_addr_count:
-        WithAddrTypes<PerBlockCumulativeRolling<StoredU64, StoredU64, M>>,
+    pub input_from_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
     pub input_from_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
     pub active_reused_addr_count: PerBlockRollingAverage<StoredU32, StoredU64, M>,
     pub active_reused_addr_share: PerBlockRollingAverage<StoredF32, StoredF32, M>,
@@ -85,7 +83,7 @@ impl AddrEventsVecs {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let import_count = |name: &str| {
-            WithAddrTypes::<PerBlockCumulativeRolling<StoredU64, StoredU64>>::forced_import(
+            WithAddrTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import(
                 db,
                 name,
                 version,
@@ -211,10 +209,6 @@ impl AddrEventsVecs {
         inputs_by_type: &inputs::ByTypeVecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.output_to_reused_addr_count
-            .compute_rest(starting_lengths.height, exit)?;
-        self.input_from_reused_addr_count
-            .compute_rest(starting_lengths.height, exit)?;
         self.active_reused_addr_count
             .compute_rest(starting_lengths.height, exit)?;
         self.active_reused_addr_share

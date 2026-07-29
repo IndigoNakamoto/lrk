@@ -80,8 +80,8 @@ impl PercentCumulativeRolling<PartsPerMillion32> {
     #[inline]
     pub(crate) fn compute_count_ratio(
         &mut self,
-        numerator: &PerBlockCumulativeRolling<StoredU64, StoredU64>,
-        denominator: &PerBlockCumulativeRolling<StoredU64, StoredU64>,
+        numerator: &PerBlockCumulativeRolling<StoredU64>,
+        denominator: &PerBlockCumulativeRolling<StoredU64>,
         starting_height: Height,
         exit: &Exit,
     ) -> Result<()> {

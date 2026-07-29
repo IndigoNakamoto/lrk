@@ -80,8 +80,22 @@ impl ExtendedAdjustedCohortMetrics {
 
         self.asopr.compute_rest_part2(
             starting_lengths,
-            &self.inner.activity.transfer_volume.block.cents,
-            &self.inner.realized.core.sopr.value_destroyed.block,
+            &self
+                .inner
+                .activity
+                .transfer_volume
+                .inner
+                .cumulative
+                .cents
+                .height,
+            &self
+                .inner
+                .realized
+                .core
+                .sopr
+                .value_destroyed
+                .cumulative
+                .height,
             under_1h_value_created,
             under_1h_value_destroyed,
             exit,

@@ -144,7 +144,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(wrap = "cohorts", rename = "addr")]
     pub addr_cohorts: AddrCohorts<M>,
     #[traversable(wrap = "cointime/activity")]
-    pub coinblocks_destroyed: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coinblocks_destroyed: PerBlockCumulativeRolling<StoredF64, M>,
     pub addrs: AddrMetricsVecs<M>,
 
     /// In-memory state that does NOT survive rollback.
@@ -551,10 +551,6 @@ impl Vecs {
             r1?;
             r2?;
         }
-
-        // 5b. Compute coinblocks_destroyed cumulative from raw
-        self.coinblocks_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
 
         // 6. Compute rest part1 (day1 mappings)
         info!("Computing rest part 1...");

@@ -64,6 +64,17 @@ impl BinaryTransform<StoredU32, Sats, Sats> for MaskSats {
     }
 }
 
+impl BinaryTransform<StoredU64, Sats, Sats> for MaskSats {
+    #[inline]
+    fn apply(mask: StoredU64, value: Sats) -> Sats {
+        if u64::from(mask) != 0 {
+            value
+        } else {
+            Sats::ZERO
+        }
+    }
+}
+
 pub struct ReturnF32Tenths<const V: u16>;
 
 impl<S, const V: u16> UnaryTransform<S, StoredF32> for ReturnF32Tenths<V> {

@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, PartsPerMillion32, Sats, StoredU64, VSize, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
+use vecdb::{AnyVec, Database, Rw, StorageMode};
 
 use super::ByKind;
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, T, M>;
+pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, M>;
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct Totals {
@@ -84,43 +84,33 @@ impl TotalMetrics {
     }
 
     pub(super) fn push(&mut self, block: Totals) {
-        self.data_bytes.block.push(block.data_bytes.into());
-        self.tx_count.block.push(block.tx_count.into());
-        self.tx_vsize.block.push(block.tx_vsize);
-        self.fees.block.push(block.fees);
+        self.data_bytes.push_block(block.data_bytes.into());
+        self.tx_count.push_block(block.tx_count.into());
+        self.tx_vsize.push_block(block.tx_vsize);
+        self.fees.push_block(block.fees);
     }
 
     fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
-        self.data_bytes
-            .block
-            .validate_and_truncate(version, height)?;
-        self.tx_count.block.validate_and_truncate(version, height)?;
-        self.tx_vsize.block.validate_and_truncate(version, height)?;
-        self.fees.block.validate_and_truncate(version, height)?;
+        self.data_bytes.validate_and_truncate(version, height)?;
+        self.tx_count.validate_and_truncate(version, height)?;
+        self.tx_vsize.validate_and_truncate(version, height)?;
+        self.fees.validate_and_truncate(version, height)?;
         Ok(())
     }
 
     fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
-        self.data_bytes.block.truncate_if_needed_at(len)?;
-        self.tx_count.block.truncate_if_needed_at(len)?;
-        self.tx_vsize.block.truncate_if_needed_at(len)?;
-        self.fees.block.truncate_if_needed_at(len)?;
+        self.data_bytes.truncate_if_needed_at(len)?;
+        self.tx_count.truncate_if_needed_at(len)?;
+        self.tx_vsize.truncate_if_needed_at(len)?;
+        self.fees.truncate_if_needed_at(len)?;
         Ok(())
     }
 
     fn write(&mut self) -> Result<()> {
-        self.data_bytes.block.write()?;
-        self.tx_count.block.write()?;
-        self.tx_vsize.block.write()?;
-        self.fees.block.write()?;
-        Ok(())
-    }
-
-    fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.data_bytes.compute_rest(max_from, exit)?;
-        self.tx_count.compute_rest(max_from, exit)?;
-        self.tx_vsize.compute_rest(max_from, exit)?;
-        self.fees.compute_rest(max_from, exit)?;
+        self.data_bytes.write()?;
+        self.tx_count.write()?;
+        self.tx_vsize.write()?;
+        self.fees.write()?;
         Ok(())
     }
 }
@@ -194,33 +184,25 @@ impl Metrics {
     }
 
     pub(super) fn push(&mut self, block: Totals) {
-        self.output_count.block.push(block.output_count.into());
+        self.output_count.push_block(block.output_count.into());
         self.total.push(block);
     }
 
     fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
-        self.output_count
-            .block
-            .validate_and_truncate(version, height)?;
+        self.output_count.validate_and_truncate(version, height)?;
         self.total.validate_and_truncate(version, height)?;
         Ok(())
     }
 
     fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
-        self.output_count.block.truncate_if_needed_at(len)?;
+        self.output_count.truncate_if_needed_at(len)?;
         self.total.truncate_if_needed_at(len)?;
         Ok(())
     }
 
     fn write(&mut self) -> Result<()> {
-        self.output_count.block.write()?;
+        self.output_count.write()?;
         self.total.write()?;
-        Ok(())
-    }
-
-    fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.output_count.compute_rest(max_from, exit)?;
-        self.total.compute_cumulative(max_from, exit)?;
         Ok(())
     }
 }
@@ -374,17 +356,6 @@ impl Vecs {
         }
         for metrics in self.policy.iter_mut() {
             metrics.write()?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn compute_cumulative(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.total.compute_cumulative(max_from, exit)?;
-        for metrics in self.by_kind.iter_mut() {
-            metrics.compute_cumulative(max_from, exit)?;
-        }
-        for metrics in self.policy.iter_mut() {
-            metrics.compute_cumulative(max_from, exit)?;
         }
         Ok(())
     }

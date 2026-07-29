@@ -1,7 +1,7 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
 use brk_types::StoredU64;
-use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
 use super::{Vecs, WithInputTypes};
 use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
@@ -85,10 +85,6 @@ impl Vecs {
             }
         }
 
-        self.input_count
-            .compute_rest(starting_lengths.height, exit)?;
-        self.tx_count.compute_rest(starting_lengths.height, exit)?;
-
         for (otype, source) in self.input_count.by_type.iter_typed() {
             self.input_share.get_mut(otype).compute_count_ratio(
                 source,
@@ -112,12 +108,12 @@ impl Vecs {
 
 #[inline]
 fn push_block(
-    metric: &mut WithInputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
+    metric: &mut WithInputTypes<PerBlockCumulativeRolling<StoredU64>>,
     total: u64,
     per_type: &[u64; 12],
 ) {
-    metric.all.block.push(StoredU64::from(total));
+    metric.all.push_block(StoredU64::from(total));
     for (otype, vec) in metric.by_type.iter_typed_mut() {
-        vec.block.push(StoredU64::from(per_type[otype as usize]));
+        vec.push_block(StoredU64::from(per_type[otype as usize]));
     }
 }

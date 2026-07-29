@@ -24,8 +24,8 @@ pub trait Traversable {
     }
 }
 
-/// Helper to create a SeriesLeafWithSchema from a vec
-fn make_leaf<I: VecIndex, T: JsonSchema, V: AnyVec>(vec: &V) -> TreeNode {
+/// Creates a series leaf, including its value schema, from a vector.
+pub fn make_leaf<I: VecIndex, T: JsonSchema, V: AnyVec>(vec: &V) -> TreeNode {
     let index_str = I::to_string();
     let index = Index::try_from(index_str).ok();
     let indexes = index.into_iter().collect();

@@ -5,10 +5,7 @@ use brk_types::{
     Bitcoin, Cents, CentsSigned, Dollars, Height, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
-use vecdb::{
-    AnyStoredVec, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
-    WritableVec,
-};
+use vecdb::{AnyStoredVec, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
 
 use crate::{
     distribution::state::{CohortState, CostBasisOps, RealizedOps},
@@ -32,7 +29,7 @@ pub struct NegRealizedLoss {
 
 #[derive(Traversable)]
 pub struct RealizedSoprCore<M: StorageMode = Rw> {
-    pub value_destroyed: PerBlockCumulativeRolling<Cents, Cents, M>,
+    pub value_destroyed: PerBlockCumulativeRolling<Cents, M>,
     pub ratio: RollingWindow24hPerBlock<StoredF64, M>,
 }
 
@@ -117,13 +114,12 @@ impl RealizedCore {
         self.minimal.push_state(state);
         self.sopr
             .value_destroyed
-            .block
-            .push(state.realized.value_destroyed());
+            .push_block(state.realized.value_destroyed());
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let mut vecs = self.minimal.collect_vecs_mut();
-        vecs.push(&mut self.sopr.value_destroyed.block);
+        vecs.push(self.sopr.value_destroyed.stored_mut());
         vecs
     }
 
@@ -137,7 +133,7 @@ impl RealizedCore {
         self.minimal
             .compute_from_stateful(starting_lengths, &minimal_refs, exit)?;
 
-        sum_others!(self, starting_lengths, others, exit; sopr.value_destroyed.block);
+        sum_others!(self, starting_lengths, others, exit; sopr.value_destroyed.cumulative.height);
         Ok(())
     }
 
@@ -147,10 +143,6 @@ impl RealizedCore {
         exit: &Exit,
     ) -> Result<()> {
         self.minimal.compute_rest_part1(starting_lengths, exit)?;
-
-        self.sopr
-            .value_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
 
         self.net_pnl.block.cents.compute_transform2(
             starting_lengths.height,

@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{Height, PartsPerMillion32, PoolSlug, StoredU32, StoredU64};
+use brk_types::{Height, PartsPerMillion32, PoolSlug, StoredU64};
 use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode, Version};
 
 use crate::{
@@ -14,7 +14,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     slug: PoolSlug,
 
-    pub blocks_mined: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
+    pub blocks_mined: PerBlockCumulativeRolling<StoredU64, M>,
     pub dominance: PercentPerBlock<PartsPerMillion32, M>,
 }
 
@@ -54,24 +54,10 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.blocks_mined.compute(starting_height, exit, |vec| {
-            vec.compute_transform(
-                starting_height,
-                pool,
-                |(h, id, ..)| {
-                    (
-                        h,
-                        if id == self.slug {
-                            StoredU32::ONE
-                        } else {
-                            StoredU32::ZERO
-                        },
-                    )
-                },
-                exit,
-            )?;
-            Ok(())
-        })?;
+        self.blocks_mined
+            .cumulative
+            .height
+            .compute_cumulative_count(starting_height, pool, |id| *id == self.slug, exit)?;
 
         self.dominance
             .compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(

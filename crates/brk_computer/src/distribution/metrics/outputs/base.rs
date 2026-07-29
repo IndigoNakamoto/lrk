@@ -1,9 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{
-    Height, PartsPerMillionSigned64, StoredF32, StoredI64, StoredU32, StoredU64, Version,
-};
+use brk_types::{Height, PartsPerMillionSigned64, StoredF32, StoredI64, StoredU64, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
@@ -18,7 +16,7 @@ use crate::{
 #[derive(Traversable)]
 pub struct OutputsBase<M: StorageMode = Rw> {
     pub unspent_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
-    pub spent_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
+    pub spent_count: PerBlockCumulativeRolling<StoredU64, M>,
     pub utxo_turnover_1y: PerBlock<StoredF32, M>,
 }
 
@@ -52,19 +50,18 @@ impl OutputsBase {
             .height
             .push(StoredU64::from(state.supply.utxo_count));
         self.spent_count
-            .block
-            .push(StoredU32::from(state.spent_utxo_count));
+            .push_block(StoredU64::from(state.spent_utxo_count));
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         vec![
             &mut self.unspent_count.height as &mut dyn AnyStoredVec,
-            &mut self.spent_count.block,
+            self.spent_count.stored_mut(),
         ]
     }
 
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.spent_count.compute_rest(max_from, exit)
+    pub(crate) fn compute_rest(&mut self, _max_from: Height, _exit: &Exit) -> Result<()> {
+        Ok(())
     }
 
     pub(crate) fn compute_part2(
@@ -96,7 +93,7 @@ impl OutputsBase {
                 .collect::<Vec<_>>(),
             exit,
         )?;
-        sum_others!(self, starting_lengths, others, exit; spent_count.block);
+        sum_others!(self, starting_lengths, others, exit; spent_count.cumulative.height);
         Ok(())
     }
 }

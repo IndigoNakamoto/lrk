@@ -2062,8 +2062,8 @@ pub struct AverageBlockCumulativeInSumPattern {
     pub average: _1m1w1y24hPattern3,
     pub block: BtcCentsSatsUsdPattern3,
     pub cumulative: BtcCentsSatsUsdPattern,
-    pub in_loss: AverageBlockCumulativeSumPattern3,
-    pub in_profit: AverageBlockCumulativeSumPattern3,
+    pub in_loss: AverageBlockCumulativeSumPattern2,
+    pub in_profit: AverageBlockCumulativeSumPattern2,
     pub sum: _1m1w1y24hPattern4,
 }
 
@@ -2074,8 +2074,8 @@ impl AverageBlockCumulativeInSumPattern {
             average: _1m1w1y24hPattern3::new(client.clone(), _m(&acc, "average")),
             block: BtcCentsSatsUsdPattern3::new(client.clone(), acc.clone()),
             cumulative: BtcCentsSatsUsdPattern::new(client.clone(), _m(&acc, "cumulative")),
-            in_loss: AverageBlockCumulativeSumPattern3::new(client.clone(), _m(&acc, "in_loss")),
-            in_profit: AverageBlockCumulativeSumPattern3::new(client.clone(), _m(&acc, "in_profit")),
+            in_loss: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "in_loss")),
+            in_profit: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "in_profit")),
             sum: _1m1w1y24hPattern4::new(client.clone(), _m(&acc, "sum")),
         }
     }
@@ -2641,33 +2641,13 @@ impl _1m1w1y24hPattern8 {
 
 /// Pattern struct for repeated tree structure.
 pub struct AverageBlockCumulativeSumPattern2 {
-    pub average: _1m1w1y24hPattern<StoredF32>,
-    pub block: SeriesPattern18<StoredU32>,
-    pub cumulative: SeriesPattern1<StoredU64>,
-    pub sum: _1m1w1y24hPattern<StoredU64>,
-}
-
-impl AverageBlockCumulativeSumPattern2 {
-    /// Create a new pattern node with accumulated series name.
-    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
-        Self {
-            average: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "average")),
-            block: SeriesPattern18::new(client.clone(), acc.clone()),
-            cumulative: SeriesPattern1::new(client.clone(), _m(&acc, "cumulative")),
-            sum: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "sum")),
-        }
-    }
-}
-
-/// Pattern struct for repeated tree structure.
-pub struct AverageBlockCumulativeSumPattern3 {
     pub average: _1m1w1y24hPattern3,
     pub block: BtcCentsSatsUsdPattern3,
     pub cumulative: BtcCentsSatsUsdPattern,
     pub sum: _1m1w1y24hPattern4,
 }
 
-impl AverageBlockCumulativeSumPattern3 {
+impl AverageBlockCumulativeSumPattern2 {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
@@ -2977,18 +2957,18 @@ impl BlockCumulativeSumPattern {
 
 /// Pattern struct for repeated tree structure.
 pub struct BlocksDominanceRewardsPattern {
-    pub blocks_mined: AverageBlockCumulativeSumPattern2,
+    pub blocks_mined: AverageBlockCumulativeSumPattern<StoredU64>,
     pub dominance: _1m1w1y24hPercentPpmRatioPattern,
-    pub rewards: AverageBlockCumulativeSumPattern3,
+    pub rewards: AverageBlockCumulativeSumPattern2,
 }
 
 impl BlocksDominanceRewardsPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            blocks_mined: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "blocks_mined")),
+            blocks_mined: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "blocks_mined")),
             dominance: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "dominance")),
-            rewards: AverageBlockCumulativeSumPattern3::new(client.clone(), _m(&acc, "rewards")),
+            rewards: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "rewards")),
         }
     }
 }
@@ -3272,7 +3252,7 @@ impl RsiStochPattern {
 
 /// Pattern struct for repeated tree structure.
 pub struct SpentUnspentUtxoPattern {
-    pub spent_count: AverageBlockCumulativeSumPattern2,
+    pub spent_count: AverageBlockCumulativeSumPattern<StoredU64>,
     pub unspent_count: BaseDeltaPattern,
     pub utxo_turnover_1y: SeriesPattern1<StoredF32>,
 }
@@ -3281,7 +3261,7 @@ impl SpentUnspentUtxoPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            spent_count: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "spent_utxo_count")),
+            spent_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "spent_utxo_count")),
             unspent_count: BaseDeltaPattern::new(client.clone(), _m(&acc, "utxo_count")),
             utxo_turnover_1y: SeriesPattern1::new(client.clone(), _m(&acc, "utxo_turnover_1y")),
         }
@@ -3468,7 +3448,7 @@ impl BlockCumulativePattern {
 
 /// Pattern struct for repeated tree structure.
 pub struct BlocksDominancePattern {
-    pub blocks_mined: AverageBlockCumulativeSumPattern2,
+    pub blocks_mined: AverageBlockCumulativeSumPattern<StoredU64>,
     pub dominance: PercentPpmRatioPattern2,
 }
 
@@ -3476,7 +3456,7 @@ impl BlocksDominancePattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            blocks_mined: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "blocks_mined")),
+            blocks_mined: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "blocks_mined")),
             dominance: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "dominance")),
         }
     }
@@ -3860,14 +3840,14 @@ impl SupplyPattern {
 
 /// Pattern struct for repeated tree structure.
 pub struct TransferPattern {
-    pub transfer_volume: AverageBlockCumulativeSumPattern3,
+    pub transfer_volume: AverageBlockCumulativeSumPattern2,
 }
 
 impl TransferPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            transfer_volume: AverageBlockCumulativeSumPattern3::new(client.clone(), acc.clone()),
+            transfer_volume: AverageBlockCumulativeSumPattern2::new(client.clone(), acc.clone()),
         }
     }
 }
@@ -4038,14 +4018,14 @@ impl SeriesTree_Blocks_Size {
 /// Series tree node.
 pub struct SeriesTree_Blocks_Count {
     pub target: _1m1w1y24hPattern<StoredU64>,
-    pub total: AverageBlockCumulativeSumPattern2,
+    pub total: AverageBlockCumulativeSumPattern<StoredU64>,
 }
 
 impl SeriesTree_Blocks_Count {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             target: _1m1w1y24hPattern::new(client.clone(), "block_count_target".to_string()),
-            total: AverageBlockCumulativeSumPattern2::new(client.clone(), "block_count".to_string()),
+            total: AverageBlockCumulativeSumPattern::new(client.clone(), "block_count".to_string()),
         }
     }
 }
@@ -4558,14 +4538,14 @@ impl SeriesTree_Transactions_Versions {
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Volume {
-    pub transfer_volume: AverageBlockCumulativeSumPattern3,
+    pub transfer_volume: AverageBlockCumulativeSumPattern2,
     pub tx_per_sec: _1m1w1y24hPattern<StoredF32>,
 }
 
 impl SeriesTree_Transactions_Volume {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            transfer_volume: AverageBlockCumulativeSumPattern3::new(client.clone(), "transfer_volume_bis".to_string()),
+            transfer_volume: AverageBlockCumulativeSumPattern2::new(client.clone(), "transfer_volume_bis".to_string()),
             tx_per_sec: _1m1w1y24hPattern::new(client.clone(), "tx_per_sec".to_string()),
         }
     }
@@ -5704,7 +5684,7 @@ impl SeriesTree_Mining {
 
 /// Series tree node.
 pub struct SeriesTree_Mining_Rewards {
-    pub coinbase: AverageBlockCumulativeSumPattern3,
+    pub coinbase: AverageBlockCumulativeSumPattern2,
     pub subsidy: SeriesTree_Mining_Rewards_Subsidy,
     pub fees: SeriesTree_Mining_Rewards_Fees,
     pub output_volume: SeriesPattern18<Sats>,
@@ -5714,7 +5694,7 @@ pub struct SeriesTree_Mining_Rewards {
 impl SeriesTree_Mining_Rewards {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            coinbase: AverageBlockCumulativeSumPattern3::new(client.clone(), "coinbase".to_string()),
+            coinbase: AverageBlockCumulativeSumPattern2::new(client.clone(), "coinbase".to_string()),
             subsidy: SeriesTree_Mining_Rewards_Subsidy::new(client.clone(), format!("{base_path}_subsidy")),
             fees: SeriesTree_Mining_Rewards_Fees::new(client.clone(), format!("{base_path}_fees")),
             output_volume: SeriesPattern18::new(client.clone(), "output_volume".to_string()),
@@ -8248,7 +8228,7 @@ impl SeriesTree_Cohorts_Utxo_All {
 /// Series tree node.
 pub struct SeriesTree_Cohorts_Utxo_All_Outputs {
     pub unspent_count: BaseDeltaPattern,
-    pub spent_count: AverageBlockCumulativeSumPattern2,
+    pub spent_count: AverageBlockCumulativeSumPattern<StoredU64>,
     pub utxo_turnover_1y: SeriesPattern1<StoredF32>,
 }
 
@@ -8256,7 +8236,7 @@ impl SeriesTree_Cohorts_Utxo_All_Outputs {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             unspent_count: BaseDeltaPattern::new(client.clone(), "utxo_count".to_string()),
-            spent_count: AverageBlockCumulativeSumPattern2::new(client.clone(), "spent_utxo_count".to_string()),
+            spent_count: AverageBlockCumulativeSumPattern::new(client.clone(), "spent_utxo_count".to_string()),
             utxo_turnover_1y: SeriesPattern1::new(client.clone(), "utxo_turnover_1y".to_string()),
         }
     }
@@ -9029,53 +9009,53 @@ impl SeriesTree_Cohorts_Utxo_Profitability_Loss {
 
 /// Series tree node.
 pub struct SeriesTree_Cohorts_Utxo_Matured {
-    pub under_1h: AverageBlockCumulativeSumPattern3,
-    pub _1h_to_1d: AverageBlockCumulativeSumPattern3,
-    pub _1d_to_1w: AverageBlockCumulativeSumPattern3,
-    pub _1w_to_1m: AverageBlockCumulativeSumPattern3,
-    pub _1m_to_2m: AverageBlockCumulativeSumPattern3,
-    pub _2m_to_3m: AverageBlockCumulativeSumPattern3,
-    pub _3m_to_4m: AverageBlockCumulativeSumPattern3,
-    pub _4m_to_5m: AverageBlockCumulativeSumPattern3,
-    pub _5m_to_6m: AverageBlockCumulativeSumPattern3,
-    pub _6m_to_1y: AverageBlockCumulativeSumPattern3,
-    pub _1y_to_2y: AverageBlockCumulativeSumPattern3,
-    pub _2y_to_3y: AverageBlockCumulativeSumPattern3,
-    pub _3y_to_4y: AverageBlockCumulativeSumPattern3,
-    pub _4y_to_5y: AverageBlockCumulativeSumPattern3,
-    pub _5y_to_6y: AverageBlockCumulativeSumPattern3,
-    pub _6y_to_7y: AverageBlockCumulativeSumPattern3,
-    pub _7y_to_8y: AverageBlockCumulativeSumPattern3,
-    pub _8y_to_10y: AverageBlockCumulativeSumPattern3,
-    pub _10y_to_12y: AverageBlockCumulativeSumPattern3,
-    pub _12y_to_15y: AverageBlockCumulativeSumPattern3,
-    pub over_15y: AverageBlockCumulativeSumPattern3,
+    pub under_1h: AverageBlockCumulativeSumPattern2,
+    pub _1h_to_1d: AverageBlockCumulativeSumPattern2,
+    pub _1d_to_1w: AverageBlockCumulativeSumPattern2,
+    pub _1w_to_1m: AverageBlockCumulativeSumPattern2,
+    pub _1m_to_2m: AverageBlockCumulativeSumPattern2,
+    pub _2m_to_3m: AverageBlockCumulativeSumPattern2,
+    pub _3m_to_4m: AverageBlockCumulativeSumPattern2,
+    pub _4m_to_5m: AverageBlockCumulativeSumPattern2,
+    pub _5m_to_6m: AverageBlockCumulativeSumPattern2,
+    pub _6m_to_1y: AverageBlockCumulativeSumPattern2,
+    pub _1y_to_2y: AverageBlockCumulativeSumPattern2,
+    pub _2y_to_3y: AverageBlockCumulativeSumPattern2,
+    pub _3y_to_4y: AverageBlockCumulativeSumPattern2,
+    pub _4y_to_5y: AverageBlockCumulativeSumPattern2,
+    pub _5y_to_6y: AverageBlockCumulativeSumPattern2,
+    pub _6y_to_7y: AverageBlockCumulativeSumPattern2,
+    pub _7y_to_8y: AverageBlockCumulativeSumPattern2,
+    pub _8y_to_10y: AverageBlockCumulativeSumPattern2,
+    pub _10y_to_12y: AverageBlockCumulativeSumPattern2,
+    pub _12y_to_15y: AverageBlockCumulativeSumPattern2,
+    pub over_15y: AverageBlockCumulativeSumPattern2,
 }
 
 impl SeriesTree_Cohorts_Utxo_Matured {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            under_1h: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_under_1h_old_matured_supply".to_string()),
-            _1h_to_1d: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_1h_to_1d_old_matured_supply".to_string()),
-            _1d_to_1w: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_1d_to_1w_old_matured_supply".to_string()),
-            _1w_to_1m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_1w_to_1m_old_matured_supply".to_string()),
-            _1m_to_2m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_1m_to_2m_old_matured_supply".to_string()),
-            _2m_to_3m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_2m_to_3m_old_matured_supply".to_string()),
-            _3m_to_4m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_3m_to_4m_old_matured_supply".to_string()),
-            _4m_to_5m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_4m_to_5m_old_matured_supply".to_string()),
-            _5m_to_6m: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_5m_to_6m_old_matured_supply".to_string()),
-            _6m_to_1y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_6m_to_1y_old_matured_supply".to_string()),
-            _1y_to_2y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_1y_to_2y_old_matured_supply".to_string()),
-            _2y_to_3y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_2y_to_3y_old_matured_supply".to_string()),
-            _3y_to_4y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_3y_to_4y_old_matured_supply".to_string()),
-            _4y_to_5y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_4y_to_5y_old_matured_supply".to_string()),
-            _5y_to_6y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_5y_to_6y_old_matured_supply".to_string()),
-            _6y_to_7y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_6y_to_7y_old_matured_supply".to_string()),
-            _7y_to_8y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_7y_to_8y_old_matured_supply".to_string()),
-            _8y_to_10y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_8y_to_10y_old_matured_supply".to_string()),
-            _10y_to_12y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_10y_to_12y_old_matured_supply".to_string()),
-            _12y_to_15y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_12y_to_15y_old_matured_supply".to_string()),
-            over_15y: AverageBlockCumulativeSumPattern3::new(client.clone(), "utxos_over_15y_old_matured_supply".to_string()),
+            under_1h: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_under_1h_old_matured_supply".to_string()),
+            _1h_to_1d: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1h_to_1d_old_matured_supply".to_string()),
+            _1d_to_1w: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1d_to_1w_old_matured_supply".to_string()),
+            _1w_to_1m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1w_to_1m_old_matured_supply".to_string()),
+            _1m_to_2m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1m_to_2m_old_matured_supply".to_string()),
+            _2m_to_3m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_2m_to_3m_old_matured_supply".to_string()),
+            _3m_to_4m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_3m_to_4m_old_matured_supply".to_string()),
+            _4m_to_5m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_4m_to_5m_old_matured_supply".to_string()),
+            _5m_to_6m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_5m_to_6m_old_matured_supply".to_string()),
+            _6m_to_1y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_6m_to_1y_old_matured_supply".to_string()),
+            _1y_to_2y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1y_to_2y_old_matured_supply".to_string()),
+            _2y_to_3y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_2y_to_3y_old_matured_supply".to_string()),
+            _3y_to_4y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_3y_to_4y_old_matured_supply".to_string()),
+            _4y_to_5y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_4y_to_5y_old_matured_supply".to_string()),
+            _5y_to_6y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_5y_to_6y_old_matured_supply".to_string()),
+            _6y_to_7y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_6y_to_7y_old_matured_supply".to_string()),
+            _7y_to_8y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_7y_to_8y_old_matured_supply".to_string()),
+            _8y_to_10y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_8y_to_10y_old_matured_supply".to_string()),
+            _10y_to_12y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_10y_to_12y_old_matured_supply".to_string()),
+            _12y_to_15y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_12y_to_15y_old_matured_supply".to_string()),
+            over_15y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_over_15y_old_matured_supply".to_string()),
         }
     }
 }

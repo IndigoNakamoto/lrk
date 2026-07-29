@@ -19,7 +19,7 @@ impl Vecs {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        let op_return: &PerBlockCumulativeRolling<StoredU64, StoredU64> =
+        let op_return: &PerBlockCumulativeRolling<StoredU64> =
             &by_type.output_count.by_type.unspendable.op_return;
 
         self.count.height.compute_transform3(

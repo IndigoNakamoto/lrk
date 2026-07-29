@@ -1,44 +1,41 @@
-//! PerBlockCumulativeRolling - base EagerVec + cumulative PerBlock + lazy rolling sums.
+//! PerBlockCumulativeRolling - stored cumulative + lazy block and rolling views.
 //!
-//! Rolling sums are derived lazily from the cumulative vec via LazyDeltaVec.
-//! No rolling sum vecs are stored on disk.
-//!
-//! Type parameters:
-//! - `T`: per-block value type (e.g., `StoredU32` for tx counts)
-//! - `M`: storage mode (`Rw` or `Ro`)
-//! - `C`: cumulative type, defaults to `T`. Use a wider type (e.g., `StoredU64`)
-//!   when the prefix sum of `T` values could overflow `T`.
+//! The cumulative vector is the sole stored source of truth. Per-block values
+//! and rolling sums/averages are all derived lazily from it.
 
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use schemars::JsonSchema;
-use vecdb::{Database, EagerVec, Exit, ImportableVec, PcoVec, Rw, StorageMode};
+use vecdb::{
+    AnyStoredVec, AnyVec, Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
+    VecValue, WritableVec,
+};
 
 use crate::{
     indexes,
     internal::{
-        LazyRollingAvgsFromHeight, LazyRollingSumsFromHeight, NumericValue, PerBlock,
-        WindowStartVec, Windows,
+        LazyPreviousDeltaVec, LazyRollingAvgsFromHeight, LazyRollingSumsFromHeight, NumericValue,
+        PerBlock, WindowStartVec, Windows,
     },
 };
 
 #[derive(Traversable)]
-pub struct PerBlockCumulativeRolling<T, C, M: StorageMode = Rw>
+pub struct PerBlockCumulativeRolling<T, M: StorageMode = Rw>
 where
     T: NumericValue + JsonSchema,
-    C: NumericValue + JsonSchema,
 {
-    pub block: M::Stored<EagerVec<PcoVec<Height, T>>>,
-    pub cumulative: PerBlock<C, M>,
-    pub sum: LazyRollingSumsFromHeight<C>,
-    pub average: LazyRollingAvgsFromHeight<C>,
+    pub block: LazyPreviousDeltaVec<Height, T>,
+    pub cumulative: PerBlock<T, M>,
+    pub sum: LazyRollingSumsFromHeight<T>,
+    pub average: LazyRollingAvgsFromHeight<T>,
+    #[traversable(skip)]
+    last_cumulative: Option<(usize, T)>,
 }
 
-impl<T, C> PerBlockCumulativeRolling<T, C>
+impl<T> PerBlockCumulativeRolling<T>
 where
-    T: NumericValue + JsonSchema + Into<C>,
-    C: NumericValue + JsonSchema,
+    T: NumericValue + JsonSchema,
 {
     pub(crate) fn forced_import(
         db: &Database,
@@ -47,9 +44,14 @@ where
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
-        let block = EagerVec::forced_import(db, name, version)?;
         let cumulative =
             PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
+        let last_cumulative = cumulative
+            .height
+            .collect_last()
+            .map(|value| (cumulative.height.len(), value));
+        let cumulative_source = cumulative.height.read_only_boxed_clone();
+        let block = LazyPreviousDeltaVec::new(name, version, cumulative_source);
         let sum = LazyRollingSumsFromHeight::new(
             &format!("{name}_sum"),
             version,
@@ -70,31 +72,141 @@ where
             cumulative,
             sum,
             average,
+            last_cumulative,
         })
     }
 
-    /// Compute base data via closure, then cumulative. Rolling sums are lazy.
-    pub(crate) fn compute(
-        &mut self,
-        max_from: Height,
-        exit: &Exit,
-        compute_base: impl FnOnce(&mut EagerVec<PcoVec<Height, T>>) -> Result<()>,
-    ) -> Result<()>
+    #[inline(always)]
+    pub(crate) fn push_block(&mut self, value: T)
     where
-        C: Default,
+        T: Copy,
     {
-        compute_base(&mut self.block)?;
-        self.compute_rest(max_from, exit)
+        let len = self.cumulative.height.len();
+        let mut cumulative = match self.last_cumulative {
+            Some((cached_len, value)) if cached_len == len => value,
+            _ => self.cumulative.height.collect_last().unwrap_or_default(),
+        };
+        cumulative += value;
+        self.cumulative.height.push(cumulative);
+        self.last_cumulative = Some((len + 1, cumulative));
     }
 
-    /// Compute cumulative from already-populated base data. Rolling sums are lazy.
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()>
+    pub(crate) fn compute_cumulative<S>(
+        &mut self,
+        max_from: Height,
+        source: &impl ReadableVec<Height, S>,
+        exit: &Exit,
+    ) -> Result<()>
     where
-        C: Default,
+        S: VecValue + Into<T>,
+        T: Copy,
     {
+        Ok(self
+            .cumulative
+            .height
+            .compute_cumulative(max_from, source, exit)?)
+    }
+
+    pub(crate) fn compute_cumulative_transformed<S>(
+        &mut self,
+        max_from: Height,
+        source: &impl ReadableVec<Height, S>,
+        mut transform: impl FnMut(S) -> T,
+        exit: &Exit,
+    ) -> Result<()>
+    where
+        S: VecValue,
+        T: Copy,
+    {
+        let mut cumulative = None;
+        Ok(self.cumulative.height.compute_transform(
+            max_from,
+            source,
+            |(height, value, this)| {
+                let cumulative = cumulative.get_or_insert_with(|| {
+                    height
+                        .decremented()
+                        .and_then(|height| this.collect_one(height))
+                        .unwrap_or_default()
+                });
+                *cumulative += transform(value);
+                (height, *cumulative)
+            },
+            exit,
+        )?)
+    }
+
+    pub(crate) fn validate_computed_version_or_reset(&mut self, version: Version) -> Result<()> {
         self.cumulative
             .height
-            .compute_cumulative(max_from, &self.block, exit)?;
+            .validate_computed_version_or_reset(version)?;
         Ok(())
+    }
+
+    pub(crate) fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
+        Ok(self
+            .cumulative
+            .height
+            .validate_and_truncate(version, height)?)
+    }
+
+    pub(crate) fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
+        Ok(self.cumulative.height.truncate_if_needed_at(len)?)
+    }
+
+    pub(crate) fn write(&mut self) -> Result<()> {
+        self.cumulative.height.write()?;
+        Ok(())
+    }
+
+    pub(crate) fn stored_mut(&mut self) -> &mut dyn AnyStoredVec {
+        &mut self.cumulative.height
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use brk_types::{Height, StoredU64, Version};
+    use vecdb::{
+        AnyStoredVec, Database, EagerVec, ImportableVec, PcoVec, ReadableCloneableVec, ReadableVec,
+        WritableVec,
+    };
+
+    use crate::internal::LazyPreviousDeltaVec;
+
+    #[test]
+    fn lazy_block_is_the_delta_of_cumulative() {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "brk-lazy-block-cumulative-{}-{suffix}",
+            std::process::id()
+        ));
+        let db = Database::open(&path).unwrap();
+        let mut cumulative: EagerVec<PcoVec<Height, StoredU64>> =
+            EagerVec::forced_import(&db, "cumulative", Version::ONE).unwrap();
+
+        for value in [1_u64, 3, 6] {
+            cumulative.push(StoredU64::from(value));
+        }
+        cumulative.write().unwrap();
+
+        let block = LazyPreviousDeltaVec::<Height, StoredU64>::new(
+            "block",
+            Version::ONE,
+            cumulative.read_only_boxed_clone(),
+        );
+
+        assert_eq!(
+            block.collect_range_at(0, 3),
+            [1_u64, 2, 3].map(StoredU64::from)
+        );
+
+        drop(block);
+        drop(cumulative);
+        drop(db);
+        std::fs::remove_dir_all(path).unwrap();
     }
 }

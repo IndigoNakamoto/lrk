@@ -10,9 +10,9 @@ use super::super::{SupplyBaseVecs, activity::DerivedVecs as ActivityDerivedVecs}
 
 #[derive(Deref, DerefMut, Traversable)]
 pub struct CohortVecs<M: StorageMode = Rw> {
-    pub coindays_created: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
-    pub coindays_consumed: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
-    pub coindays_stored: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coindays_created: PerBlockCumulativeRolling<StoredF64, M>,
+    pub coindays_consumed: PerBlockCumulativeRolling<StoredF64, M>,
+    pub coindays_stored: PerBlockCumulativeRolling<StoredF64, M>,
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]

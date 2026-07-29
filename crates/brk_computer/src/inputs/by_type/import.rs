@@ -17,7 +17,7 @@ impl Vecs {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let input_count =
-            WithInputTypes::<PerBlockCumulativeRolling<StoredU64, StoredU64>>::forced_import_with(
+            WithInputTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import_with(
                 db,
                 "input_count_bis",
                 |t| format!("{t}_prevout_count"),
@@ -25,15 +25,14 @@ impl Vecs {
                 indexes,
                 cached_starts,
             )?;
-        let tx_count =
-            WithInputTypes::<PerBlockCumulativeRolling<StoredU64, StoredU64>>::forced_import_with(
-                db,
-                "non_coinbase_tx_count",
-                |t| format!("tx_count_with_{t}_prevout"),
-                version,
-                indexes,
-                cached_starts,
-            )?;
+        let tx_count = WithInputTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import_with(
+            db,
+            "non_coinbase_tx_count",
+            |t| format!("tx_count_with_{t}_prevout"),
+            version,
+            indexes,
+            cached_starts,
+        )?;
 
         let input_share = SpendableType::try_new(|_, name| {
             PercentCumulativeRolling::forced_import(

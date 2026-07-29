@@ -54,10 +54,9 @@ impl<T: NumericValue + JsonSchema> ConfigImport for PerBlock<T> {
         Self::forced_import(cfg.db, &cfg.name(suffix), cfg.version + offset, cfg.indexes)
     }
 }
-impl<T, C> ConfigImport for PerBlockCumulativeRolling<T, C>
+impl<T> ConfigImport for PerBlockCumulativeRolling<T>
 where
-    T: NumericValue + JsonSchema + Into<C>,
-    C: NumericValue + JsonSchema,
+    T: NumericValue + JsonSchema,
 {
     fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
         Self::forced_import(

@@ -16,14 +16,7 @@ impl Vecs {
             (&mut self.v3, &counts.v3),
             (&mut self.other, &counts.other_version),
         ] {
-            metrics.compute(starting_height, exit, |block| {
-                Ok(block.compute_transform(
-                    starting_height,
-                    source,
-                    |(height, count, ..)| (height, count),
-                    exit,
-                )?)
-            })?;
+            metrics.compute_cumulative(starting_height, source, exit)?;
         }
 
         Ok(())

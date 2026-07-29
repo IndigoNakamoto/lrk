@@ -7,7 +7,7 @@ use brk_types::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use tracing::{debug, info};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec, unlikely};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, unlikely};
 
 use crate::{
     distribution::{
@@ -213,9 +213,7 @@ pub(crate) fn process_blocks(
             .par_iter_vecs_mut()
             .chain(vecs.addr_cohorts.par_iter_vecs_mut())
             .chain(vecs.addrs.par_iter_height_mut())
-            .chain(rayon::iter::once(
-                &mut vecs.coinblocks_destroyed.block as &mut dyn AnyStoredVec,
-            ))
+            .chain(rayon::iter::once(vecs.coinblocks_destroyed.stored_mut()))
             .try_for_each(|v| v.any_truncate_if_needed_at(start))?;
     }
 
@@ -394,7 +392,7 @@ pub(crate) fn process_blocks(
                     blocks_old as u128 * u64::from(sent.spendable_supply.value) as u128
                 })
                 .sum();
-            vecs.coinblocks_destroyed.block.push(StoredF64::from(
+            vecs.coinblocks_destroyed.push_block(StoredF64::from(
                 total_satblocks as f64 / Sats::ONE_BTC_U128 as f64,
             ));
         }
