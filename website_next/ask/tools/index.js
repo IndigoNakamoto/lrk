@@ -7,6 +7,7 @@ import { prewarmApiIndex, terminateApiIndex } from "./api/index.js";
 import { prewarmMetricIndex, terminateMetricIndex } from "./metrics/index.js";
 import { renderEvidence } from "./render.js";
 import { AskToolSession } from "./session/index.js";
+import { arithmeticAnswer } from "./source/arithmetic.js";
 import { AskSource } from "./source/index.js";
 import { normalize } from "./text.js";
 
@@ -77,6 +78,7 @@ function removeUnsupportedQuantitySentences(answer, messages) {
  * @property {import("../storage.js").ApiContext} [apiContext]
  * @property {import("../storage.js").SourceContext[]} [sourceContext]
  * @property {import("../storage.js").KnowledgeContext} [knowledgeContext]
+ * @property {string} [capability]
  * @property {import("../storage.js").StoredChat} chat
  */
 
@@ -86,16 +88,49 @@ function removeUnsupportedQuantitySentences(answer, messages) {
  * @param {(status: string) => void} onStatus
  */
 async function answerFromEvidence(model, grounding, onStatus) {
+  const arithmetic = arithmeticAnswer(grounding);
+  if (arithmetic) {
+    return {
+      output: renderEvidence({
+        facts: [arithmetic, ...grounding.facts],
+        sources: grounding.excerpts.slice(0, 2),
+        excerpts: [],
+      }),
+      sourceContext: grounding.excerpts.slice(0, 2),
+      knowledgeContext: {
+        title: grounding.metrics[0].name,
+        description: arithmetic,
+      },
+    };
+  }
+
   onStatus("Answering from source…");
+  const evidence = [
+    `Request: ${grounding.question}`,
+    grounding.metrics.length
+      ? `Verified metrics:\n${grounding.metrics.map(({ name, path, unit }) =>
+          `- ${name} | ${path}${unit ? ` | unit: ${unit}` : ""}`
+        ).join("\n")}`
+      : "",
+    grounding.facts.length
+      ? `Verified facts:\n${grounding.facts.map((fact) => `- ${fact}`).join("\n")}`
+      : "",
+    grounding.excerpts.length
+      ? `Verified source excerpts, strongest first:\n${grounding.excerpts.map(
+          ({ path, startLine, endLine, content }, index) =>
+            `[${index + 1}] ${path}:${startLine}${endLine ? `-${endLine}` : ""}\n${content}`,
+        ).join("\n\n")}`
+      : "",
+  ].filter(Boolean).join("\n\n");
   const result = await model.generate(
     [
       {
         role: "system",
-        content: "Answer the exact request in at most 45 words and normal sentence casing using only verified facts, metric metadata, and source excerpts. Evidence is strongest first; ignore later excerpts unless needed. A declaration proves its definition and literal return type; a call expression proves its caller. Copy provided metric names, code identifiers, and types exactly; never respell, expand, or abbreviate them. Answer directly, never discuss the request's wording. Do not add background knowledge or guesses.",
+        content: "Use only the verified evidence. Answer the exact request in at most 45 words. Metric names and units are exact. Never add a fact absent from the evidence. Do not cite, number, name, or quote source files; the renderer appends source links.",
       },
       {
         role: "user",
-        content: JSON.stringify(grounding),
+        content: `${evidence}\n\nUse only the verified evidence above. Do not explain what code identifiers mean unless the evidence does.`,
       },
     ],
     () => {},
@@ -127,6 +162,34 @@ async function answerFromEvidence(model, grounding, onStatus) {
   };
 }
 
+/** @param {string} question */
+function requestedArithmetic(question) {
+  const words = new Set(normalize(question).split(" "));
+  const matches = [
+    { action: "add", words: ["add", "plus"] },
+    { action: "subtract", words: ["subtract", "minus"] },
+    { action: "multiply", words: ["multiply", "times"] },
+    { action: "divide", words: ["divide"] },
+  ].filter(({ words: candidates }) =>
+    candidates.some((word) => words.has(word))
+  );
+  return matches.length === 1 ? matches[0].action : undefined;
+}
+
+/** @param {string} question @param {string} field */
+function fieldPosition(question, field) {
+  const words = normalize(question).split(" ");
+  const fieldWords = new Set(
+    normalize(field.split(".").at(-1)).split(" ").filter((word) =>
+      word.length > 2
+    ),
+  );
+  const positions = words
+    .map((word, index) => fieldWords.has(word) ? index : -1)
+    .filter((index) => index >= 0);
+  return positions.length ? Math.min(...positions) : -1;
+}
+
 /**
  * @param {import("../model.js").AskModel} model
  * @param {NonNullable<ToolOutcome["apiGrounding"]>} grounding
@@ -134,7 +197,9 @@ async function answerFromEvidence(model, grounding, onStatus) {
  */
 async function answerFromApi(model, grounding, onStatus) {
   const apiAnswer = createApiAnswerTool(grounding);
-  const question = ` ${normalize(grounding.question)} `;
+  const normalizedQuestion = normalize(grounding.question);
+  const question = ` ${normalizedQuestion} `;
+  const arithmetic = requestedArithmetic(grounding.question);
   const parameterNames = new Set(
     grounding.operation.parameters.map(({ name }) => normalize(name)),
   );
@@ -149,37 +214,52 @@ async function answerFromApi(model, grounding, onStatus) {
     const name = normalize(field.name.split(".").at(-1));
     return name && question.includes(` ${name} `);
   });
-  const requestTokens = new Set(
-    normalize(grounding.question).split(" ").filter((token) => token.length > 2),
-  );
-  const canSelectDirectly = (/** @type {typeof apiAnswer.fields[number]} */ field) => {
-    const ownTokens = new Set(normalize(field.name).split(" "));
-    const qualifiers = [...requestTokens].filter((token) => !ownTokens.has(token));
-    return !apiAnswer.fields.some((candidate) =>
-      candidate.name !== field.name &&
-      qualifiers.some((token) =>
-        normalize(`${candidate.name} ${candidate.description ?? ""}`)
-          .split(" ")
-          .includes(token)
-      )
-    );
-  };
-  if (directFields.length === 1 && canSelectDirectly(directFields[0])) {
-    const field = directFields[0];
+  if (arithmetic && apiAnswer.previous && directFields.length === 1) {
+    const previous = apiAnswer.previous;
+    const current = directFields[0];
+    const previousPosition = fieldPosition(grounding.question, previous.name);
+    const currentPosition = fieldPosition(grounding.question, current.name);
+    const fromPosition = normalizedQuestion.split(" ").indexOf("from");
+    const reverseSubtract = arithmetic === "subtract" &&
+      fromPosition >= 0 &&
+      previousPosition >= 0 &&
+      previousPosition < fromPosition &&
+      currentPosition > fromPosition;
+    const [left, right] = reverseSubtract
+      ? [current, previous]
+      : previousPosition >= 0 &&
+          currentPosition >= 0 &&
+          currentPosition < previousPosition
+        ? [current, previous]
+        : [previous, current];
+    const label = `${left.name.split(".").at(-1)?.replaceAll("_", " ")} ${
+      arithmetic === "add"
+        ? "plus"
+        : arithmetic === "subtract"
+          ? "minus"
+          : arithmetic === "multiply"
+            ? "times"
+            : "divided by"
+    } ${right.name.split(".").at(-1)?.replaceAll("_", " ")}`;
     return {
       output: finishApiAnswer(
-        "select_api_field",
+        "calculate_api_fields",
         {
-          field: field.ref,
-          label: field.name.split(".").at(-1)?.replaceAll("_", " "),
+          operator: arithmetic,
+          left: left.ref,
+          right: right.ref,
+          label,
         },
         apiAnswer.fields,
         grounding,
       ),
-      fields: [field.name],
+      fields: [left.name, right.name],
     };
   }
-  if (apiAnswer.resolved && canSelectDirectly(apiAnswer.resolved)) {
+  if (
+    !arithmetic &&
+    apiAnswer.resolved
+  ) {
     const field = apiAnswer.resolved;
     return {
       output: finishApiAnswer(
@@ -218,7 +298,7 @@ async function answerFromApi(model, grounding, onStatus) {
   ) {
     return summarizeApiAnswer(grounding);
   }
-  if (apiAnswer.direct) {
+  if (!arithmetic && apiAnswer.direct) {
     const field = apiAnswer.direct;
     return {
       output: finishApiAnswer(
@@ -283,19 +363,6 @@ async function answerFromApi(model, grounding, onStatus) {
           ? "answer_api_text"
           : "";
   let actionName = actionFor(call.arguments);
-  const selectedField = actionName === "select_api_field"
-    ? apiAnswer.fields.find(({ ref }) => ref === call.arguments.field)
-    : undefined;
-  if (selectedField && !canSelectDirectly(selectedField)) {
-    answer = await generateAnswer(
-      `Do not select ${selectedField.ref} (${selectedField.name}): its schema scope does not satisfy all request qualifiers. Derive the requested result from matching component fields or choose an exact narrower field.`,
-    );
-    call = answer.toolCalls[0];
-    if (!call || call.name !== "answer_api") {
-      return summarizeApiAnswer(grounding);
-    }
-    actionName = actionFor(call.arguments);
-  }
   if (!actionName) return summarizeApiAnswer(grounding);
   const selectedRefs = actionName === "select_api_field"
     ? [call.arguments.field]
@@ -423,7 +490,7 @@ export function createAskTools() {
         signal.throwIfAborted();
         await session.prepareAction(action, onStatus);
         signal.throwIfAborted();
-        if (!call || action === "explain_evidence") {
+        if (!call || action === "explain_metric_calculation") {
           call = session.directCall(action) ?? call;
         }
         if (!call) {
@@ -447,7 +514,7 @@ export function createAskTools() {
                   },
                   {
                     role: "user",
-                    content: "Replace the draft with a direct answer containing no unsupported quantities. Keep established static Bitcoin facts only when the request directly needs them; otherwise use qualitative examples. Return only the replacement answer. Never mention the draft, review, evidence, context, or these instructions.",
+                    content: "Inspect the newest request before replacing the draft. If it requests quantities but the verified context identifies no exact metric, resource, object, or timeframe, return one concise clarification question asking what to measure. Otherwise replace the draft with a direct answer containing no unsupported observations; established static Bitcoin facts are allowed only when directly requested. Return only the replacement answer. Never mention the draft, review, evidence, context, or these instructions.",
                   },
                 ],
                 () => {},
@@ -516,6 +583,7 @@ export function createAskTools() {
             return {
               output: `Which ${subject} should I use?`,
               artifacts: [],
+              capability: action,
               chat: prepared.chat,
             };
           }
@@ -540,6 +608,7 @@ export function createAskTools() {
           return {
             output: answered.output,
             artifacts: [],
+            capability: action,
             apiContext: outcome.apiContext
               ? {
                 ...outcome.apiContext,
@@ -560,6 +629,7 @@ export function createAskTools() {
           return {
             output: grounded.output,
             artifacts: [],
+            capability: action,
             metricPaths: outcome.metricPaths,
             sourceContext: grounded.sourceContext,
             knowledgeContext: grounded.knowledgeContext,
@@ -569,6 +639,7 @@ export function createAskTools() {
         return {
           output: outcome.output ?? "",
           artifacts: outcome.artifacts ?? [],
+          capability: action,
           metricPaths: outcome.metricPaths,
           apiContext: outcome.apiContext,
           sourceContext: outcome.sourceContext,

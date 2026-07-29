@@ -23,12 +23,12 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 100_000)?;
         let v = parent_version + VERSION;
 
-        let puell_multiple = RatioPerBlock::forced_import_raw(&db, "puell_multiple", v, indexes)?;
-        let nvt = RatioPerBlock::forced_import_raw(&db, "nvt", v, indexes)?;
+        let puell_multiple = RatioPerBlock::forced_import_ppm(&db, "puell_multiple", v, indexes)?;
+        let nvt = RatioPerBlock::forced_import_ppm(&db, "nvt", v, indexes)?;
         let gini = PercentPerBlock::forced_import(&db, "gini", v, indexes)?;
-        let rhodl_ratio = RatioPerBlock::forced_import_raw(&db, "rhodl_ratio", v, indexes)?;
+        let rhodl_ratio = RatioPerBlock::forced_import_ppm(&db, "rhodl_ratio", v, indexes)?;
         let thermo_cap_multiple =
-            RatioPerBlock::forced_import_raw(&db, "thermo_cap_multiple", v, indexes)?;
+            RatioPerBlock::forced_import_ppm(&db, "thermo_cap_multiple", v, indexes)?;
         let coindays_destroyed_supply_adj =
             PerBlock::forced_import(&db, "coindays_destroyed_supply_adj", v, indexes)?;
         let coinyears_destroyed_supply_adj =

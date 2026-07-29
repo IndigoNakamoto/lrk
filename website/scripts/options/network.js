@@ -32,6 +32,7 @@ import {
   groupedWindowsCumulative,
   avgHoldingsSubtree,
   exposedSubtree,
+  reusedCountTree,
   reusedSubtree,
 } from "./shared.js";
 import { createOpReturnSection } from "./network/op-return.js";
@@ -110,50 +111,6 @@ export function createNetworkSection() {
       const reused = addrs.reused;
       const respent = addrs.respent;
       const key = /** @type {const} */ ("all");
-
-      /**
-       * Windowed sums + cumulative, overlaying reused (primary) and respent (gray).
-       * @param {CountPattern<number>} reusedPattern
-       * @param {CountPattern<number>} respentPattern
-       * @param {string} metric
-       * @returns {PartialOptionsTree}
-       */
-      const countPair = (reusedPattern, respentPattern, metric) => [
-        ...ROLLING_WINDOWS.map((w) => ({
-          name: w.name,
-          title: title(`${w.title} ${metric}`),
-          bottom: [
-            line({
-              series: reusedPattern.sum[w.key],
-              name: "2+ Funded",
-              unit: Unit.count,
-            }),
-            line({
-              series: respentPattern.sum[w.key],
-              name: "2+ Spent",
-              color: colors.gray,
-              unit: Unit.count,
-            }),
-          ],
-        })),
-        {
-          name: "Cumulative",
-          title: title(`Cumulative ${metric}`),
-          bottom: [
-            line({
-              series: reusedPattern.cumulative,
-              name: "2+ Funded",
-              unit: Unit.count,
-            }),
-            line({
-              series: respentPattern.cumulative,
-              name: "2+ Spent",
-              color: colors.gray,
-              unit: Unit.count,
-            }),
-          ],
-        },
-      ];
 
       return {
         name: "Reused",
@@ -242,9 +199,10 @@ export function createNetworkSection() {
             tree: [
               {
                 name: "Count",
-                tree: countPair(
+                tree: reusedCountTree(
                   reused.events.outputToReusedAddrCount[key],
                   respent.events.outputToReusedAddrCount[key],
+                  title,
                   "Transaction Outputs to Reused Addresses",
                 ),
               },
@@ -296,9 +254,10 @@ export function createNetworkSection() {
             tree: [
               {
                 name: "Count",
-                tree: countPair(
+                tree: reusedCountTree(
                   reused.events.inputFromReusedAddrCount[key],
                   respent.events.inputFromReusedAddrCount[key],
+                  title,
                   "Transaction Inputs from Reused Addresses",
                 ),
               },
@@ -855,40 +814,75 @@ export function createNetworkSection() {
         defaultActive: false,
       },
     ]);
+
+    /**
+     * @param {Object} args
+     * @param {Readonly<Record<string, CountPattern<number>>>} args.patterns
+     * @param {(window: (typeof ROLLING_WINDOWS)[number], average: boolean) => string} args.windowTitle
+     * @param {string} args.cumulativeTitle
+     * @returns {PartialOptionsTree}
+     */
+    const countComparisonTree = ({
+      patterns,
+      windowTitle,
+      cumulativeTitle,
+    }) => [
+      ...ROLLING_WINDOWS.map((window) => ({
+        name: window.name,
+        title: windowTitle(window, false),
+        bottom: countTypes.map((type) =>
+          line({
+            series: patterns[type.key].sum[window.key],
+            name: type.name,
+            color: type.color,
+            unit: Unit.count,
+            defaultActive: type.defaultActive,
+          }),
+        ),
+      })),
+      {
+        name: "Average",
+        tree: ROLLING_WINDOWS.map((window) => ({
+          name: window.name,
+          title: windowTitle(window, true),
+          bottom: countTypes.map((type) =>
+            line({
+              series: patterns[type.key].average[window.key],
+              name: type.name,
+              color: type.color,
+              unit: Unit.count,
+              defaultActive: type.defaultActive,
+            }),
+          ),
+        })),
+      },
+      {
+        name: "Cumulative",
+        title: cumulativeTitle,
+        bottom: countTypes.map((type) =>
+          line({
+            series: patterns[type.key].cumulative,
+            name: type.name,
+            color: type.color,
+            unit: Unit.count,
+            defaultActive: type.defaultActive,
+          }),
+        ),
+      },
+    ];
+
     return [
       {
         name: "Compare",
         tree: [
           {
             name: "Count",
-            tree: [
-              ...ROLLING_WINDOWS.map((w) => ({
-                name: w.name,
-                title: `${w.title} ${label} Count by Type`,
-                bottom: countTypes.map((t) =>
-                  line({
-                    series: count[t.key].sum[w.key],
-                    name: t.name,
-                    color: t.color,
-                    unit: Unit.count,
-                    defaultActive: t.defaultActive,
-                  }),
-                ),
-              })),
-              {
-                name: "Cumulative",
-                title: `Cumulative ${label} Count by Type`,
-                bottom: countTypes.map((t) =>
-                  line({
-                    series: count[t.key].cumulative,
-                    name: t.name,
-                    color: t.color,
-                    unit: Unit.count,
-                    defaultActive: t.defaultActive,
-                  }),
-                ),
-              },
-            ],
+            tree: countComparisonTree({
+              patterns: count,
+              windowTitle: (window, average) =>
+                `${window.title}${average ? " Average" : ""} ${label} Count by Type`,
+              cumulativeTitle: `Cumulative ${label} Count by Type`,
+            }),
           },
           {
             name: "Share",
@@ -904,34 +898,12 @@ export function createNetworkSection() {
           },
           {
             name: "Transaction Count",
-            tree: [
-              ...ROLLING_WINDOWS.map((w) => ({
-                name: w.name,
-                title: `${w.title} Transactions by ${label} Type`,
-                bottom: countTypes.map((t) =>
-                  line({
-                    series: txCount[t.key].sum[w.key],
-                    name: t.name,
-                    color: t.color,
-                    unit: Unit.count,
-                    defaultActive: t.defaultActive,
-                  }),
-                ),
-              })),
-              {
-                name: "Cumulative",
-                title: `Cumulative Transactions by ${label} Type`,
-                bottom: countTypes.map((t) =>
-                  line({
-                    series: txCount[t.key].cumulative,
-                    name: t.name,
-                    color: t.color,
-                    unit: Unit.count,
-                    defaultActive: t.defaultActive,
-                  }),
-                ),
-              },
-            ],
+            tree: countComparisonTree({
+              patterns: txCount,
+              windowTitle: (window, average) =>
+                `${window.title}${average ? " Average" : ""} Transactions by ${label} Type`,
+              cumulativeTitle: `Cumulative Transactions by ${label} Type`,
+            }),
           },
           {
             name: "Transaction Share",

@@ -1,10 +1,12 @@
 const CAMEL_BOUNDARY = /([a-z0-9])([A-Z])/g;
+const CAMEL_NUMBER_BOUNDARY = /([A-Z][a-z]+)(\d)/g;
 const NON_WORD = /[^a-z0-9%]+/g;
 
 /** @param {unknown} value */
 export function normalize(value) {
   return String(value)
     .replace(CAMEL_BOUNDARY, "$1 $2")
+    .replace(CAMEL_NUMBER_BOUNDARY, "$1 $2")
     .toLowerCase()
     .replace(NON_WORD, " ")
     .trim()

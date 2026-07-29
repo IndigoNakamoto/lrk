@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 #[derive(Debug, Default, Clone, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct AddrMempoolStats {
-    /// Net unconfirmed balance change in satoshis; negative when pending spends exceed receipts
+    /// Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
     pub balance_delta: SatsSigned,
 
     /// Number of unconfirmed transaction outputs funding this address

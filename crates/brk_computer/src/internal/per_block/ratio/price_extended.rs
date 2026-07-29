@@ -15,7 +15,7 @@ pub struct PriceWithRatioPerBlock<M: StorageMode = Rw> {
     pub usd: LazyPerBlock<Dollars, Cents>,
     pub cents: PerBlock<Cents, M>,
     pub sats: LazyPerBlock<SatsFract, Dollars>,
-    pub raw: PerBlock<PartsPerMillion64, M>,
+    pub ppm: PerBlock<PartsPerMillion64, M>,
     pub ratio: LazyPerBlock<StoredF32, PartsPerMillion64>,
 }
 
@@ -32,7 +32,7 @@ impl PriceWithRatioPerBlock {
             usd: price.usd,
             cents: price.cents,
             sats: price.sats,
-            raw: ratio.raw,
+            ppm: ratio.ppm,
             ratio: ratio.ratio,
         })
     }
@@ -44,7 +44,7 @@ impl PriceWithRatioPerBlock {
         close_price: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.raw.height.compute_transform2(
+        self.ppm.height.compute_transform2(
             starting_lengths.height,
             close_price,
             &self.cents.height,

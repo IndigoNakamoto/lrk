@@ -77,10 +77,15 @@ function groupedOutputsFolder(list, all, title) {
         }),
       },
       {
-        name: "Spending Rate",
-        title: title("Spending Rate"),
+        name: "1Y Turnover",
+        title: title("1 Year UTXO Turnover"),
         bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
-          line({ series: tree.outputs.spendingRate, name, color, unit: Unit.ratio }),
+          line({
+            series: tree.outputs.utxoTurnover1y,
+            name,
+            color,
+            unit: Unit.ratio,
+          }),
         ),
       },
     ],
@@ -308,10 +313,15 @@ function outputsFolder(outputs, color, title) {
         tree: chartsFromCount({ pattern: outputs.spentCount, title, metric: "Spent UTXO Count", unit: Unit.count, color }),
       },
       {
-        name: "Spending Rate",
-        title: title("Spending Rate"),
+        name: "1Y Turnover",
+        title: title("1 Year UTXO Turnover"),
         bottom: [
-          line({ series: outputs.spendingRate, name: "Rate", color, unit: Unit.ratio }),
+          line({
+            series: outputs.utxoTurnover1y,
+            name: "Turnover",
+            color,
+            unit: Unit.ratio,
+          }),
         ],
       },
     ],

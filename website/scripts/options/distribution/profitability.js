@@ -501,7 +501,7 @@ function realizedOverviewFolder({
 
 /**
  * Full realized subfolder (All/STH/LTH)
- * @param {RealizedPattern | LthRealizedPattern} r
+ * @param {FullRealizedProfitabilityPattern} r
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
  */
@@ -809,7 +809,8 @@ export function createProfitabilitySectionAll({ cohort, title }) {
 
 /**
  * Section for cohorts with full realized and unrealized profitability data.
- * @param {{ cohort: { tree: { unrealized: FullRelativePattern, realized: RealizedPattern } }, title: (name: string) => string }} args
+ * This section does not use SOPR, whose shape differs between STH and Entry.
+ * @param {{ cohort: { tree: { unrealized: FullRelativePattern, realized: FullRealizedProfitabilityPattern } }, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createProfitabilitySectionFull({ cohort, title }) {

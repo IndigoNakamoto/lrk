@@ -100,7 +100,7 @@ impl Vecs {
         })?;
         let macd = WindowsTo1m::try_from_fn(|tf| MacdChain::forced_import(db, tf, v, indexes))?;
 
-        let pi_cycle = RatioPerBlock::forced_import_raw(db, "pi_cycle", v, indexes)?;
+        let pi_cycle = RatioPerBlock::forced_import_ppm(db, "pi_cycle", v, indexes)?;
 
         Ok(Self {
             rsi,

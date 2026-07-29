@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::BTreeMap, fs, path::Path};
 use brk_cohort::{AGE_RANGE_NAMES, CohortContext};
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CentsCompact, Date, Day1, Dollars, StoredF64, UrpdRaw, Version};
+use brk_types::{CentsCompact, Date, Day1, Dollars, Sats, StoredF64, UrpdRaw, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecValue, WritableVec};
 
 use super::vecs::{Levels, MODE_COUNT, ModeVecs, Percentiles, Vecs};
@@ -189,6 +189,12 @@ impl Vecs {
             .iter()
             .map(|cohort| &cohort.liveliness.day1)
             .collect();
+        let age_supplies: Vec<_> = distribution
+            .utxo_cohorts
+            .age_range
+            .iter()
+            .map(|cohort| &cohort.metrics.supply.total.sats.day1)
+            .collect();
         let coinflow_mobility: Vec<_> = coinflow
             .age_range
             .iter()
@@ -225,6 +231,7 @@ impl Vecs {
             .chain(std::iter::once(distribution.supply_state.version()))
             .chain(std::iter::once(raw_loss_share.version()))
             .chain(weighted_loss_shares.iter().map(|vec| vec.version()))
+            .chain(age_supplies.iter().map(|vec| vec.version()))
             .chain(cointime_liveliness.iter().map(|vec| vec.version()))
             .chain(coinflow_mobility.iter().map(|vec| vec.version()))
             .chain(coinflow_spending_rate.iter().map(|vec| vec.version()))
@@ -237,6 +244,7 @@ impl Vecs {
         let source_end = std::iter::once(indexes.day1.date.len())
             .chain(std::iter::once(raw_loss_share.len()))
             .chain(weighted_loss_shares.iter().map(|vec| vec.len()))
+            .chain(age_supplies.iter().map(|vec| vec.len()))
             .chain(cointime_liveliness.iter().map(|vec| vec.len()))
             .chain(coinflow_mobility.iter().map(|vec| vec.len()))
             .chain(coinflow_spending_rate.iter().map(|vec| vec.len()))
@@ -266,6 +274,7 @@ impl Vecs {
             {
                 let weights = mode_weights(
                     day,
+                    &age_supplies,
                     &cointime_liveliness,
                     &coinflow_mobility,
                     &coinflow_spending_rate,
@@ -381,6 +390,7 @@ fn recompute_day(indexer: &Indexer, indexes: &indexes::Vecs) -> Option<Day1> {
 
 fn mode_weights(
     day: Day1,
+    age_supplies: &[&impl ReadableVec<Day1, Option<Sats>>],
     cointime_liveliness: &[&impl ReadableVec<Day1, Option<StoredF64>>],
     coinflow_mobility: &[&impl ReadableVec<Day1, Option<StoredF64>>],
     coinflow_spending_rate: &[&impl ReadableVec<Day1, Option<StoredF64>>],
@@ -389,12 +399,12 @@ fn mode_weights(
     debug_assert_eq!(COINFLOW_HORIZON_START + HORIZON_COUNT, MODE_COUNT);
     let mut weights = [None; MODE_COUNT];
     weights[RAW_MODE] = Some([1.0; AGE_COHORT_COUNT]);
-    weights[COINTIME_MODE] = collect_age_values(cointime_liveliness, day)
+    weights[COINTIME_MODE] = collect_age_values(cointime_liveliness, age_supplies, day)
         .map(|values| values.map(|v| v.clamp(0.0, 1.0)));
-    weights[COINFLOW_MODE] =
-        collect_age_values(coinflow_mobility, day).map(|values| values.map(|v| v.clamp(0.0, 1.0)));
+    weights[COINFLOW_MODE] = collect_age_values(coinflow_mobility, age_supplies, day)
+        .map(|values| values.map(|v| v.clamp(0.0, 1.0)));
 
-    if let Some(hazards) = collect_age_values(coinflow_spending_rate, day) {
+    if let Some(hazards) = collect_age_values(coinflow_spending_rate, age_supplies, day) {
         let hazards = hazards.map(|value| value.max(0.0));
         for (offset, horizon) in HORIZON_DAYS.iter().copied().enumerate() {
             weights[COINFLOW_HORIZON_START + offset] = Some(std::array::from_fn(|age| {
@@ -405,23 +415,36 @@ fn mode_weights(
     weights
 }
 
-fn collect_age_values(
-    sources: &[&impl ReadableVec<Day1, Option<StoredF64>>],
+fn collect_age_values<T>(
+    sources: &[&impl ReadableVec<Day1, Option<T>>],
+    supplies: &[&impl ReadableVec<Day1, Option<Sats>>],
     day: Day1,
-) -> Option<[f64; AGE_COHORT_COUNT]> {
-    if sources.len() != AGE_COHORT_COUNT {
+) -> Option<[f64; AGE_COHORT_COUNT]>
+where
+    T: VecValue,
+    f64: From<T>,
+{
+    if sources.len() != AGE_COHORT_COUNT || supplies.len() != AGE_COHORT_COUNT {
         return None;
     }
 
     let mut values = [0.0; AGE_COHORT_COUNT];
-    for (value, source) in values.iter_mut().zip(sources) {
-        let collected = f64::from(source.collect_one(day).flatten()?);
-        if !collected.is_finite() {
-            return None;
-        }
-        *value = collected;
+    for ((value, source), supply) in values.iter_mut().zip(sources).zip(supplies) {
+        let supply = supply.collect_one(day).flatten()?;
+        *value = resolve_age_value(source.collect_one(day).flatten(), supply)?;
     }
     Some(values)
+}
+
+fn resolve_age_value<T>(value: Option<T>, supply: Sats) -> Option<f64>
+where
+    f64: From<T>,
+{
+    match value.map(f64::from) {
+        Some(value) if value.is_finite() => Some(value),
+        _ if supply == Sats::ZERO => Some(0.0),
+        _ => None,
+    }
 }
 
 fn read_weighted_urpd(
@@ -566,6 +589,26 @@ mod tests {
     fn quantile_linearly_interpolates() {
         assert_eq!(quantile(&[0.0, 1.0], 0.95), Some(0.95));
         assert_eq!(quantile(&[], 0.95), None);
+    }
+
+    #[test]
+    fn empty_age_cohort_uses_zero_weight() {
+        assert_eq!(resolve_age_value::<StoredF64>(None, Sats::ZERO), Some(0.0));
+        assert_eq!(
+            resolve_age_value(Some(StoredF64::NAN), Sats::ZERO),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn non_empty_age_cohort_requires_finite_weight() {
+        let supply = Sats::from(1_u64);
+        assert_eq!(resolve_age_value::<StoredF64>(None, supply), None);
+        assert_eq!(resolve_age_value(Some(StoredF64::NAN), supply), None);
+        assert_eq!(
+            resolve_age_value(Some(StoredF64::from(0.25)), supply),
+            Some(0.25)
+        );
     }
 
     #[test]

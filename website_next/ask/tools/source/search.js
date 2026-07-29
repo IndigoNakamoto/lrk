@@ -29,10 +29,17 @@ function declarations(lines) {
 /** @param {string} text @param {number} line @param {number | undefined} declaration */
 function excerptAt(text, line, declaration) {
   const lines = text.split("\n");
-  const start = Math.max(1, line - 3);
-  const end = Math.min(lines.length, line + 12);
-  const local = lines.slice(start - 1, end).join("\n");
   const declarationLine = declaration === undefined ? undefined : declaration + 1;
+  const nearbyDeclaration = declarationLine !== undefined &&
+    line - declarationLine < EXCERPT_WINDOW_LINES - 3;
+  const start = nearbyDeclaration ? declarationLine : Math.max(1, line - 3);
+  const end = Math.min(
+    lines.length,
+    nearbyDeclaration
+      ? start + EXCERPT_WINDOW_LINES - 1
+      : line + 12,
+  );
+  const local = lines.slice(start - 1, end).join("\n");
   const content = declarationLine !== undefined && declarationLine < start
     ? `${lines[declarationLine - 1]}\n...\n${local}`
     : local;
@@ -91,6 +98,16 @@ function computationWeight(content) {
 function computesQueryDirectly(content, query) {
   return codeOnly(content).split("\n").some((line) => {
     return normalize(line).includes(query) && computationWeight(line) > 0;
+  });
+}
+
+/** @param {string} content @param {string} query */
+function containsDirectFormula(content, query) {
+  return content.split("\n").some((line) => {
+    const assignment = line.match(/^(.+?)(?:\+=|-=|\*=|\/=|=)(.+)$/);
+    return assignment &&
+      normalize(assignment[1]).includes(query) &&
+      /[+\-*/×÷Σ∑]/.test(assignment[2]);
   });
 }
 
@@ -297,16 +314,22 @@ export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined
         ? ""
         : normalize(file.text.split("\n")[declaration]);
       const definitionScore = focus === "definition" &&
-          declarationText.includes(query)
+          (
+            declarationText.includes(query) ||
+            excerpt.content.split("\n").some((line) =>
+              DECLARATION.test(line) && normalize(line).includes(query)
+            )
+          )
         ? 60
         : 0;
-      const implementationScore = focus === "implementation"
+      const computesDirectly = focus === "implementation" &&
+        computesQueryDirectly(excerpt.content, query);
+      const implementationScore = computesDirectly
         ? computationWeight(excerpt.content) * 30
         : 0;
-      const directImplementationScore =
-        focus === "implementation" &&
-          computesQueryDirectly(excerpt.content, query)
-        ? 40
+      const directImplementationScore = computesDirectly ? 40 : 0;
+      const formulaScore = containsDirectFormula(excerpt.content, query)
+        ? 80
         : 0;
       return {
         ...match,
@@ -314,7 +337,8 @@ export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined
           localPhraseOccurrences * 10 +
           definitionScore +
           implementationScore +
-          directImplementationScore,
+          directImplementationScore +
+          formulaScore,
         phraseOccurrences: localPhraseOccurrences,
         ...excerpt,
       };

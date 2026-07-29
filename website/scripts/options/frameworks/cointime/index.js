@@ -1,6 +1,6 @@
-import { colors } from "../utils/colors.js";
-import { brk } from "../utils/client.js";
-import { Unit } from "../utils/units.js";
+import { colors } from "../../../utils/colors.js";
+import { brk } from "../../../utils/client.js";
+import { Unit } from "../../../utils/units.js";
 import {
   dots,
   line,
@@ -8,8 +8,10 @@ import {
   multiSeriesTree,
   percentRatioDots,
   sumsAndAveragesCumulative,
-} from "./series.js";
-import { satsBtcUsd, priceRatioPercentilesTree } from "./shared.js";
+} from "../../series.js";
+import { ageRanges } from "../../age-ranges.js";
+import { satsBtcUsd, priceRatioPercentilesTree } from "../../shared.js";
+import { createCointimeAgeRangeSection } from "./age-range.js";
 
 /**
  * Create Cointime section
@@ -27,6 +29,10 @@ export function createCointimeSection() {
     value,
   } = cointime;
   const { all } = cohorts.utxo;
+  const cointimeAgeRanges = ageRanges.map(({ key, ...range }) => ({
+    ...range,
+    tree: cointime.ageRange[key],
+  }));
 
   // Reference lines for cap comparisons
   const capReferenceLines = /** @type {const} */ ([
@@ -247,11 +253,30 @@ export function createCointimeSection() {
 
       {
         name: "Supply",
-        title: "Active vs Vaulted Supply",
-        bottom: supplyBreakdown.flatMap(({ pattern, name, color }) =>
-          satsBtcUsd({ pattern, name, color }),
-        ),
+        tree: [
+          {
+            name: "Breakdown",
+            title: "Active vs Vaulted Supply",
+            bottom: supplyBreakdown.flatMap(({ pattern, name, color }) =>
+              satsBtcUsd({ pattern, name, color }),
+            ),
+          },
+          {
+            name: "Active in Loss",
+            title: "Active Supply in Loss",
+            bottom: [
+              line({
+                series: cointimeSupply.active.inLoss.share,
+                name: "Share",
+                color: colors.loss,
+                unit: Unit.ratio,
+              }),
+            ],
+          },
+        ],
       },
+
+      createCointimeAgeRangeSection(cointimeAgeRanges),
 
       {
         name: "Activity",

@@ -21,6 +21,6 @@ pub struct AddrStats {
     /// Statistics for unconfirmed transactions in the mempool
     pub mempool_stats: AddrMempoolStats,
 
-    /// Current balance in satoshis, including unconfirmed mempool changes
+    /// Total current balance in satoshis, including pending (unconfirmed) mempool changes
     pub balance: Sats,
 }

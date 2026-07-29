@@ -15,7 +15,7 @@ pub struct UnrealizedMinimal<M: StorageMode = Rw> {
 impl UnrealizedMinimal {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
         Ok(Self {
-            nupl: RatioPerBlock::forced_import_raw(
+            nupl: RatioPerBlock::forced_import_ppm(
                 cfg.db,
                 &cfg.name("nupl"),
                 cfg.version + Version::ONE,
@@ -31,7 +31,7 @@ impl UnrealizedMinimal {
         realized_price: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.nupl.raw.height.compute_transform2(
+        self.nupl.ppm.height.compute_transform2(
             max_from,
             spot_price,
             realized_price,

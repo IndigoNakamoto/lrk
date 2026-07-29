@@ -48,7 +48,7 @@
  * Based on mempool.space's format.
  *
  * @typedef {Object} AddrMempoolStats
- * @property {SatsSigned} balanceDelta - Net unconfirmed balance change in satoshis; negative when pending spends exceed receipts
+ * @property {SatsSigned} balanceDelta - Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
  * @property {number} fundedTxoCount - Number of unconfirmed transaction outputs funding this address
  * @property {Sats} fundedTxoSum - Total amount in satoshis being received in unconfirmed transactions
  * @property {number} spentTxoCount - Number of unconfirmed transaction inputs spending from this address
@@ -69,7 +69,7 @@
  * @property {OutputType} addrType - Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
  * @property {AddrChainStats} chainStats - Statistics for confirmed transactions on the blockchain
  * @property {AddrMempoolStats} mempoolStats - Statistics for unconfirmed transactions in the mempool
- * @property {Sats} balance - Current balance in satoshis, including unconfirmed mempool changes
+ * @property {Sats} balance - Total current balance in satoshis, including pending (unconfirmed) mempool changes
  */
 /**
  * Address validation result
@@ -2696,7 +2696,7 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern2(client, acc) {
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
  * @property {BlockCumulativeSumPattern} peakRegret
- * @property {CentsPercentilesRatioRawSatsSmaStdUsdPattern} price
+ * @property {CentsPercentilesPpmRatioSatsSmaStdUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
@@ -2712,7 +2712,7 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern2(client, acc) {
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
  * @property {BlockCumulativeSumPattern} peakRegret
- * @property {CentsPercentilesRatioRawSatsSmaStdUsdPattern} price
+ * @property {CentsPercentilesPpmRatioSatsSmaStdUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
@@ -3093,7 +3093,7 @@ function createAverageMaxMedianMinPct10Pct25Pct75Pct90SumPattern(client, acc) {
  * @property {InPattern2} investedCapital
  * @property {CentsNegativeToUsdPattern2} loss
  * @property {CentsToUsdPattern3} netPnl
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsToUsdPattern4} profit
  * @property {GreedNetPainPattern} sentiment
  */
@@ -3112,7 +3112,7 @@ function createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(client
     investedCapital: createInPattern2(client, _m(acc, 'invested_capital_in')),
     loss: createCentsNegativeToUsdPattern2(client, _m(acc, 'unrealized_loss')),
     netPnl: createCentsToUsdPattern3(client, _m(acc, 'net_unrealized_pnl')),
-    nupl: createRatioRawPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsToUsdPattern4(client, _m(acc, 'unrealized_profit')),
     sentiment: createGreedNetPainPattern(client, acc),
   };
@@ -3152,11 +3152,11 @@ function createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, acc)
 }
 
 /**
- * @typedef {Object} CentsPercentilesRatioRawSatsSmaStdUsdPattern
+ * @typedef {Object} CentsPercentilesPpmRatioSatsSmaStdUsdPattern
  * @property {SeriesPattern1<Cents>} cents
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion64>} raw
  * @property {SeriesPattern1<SatsFract>} sats
  * @property {_1m1w1y2y4yAllPattern} sma
  * @property {_1y2y4yAllPattern} stdDev
@@ -3165,14 +3165,14 @@ function createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, acc)
 
 /**
  * @typedef {Object} Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern
- * @property {PriceRatioRawPattern} pct05
- * @property {PriceRatioRawPattern} pct1
- * @property {PriceRatioRawPattern} pct2
- * @property {PriceRatioRawPattern} pct5
- * @property {PriceRatioRawPattern} pct95
- * @property {PriceRatioRawPattern} pct98
- * @property {PriceRatioRawPattern} pct99
- * @property {PriceRatioRawPattern} pct995
+ * @property {PpmPriceRatioPattern} pct05
+ * @property {PpmPriceRatioPattern} pct1
+ * @property {PpmPriceRatioPattern} pct2
+ * @property {PpmPriceRatioPattern} pct5
+ * @property {PpmPriceRatioPattern} pct95
+ * @property {PpmPriceRatioPattern} pct98
+ * @property {PpmPriceRatioPattern} pct99
+ * @property {PpmPriceRatioPattern} pct995
  */
 
 /**
@@ -3183,14 +3183,14 @@ function createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, acc)
  */
 function createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc) {
   return {
-    pct05: createPriceRatioRawPattern(client, acc, 'pct0_5'),
-    pct1: createPriceRatioRawPattern(client, acc, 'pct1'),
-    pct2: createPriceRatioRawPattern(client, acc, 'pct2'),
-    pct5: createPriceRatioRawPattern(client, acc, 'pct5'),
-    pct95: createPriceRatioRawPattern(client, acc, 'pct95'),
-    pct98: createPriceRatioRawPattern(client, acc, 'pct98'),
-    pct99: createPriceRatioRawPattern(client, acc, 'pct99'),
-    pct995: createPriceRatioRawPattern(client, acc, 'pct99_5'),
+    pct05: createPpmPriceRatioPattern(client, acc, 'pct0_5'),
+    pct1: createPpmPriceRatioPattern(client, acc, 'pct1'),
+    pct2: createPpmPriceRatioPattern(client, acc, 'pct2'),
+    pct5: createPpmPriceRatioPattern(client, acc, 'pct5'),
+    pct95: createPpmPriceRatioPattern(client, acc, 'pct95'),
+    pct98: createPpmPriceRatioPattern(client, acc, 'pct98'),
+    pct99: createPpmPriceRatioPattern(client, acc, 'pct99'),
+    pct995: createPpmPriceRatioPattern(client, acc, 'pct99_5'),
   };
 }
 
@@ -3280,7 +3280,7 @@ function create_1m1w1y24hPercentPpmRatioPattern(client, acc) {
  * @property {BlockCumulativeNegativeSumPattern} loss
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockCumulativeDeltaSumPattern} netPnl
- * @property {CentsRatioRawSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  * @property {RatioValuePattern} sopr
  */
@@ -3297,7 +3297,7 @@ function createCapLossMvrvNetPriceProfitSoprPattern(client, acc) {
     loss: createBlockCumulativeNegativeSumPattern(client, _m(acc, 'realized_loss')),
     mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
     netPnl: createBlockCumulativeDeltaSumPattern(client, _m(acc, 'net_realized_pnl')),
-    price: createCentsRatioRawSatsUsdPattern(client, _m(acc, 'realized_price')),
+    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
     sopr: createRatioValuePattern(client, acc),
   };
@@ -3423,12 +3423,12 @@ function createMaxMedianMinPct10Pct25Pct75Pct90Pattern(client, acc) {
 
 /**
  * @typedef {Object} _1m1w1y2y4yAllPattern
- * @property {RatioRawPattern2} _1m
- * @property {RatioRawPattern2} _1w
- * @property {RatioRawPattern2} _1y
- * @property {RatioRawPattern2} _2y
- * @property {RatioRawPattern2} _4y
- * @property {RatioRawPattern2} all
+ * @property {PpmRatioPattern2} _1m
+ * @property {PpmRatioPattern2} _1w
+ * @property {PpmRatioPattern2} _1y
+ * @property {PpmRatioPattern2} _2y
+ * @property {PpmRatioPattern2} _4y
+ * @property {PpmRatioPattern2} all
  */
 
 /**
@@ -3439,12 +3439,12 @@ function createMaxMedianMinPct10Pct25Pct75Pct90Pattern(client, acc) {
  */
 function create_1m1w1y2y4yAllPattern(client, acc) {
   return {
-    _1m: createRatioRawPattern2(client, _m(acc, '1m')),
-    _1w: createRatioRawPattern2(client, _m(acc, '1w')),
-    _1y: createRatioRawPattern2(client, _m(acc, '1y')),
-    _2y: createRatioRawPattern2(client, _m(acc, '2y')),
-    _4y: createRatioRawPattern2(client, _m(acc, '4y')),
-    all: createRatioRawPattern2(client, _m(acc, 'all')),
+    _1m: createPpmRatioPattern2(client, _m(acc, '1m')),
+    _1w: createPpmRatioPattern2(client, _m(acc, '1w')),
+    _1y: createPpmRatioPattern2(client, _m(acc, '1y')),
+    _2y: createPpmRatioPattern2(client, _m(acc, '2y')),
+    _4y: createPpmRatioPattern2(client, _m(acc, '4y')),
+    all: createPpmRatioPattern2(client, _m(acc, 'all')),
   };
 }
 
@@ -3530,27 +3530,27 @@ function createCentsNegativeToUsdPattern2(client, acc) {
 }
 
 /**
- * @typedef {Object} CentsPercentilesRatioRawSatsUsdPattern
+ * @typedef {Object} CentsPercentilesPpmRatioSatsUsdPattern
  * @property {SeriesPattern1<Cents>} cents
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion64>} raw
  * @property {SeriesPattern1<SatsFract>} sats
  * @property {SeriesPattern1<Dollars>} usd
  */
 
 /**
- * Create a CentsPercentilesRatioRawSatsUsdPattern pattern node
+ * Create a CentsPercentilesPpmRatioSatsUsdPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {CentsPercentilesRatioRawSatsUsdPattern}
+ * @returns {CentsPercentilesPpmRatioSatsUsdPattern}
  */
-function createCentsPercentilesRatioRawSatsUsdPattern(client, acc) {
+function createCentsPercentilesPpmRatioSatsUsdPattern(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
     percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ratio_ppm')),
     ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-    raw: createSeriesPattern1(client, _m(acc, 'ratio_ppm')),
     sats: createSeriesPattern1(client, _m(acc, 'sats')),
     usd: createSeriesPattern1(client, acc),
   };
@@ -3876,7 +3876,7 @@ function createBtcCentsSatsShareUsdPattern(client, acc) {
  * @property {CentsDeltaUsdPattern} cap
  * @property {BlockCumulativeSumPattern} loss
  * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {CentsRatioRawSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  */
 
@@ -3891,31 +3891,31 @@ function createCapLossMvrvPriceProfitPattern(client, acc) {
     cap: createCentsDeltaUsdPattern(client, _m(acc, 'realized_cap')),
     loss: createBlockCumulativeSumPattern(client, _m(acc, 'realized_loss')),
     mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
-    price: createCentsRatioRawSatsUsdPattern(client, _m(acc, 'realized_price')),
+    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
   };
 }
 
 /**
- * @typedef {Object} CentsRatioRawSatsUsdPattern
+ * @typedef {Object} CentsPpmRatioSatsUsdPattern
  * @property {SeriesPattern1<Cents>} cents
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion64>} raw
  * @property {SeriesPattern1<SatsFract>} sats
  * @property {SeriesPattern1<Dollars>} usd
  */
 
 /**
- * Create a CentsRatioRawSatsUsdPattern pattern node
+ * Create a CentsPpmRatioSatsUsdPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {CentsRatioRawSatsUsdPattern}
+ * @returns {CentsPpmRatioSatsUsdPattern}
  */
-function createCentsRatioRawSatsUsdPattern(client, acc) {
+function createCentsPpmRatioSatsUsdPattern(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
+    ppm: createSeriesPattern1(client, _m(acc, 'ratio_ppm')),
     ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-    raw: createSeriesPattern1(client, _m(acc, 'ratio_ppm')),
     sats: createSeriesPattern1(client, _m(acc, 'sats')),
     usd: createSeriesPattern1(client, acc),
   };
@@ -4433,7 +4433,7 @@ function createCoindaysCoinyearsDormancyTransferPattern(client, acc) {
  * @typedef {Object} LossNetNuplProfitPattern
  * @property {CentsNegativeUsdPattern} loss
  * @property {CentsUsdPattern} netPnl
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsUsdPattern3} profit
  */
 
@@ -4447,7 +4447,7 @@ function createLossNetNuplProfitPattern(client, acc) {
   return {
     loss: createCentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss')),
     netPnl: createCentsUsdPattern(client, _m(acc, 'net_unrealized_pnl')),
-    nupl: createRatioRawPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsUsdPattern3(client, _m(acc, 'unrealized_profit')),
   };
 }
@@ -4477,7 +4477,7 @@ function createMobilitySpendingSupplyPattern(client, acc) {
 
 /**
  * @typedef {Object} NuplRealizedSupplyUnrealizedPattern
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {AllSthPattern} realizedCap
  * @property {AllSthPattern2} supply
  * @property {AllSthPattern} unrealizedPnl
@@ -4491,7 +4491,7 @@ function createMobilitySpendingSupplyPattern(client, acc) {
  */
 function createNuplRealizedSupplyUnrealizedPattern(client, acc) {
   return {
-    nupl: createRatioRawPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     realizedCap: createAllSthPattern(client, acc, 'realized_cap'),
     supply: createAllSthPattern2(client, acc),
     unrealizedPnl: createAllSthPattern(client, acc, 'unrealized_pnl'),
@@ -4789,7 +4789,7 @@ function createGreedNetPainPattern(client, acc) {
 /**
  * @typedef {Object} LossNuplProfitPattern
  * @property {CentsNegativeUsdPattern} loss
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsUsdPattern3} profit
  */
 
@@ -4802,7 +4802,7 @@ function createGreedNetPainPattern(client, acc) {
 function createLossNuplProfitPattern(client, acc) {
   return {
     loss: createCentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss')),
-    nupl: createRatioRawPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsUsdPattern3(client, _m(acc, 'unrealized_profit')),
   };
 }
@@ -4871,24 +4871,24 @@ function createPercentPpmRatioPattern(client, acc) {
 }
 
 /**
- * @typedef {Object} PriceRatioRawPattern
+ * @typedef {Object} PpmPriceRatioPattern
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
  * @property {CentsSatsUsdPattern} price
  * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion32>} raw
  */
 
 /**
- * Create a PriceRatioRawPattern pattern node
+ * Create a PpmPriceRatioPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
  * @param {string} disc - Discriminator suffix
- * @returns {PriceRatioRawPattern}
+ * @returns {PpmPriceRatioPattern}
  */
-function createPriceRatioRawPattern(client, acc, disc) {
+function createPpmPriceRatioPattern(client, acc, disc) {
   return {
+    ppm: createSeriesPattern1(client, _m(acc, `ratio_${disc}_ppm`)),
     price: createCentsSatsUsdPattern(client, _m(acc, disc)),
     ratio: createSeriesPattern1(client, _m(_m(acc, 'ratio'), disc)),
-    raw: createSeriesPattern1(client, _m(acc, `ratio_${disc}_ppm`)),
   };
 }
 
@@ -5399,6 +5399,63 @@ function createPerPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} PpmRatioPattern2
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PpmRatioPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PpmRatioPattern2}
+ */
+function createPpmRatioPattern2(client, acc) {
+  return {
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} PpmRatioPattern3
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PpmRatioPattern3 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PpmRatioPattern3}
+ */
+function createPpmRatioPattern3(client, acc) {
+  return {
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} PpmRatioPattern
+ * @property {SeriesPattern1<PartsPerMillionSigned32>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PpmRatioPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PpmRatioPattern}
+ */
+function createPpmRatioPattern(client, acc) {
+  return {
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
  * @typedef {Object} PriceRatioPattern
  * @property {CentsSatsUsdPattern} price
  * @property {SeriesPattern1<StoredF32>} ratio
@@ -5415,63 +5472,6 @@ function createPriceRatioPattern(client, acc, disc) {
   return {
     price: createCentsSatsUsdPattern(client, _m(acc, disc)),
     ratio: createSeriesPattern1(client, _m(_m(acc, 'ratio'), disc)),
-  };
-}
-
-/**
- * @typedef {Object} RatioRawPattern2
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion32>} raw
- */
-
-/**
- * Create a RatioRawPattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {RatioRawPattern2}
- */
-function createRatioRawPattern2(client, acc) {
-  return {
-    ratio: createSeriesPattern1(client, acc),
-    raw: createSeriesPattern1(client, _m(acc, 'ppm')),
-  };
-}
-
-/**
- * @typedef {Object} RatioRawPattern3
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillion64>} raw
- */
-
-/**
- * Create a RatioRawPattern3 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {RatioRawPattern3}
- */
-function createRatioRawPattern3(client, acc) {
-  return {
-    ratio: createSeriesPattern1(client, acc),
-    raw: createSeriesPattern1(client, _m(acc, 'ppm')),
-  };
-}
-
-/**
- * @typedef {Object} RatioRawPattern
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<PartsPerMillionSigned32>} raw
- */
-
-/**
- * Create a RatioRawPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {RatioRawPattern}
- */
-function createRatioRawPattern(client, acc) {
-  return {
-    ratio: createSeriesPattern1(client, acc),
-    raw: createSeriesPattern1(client, _m(acc, 'ppm')),
   };
 }
 
@@ -5574,7 +5574,7 @@ function createInPattern3(client, acc) {
 
 /**
  * @typedef {Object} NuplPattern
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  */
 
 /**
@@ -5585,13 +5585,13 @@ function createInPattern3(client, acc) {
  */
 function createNuplPattern(client, acc) {
   return {
-    nupl: createRatioRawPattern(client, acc),
+    nupl: createPpmRatioPattern(client, acc),
   };
 }
 
 /**
  * @typedef {Object} PricePattern
- * @property {CentsPercentilesRatioRawSatsUsdPattern} price
+ * @property {CentsPercentilesPpmRatioSatsUsdPattern} price
  */
 
 /**
@@ -5602,7 +5602,7 @@ function createNuplPattern(client, acc) {
  */
 function createPricePattern(client, acc) {
   return {
-    price: createCentsPercentilesRatioRawSatsUsdPattern(client, acc),
+    price: createCentsPercentilesPpmRatioSatsUsdPattern(client, acc),
   };
 }
 
@@ -6511,10 +6511,10 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Mining_Rewards_Fees_ToSubsidyRatio
- * @property {RatioRawPattern3} _24h
- * @property {RatioRawPattern3} _1w
- * @property {RatioRawPattern3} _1m
- * @property {RatioRawPattern3} _1y
+ * @property {PpmRatioPattern3} _24h
+ * @property {PpmRatioPattern3} _1w
+ * @property {PpmRatioPattern3} _1m
+ * @property {PpmRatioPattern3} _1y
  */
 
 /**
@@ -6617,15 +6617,15 @@ function createTransferPattern(client, acc) {
  * @property {CentsUsdPattern3} vaulted
  * @property {CentsUsdPattern3} active
  * @property {CentsUsdPattern3} cointime
- * @property {RatioRawPattern2} aviv
+ * @property {PpmRatioPattern2} aviv
  */
 
 /**
  * @typedef {Object} SeriesTree_Cointime_Prices
- * @property {CentsPercentilesRatioRawSatsUsdPattern} vaulted
- * @property {CentsPercentilesRatioRawSatsUsdPattern} active
- * @property {CentsPercentilesRatioRawSatsUsdPattern} trueMarketMean
- * @property {CentsPercentilesRatioRawSatsUsdPattern} cointime
+ * @property {CentsPercentilesPpmRatioSatsUsdPattern} vaulted
+ * @property {CentsPercentilesPpmRatioSatsUsdPattern} active
+ * @property {CentsPercentilesPpmRatioSatsUsdPattern} trueMarketMean
+ * @property {CentsPercentilesPpmRatioSatsUsdPattern} cointime
  */
 
 /**
@@ -6648,7 +6648,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Coinflow_Supply} supply
  * @property {SeriesTree_Coinflow_Horizon} horizon
  * @property {CentsUsdPattern3} cap
- * @property {CentsRatioRawSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  */
 
 /**
@@ -6975,11 +6975,11 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Indicators
- * @property {RatioRawPattern3} puellMultiple
- * @property {RatioRawPattern3} nvt
+ * @property {PpmRatioPattern3} puellMultiple
+ * @property {PpmRatioPattern3} nvt
  * @property {PercentPpmRatioPattern2} gini
- * @property {RatioRawPattern3} rhodlRatio
- * @property {RatioRawPattern3} thermoCapMultiple
+ * @property {PpmRatioPattern3} rhodlRatio
+ * @property {PpmRatioPattern3} thermoCapMultiple
  * @property {SeriesPattern1<StoredF32>} coindaysDestroyedSupplyAdj
  * @property {SeriesPattern1<StoredF32>} coinyearsDestroyedSupplyAdj
  * @property {SeriesTree_Indicators_Dormancy} dormancy
@@ -7200,22 +7200,22 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Market_MovingAverage_Sma
- * @property {CentsRatioRawSatsUsdPattern} _1w
- * @property {CentsRatioRawSatsUsdPattern} _8d
- * @property {CentsRatioRawSatsUsdPattern} _13d
- * @property {CentsRatioRawSatsUsdPattern} _21d
- * @property {CentsRatioRawSatsUsdPattern} _1m
- * @property {CentsRatioRawSatsUsdPattern} _34d
- * @property {CentsRatioRawSatsUsdPattern} _55d
- * @property {CentsRatioRawSatsUsdPattern} _89d
- * @property {CentsRatioRawSatsUsdPattern} _111d
- * @property {CentsRatioRawSatsUsdPattern} _144d
+ * @property {CentsPpmRatioSatsUsdPattern} _1w
+ * @property {CentsPpmRatioSatsUsdPattern} _8d
+ * @property {CentsPpmRatioSatsUsdPattern} _13d
+ * @property {CentsPpmRatioSatsUsdPattern} _21d
+ * @property {CentsPpmRatioSatsUsdPattern} _1m
+ * @property {CentsPpmRatioSatsUsdPattern} _34d
+ * @property {CentsPpmRatioSatsUsdPattern} _55d
+ * @property {CentsPpmRatioSatsUsdPattern} _89d
+ * @property {CentsPpmRatioSatsUsdPattern} _111d
+ * @property {CentsPpmRatioSatsUsdPattern} _144d
  * @property {SeriesTree_Market_MovingAverage_Sma_200d} _200d
  * @property {SeriesTree_Market_MovingAverage_Sma_350d} _350d
- * @property {CentsRatioRawSatsUsdPattern} _1y
- * @property {CentsRatioRawSatsUsdPattern} _2y
- * @property {CentsRatioRawSatsUsdPattern} _200w
- * @property {CentsRatioRawSatsUsdPattern} _4y
+ * @property {CentsPpmRatioSatsUsdPattern} _1y
+ * @property {CentsPpmRatioSatsUsdPattern} _2y
+ * @property {CentsPpmRatioSatsUsdPattern} _200w
+ * @property {CentsPpmRatioSatsUsdPattern} _4y
  */
 
 /**
@@ -7223,7 +7223,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {CentsSatsUsdPattern} x24
  * @property {CentsSatsUsdPattern} x08
@@ -7234,35 +7234,35 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {CentsSatsUsdPattern} x2
  */
 
 /**
  * @typedef {Object} SeriesTree_Market_MovingAverage_Ema
- * @property {CentsRatioRawSatsUsdPattern} _1w
- * @property {CentsRatioRawSatsUsdPattern} _8d
- * @property {CentsRatioRawSatsUsdPattern} _12d
- * @property {CentsRatioRawSatsUsdPattern} _13d
- * @property {CentsRatioRawSatsUsdPattern} _21d
- * @property {CentsRatioRawSatsUsdPattern} _26d
- * @property {CentsRatioRawSatsUsdPattern} _1m
- * @property {CentsRatioRawSatsUsdPattern} _34d
- * @property {CentsRatioRawSatsUsdPattern} _55d
- * @property {CentsRatioRawSatsUsdPattern} _89d
- * @property {CentsRatioRawSatsUsdPattern} _144d
- * @property {CentsRatioRawSatsUsdPattern} _200d
- * @property {CentsRatioRawSatsUsdPattern} _1y
- * @property {CentsRatioRawSatsUsdPattern} _2y
- * @property {CentsRatioRawSatsUsdPattern} _200w
- * @property {CentsRatioRawSatsUsdPattern} _4y
+ * @property {CentsPpmRatioSatsUsdPattern} _1w
+ * @property {CentsPpmRatioSatsUsdPattern} _8d
+ * @property {CentsPpmRatioSatsUsdPattern} _12d
+ * @property {CentsPpmRatioSatsUsdPattern} _13d
+ * @property {CentsPpmRatioSatsUsdPattern} _21d
+ * @property {CentsPpmRatioSatsUsdPattern} _26d
+ * @property {CentsPpmRatioSatsUsdPattern} _1m
+ * @property {CentsPpmRatioSatsUsdPattern} _34d
+ * @property {CentsPpmRatioSatsUsdPattern} _55d
+ * @property {CentsPpmRatioSatsUsdPattern} _89d
+ * @property {CentsPpmRatioSatsUsdPattern} _144d
+ * @property {CentsPpmRatioSatsUsdPattern} _200d
+ * @property {CentsPpmRatioSatsUsdPattern} _1y
+ * @property {CentsPpmRatioSatsUsdPattern} _2y
+ * @property {CentsPpmRatioSatsUsdPattern} _200w
+ * @property {CentsPpmRatioSatsUsdPattern} _4y
  */
 
 /**
  * @typedef {Object} SeriesTree_Market_Technical
  * @property {SeriesTree_Market_Technical_Rsi} rsi
- * @property {RatioRawPattern2} piCycle
+ * @property {PpmRatioPattern2} piCycle
  * @property {SeriesTree_Market_Technical_Macd} macd
  */
 
@@ -7606,7 +7606,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
  * @property {_1m1w1y2y4yAllPattern} sma
@@ -7724,7 +7724,7 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Unrealized
- * @property {RatioRawPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_Profit} profit
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_Loss} loss
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl} netPnl
@@ -7798,7 +7798,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
  * @property {_1m1w1y2y4yAllPattern} sma
@@ -7921,7 +7921,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
  * @property {_1m1w1y2y4yAllPattern} sma
@@ -8150,7 +8150,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
  * @property {_1m1w1y2y4yAllPattern} sma
@@ -8273,7 +8273,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<PartsPerMillion64>} raw
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
  * @property {_1m1w1y2y4yAllPattern} sma
@@ -10394,10 +10394,10 @@ class BrkClient extends BrkClientBase {
             pct90: create_1m1w1y24hPattern4(this, 'fees_pct90'),
             dominance: create_1m1w1y24hPercentPpmRatioPattern(this, 'fee_dominance'),
             toSubsidyRatio: {
-              _24h: createRatioRawPattern3(this, 'fee_to_subsidy_ratio_24h'),
-              _1w: createRatioRawPattern3(this, 'fee_to_subsidy_ratio_1w'),
-              _1m: createRatioRawPattern3(this, 'fee_to_subsidy_ratio_1m'),
-              _1y: createRatioRawPattern3(this, 'fee_to_subsidy_ratio_1y'),
+              _24h: createPpmRatioPattern3(this, 'fee_to_subsidy_ratio_24h'),
+              _1w: createPpmRatioPattern3(this, 'fee_to_subsidy_ratio_1w'),
+              _1m: createPpmRatioPattern3(this, 'fee_to_subsidy_ratio_1m'),
+              _1y: createPpmRatioPattern3(this, 'fee_to_subsidy_ratio_1y'),
             },
           },
           outputVolume: createSeriesPattern18(this, 'output_volume'),
@@ -10473,13 +10473,13 @@ class BrkClient extends BrkClientBase {
           vaulted: createCentsUsdPattern3(this, 'vaulted_cap'),
           active: createCentsUsdPattern3(this, 'active_cap'),
           cointime: createCentsUsdPattern3(this, 'cointime_cap'),
-          aviv: createRatioRawPattern2(this, 'aviv_ratio'),
+          aviv: createPpmRatioPattern2(this, 'aviv_ratio'),
         },
         prices: {
-          vaulted: createCentsPercentilesRatioRawSatsUsdPattern(this, 'vaulted_price'),
-          active: createCentsPercentilesRatioRawSatsUsdPattern(this, 'active_price'),
-          trueMarketMean: createCentsPercentilesRatioRawSatsUsdPattern(this, 'true_market_mean'),
-          cointime: createCentsPercentilesRatioRawSatsUsdPattern(this, 'cointime_price'),
+          vaulted: createCentsPercentilesPpmRatioSatsUsdPattern(this, 'vaulted_price'),
+          active: createCentsPercentilesPpmRatioSatsUsdPattern(this, 'active_price'),
+          trueMarketMean: createCentsPercentilesPpmRatioSatsUsdPattern(this, 'true_market_mean'),
+          cointime: createCentsPercentilesPpmRatioSatsUsdPattern(this, 'cointime_price'),
         },
         adjusted: {
           inflationRate: createPercentPpmRatioPattern(this, 'cointime_adj_inflation_rate'),
@@ -10536,7 +10536,7 @@ class BrkClient extends BrkClientBase {
           _1m: createSupplyPattern(this, 'coinflow_1m_supply_in_loss_share'),
         },
         cap: createCentsUsdPattern3(this, 'coinflow_cap'),
-        price: createCentsRatioRawSatsUsdPattern(this, 'coinflow_price'),
+        price: createCentsPpmRatioSatsUsdPattern(this, 'coinflow_price'),
       },
       bedrock: {
         raw: createFloorLevelLossPattern(this, 'bedrock_raw'),
@@ -10705,11 +10705,11 @@ class BrkClient extends BrkClientBase {
         },
       },
       indicators: {
-        puellMultiple: createRatioRawPattern3(this, 'puell_multiple'),
-        nvt: createRatioRawPattern3(this, 'nvt'),
+        puellMultiple: createPpmRatioPattern3(this, 'puell_multiple'),
+        nvt: createPpmRatioPattern3(this, 'nvt'),
         gini: createPercentPpmRatioPattern2(this, 'gini'),
-        rhodlRatio: createRatioRawPattern3(this, 'rhodl_ratio'),
-        thermoCapMultiple: createRatioRawPattern3(this, 'thermo_cap_multiple'),
+        rhodlRatio: createPpmRatioPattern3(this, 'rhodl_ratio'),
+        thermoCapMultiple: createPpmRatioPattern3(this, 'thermo_cap_multiple'),
         coindaysDestroyedSupplyAdj: createSeriesPattern1(this, 'coindays_destroyed_supply_adj'),
         coinyearsDestroyedSupplyAdj: createSeriesPattern1(this, 'coinyears_destroyed_supply_adj'),
         dormancy: {
@@ -10862,21 +10862,21 @@ class BrkClient extends BrkClientBase {
         },
         movingAverage: {
           sma: {
-            _1w: createCentsRatioRawSatsUsdPattern(this, 'price_sma_1w'),
-            _8d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_8d'),
-            _13d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_13d'),
-            _21d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_21d'),
-            _1m: createCentsRatioRawSatsUsdPattern(this, 'price_sma_1m'),
-            _34d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_34d'),
-            _55d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_55d'),
-            _89d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_89d'),
-            _111d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_111d'),
-            _144d: createCentsRatioRawSatsUsdPattern(this, 'price_sma_144d'),
+            _1w: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1w'),
+            _8d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_8d'),
+            _13d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_13d'),
+            _21d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_21d'),
+            _1m: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1m'),
+            _34d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_34d'),
+            _55d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_55d'),
+            _89d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_89d'),
+            _111d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_111d'),
+            _144d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_144d'),
             _200d: {
               usd: createSeriesPattern1(this, 'price_sma_200d'),
               cents: createSeriesPattern1(this, 'price_sma_200d_cents'),
               sats: createSeriesPattern1(this, 'price_sma_200d_sats'),
-              raw: createSeriesPattern1(this, 'price_sma_200d_ratio_ppm'),
+              ppm: createSeriesPattern1(this, 'price_sma_200d_ratio_ppm'),
               ratio: createSeriesPattern1(this, 'price_sma_200d_ratio'),
               x24: createCentsSatsUsdPattern(this, 'price_sma_200d_x2_4'),
               x08: createCentsSatsUsdPattern(this, 'price_sma_200d_x0_8'),
@@ -10885,32 +10885,32 @@ class BrkClient extends BrkClientBase {
               usd: createSeriesPattern1(this, 'price_sma_350d'),
               cents: createSeriesPattern1(this, 'price_sma_350d_cents'),
               sats: createSeriesPattern1(this, 'price_sma_350d_sats'),
-              raw: createSeriesPattern1(this, 'price_sma_350d_ratio_ppm'),
+              ppm: createSeriesPattern1(this, 'price_sma_350d_ratio_ppm'),
               ratio: createSeriesPattern1(this, 'price_sma_350d_ratio'),
               x2: createCentsSatsUsdPattern(this, 'price_sma_350d_x2'),
             },
-            _1y: createCentsRatioRawSatsUsdPattern(this, 'price_sma_1y'),
-            _2y: createCentsRatioRawSatsUsdPattern(this, 'price_sma_2y'),
-            _200w: createCentsRatioRawSatsUsdPattern(this, 'price_sma_200w'),
-            _4y: createCentsRatioRawSatsUsdPattern(this, 'price_sma_4y'),
+            _1y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1y'),
+            _2y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_2y'),
+            _200w: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_200w'),
+            _4y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_4y'),
           },
           ema: {
-            _1w: createCentsRatioRawSatsUsdPattern(this, 'price_ema_1w'),
-            _8d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_8d'),
-            _12d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_12d'),
-            _13d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_13d'),
-            _21d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_21d'),
-            _26d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_26d'),
-            _1m: createCentsRatioRawSatsUsdPattern(this, 'price_ema_1m'),
-            _34d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_34d'),
-            _55d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_55d'),
-            _89d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_89d'),
-            _144d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_144d'),
-            _200d: createCentsRatioRawSatsUsdPattern(this, 'price_ema_200d'),
-            _1y: createCentsRatioRawSatsUsdPattern(this, 'price_ema_1y'),
-            _2y: createCentsRatioRawSatsUsdPattern(this, 'price_ema_2y'),
-            _200w: createCentsRatioRawSatsUsdPattern(this, 'price_ema_200w'),
-            _4y: createCentsRatioRawSatsUsdPattern(this, 'price_ema_4y'),
+            _1w: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1w'),
+            _8d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_8d'),
+            _12d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_12d'),
+            _13d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_13d'),
+            _21d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_21d'),
+            _26d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_26d'),
+            _1m: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1m'),
+            _34d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_34d'),
+            _55d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_55d'),
+            _89d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_89d'),
+            _144d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_144d'),
+            _200d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_200d'),
+            _1y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1y'),
+            _2y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_2y'),
+            _200w: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_200w'),
+            _4y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_4y'),
           },
         },
         technical: {
@@ -10919,7 +10919,7 @@ class BrkClient extends BrkClientBase {
             _1w: createRsiStochPattern(this, 'rsi', '1w'),
             _1m: createRsiStochPattern(this, 'rsi', '1m'),
           },
-          piCycle: createRatioRawPattern2(this, 'pi_cycle'),
+          piCycle: createPpmRatioPattern2(this, 'pi_cycle'),
           macd: {
             _24h: {
               emaFast: createSeriesPattern1(this, 'macd_ema_fast_24h'),
@@ -11171,7 +11171,7 @@ class BrkClient extends BrkClientBase {
                 usd: createSeriesPattern1(this, 'realized_price'),
                 cents: createSeriesPattern1(this, 'realized_price_cents'),
                 sats: createSeriesPattern1(this, 'realized_price_sats'),
-                raw: createSeriesPattern1(this, 'realized_price_ratio_ppm'),
+                ppm: createSeriesPattern1(this, 'realized_price_ratio_ppm'),
                 ratio: createSeriesPattern1(this, 'realized_price_ratio'),
                 percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'realized_price'),
                 sma: create_1m1w1y2y4yAllPattern(this, 'realized_price_ratio_sma'),
@@ -11273,7 +11273,7 @@ class BrkClient extends BrkClientBase {
               supplyDensity: createPercentPpmRatioPattern2(this, 'supply_density'),
             },
             unrealized: {
-              nupl: createRatioRawPattern(this, 'nupl'),
+              nupl: createPpmRatioPattern(this, 'nupl'),
               profit: {
                 usd: createSeriesPattern1(this, 'unrealized_profit'),
                 cents: createSeriesPattern1(this, 'unrealized_profit_cents'),
@@ -11316,7 +11316,7 @@ class BrkClient extends BrkClientBase {
                 usd: createSeriesPattern1(this, 'sth_realized_price'),
                 cents: createSeriesPattern1(this, 'sth_realized_price_cents'),
                 sats: createSeriesPattern1(this, 'sth_realized_price_sats'),
-                raw: createSeriesPattern1(this, 'sth_realized_price_ratio_ppm'),
+                ppm: createSeriesPattern1(this, 'sth_realized_price_ratio_ppm'),
                 ratio: createSeriesPattern1(this, 'sth_realized_price_ratio'),
                 percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'sth_realized_price'),
                 sma: create_1m1w1y2y4yAllPattern(this, 'sth_realized_price_ratio_sma'),
@@ -11416,7 +11416,7 @@ class BrkClient extends BrkClientBase {
                 usd: createSeriesPattern1(this, 'lth_realized_price'),
                 cents: createSeriesPattern1(this, 'lth_realized_price_cents'),
                 sats: createSeriesPattern1(this, 'lth_realized_price_sats'),
-                raw: createSeriesPattern1(this, 'lth_realized_price_ratio_ppm'),
+                ppm: createSeriesPattern1(this, 'lth_realized_price_ratio_ppm'),
                 ratio: createSeriesPattern1(this, 'lth_realized_price_ratio'),
                 percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'lth_realized_price'),
                 sma: create_1m1w1y2y4yAllPattern(this, 'lth_realized_price_ratio_sma'),
@@ -11607,7 +11607,7 @@ class BrkClient extends BrkClientBase {
                   usd: createSeriesPattern1(this, 'veteran_realized_price'),
                   cents: createSeriesPattern1(this, 'veteran_realized_price_cents'),
                   sats: createSeriesPattern1(this, 'veteran_realized_price_sats'),
-                  raw: createSeriesPattern1(this, 'veteran_realized_price_ratio_ppm'),
+                  ppm: createSeriesPattern1(this, 'veteran_realized_price_ratio_ppm'),
                   ratio: createSeriesPattern1(this, 'veteran_realized_price_ratio'),
                   percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'veteran_realized_price'),
                   sma: create_1m1w1y2y4yAllPattern(this, 'veteran_realized_price_ratio_sma'),
@@ -11707,7 +11707,7 @@ class BrkClient extends BrkClientBase {
                   usd: createSeriesPattern1(this, 'rookie_realized_price'),
                   cents: createSeriesPattern1(this, 'rookie_realized_price_cents'),
                   sats: createSeriesPattern1(this, 'rookie_realized_price_sats'),
-                  raw: createSeriesPattern1(this, 'rookie_realized_price_ratio_ppm'),
+                  ppm: createSeriesPattern1(this, 'rookie_realized_price_ratio_ppm'),
                   ratio: createSeriesPattern1(this, 'rookie_realized_price_ratio'),
                   percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'rookie_realized_price'),
                   sma: create_1m1w1y2y4yAllPattern(this, 'rookie_realized_price_ratio_sma'),

@@ -64,10 +64,10 @@ import { Unit } from "../units.js";
  *
  * @typedef {Object} Legend
  * @property {HTMLLegendElement} element
- * @property {function(HTMLElement): void} setPrefix
- * @property {function(): void} clearPrefix
- * @property {function({ series: AnySeries, name: string, order: number, colors: Color[] }): void} addOrReplace
- * @property {function(number): void} removeFrom
+ * @property {(element: HTMLElement) => void} setPrefix
+ * @property {() => void} clearPrefix
+ * @property {(args: { series: AnySeries, name: string, order: number, colors: Color[] }) => void} addOrReplace
+ * @property {(index: number) => void} removeFrom
  */
 
 const lineWidth = /** @type {1} */ (/** @type {unknown} */ (1.5));
@@ -234,7 +234,7 @@ export function createChart({ parent, brk, fitContent }) {
   const chartEl = document.createElement("div");
   root.append(chartEl);
 
-  const ichart = /** @type {CreateLCChart} */ (untypedLcCreateChart)(
+  const ichart = /** @type {typeof CreateLCChart} */ (untypedLcCreateChart)(
     chartEl,
     /** @satisfies {DeepPartial<ChartOptions>} */ ({
       autoSize: true,
@@ -1706,5 +1706,5 @@ export function createChart({ parent, brk, fitContent }) {
 
 /**
  * @typedef {typeof createChart} CreateChart
- * @typedef {ReturnType<createChart>} Chart
+ * @typedef {ReturnType<typeof createChart>} Chart
  */

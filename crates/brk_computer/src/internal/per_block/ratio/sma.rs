@@ -31,7 +31,7 @@ impl RatioSma {
 
         macro_rules! import {
             ($suffix:expr) => {
-                RatioPerBlock::forced_import_raw(
+                RatioPerBlock::forced_import_ppm(
                     db,
                     &format!("{name}_ratio_sma_{}", $suffix),
                     v,
@@ -58,7 +58,7 @@ impl RatioSma {
         ratio_source: &impl ReadableVec<Height, StoredF32>,
     ) -> Result<()> {
         // Expanding SMA (all history)
-        self.all.raw.height.compute_sma_(
+        self.all.ppm.height.compute_sma_(
             starting_lengths.height,
             ratio_source,
             usize::MAX,
@@ -74,7 +74,7 @@ impl RatioSma {
             (&mut self._2y, &blocks.lookback._2y),
             (&mut self._4y, &blocks.lookback._4y),
         ] {
-            sma.raw.height.compute_rolling_average(
+            sma.ppm.height.compute_rolling_average(
                 starting_lengths.height,
                 lookback,
                 ratio_source,

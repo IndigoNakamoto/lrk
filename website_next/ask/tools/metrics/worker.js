@@ -258,26 +258,6 @@ function variants(index, name, path, query) {
   }
   if (candidates.length <= 1) return undefined;
 
-  const preferredPaths = new Map(
-    index.matcher.matchesWith(searchable(query), index.config.withLimit(SEARCH_CANDIDATES))
-      .map((document, rank) => [index.byDocument.get(document)?.path, rank]),
-  );
-  const queryTerms = queryVocabulary(query);
-  const ranked = candidates
-    .map((candidate) => ({
-      ...publicMetric(candidate),
-      rank: preferredPaths.get(candidate.path) ?? SEARCH_CANDIDATES,
-      queryMatches: searchable(candidate.path)
-        .split(" ")
-        .filter((token) => queryTerms.has(token)).length,
-    }))
-    .sort((left, right) =>
-      right.queryMatches - left.queryMatches ||
-      Number(right.name === name) - Number(left.name === name) ||
-      left.rank - right.rank ||
-      left.path.localeCompare(right.path)
-    );
-
   let commonSuffix = candidates[0].path.split(".");
   for (const candidate of candidates.slice(1)) {
     const path = candidate.path.split(".");
@@ -290,7 +270,7 @@ function variants(index, name, path, query) {
     commonSuffix = count ? commonSuffix.slice(-count) : [];
   }
 
-  const selectors = ranked.map((candidate) => {
+  const selectors = candidates.map((candidate) => {
     const path = candidate.path.split(".");
     return commonSuffix.length ? path.slice(0, -commonSuffix.length) : path;
   });
@@ -305,8 +285,52 @@ function variants(index, name, path, query) {
     commonPrefix = commonPrefix.slice(0, count);
   }
 
+  const preferredPaths = new Map(
+    index.matcher.matchesWith(searchable(query), index.config.withLimit(SEARCH_CANDIDATES))
+      .map((document, rank) => [index.byDocument.get(document)?.path, rank]),
+  );
+  const queryTerms = queryVocabulary(query);
+  const selectorTokens = selectors.map((selector) =>
+    [...new Set(
+      searchable(selector.slice(commonPrefix.length).join(" "))
+        .split(" ")
+        .filter(Boolean),
+    )]
+  );
+  const selectorFrequency = new Map();
+  for (const tokens of selectorTokens) {
+    for (const token of tokens) {
+      selectorFrequency.set(token, (selectorFrequency.get(token) ?? 0) + 1);
+    }
+  }
+  const ranked = candidates
+    .map((candidate, candidateIndex) => {
+      const matches = selectorTokens[candidateIndex].filter((token) =>
+        queryTerms.has(token)
+      );
+      return {
+        ...publicMetric(candidate),
+        selector: selectors[candidateIndex],
+        rank: preferredPaths.get(candidate.path) ?? SEARCH_CANDIDATES,
+        queryMatches: matches.length,
+        specificity: matches.reduce((sum, token) =>
+          sum +
+          Math.log(
+            (candidates.length + 1) /
+              ((selectorFrequency.get(token) ?? candidates.length) + 1),
+          ) + 1, 0),
+      };
+    })
+    .sort((left, right) =>
+      right.specificity - left.specificity ||
+      right.queryMatches - left.queryMatches ||
+      Number(right.name === name) - Number(left.name === name) ||
+      left.rank - right.rank ||
+      left.path.localeCompare(right.path)
+    );
+
   const groups = new Map();
-  for (const selector of selectors) {
+  for (const { selector } of ranked) {
     const varying = selector.slice(commonPrefix.length);
     const family = varying[0] ?? commonPrefix.at(-1) ?? "root";
     const value = varying.slice(1).join(" / ") || varying[0] || "all";
@@ -320,13 +344,20 @@ function variants(index, name, path, query) {
     totalSeries: ranked.length,
     groups: [...groups.values()].slice(0, 8),
     series: ranked.slice(0, 16).map((
-      { path, name: metricName, suggestedUnit, indexes, type },
-      index,
+      {
+        path,
+        name: metricName,
+        suggestedUnit,
+        indexes,
+        type,
+        selector: selectorParts,
+        queryMatches,
+        specificity,
+      },
     ) => {
-      const selector = selectors[index]
+      const selector = selectorParts
         .slice(commonPrefix.length)
-        .join(" ") || selectors[index].at(-1) || "";
-      const selectorTokens = new Set(searchable(selector).split(" "));
+        .join(" ") || selectorParts.at(-1) || "";
       return {
         path,
         name: metricName,
@@ -334,9 +365,8 @@ function variants(index, name, path, query) {
         indexes,
         type,
         selector,
-        matchedTerms: [...selectorTokens].filter((token) =>
-          token && queryTerms.has(token)
-        ).length,
+        matchedTerms: queryMatches,
+        specificity,
       };
     }),
   };

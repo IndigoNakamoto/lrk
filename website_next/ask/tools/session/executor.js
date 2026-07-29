@@ -5,6 +5,8 @@ import { resolveChartUnit } from "../chart/units.js";
 import { readMetric } from "../data.js";
 import { metricVariants, searchMetrics } from "../metrics/index.js";
 import { renderData } from "../render.js";
+import { normalize } from "../text.js";
+import { schemaSourceQueries } from "./evidence.js";
 
 const CHART_VIEWS = new Set(["line", "area", "stacked", "bar", "dots"]);
 const CHART_SCALES = new Set(["linear", "log"]);
@@ -31,7 +33,7 @@ function uniqueRefs(value) {
 
 /** @param {string} value */
 function label(value) {
-  return value.replaceAll("_", " ");
+  return normalize(value);
 }
 
 /** @param {string | undefined} value */
@@ -49,6 +51,42 @@ function sourceSubject(value) {
   return inlineCode(value).find((term) =>
     !term.includes("/") && !term.includes("\\")
   );
+}
+
+/** @param {string} content @param {string} field */
+function computesField(content, field) {
+  return content.split("\n").some((line) => {
+    const normalized = normalize(line);
+    return normalized.includes(field) &&
+      ["+=", "-=", "*=", "/=", " + ", " - ", " * ", " / "]
+        .some((operator) => line.includes(operator));
+  });
+}
+
+/** @param {any} result @param {string} query */
+function rankedSchemaMatches(result, query) {
+  const parts = query.trim().split(/\s+/);
+  const field = normalize(parts.at(-1) ?? "");
+  const owner = normalize(parts.slice(0, -1).join(" "));
+  const terms = normalize(query).split(" ").filter(Boolean);
+  return [...result.matches].sort((left, right) => {
+    const leftContent = normalize(left.content);
+    const rightContent = normalize(right.content);
+    const leftOwner = owner && leftContent.includes(owner) ? 1 : 0;
+    const rightOwner = owner && rightContent.includes(owner) ? 1 : 0;
+    const leftComputes = leftOwner && computesField(left.content, field) ? 1 : 0;
+    const rightComputes = rightOwner && computesField(right.content, field) ? 1 : 0;
+    const leftPath = terms.filter((term) =>
+      normalize(left.path).split(" ").includes(term)
+    ).length;
+    const rightPath = terms.filter((term) =>
+      normalize(right.path).split(" ").includes(term)
+    ).length;
+    return rightComputes - leftComputes ||
+      rightOwner - leftOwner ||
+      rightPath - leftPath ||
+      Number(right.score ?? 0) - Number(left.score ?? 0);
+  });
 }
 
 export class CapabilityExecutor {
@@ -149,6 +187,10 @@ export class CapabilityExecutor {
   /** @param {Record<string, unknown>} arguments_ @param {(status: string) => void} onStatus */
   async searchSource(arguments_, onStatus) {
     const query = requiredString(arguments_.query, "a source search query");
+    const schemaQueries = schemaSourceQueries(
+      this.question,
+      this.evidence.apiCandidates ?? [],
+    );
     const subject = sourceSubject(
       this.evidence.context.knowledge?.description,
     );
@@ -166,32 +208,47 @@ export class CapabilityExecutor {
       ? `${query} ${subject}`
       : query;
     const searches = [
-      { query, path: undefined },
+      { query, path: undefined, focus: undefined },
+      ...schemaQueries.map((schemaQuery) => ({
+        query: schemaQuery,
+        path: undefined,
+        focus: /** @type {const} */ ("implementation"),
+      })),
       ...(contextualQuery === query
         ? []
-        : [{ query: contextualQuery, path: undefined }]),
-      ...(subject ? [{ query: subject, path: undefined }] : []),
-      ...paths.map((path) => ({ query: contextualQuery, path })),
+        : [{ query: contextualQuery, path: undefined, focus: undefined }]),
+      ...(subject
+        ? [{ query: subject, path: undefined, focus: undefined }]
+        : []),
+      ...paths.map((path) => ({
+        query: contextualQuery,
+        path,
+        focus: undefined,
+      })),
     ];
 
     onStatus("Searching source…");
     const results = await Promise.all(
-      searches.map(({ query: scopedQuery, path }) =>
+      searches.map(({ query: scopedQuery, path, focus }) =>
         this.source.search(
           scopedQuery,
           path,
-          undefined,
+          focus,
           ({ loaded, total }) =>
             onStatus(`Indexing source · ${loaded} / ${total}`),
         )
       ),
     );
     const scopedResults = results.filter((_, index) => searches[index].path);
+    const schemaResults = results.slice(1, 1 + schemaQueries.length);
+    const contextualIndex = 1 + schemaQueries.length;
     const contextualResult = contextualQuery === query
       ? undefined
-      : results[1];
+      : results[contextualIndex];
     const subjectResult = subject
-      ? results[contextualQuery === query ? 1 : 2]
+      ? results[
+        contextualIndex + (contextualQuery === query ? 0 : 1)
+      ]
       : undefined;
     const rawResult = results[0];
     const seeded = this.evidence.sourceOptions.map(
@@ -199,6 +256,13 @@ export class CapabilityExecutor {
     );
     const excerpts = [...new Map([
       ...(paths.length ? [] : seeded),
+      ...schemaResults.flatMap((result, index) =>
+        rankedSchemaMatches(result, schemaQueries[index]).slice(0, 2)
+          .map((/** @type {any} */ match) => ({
+          ...match,
+          revision: result.revision,
+          }))
+      ),
       ...scopedResults.flatMap((result) =>
         result.matches.slice(0, 1).map((/** @type {any} */ match) => ({
           ...match,
@@ -261,8 +325,8 @@ export class CapabilityExecutor {
     const groups = variants.groups
       .map((group) =>
         group.examples.length === 1 && group.examples[0] === group.family
-          ? group.family
-          : `${group.family}: ${group.examples.join(", ")}`
+          ? label(group.family)
+          : `${label(group.family)}: ${group.examples.map(label).join(", ")}`
       )
       .join("; ");
     return {
@@ -491,13 +555,13 @@ export class CapabilityExecutor {
       return this.describeCapabilities(call.arguments);
     }
     if (call.name === "clarify") return this.clarify(call.arguments);
-    if (call.name === "explain_evidence") {
+    if (call.name === "explain_metric_calculation") {
       return await this.explain(call.arguments);
     }
     if (call.name === "search_source") {
       return await this.searchSource(call.arguments, onStatus);
     }
-    if (call.name === "list_metric_variants") {
+    if (call.name === "list_metric_cohorts_variants") {
       return await this.listVariants(call.arguments);
     }
     if (call.name === "find_chart_metrics") {

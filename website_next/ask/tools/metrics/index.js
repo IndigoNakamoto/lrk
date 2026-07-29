@@ -93,7 +93,7 @@ export function metricsByPaths(paths, onProgress) {
   return index.request("byPaths", { paths }, onProgress);
 }
 
-/** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: (CatalogMetric & { selector: string, matchedTerms: number })[] } | undefined>} */
+/** @param {{ name: string }} metric @param {string} query @returns {Promise<{ totalSeries: number, groups: { family: string, examples: string[] }[], series: (CatalogMetric & { selector: string, matchedTerms: number, specificity: number })[] } | undefined>} */
 export function metricVariants(metric, query = "") {
   return index.request("variants", {
     name: metric.name,

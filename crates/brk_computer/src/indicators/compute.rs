@@ -23,7 +23,7 @@ impl Vecs {
 
         // Puell Multiple: daily_subsidy_usd / sma_365d_subsidy_usd
         self.puell_multiple
-            .raw
+            .ppm
             .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 &mining.rewards.subsidy.block.usd,
@@ -36,7 +36,7 @@ impl Vecs {
 
         // RHODL Ratio: 1d-1w realized cap / 1y-2y realized cap
         self.rhodl_ratio
-            .raw
+            .ppm
             .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 &distribution
@@ -70,7 +70,7 @@ impl Vecs {
             .usd
             .height;
         self.nvt
-            .raw
+            .ppm
             .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 market_cap,
@@ -80,7 +80,7 @@ impl Vecs {
 
         // Thermocap Multiple: market_cap / thermo_cap
         self.thermo_cap_multiple
-            .raw
+            .ppm
             .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 market_cap,

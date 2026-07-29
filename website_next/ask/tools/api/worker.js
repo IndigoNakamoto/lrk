@@ -1,5 +1,5 @@
 import { QuickMatch, QuickMatchConfig } from "../../../modules/quickmatch-js/0.5.0/src/index.js";
-import { normalize } from "../text.js";
+import { normalize, tokenAffinity } from "../text.js";
 import { operationsFromOpenApi } from "./openapi.js";
 
 const SEARCH_CANDIDATES = 256;
@@ -116,8 +116,11 @@ function searchOne(index, query, limit) {
         const frequency = index.documentFrequency.get(word) ?? index.operations.length;
         const idf = Math.log((index.operations.length + 1) / (frequency + 1)) + 1;
         specificity += idf;
-        if (titleTokens.has(word)) titleMatched += 1;
-        score += idf * (titleTokens.has(word) ? 3 : 1);
+        const titleMatch = [...titleTokens].some((token) =>
+          tokenAffinity(word, token) >= 0.75
+        );
+        if (titleMatch) titleMatched += 1;
+        score += idf * (titleMatch ? 3 : 1);
       }
       return { operation, matched, titleMatched, score, specificity };
     })

@@ -1468,7 +1468,7 @@ curl -s "https://bitview.space/version"
 
 ### `AddrMempoolStats`
 
-- `balance_delta`: `SatsSigned` (required) — Net unconfirmed balance change in satoshis; negative when pending spends exceed receipts
+- `balance_delta`: `SatsSigned` (required) — Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
 - `funded_txo_count`: `integer` (required) — Number of unconfirmed transaction outputs funding this address
 - `funded_txo_sum`: `Sats` (required) — Total amount in satoshis being received in unconfirmed transactions
 - `spent_txo_count`: `integer` (required) — Number of unconfirmed transaction inputs spending from this address
@@ -1481,7 +1481,7 @@ curl -s "https://bitview.space/version"
 - `addr_type`: `OutputType` (required) — Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
 - `chain_stats`: `AddrChainStats` (required) — Statistics for confirmed transactions on the blockchain
 - `mempool_stats`: `AddrMempoolStats` (required) — Statistics for unconfirmed transactions in the mempool
-- `balance`: `Sats` (required) — Current balance in satoshis, including unconfirmed mempool changes
+- `balance`: `Sats` (required) — Total current balance in satoshis, including pending (unconfirmed) mempool changes
 
 ### `AddrValidation`
 

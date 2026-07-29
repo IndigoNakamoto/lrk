@@ -137,10 +137,13 @@ export function createApiAnswerTool(grounding) {
       index,
       score: relevance(
         grounding.question,
-        `${field.name} ${field.description ?? ""}`,
+        `${field.name} ${field.ownDescription || field.description || ""}`,
       ) +
         relevance(grounding.question, field.name) +
-        relevance(grounding.question, field.ownDescription ?? "") -
+        relevance(
+          grounding.question,
+          field.ownDescription || field.description || "",
+        ) -
         Math.max(0, field.name.split(".").length - 1) * 2,
     }))
     .sort((left, right) => {
@@ -155,16 +158,13 @@ export function createApiAnswerTool(grounding) {
     name !== previousName &&
     !parameterNames.has(name.split(".").at(-1) ?? name)
   );
-  const numericCandidates = answerCandidates.filter(
-    ({ value }) => typeof value === "number",
-  );
-  const best = numericCandidates
+  const best = answerCandidates
     .sort((left, right) => right.score - left.score || left.index - right.index)[0];
-  const runnerUp = numericCandidates
+  const runnerUp = answerCandidates
     .filter(({ name }) => name !== best?.name)
     .sort((left, right) => right.score - left.score || left.index - right.index)[0];
   const direct = best && best.score >= 6 &&
-      best.score >= (runnerUp?.score ?? 0) + 2
+      best.score >= (runnerUp?.score ?? 0) + 0.5
     ? best
     : undefined;
   const siblings = best

@@ -14,7 +14,7 @@ use crate::{
     internal::db_utils::{finalize_db, open_db},
 };
 
-const VERSION: Version = Version::TWO;
+const VERSION: Version = Version::new(3);
 
 fn import_percentiles<T>(mut import: impl FnMut(&str) -> Result<T>) -> Result<Percentiles<T>> {
     Ok(Percentiles {

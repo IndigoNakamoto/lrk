@@ -87,11 +87,11 @@ export function availableActions(evidence) {
       "read_metric_at",
       "read_metric_range",
       "build_metric_chart",
-      "list_metric_variants",
+      "list_metric_cohorts_variants",
     );
   }
   if (evidence.guideOptions.length || evidence.metricOptions.length) {
-    actions.push("explain_evidence");
+    actions.push("explain_metric_calculation");
   }
   if (!evidence.metricOptions.length) actions.push("find_chart_metrics");
   actions.push("search_source");
@@ -109,9 +109,9 @@ const ROUTE_DESCRIPTIONS = {
   read_metric_at: "Choose when the requested result is a metric value at a stated block height, date, or position.",
   read_metric_range: "Choose when the requested result is metric values across a stated range.",
   build_metric_chart: "Choose when the requested result is a new metric chart or graph.",
-  list_metric_variants: "Choose only when the requested result is a list of available cohorts, groupings, or series variants.",
+  list_metric_cohorts_variants: "Choose only when the requested result is a list of available cohorts, groupings, or series variants.",
   select_metric_variant: "Choose when the request selects one matched cohort or series variant without requesting a value or chart yet.",
-  explain_evidence: "Choose for a Bitview metric definition grounded in matched metric evidence.",
+  explain_metric_calculation: "Choose for a Bitview metric definition grounded in matched metric evidence.",
   find_chart_metrics: "Choose when the user asks which chart metrics exist but no exact metric matched yet.",
   search_source: "Choose for a question about BRK repository code, implementation, callers, or source structure.",
   call_api: "Choose for a concrete blockchain record or resource when a generated operation can accept the supplied or contextual identifier.",
@@ -152,7 +152,7 @@ export function directAction(evidence, question) {
     for (const [actionTerm, actionsForTerm] of owners) {
       if (
         actionsForTerm.length === 1 &&
-        tokenAffinity(queryTerm, actionTerm) >= 0.75
+        tokenAffinity(queryTerm, actionTerm) >= 0.68
       ) {
         matched.add(actionsForTerm[0]);
       }
@@ -163,6 +163,23 @@ export function directAction(evidence, question) {
   const variants = evidence.metricOptions.filter(
     (/** @type {any} */ { origin }) => origin === "variant",
   );
+  const mentioned = evidence.metricOptions.filter(
+    (/** @type {any} */ { origin }) => origin === "mentioned",
+  );
+  if (variants.length === 1 && matched.size > 1) {
+    const resultActions = [...matched].filter((action) =>
+      action !== "list_metric_cohorts_variants" &&
+      action !== "select_metric_variant"
+    );
+    if (resultActions.length === 1) return resultActions[0];
+  }
+  if (
+    matched.size === 0 &&
+    variants.length + mentioned.length === 1 &&
+    evidence.context.capability === "read_latest_metric"
+  ) {
+    return evidence.context.capability;
+  }
   return matched.size === 0 && variants.length === 1
     ? "select_metric_variant"
     : undefined;
@@ -192,12 +209,14 @@ export function capabilityMetrics(evidence, action) {
     (/** @type {any} */ { origin }) => origin === "variant",
   );
   const options = mentioned.length
-    ? [...new Map(
-      [...mentioned, ...contextual].map((option) => [
-        option.metric.path,
-        option,
-      ]),
-    ).values()]
+    ? action === "build_metric_chart"
+      ? [...new Map(
+        [...mentioned, ...contextual].map((option) => [
+          option.metric.path,
+          option,
+        ]),
+      ).values()]
+      : mentioned
     : variants.length
       ? action === "build_metric_chart" && contextual.length
         ? [...variants, ...contextual]
@@ -380,7 +399,7 @@ export function actionTool(evidence, action) {
       ["refs", ...(asksContextDecision ? ["includeContext"] : [])],
     );
   }
-  if (action === "list_metric_variants") {
+  if (action === "list_metric_cohorts_variants") {
     return tool(
       action,
       "Select the one metric whose source-derived variants were requested.",
@@ -396,7 +415,7 @@ export function actionTool(evidence, action) {
       ["refs"],
     );
   }
-  if (action === "explain_evidence") {
+  if (action === "explain_metric_calculation") {
     const evidenceOptions = [...sourceOptions, ...guideOptions];
     return tool(
       action,
@@ -497,7 +516,7 @@ export function apiArgumentTool(operation) {
 
 export const ROUTE_INSTRUCTION = `Choose one capability for the newest request from verified context and matches. Treat context.activeCapability as the active tool mode: continue it for an elliptical follow-up unless the newest request clearly selects a different available output.
 The requested output wins: edit an active chart with its edit/style capability; otherwise choose the matching chart, latest-value, historical-value, range, variant-list, or variant-selection capability.
-Use call_api for a concrete blockchain resource or its contextual follow-up, explain_evidence for a metric definition, find_chart_metrics to discover real chart series when none matched yet, describe_capabilities only for a request about the assistant itself, and answer_general for ordinary Bitcoin knowledge or conversation.
+Use call_api for a concrete blockchain resource or its contextual follow-up, explain_metric_calculation for a metric definition, find_chart_metrics to discover real chart series when none matched yet, describe_capabilities only for a request about the assistant itself, and answer_general for ordinary Bitcoin knowledge or conversation.
 Use search_source only when the request explicitly asks about BRK repository code, source location, implementation, or callers. Never choose it merely because source matches exist.
 Use clarify when essential information is missing. In particular, a requested quantitative result without a matched metric, API resource, or quantitative context needs one concise clarification instead of a qualitative answer or guessed dataset. With call_api select apiRef. With search_source provide sourceQuery.
 Call choose_capability exactly once.`;
@@ -524,7 +543,7 @@ export function actionInstruction(action) {
   if (action === "set_chart_view_scale") {
     return `${common} Apply only the explicitly requested view or scale.`;
   }
-  if (action === "explain_evidence") {
+  if (action === "explain_metric_calculation") {
     return `${common} Select the one excerpt that directly answers the request. For a metric definition, prefer its computation or formula over UI configuration, imports, aggregation, or downstream usage. Select matching metrics when the request is about a metric.`;
   }
   if (action === "search_source") {

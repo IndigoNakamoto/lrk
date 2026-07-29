@@ -318,7 +318,7 @@ class AddrMempoolStats(TypedDict):
     Based on mempool.space's format.
 
     Attributes:
-        balance_delta: Net unconfirmed balance change in satoshis; negative when pending spends exceed receipts
+        balance_delta: Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
         funded_txo_count: Number of unconfirmed transaction outputs funding this address
         funded_txo_sum: Total amount in satoshis being received in unconfirmed transactions
         spent_txo_count: Number of unconfirmed transaction inputs spending from this address
@@ -347,7 +347,7 @@ class AddrStats(TypedDict):
         addr_type: Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
         chain_stats: Statistics for confirmed transactions on the blockchain
         mempool_stats: Statistics for unconfirmed transactions in the mempool
-        balance: Current balance in satoshis, including unconfirmed mempool changes
+        balance: Total current balance in satoshis, including pending (unconfirmed) mempool changes
     """
     address: Addr
     addr_type: OutputType
@@ -3270,7 +3270,7 @@ class CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2:
         self.invested_capital: InPattern2 = InPattern2(client, _m(acc, 'invested_capital_in'))
         self.loss: CentsNegativeToUsdPattern2 = CentsNegativeToUsdPattern2(client, _m(acc, 'unrealized_loss'))
         self.net_pnl: CentsToUsdPattern3 = CentsToUsdPattern3(client, _m(acc, 'net_unrealized_pnl'))
-        self.nupl: RatioRawPattern = RatioRawPattern(client, _m(acc, 'nupl'))
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, _m(acc, 'nupl'))
         self.profit: CentsToUsdPattern4 = CentsToUsdPattern4(client, _m(acc, 'unrealized_profit'))
         self.sentiment: GreedNetPainPattern = GreedNetPainPattern(client, acc)
 
@@ -3289,7 +3289,7 @@ class Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern:
         self.pct80: SeriesPattern1[Dollars] = SeriesPattern1(client, _m(acc, 'pct80'))
         self.pct90: SeriesPattern1[Dollars] = SeriesPattern1(client, _m(acc, 'pct90'))
 
-class CentsPercentilesRatioRawSatsSmaStdUsdPattern:
+class CentsPercentilesPpmRatioSatsSmaStdUsdPattern:
     """Pattern struct for repeated tree structure."""
     pass
 
@@ -3298,14 +3298,14 @@ class Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern:
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.pct0_5: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct0_5')
-        self.pct1: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct1')
-        self.pct2: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct2')
-        self.pct5: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct5')
-        self.pct95: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct95')
-        self.pct98: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct98')
-        self.pct99: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct99')
-        self.pct99_5: PriceRatioRawPattern = PriceRatioRawPattern(client, acc, 'pct99_5')
+        self.pct0_5: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct0_5')
+        self.pct1: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct1')
+        self.pct2: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct2')
+        self.pct5: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct5')
+        self.pct95: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct95')
+        self.pct98: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct98')
+        self.pct99: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct99')
+        self.pct99_5: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct99_5')
 
 class _10y2y3y4y5y6y8yPattern:
     """Pattern struct for repeated tree structure."""
@@ -3350,7 +3350,7 @@ class CapLossMvrvNetPriceProfitSoprPattern:
         self.loss: BlockCumulativeNegativeSumPattern = BlockCumulativeNegativeSumPattern(client, _m(acc, 'realized_loss'))
         self.mvrv: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'mvrv'))
         self.net_pnl: BlockCumulativeDeltaSumPattern = BlockCumulativeDeltaSumPattern(client, _m(acc, 'net_realized_pnl'))
-        self.price: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, _m(acc, 'realized_price'))
+        self.price: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price'))
         self.profit: BlockCumulativeSumPattern = BlockCumulativeSumPattern(client, _m(acc, 'realized_profit'))
         self.sopr: RatioValuePattern = RatioValuePattern(client, acc)
 
@@ -3411,12 +3411,12 @@ class _1m1w1y2y4yAllPattern:
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self._1m: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, '1m'))
-        self._1w: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, '1w'))
-        self._1y: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, '1y'))
-        self._2y: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, '2y'))
-        self._4y: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, '4y'))
-        self.all: RatioRawPattern2 = RatioRawPattern2(client, _m(acc, 'all'))
+        self._1m: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, '1m'))
+        self._1w: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, '1w'))
+        self._1y: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, '1y'))
+        self._2y: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, '2y'))
+        self._4y: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, '4y'))
+        self.all: PpmRatioPattern2 = PpmRatioPattern2(client, _m(acc, 'all'))
 
 class ActivityAddrOutputsRealizedSupplyUnrealizedPattern:
     """Pattern struct for repeated tree structure."""
@@ -3454,15 +3454,15 @@ class CentsNegativeToUsdPattern2:
         self.to_own_mcap: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap'))
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, acc)
 
-class CentsPercentilesRatioRawSatsUsdPattern:
+class CentsPercentilesPpmRatioSatsUsdPattern:
     """Pattern struct for repeated tree structure."""
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, _m(acc, 'cents'))
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc)
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ratio_ppm'))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'ratio'))
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ratio_ppm'))
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, _m(acc, 'sats'))
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, acc)
 
@@ -3613,17 +3613,17 @@ class CapLossMvrvPriceProfitPattern:
         self.cap: CentsDeltaUsdPattern = CentsDeltaUsdPattern(client, _m(acc, 'realized_cap'))
         self.loss: BlockCumulativeSumPattern = BlockCumulativeSumPattern(client, _m(acc, 'realized_loss'))
         self.mvrv: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'mvrv'))
-        self.price: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, _m(acc, 'realized_price'))
+        self.price: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price'))
         self.profit: BlockCumulativeSumPattern = BlockCumulativeSumPattern(client, _m(acc, 'realized_profit'))
 
-class CentsRatioRawSatsUsdPattern:
+class CentsPpmRatioSatsUsdPattern:
     """Pattern struct for repeated tree structure."""
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, _m(acc, 'cents'))
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ratio_ppm'))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'ratio'))
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ratio_ppm'))
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, _m(acc, 'sats'))
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, acc)
 
@@ -3855,7 +3855,7 @@ class LossNetNuplProfitPattern:
         """Create pattern node with accumulated series name."""
         self.loss: CentsNegativeUsdPattern = CentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss'))
         self.net_pnl: CentsUsdPattern = CentsUsdPattern(client, _m(acc, 'net_unrealized_pnl'))
-        self.nupl: RatioRawPattern = RatioRawPattern(client, _m(acc, 'nupl'))
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, _m(acc, 'nupl'))
         self.profit: CentsUsdPattern3 = CentsUsdPattern3(client, _m(acc, 'unrealized_profit'))
 
 class MobilitySpendingSupplyPattern:
@@ -3873,7 +3873,7 @@ class NuplRealizedSupplyUnrealizedPattern:
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.nupl: RatioRawPattern = RatioRawPattern(client, _m(acc, 'nupl'))
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, _m(acc, 'nupl'))
         self.realized_cap: AllSthPattern = AllSthPattern(client, acc, 'realized_cap')
         self.supply: AllSthPattern2 = AllSthPattern2(client, acc)
         self.unrealized_pnl: AllSthPattern = AllSthPattern(client, acc, 'unrealized_pnl')
@@ -4007,7 +4007,7 @@ class LossNuplProfitPattern:
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
         self.loss: CentsNegativeUsdPattern = CentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss'))
-        self.nupl: RatioRawPattern = RatioRawPattern(client, _m(acc, 'nupl'))
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, _m(acc, 'nupl'))
         self.profit: CentsUsdPattern3 = CentsUsdPattern3(client, _m(acc, 'unrealized_profit'))
 
 class PercentPpmRatioPattern2:
@@ -4037,14 +4037,14 @@ class PercentPpmRatioPattern:
         self.ppm: SeriesPattern1[PartsPerMillionSigned64] = SeriesPattern1(client, _m(acc, 'ppm'))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, 'ratio'))
 
-class PriceRatioRawPattern:
+class PpmPriceRatioPattern:
     """Pattern struct for repeated tree structure."""
     
     def __init__(self, client: BrkClient, acc: str, disc: str):
         """Create pattern node with accumulated series name."""
+        self.ppm: SeriesPattern1[PartsPerMillion32] = SeriesPattern1(client, _m(acc, f'ratio_{disc}_ppm'))
         self.price: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, disc))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, f'ratio_{disc}'))
-        self.raw: SeriesPattern1[PartsPerMillion32] = SeriesPattern1(client, _m(acc, f'ratio_{disc}_ppm'))
 
 class RatioTransferValuePattern:
     """Pattern struct for repeated tree structure."""
@@ -4258,6 +4258,30 @@ class PerPattern:
         self.per_coin: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'coin'))
         self.per_dollar: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'dollar'))
 
+class PpmRatioPattern2:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.ppm: SeriesPattern1[PartsPerMillion32] = SeriesPattern1(client, _m(acc, 'ppm'))
+        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
+
+class PpmRatioPattern3:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ppm'))
+        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
+
+class PpmRatioPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.ppm: SeriesPattern1[PartsPerMillionSigned32] = SeriesPattern1(client, _m(acc, 'ppm'))
+        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
+
 class PriceRatioPattern:
     """Pattern struct for repeated tree structure."""
     
@@ -4265,30 +4289,6 @@ class PriceRatioPattern:
         """Create pattern node with accumulated series name."""
         self.price: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, disc))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, f'ratio_{disc}'))
-
-class RatioRawPattern2:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
-        self.raw: SeriesPattern1[PartsPerMillion32] = SeriesPattern1(client, _m(acc, 'ppm'))
-
-class RatioRawPattern3:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, _m(acc, 'ppm'))
-
-class RatioRawPattern:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, acc)
-        self.raw: SeriesPattern1[PartsPerMillionSigned32] = SeriesPattern1(client, _m(acc, 'ppm'))
 
 class RatioValuePattern2:
     """Pattern struct for repeated tree structure."""
@@ -4337,14 +4337,14 @@ class NuplPattern:
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.nupl: RatioRawPattern = RatioRawPattern(client, acc)
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, acc)
 
 class PricePattern:
     """Pattern struct for repeated tree structure."""
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.price: CentsPercentilesRatioRawSatsUsdPattern = CentsPercentilesRatioRawSatsUsdPattern(client, acc)
+        self.price: CentsPercentilesPpmRatioSatsUsdPattern = CentsPercentilesPpmRatioSatsUsdPattern(client, acc)
 
 class SharePattern:
     """Pattern struct for repeated tree structure."""
@@ -5232,10 +5232,10 @@ class SeriesTree_Mining_Rewards_Fees_ToSubsidyRatio:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self._24h: RatioRawPattern3 = RatioRawPattern3(client, 'fee_to_subsidy_ratio_24h')
-        self._1w: RatioRawPattern3 = RatioRawPattern3(client, 'fee_to_subsidy_ratio_1w')
-        self._1m: RatioRawPattern3 = RatioRawPattern3(client, 'fee_to_subsidy_ratio_1m')
-        self._1y: RatioRawPattern3 = RatioRawPattern3(client, 'fee_to_subsidy_ratio_1y')
+        self._24h: PpmRatioPattern3 = PpmRatioPattern3(client, 'fee_to_subsidy_ratio_24h')
+        self._1w: PpmRatioPattern3 = PpmRatioPattern3(client, 'fee_to_subsidy_ratio_1w')
+        self._1m: PpmRatioPattern3 = PpmRatioPattern3(client, 'fee_to_subsidy_ratio_1m')
+        self._1y: PpmRatioPattern3 = PpmRatioPattern3(client, 'fee_to_subsidy_ratio_1y')
 
 class SeriesTree_Mining_Rewards_Fees:
     """Series tree node."""
@@ -5370,16 +5370,16 @@ class SeriesTree_Cointime_Cap:
         self.vaulted: CentsUsdPattern3 = CentsUsdPattern3(client, 'vaulted_cap')
         self.active: CentsUsdPattern3 = CentsUsdPattern3(client, 'active_cap')
         self.cointime: CentsUsdPattern3 = CentsUsdPattern3(client, 'cointime_cap')
-        self.aviv: RatioRawPattern2 = RatioRawPattern2(client, 'aviv_ratio')
+        self.aviv: PpmRatioPattern2 = PpmRatioPattern2(client, 'aviv_ratio')
 
 class SeriesTree_Cointime_Prices:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.vaulted: CentsPercentilesRatioRawSatsUsdPattern = CentsPercentilesRatioRawSatsUsdPattern(client, 'vaulted_price')
-        self.active: CentsPercentilesRatioRawSatsUsdPattern = CentsPercentilesRatioRawSatsUsdPattern(client, 'active_price')
-        self.true_market_mean: CentsPercentilesRatioRawSatsUsdPattern = CentsPercentilesRatioRawSatsUsdPattern(client, 'true_market_mean')
-        self.cointime: CentsPercentilesRatioRawSatsUsdPattern = CentsPercentilesRatioRawSatsUsdPattern(client, 'cointime_price')
+        self.vaulted: CentsPercentilesPpmRatioSatsUsdPattern = CentsPercentilesPpmRatioSatsUsdPattern(client, 'vaulted_price')
+        self.active: CentsPercentilesPpmRatioSatsUsdPattern = CentsPercentilesPpmRatioSatsUsdPattern(client, 'active_price')
+        self.true_market_mean: CentsPercentilesPpmRatioSatsUsdPattern = CentsPercentilesPpmRatioSatsUsdPattern(client, 'true_market_mean')
+        self.cointime: CentsPercentilesPpmRatioSatsUsdPattern = CentsPercentilesPpmRatioSatsUsdPattern(client, 'cointime_price')
 
 class SeriesTree_Cointime_Adjusted:
     """Series tree node."""
@@ -5473,7 +5473,7 @@ class SeriesTree_Coinflow:
         self.supply: SeriesTree_Coinflow_Supply = SeriesTree_Coinflow_Supply(client)
         self.horizon: SeriesTree_Coinflow_Horizon = SeriesTree_Coinflow_Horizon(client)
         self.cap: CentsUsdPattern3 = CentsUsdPattern3(client, 'coinflow_cap')
-        self.price: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'coinflow_price')
+        self.price: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'coinflow_price')
 
 class SeriesTree_Bedrock:
     """Series tree node."""
@@ -5801,11 +5801,11 @@ class SeriesTree_Indicators:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.puell_multiple: RatioRawPattern3 = RatioRawPattern3(client, 'puell_multiple')
-        self.nvt: RatioRawPattern3 = RatioRawPattern3(client, 'nvt')
+        self.puell_multiple: PpmRatioPattern3 = PpmRatioPattern3(client, 'puell_multiple')
+        self.nvt: PpmRatioPattern3 = PpmRatioPattern3(client, 'nvt')
         self.gini: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, 'gini')
-        self.rhodl_ratio: RatioRawPattern3 = RatioRawPattern3(client, 'rhodl_ratio')
-        self.thermo_cap_multiple: RatioRawPattern3 = RatioRawPattern3(client, 'thermo_cap_multiple')
+        self.rhodl_ratio: PpmRatioPattern3 = PpmRatioPattern3(client, 'rhodl_ratio')
+        self.thermo_cap_multiple: PpmRatioPattern3 = PpmRatioPattern3(client, 'thermo_cap_multiple')
         self.coindays_destroyed_supply_adj: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'coindays_destroyed_supply_adj')
         self.coinyears_destroyed_supply_adj: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'coinyears_destroyed_supply_adj')
         self.dormancy: SeriesTree_Indicators_Dormancy = SeriesTree_Indicators_Dormancy(client)
@@ -6017,7 +6017,7 @@ class SeriesTree_Market_MovingAverage_Sma_200d:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'price_sma_200d')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'price_sma_200d_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'price_sma_200d_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'price_sma_200d_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'price_sma_200d_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'price_sma_200d_ratio')
         self.x2_4: CentsSatsUsdPattern = CentsSatsUsdPattern(client, 'price_sma_200d_x2_4')
         self.x0_8: CentsSatsUsdPattern = CentsSatsUsdPattern(client, 'price_sma_200d_x0_8')
@@ -6029,7 +6029,7 @@ class SeriesTree_Market_MovingAverage_Sma_350d:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'price_sma_350d')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'price_sma_350d_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'price_sma_350d_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'price_sma_350d_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'price_sma_350d_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'price_sma_350d_ratio')
         self.x2: CentsSatsUsdPattern = CentsSatsUsdPattern(client, 'price_sma_350d_x2')
 
@@ -6037,43 +6037,43 @@ class SeriesTree_Market_MovingAverage_Sma:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self._1w: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_1w')
-        self._8d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_8d')
-        self._13d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_13d')
-        self._21d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_21d')
-        self._1m: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_1m')
-        self._34d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_34d')
-        self._55d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_55d')
-        self._89d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_89d')
-        self._111d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_111d')
-        self._144d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_144d')
+        self._1w: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_1w')
+        self._8d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_8d')
+        self._13d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_13d')
+        self._21d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_21d')
+        self._1m: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_1m')
+        self._34d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_34d')
+        self._55d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_55d')
+        self._89d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_89d')
+        self._111d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_111d')
+        self._144d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_144d')
         self._200d: SeriesTree_Market_MovingAverage_Sma_200d = SeriesTree_Market_MovingAverage_Sma_200d(client)
         self._350d: SeriesTree_Market_MovingAverage_Sma_350d = SeriesTree_Market_MovingAverage_Sma_350d(client)
-        self._1y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_1y')
-        self._2y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_2y')
-        self._200w: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_200w')
-        self._4y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_sma_4y')
+        self._1y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_1y')
+        self._2y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_2y')
+        self._200w: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_200w')
+        self._4y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_sma_4y')
 
 class SeriesTree_Market_MovingAverage_Ema:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self._1w: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_1w')
-        self._8d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_8d')
-        self._12d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_12d')
-        self._13d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_13d')
-        self._21d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_21d')
-        self._26d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_26d')
-        self._1m: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_1m')
-        self._34d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_34d')
-        self._55d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_55d')
-        self._89d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_89d')
-        self._144d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_144d')
-        self._200d: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_200d')
-        self._1y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_1y')
-        self._2y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_2y')
-        self._200w: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_200w')
-        self._4y: CentsRatioRawSatsUsdPattern = CentsRatioRawSatsUsdPattern(client, 'price_ema_4y')
+        self._1w: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_1w')
+        self._8d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_8d')
+        self._12d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_12d')
+        self._13d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_13d')
+        self._21d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_21d')
+        self._26d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_26d')
+        self._1m: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_1m')
+        self._34d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_34d')
+        self._55d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_55d')
+        self._89d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_89d')
+        self._144d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_144d')
+        self._200d: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_200d')
+        self._1y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_1y')
+        self._2y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_2y')
+        self._200w: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_200w')
+        self._4y: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'price_ema_4y')
 
 class SeriesTree_Market_MovingAverage:
     """Series tree node."""
@@ -6133,7 +6133,7 @@ class SeriesTree_Market_Technical:
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.rsi: SeriesTree_Market_Technical_Rsi = SeriesTree_Market_Technical_Rsi(client)
-        self.pi_cycle: RatioRawPattern2 = RatioRawPattern2(client, 'pi_cycle')
+        self.pi_cycle: PpmRatioPattern2 = PpmRatioPattern2(client, 'pi_cycle')
         self.macd: SeriesTree_Market_Technical_Macd = SeriesTree_Market_Technical_Macd(client)
 
 class SeriesTree_Market:
@@ -6497,7 +6497,7 @@ class SeriesTree_Cohorts_Utxo_All_Realized_Price:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'realized_price')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'realized_price_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'realized_price_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'realized_price_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'realized_price_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'realized_price_ratio')
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, 'realized_price')
         self.sma: _1m1w1y2y4yAllPattern = _1m1w1y2y4yAllPattern(client, 'realized_price_ratio_sma')
@@ -6587,7 +6587,7 @@ class SeriesTree_Cohorts_Utxo_All_Unrealized:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.nupl: RatioRawPattern = RatioRawPattern(client, 'nupl')
+        self.nupl: PpmRatioPattern = PpmRatioPattern(client, 'nupl')
         self.profit: SeriesTree_Cohorts_Utxo_All_Unrealized_Profit = SeriesTree_Cohorts_Utxo_All_Unrealized_Profit(client)
         self.loss: SeriesTree_Cohorts_Utxo_All_Unrealized_Loss = SeriesTree_Cohorts_Utxo_All_Unrealized_Loss(client)
         self.net_pnl: SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl = SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl(client)
@@ -6705,7 +6705,7 @@ class SeriesTree_Cohorts_Utxo_Sth_Realized_Price:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'sth_realized_price')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'sth_realized_price_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'sth_realized_price_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'sth_realized_price_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'sth_realized_price_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'sth_realized_price_ratio')
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, 'sth_realized_price')
         self.sma: _1m1w1y2y4yAllPattern = _1m1w1y2y4yAllPattern(client, 'sth_realized_price_ratio_sma')
@@ -6836,7 +6836,7 @@ class SeriesTree_Cohorts_Utxo_Lth_Realized_Price:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'lth_realized_price')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'lth_realized_price_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'lth_realized_price_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'lth_realized_price_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'lth_realized_price_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'lth_realized_price_ratio')
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, 'lth_realized_price')
         self.sma: _1m1w1y2y4yAllPattern = _1m1w1y2y4yAllPattern(client, 'lth_realized_price_ratio_sma')
@@ -7072,7 +7072,7 @@ class SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'veteran_realized_price')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'veteran_realized_price_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'veteran_realized_price_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'veteran_realized_price_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'veteran_realized_price_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'veteran_realized_price_ratio')
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, 'veteran_realized_price')
         self.sma: _1m1w1y2y4yAllPattern = _1m1w1y2y4yAllPattern(client, 'veteran_realized_price_ratio_sma')
@@ -7203,7 +7203,7 @@ class SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price:
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, 'rookie_realized_price')
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'rookie_realized_price_cents')
         self.sats: SeriesPattern1[SatsFract] = SeriesPattern1(client, 'rookie_realized_price_sats')
-        self.raw: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'rookie_realized_price_ratio_ppm')
+        self.ppm: SeriesPattern1[PartsPerMillion64] = SeriesPattern1(client, 'rookie_realized_price_ratio_ppm')
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'rookie_realized_price_ratio')
         self.percentiles: Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern = Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, 'rookie_realized_price')
         self.sma: _1m1w1y2y4yAllPattern = _1m1w1y2y4yAllPattern(client, 'rookie_realized_price_ratio_sma')

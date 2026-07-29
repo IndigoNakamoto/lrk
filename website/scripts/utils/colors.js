@@ -152,6 +152,9 @@ export const colors = {
   active: palette.rose,
   activity: palette.purple,
   cointime: palette.yellow,
+  coinflow: palette.blue,
+  mobile: palette.rose,
+  immobile: palette.lime,
   destroyed: palette.red,
   created: palette.orange,
   stored: palette.green,
@@ -225,6 +228,28 @@ export const colors = {
     _2: palette.sky,
     _1: palette.blue,
     _0_5: palette.indigo,
+  },
+
+  bedrock: {
+    levels: [
+      palette.purple,
+      palette.violet,
+      palette.indigo,
+      palette.blue,
+      palette.sky,
+      palette.cyan,
+      palette.teal,
+      palette.emerald,
+      palette.green,
+      palette.lime,
+    ],
+    percentiles: [
+      palette.yellow,
+      palette.amber,
+      palette.orange,
+      palette.rose,
+      palette.red,
+    ],
   },
 
   // Standard deviation bands (warm = positive, cool = negative)

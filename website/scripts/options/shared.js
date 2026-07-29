@@ -364,6 +364,68 @@ export function exposedSubtree(exposed, key, title) {
 }
 
 /**
+ * Windowed reused/respent counts with sums and optional averages.
+ * @param {CountPattern<number>} reused
+ * @param {CountPattern<number>} respent
+ * @param {(name: string) => string} title
+ * @param {string} metric
+ * @returns {PartialOptionsTree}
+ */
+export function reusedCountTree(reused, respent, title, metric) {
+  return [
+    ...ROLLING_WINDOWS.map((window) => ({
+      name: window.name,
+      title: title(`${window.title} ${metric}`),
+      bottom: [
+        line({
+          series: reused.sum[window.key],
+          name: "2+ Funded",
+          unit: Unit.count,
+        }),
+        line({
+          series: respent.sum[window.key],
+          name: "2+ Spent",
+          color: colors.gray,
+          unit: Unit.count,
+        }),
+        line({
+          series: reused.average[window.key],
+          name: "2+ Funded Avg",
+          unit: Unit.count,
+          defaultActive: false,
+          style: 1,
+        }),
+        line({
+          series: respent.average[window.key],
+          name: "2+ Spent Avg",
+          color: colors.gray,
+          unit: Unit.count,
+          defaultActive: false,
+          style: 1,
+        }),
+      ],
+    })),
+    {
+      name: "Cumulative",
+      title: title(`Cumulative ${metric}`),
+      bottom: [
+        line({
+          series: reused.cumulative,
+          name: "2+ Funded",
+          unit: Unit.count,
+        }),
+        line({
+          series: respent.cumulative,
+          name: "2+ Spent",
+          color: colors.gray,
+          unit: Unit.count,
+        }),
+      ],
+    },
+  ];
+}
+
+/**
  * "Reused" subtree (per-type / per-cohort, no "Active" window since that
  * data is only tracked globally). Respent (addresses whose outputs have
  * been spent more than once) is a subset of reused, so each chart layers
@@ -376,42 +438,6 @@ export function exposedSubtree(exposed, key, title) {
  * @returns {PartialOptionsGroup}
  */
 export function reusedSubtree(reused, respent, key, title) {
-  /**
-   * Windowed sums + cumulative, overlaying reused (primary) and respent (gray).
-   * @param {CountPattern<number>} reusedPattern
-   * @param {CountPattern<number>} respentPattern
-   * @param {string} metric
-   * @returns {PartialOptionsTree}
-   */
-  const countPair = (reusedPattern, respentPattern, metric) => [
-    ...ROLLING_WINDOWS.map((w) => ({
-      name: w.name,
-      title: title(`${w.title} ${metric}`),
-      bottom: [
-        line({ series: reusedPattern.sum[w.key], name: "2+ Funded", unit: Unit.count }),
-        line({
-          series: respentPattern.sum[w.key],
-          name: "2+ Spent",
-          color: colors.gray,
-          unit: Unit.count,
-        }),
-      ],
-    })),
-    {
-      name: "Cumulative",
-      title: title(`Cumulative ${metric}`),
-      bottom: [
-        line({ series: reusedPattern.cumulative, name: "2+ Funded", unit: Unit.count }),
-        line({
-          series: respentPattern.cumulative,
-          name: "2+ Spent",
-          color: colors.gray,
-          unit: Unit.count,
-        }),
-      ],
-    },
-  ];
-
   return {
     name: "Reused",
     tree: [
@@ -446,9 +472,10 @@ export function reusedSubtree(reused, respent, key, title) {
         tree: [
           {
             name: "Count",
-            tree: countPair(
+            tree: reusedCountTree(
               reused.events.outputToReusedAddrCount[key],
               respent.events.outputToReusedAddrCount[key],
+              title,
               "Transaction Outputs to Reused Addresses",
             ),
           },
@@ -477,9 +504,10 @@ export function reusedSubtree(reused, respent, key, title) {
         tree: [
           {
             name: "Count",
-            tree: countPair(
+            tree: reusedCountTree(
               reused.events.inputFromReusedAddrCount[key],
               respent.events.inputFromReusedAddrCount[key],
+              title,
               "Transaction Inputs from Reused Addresses",
             ),
           },
@@ -645,14 +673,17 @@ export function priceBands(bands, opts) {
   );
 }
 
-/** @param {{ name: string, prop: AnySeriesPattern, color: Color }[]} bands */
-function ratioBands(bands) {
+/**
+ * @param {{ name: string, prop: AnySeriesPattern, color: Color }[]} bands
+ * @param {{ defaultActive?: boolean }} [opts]
+ */
+function ratioBands(bands, opts) {
   return bands.map(({ name, prop, color }) =>
     line({
       series: prop,
       name,
       color,
-      defaultActive: false,
+      defaultActive: opts?.defaultActive ?? false,
       unit: Unit.ratio,
       options: { lineStyle: 1 },
     }),
@@ -668,6 +699,7 @@ function ratioBands(bands) {
  * @param {Color} [args.color]
  * @param {string} [args.ratioTitle]
  * @param {FetchedPriceSeriesBlueprint[]} [args.priceReferences]
+ * @param {boolean} [args.defaultActivePercentiles]
  * @returns {PartialOptionsTree}
  */
 export function priceRatioPercentilesTree({
@@ -677,6 +709,7 @@ export function priceRatioPercentilesTree({
   color,
   ratioTitle,
   priceReferences,
+  defaultActivePercentiles,
 }) {
   const p = pattern.percentiles;
   const pctUsd = percentileBandsWith(p, (e) => e.price);
@@ -688,7 +721,7 @@ export function priceRatioPercentilesTree({
       top: [
         price({ series: pattern, name: legend, color }),
         ...(priceReferences ?? []),
-        ...priceBands(pctUsd),
+        ...priceBands(pctUsd, { defaultActive: defaultActivePercentiles }),
       ],
     },
     {
@@ -696,7 +729,7 @@ export function priceRatioPercentilesTree({
       title: ratioTitle ?? `${title} Ratio`,
       top: [
         price({ series: pattern, name: legend, color }),
-        ...priceBands(pctUsd),
+        ...priceBands(pctUsd, { defaultActive: defaultActivePercentiles }),
       ],
       bottom: [
         baseline({
@@ -705,7 +738,7 @@ export function priceRatioPercentilesTree({
           unit: Unit.ratio,
           base: 1,
         }),
-        ...ratioBands(pctRatio),
+        ...ratioBands(pctRatio, { defaultActive: defaultActivePercentiles }),
       ],
     },
   ];

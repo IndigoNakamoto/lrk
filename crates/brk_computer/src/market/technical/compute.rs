@@ -62,7 +62,7 @@ impl Vecs {
         }
 
         self.pi_cycle
-            .raw
+            .ppm
             .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
                 starting_height,
                 &moving_average.sma._111d.usd.height,

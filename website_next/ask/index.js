@@ -328,6 +328,7 @@ export function createAskPage() {
       const {
         output,
         artifacts = [],
+        capability,
         metricPaths,
         apiContext,
         sourceContext,
@@ -369,6 +370,7 @@ export function createAskPage() {
             content: response,
             elapsedMs,
             steps,
+            capability,
             metricPaths,
             ...(apiContext ? { apiContext } : {}),
             ...(sourceContext?.length ? { sourceContext } : {}),

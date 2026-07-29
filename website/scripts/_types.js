@@ -42,7 +42,7 @@
  * @typedef {Brk.BtcCentsSatsUsdPattern} SupplyPattern
  * @typedef {Brk.AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern} BlockSizePattern
  * @typedef {keyof Brk.SeriesTree_Cohorts_Utxo_Type} SpendableType
- * @typedef {Brk.SpendingSpentUnspentPattern} OutputsPattern
+ * @typedef {Brk.SpentUnspentUtxoPattern} OutputsPattern
  * @typedef {keyof Brk.SeriesTree_Addrs_Raw} AddressableType
  *
  * Brk pattern types (using new pattern names)
@@ -69,11 +69,11 @@
  * @typedef {Brk.MempoolBlock} MempoolBlock
  * @typedef {Brk.NextBlockHash} NextBlockHash
  * ActivePriceRatioPattern: ratio pattern with price (extended)
- * @typedef {Brk.BpsPriceRatioPattern} ActivePriceRatioPattern
+ * @typedef {Brk.PriceRatioPattern} ActivePriceRatioPattern
  * PriceRatioPercentilesPattern: price pattern with ratio + percentiles (no SMAs/stdDev)
- * @typedef {Brk.BpsCentsPercentilesRatioSatsUsdPattern} PriceRatioPercentilesPattern
+ * @typedef {Brk.CentsPercentilesPpmRatioSatsUsdPattern} PriceRatioPercentilesPattern
  * AnyRatioPattern: full ratio pattern with percentiles, SMAs, and std dev bands
- * @typedef {Brk.BpsCentsPercentilesRatioSatsSmaStdUsdPattern} AnyRatioPattern
+ * @typedef {Brk.CentsPercentilesPpmRatioSatsSmaStdUsdPattern} AnyRatioPattern
  * FullValuePattern: block + cumulative + sum + average rolling windows (sats/btc/cents/usd)
  * @typedef {Brk.AverageBlockCumulativeSumPattern3} FullValuePattern
  * RollingWindowSlot: a single rolling window with stats (pct10, pct25, median, pct75, pct90, max, min) per unit
@@ -92,6 +92,7 @@
  *
  * Realized pattern (full: cap + gross + capitalized + loss + mvrv + net + peak + price + profit + sell + sopr)
  * @typedef {Brk.CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern} RealizedPattern
+ * @typedef {Omit<RealizedPattern, "sopr">} FullRealizedProfitabilityPattern
  *
  * Transfer volume pattern (block + cumulative + inProfit/inLoss + sum windows)
  * @typedef {Brk.AverageBlockCumulativeInSumPattern} TransferVolumePattern
@@ -103,14 +104,14 @@
  * @typedef {Brk.CoindaysCoinyearsDormancyTransferPattern} FullActivityPattern
  *
  *
- * BPS + percent + ratio pattern
- * @typedef {Brk.BpsPercentRatioPattern2} PercentRatioPattern
+ * PPM + percent + ratio pattern
+ * @typedef {Brk.PercentPpmRatioPattern2} PercentRatioPattern
  *
  * Percent + ratio per window + cumulative (mirrors CountPattern but for percent)
- * @typedef {Brk._1m1w1y24hBpsPercentRatioPattern} PercentRatioCumulativePattern
+ * @typedef {Brk._1m1w1y24hPercentPpmRatioPattern} PercentRatioCumulativePattern
  *
- * BPS + ratio pattern (for NUPL and similar)
- * @typedef {Brk.BpsRatioPattern} NuplPattern
+ * PPM + ratio pattern (for NUPL and similar)
+ * @typedef {Brk.PpmRatioPattern} NuplPattern
  *
  * LTH realized tree
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_Lth_Realized} LthRealizedPattern
@@ -127,8 +128,8 @@
  * Basic realized pattern (cap + loss + MVRV + price + profit, no net/sopr)
  * @typedef {Brk.CapLossMvrvPriceProfitPattern} BasicRealizedPattern
  *
- * Moving average price ratio pattern (bps + cents + ratio + sats + usd)
- * @typedef {Brk.BpsCentsRatioSatsUsdPattern} MaPriceRatioPattern
+ * Moving average price ratio pattern (ppm + cents + ratio + sats + usd)
+ * @typedef {Brk.CentsPpmRatioSatsUsdPattern} MaPriceRatioPattern
  *
  * Address count pattern (base + delta with absolute + rate)
  * @typedef {Brk.BaseDeltaPattern} AddrCountPattern
@@ -189,7 +190,7 @@
  */
 /**
  * Dominance pattern: percent/ratio at top level + per rolling window
- * @typedef {Brk._1m1w1y24hBpsPercentRatioPattern} DominancePattern
+ * @typedef {Brk._1m1w1y24hPercentPpmRatioPattern} DominancePattern
  */
 
 /**
@@ -243,7 +244,7 @@
  * @typedef {{ name: string, title: string, color: Color, tree: PatternWithActivity }} CohortWithActivity
  * @typedef {{ name: string, title: string, color: Color, tree: PatternWithCostBasisPercentiles }} CohortWithCostBasisPercentiles
  *
- * Cohorts with nupl + percentiles (CohortFull and CohortLongTerm both have nupl and percentiles)
+ * Cohorts with full NUPL and cost-basis percentiles.
  * @typedef {CohortFull | CohortLongTerm} CohortWithNuplPercentiles
  * @typedef {{ name: string, title: string, list: readonly CohortWithNuplPercentiles[], all: CohortAll }} CohortGroupWithNuplPercentiles
  *
@@ -255,7 +256,7 @@
  *
  * Capitalized price percentiles (pct1/2/5/95/98/99)
  * @typedef {Brk.Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} CapitalizedPercentilesPattern
- * @typedef {Brk.BpsPriceRatioPattern} CapitalizedPercentileEntry
+ * @typedef {Brk.PriceRatioPattern} CapitalizedPercentileEntry
  *
  * Generic tree node type for walking
  * @typedef {AnySeriesPattern | Record<string, unknown>} TreeNode

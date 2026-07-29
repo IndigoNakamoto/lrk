@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Traversable)]
 pub struct RatioPerBlock<R: FixedRatio, M: StorageMode = Rw> {
-    pub raw: PerBlock<R, M>,
+    pub ppm: PerBlock<R, M>,
     pub ratio: LazyPerBlock<StoredF32, R>,
 }
 
@@ -24,10 +24,10 @@ impl<R: FixedRatio> RatioPerBlock<R> {
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        Self::forced_import_raw(db, &format!("{name}_ratio"), version, indexes)
+        Self::forced_import_ppm(db, &format!("{name}_ratio"), version, indexes)
     }
 
-    pub(crate) fn forced_import_raw(
+    pub(crate) fn forced_import_ppm(
         db: &Database,
         name: &str,
         version: Version,
@@ -35,16 +35,16 @@ impl<R: FixedRatio> RatioPerBlock<R> {
     ) -> Result<Self> {
         let v = version + VERSION;
 
-        let raw = PerBlock::forced_import(db, &format!("{name}_{}", R::SUFFIX), v, indexes)?;
+        let ppm = PerBlock::forced_import(db, &format!("{name}_{}", R::SUFFIX), v, indexes)?;
 
         let ratio = LazyPerBlock::from_computed::<R::ToRatio>(
             name,
             v,
-            raw.height.read_only_boxed_clone(),
-            &raw,
+            ppm.height.read_only_boxed_clone(),
+            &ppm,
         );
 
-        Ok(Self { raw, ratio })
+        Ok(Self { ppm, ratio })
     }
 
     pub(crate) fn compute_ratio(
@@ -54,7 +54,7 @@ impl<R: FixedRatio> RatioPerBlock<R> {
         series_price: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.raw.height.compute_transform2(
+        self.ppm.height.compute_transform2(
             starting_lengths.height,
             close_price,
             series_price,

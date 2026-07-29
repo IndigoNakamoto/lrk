@@ -10,12 +10,15 @@ import { normalize } from "../text.js";
 import {
   explicitArguments,
   hasRequiredArguments,
+  reusableArguments,
 } from "../api/routing.js";
 
 const MAX_METRICS = 5;
-const MAX_API = 4;
+const MAX_API = 6;
+const MAX_API_CANDIDATES = 64;
 const MAX_SOURCE = 6;
 const MAX_GUIDES = 2;
+const MAX_SOURCE_SCHEMA_QUERIES = 2;
 
 /** @param {string} value */
 function label(value) {
@@ -33,13 +36,90 @@ function unique(values, key) {
   });
 }
 
+/** @param {unknown} value */
+function searchTerms(value) {
+  return new Set(
+    normalize(value).split(" ").filter((term) => term.length >= 3),
+  );
+}
+
+/**
+ * Turn generated response-schema matches into source-level symbols. A nested
+ * response field already tells us both its owning Rust type and its field
+ * name, so source lookup can be precise without maintaining API-to-code maps.
+ *
+ * @param {string} question
+ * @param {import("../api/index.js").ApiOperation[]} operations
+ */
+export function schemaSourceQueries(question, operations) {
+  const query = searchTerms(question);
+  if (!query.size) return [];
+
+  const documents = operations.flatMap((operation) =>
+    operation.response.fields.map((field, index) => ({
+      operation,
+      field,
+      index,
+      names: searchTerms(field.name),
+      terms: searchTerms(
+        `${operation.summary} ${field.name} ${field.ownDescription}`,
+      ),
+    }))
+  );
+  const frequency = new Map();
+  for (const { terms } of documents) {
+    for (const term of terms) {
+      frequency.set(term, (frequency.get(term) ?? 0) + 1);
+    }
+  }
+  const candidates = documents.map(
+    ({ operation, field, index, names, terms }) => {
+      const matched = [...query].filter((term) => terms.has(term));
+      const named = matched.filter((term) => names.has(term)).length;
+      const parts = field.name.split(".");
+      const parentName = parts.slice(0, -1).join(".");
+      const parent = parentName
+        ? operation.response.fields.find(({ name }) => name === parentName)
+        : undefined;
+      const owner = parent?.type || operation.response.type;
+      const fieldName = parts.at(-1) ?? field.name;
+      return {
+        query: `${owner} ${fieldName}`,
+        matched: matched.length,
+        named,
+        specificity: matched.reduce((sum, term) =>
+          sum + Math.log(
+            (documents.length + 1) /
+              ((frequency.get(term) ?? documents.length) + 1),
+          ) + 1, 0),
+        rank: Number(operation.score ?? 0),
+        index,
+      };
+    },
+  )
+    .filter(({ matched, named }) => matched >= 2 && named > 0)
+    .sort((left, right) =>
+      right.specificity - left.specificity ||
+      right.matched - left.matched ||
+      right.rank - left.rank ||
+      left.index - right.index
+    );
+  const strongest = candidates[0]?.specificity ?? 0;
+  return unique(
+    candidates
+      .filter(({ specificity }) => specificity === strongest)
+      .map(({ query }) => query),
+    (query) => normalize(query),
+  ).slice(0, MAX_SOURCE_SCHEMA_QUERIES);
+}
+
 /** @param {any} metric */
 function acceptsMetric(metric) {
   return Number(metric.matchedTerms ?? 0) >= 2;
 }
 
-/** @param {any} operation @param {string} question */
-function acceptsApi(operation, question) {
+/** @param {any} operation @param {string} question @param {any} previous */
+function acceptsApi(operation, question, previous) {
   const specificity = Number(operation.specificity ?? 0);
   const required = operation.parameters.some(
     (/** @type {any} */ parameter) => parameter.required,
@@ -48,8 +128,11 @@ function acceptsApi(operation, question) {
     return Number(operation.titleMatchedTerms ?? 0) > 0 &&
       specificity >= 2.5;
   }
-  return specificity >= 1.5 &&
-    hasRequiredArguments(operation, explicitArguments(operation, question));
+  return Number(operation.titleMatchedTerms ?? 0) > 0 &&
+    (
+      hasRequiredArguments(operation, explicitArguments(operation, question)) ||
+      Boolean(reusableArguments(operation, previous))
+    );
 }
 
 /** @param {any} match */
@@ -107,7 +190,7 @@ export async function collectEvidence({
     ),
     searchApi(
       [question],
-      MAX_API,
+      MAX_API_CANDIDATES,
       () => onStatus("Indexing API…"),
     ),
     searchLearn(question, MAX_GUIDES),
@@ -133,13 +216,16 @@ export async function collectEvidence({
       origin: explicit ? "mentioned" : "search",
     };
   });
-  const variantMetrics = (await Promise.all(
+  const variantResults = await Promise.all(
     context.metrics.map((/** @type {any} */ metric) =>
       metricVariants(metric, question)
-    ),
-  )).flatMap((variants) =>
+    )
+  );
+  const variantMetrics = variantResults.flatMap((variants) =>
     variants?.series
-      .filter((/** @type {any} */ { matchedTerms }) => matchedTerms > 0)
+      .filter((/** @type {any} */ { specificity }) =>
+        Number(specificity ?? 0) >= 3
+      )
       .map((/** @type {any} */ metric) => {
         const name = label(metric.name);
         const selector = label(metric.selector);
@@ -152,6 +238,11 @@ export async function collectEvidence({
         };
       }) ?? []
   );
+  const variantMiss = context.metrics.length > 0 &&
+    variantResults.some(Boolean) &&
+    variantMetrics.length === 0 &&
+    !linkedMetrics.some(({ origin }) => origin === "mentioned") &&
+    foundMetrics.some(acceptsMetric);
 
   const metrics = unique(
     [
@@ -173,7 +264,16 @@ export async function collectEvidence({
   const api = unique(
     [
       ...(context.api ? [context.api.operation] : []),
-      ...foundApi.filter((operation) => acceptsApi(operation, question)),
+      ...foundApi
+        .filter((operation) => acceptsApi(operation, question, context.api))
+        .sort((left, right) =>
+          Number(right.titleMatchedTerms ?? 0) -
+            Number(left.titleMatchedTerms ?? 0) ||
+          right.response.fields.length - left.response.fields.length ||
+          Number(right.matchedTerms ?? 0) -
+            Number(left.matchedTerms ?? 0) ||
+          Number(right.score ?? 0) - Number(left.score ?? 0)
+        ),
     ],
     (operation) => operation.key,
   ).slice(0, MAX_API);
@@ -222,9 +322,11 @@ export async function collectEvidence({
   return {
     metricOptions,
     apiOptions,
+    apiCandidates: foundApi,
     sourceOptions,
     guideOptions,
     context,
+    variantMiss,
   };
 }
 
@@ -250,6 +352,10 @@ export async function collectSourceOptions({
   const metricSubject = metric
     ? await sourceMetricSubject(metric)
     : undefined;
+  const schemaQueries = schemaSourceQueries(
+    question,
+    evidence.apiCandidates ?? [],
+  );
   const queries = [
     ...(metricSubject
       ? [{
@@ -260,6 +366,10 @@ export async function collectSourceOptions({
           focus: /** @type {const} */ ("implementation"),
         }]
       : []),
+    ...schemaQueries.map((query) => ({
+      query,
+      focus: /** @type {const} */ ("implementation"),
+    })),
     { query: question, focus: undefined },
   ].filter((value, index, values) =>
     values.findIndex((candidate) =>

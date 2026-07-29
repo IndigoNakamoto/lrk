@@ -50,6 +50,7 @@ export async function loadSessionContext(history, onProgress) {
 
   return {
     ...(chart ? { chart } : {}),
+    ...(message.capability ? { capability: message.capability } : {}),
     metrics: metrics.filter(({ path }) => activePaths.includes(path)),
     recentMetrics: metrics.filter(({ path }) => recentPaths.includes(path)),
     ...(operation

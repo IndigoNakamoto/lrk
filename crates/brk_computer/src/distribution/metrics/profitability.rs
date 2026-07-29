@@ -90,7 +90,7 @@ impl ProfitabilityBucket {
                     indexes,
                 )?,
             },
-            nupl: RatioPerBlock::forced_import_raw(
+            nupl: RatioPerBlock::forced_import_ppm(
                 db,
                 &format!("{name}_nupl"),
                 version + Version::ONE,
@@ -152,7 +152,7 @@ impl ProfitabilityBucket {
             exit,
         )?;
 
-        self.nupl.raw.height.compute_transform3(
+        self.nupl.ppm.height.compute_transform3(
             max_from,
             &prices.spot.cents.height,
             &self.realized_cap.all.height,
@@ -230,7 +230,7 @@ impl ProfitabilityBucket {
             &mut self.realized_cap.sth.height,
             &mut self.unrealized_pnl.all.height,
             &mut self.unrealized_pnl.sth.height,
-            &mut self.nupl.raw.height,
+            &mut self.nupl.ppm.height,
         ]
     }
 }

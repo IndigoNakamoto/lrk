@@ -17,7 +17,7 @@ import {
   ROLLING_WINDOWS,
   ROLLING_WINDOWS_TO_1M,
 } from "./series.js";
-import { simplePriceRatioTree, percentileBands, priceBands } from "./shared.js";
+import { simplePriceRatioTree } from "./shared.js";
 
 /**
  * @typedef {Object} Period
@@ -921,47 +921,6 @@ export function createMarketSection() {
       {
         name: "Indicators",
         tree: [
-          {
-            name: "Rarity Meter",
-            tree: /** @type {const} */ ([
-              { key: "full", name: "Full", title: "Rarity Meter" },
-              { key: "local", name: "Local", title: "Local Rarity Meter" },
-              { key: "cycle", name: "Cycle", title: "Cycle Rarity Meter" },
-            ]).map((v) => {
-              const m = indicators.rarityMeter[v.key];
-              return {
-                name: v.name,
-                title: v.title,
-                top: priceBands(percentileBands(m), { defaultActive: true }),
-                bottom: [
-                  histogram({
-                    series: m.index,
-                    name: "Index",
-                    unit: Unit.count,
-                    colorFn: (v) =>
-                      /** @type {const} */ ([
-                        colors.ratioPct._0_5,
-                        colors.ratioPct._1,
-                        colors.ratioPct._2,
-                        colors.ratioPct._5,
-                        colors.transparent,
-                        colors.ratioPct._95,
-                        colors.ratioPct._98,
-                        colors.ratioPct._99,
-                        colors.ratioPct._99_5,
-                      ])[v + 4],
-                  }),
-                  baseline({
-                    series: m.score,
-                    name: "Score",
-                    unit: Unit.count,
-                    color: [colors.ratioPct._99, colors.ratioPct._1],
-                    defaultActive: false,
-                  }),
-                ],
-              };
-            }),
-          },
           {
             name: "NVT",
             title: "NVT Ratio",

@@ -24,7 +24,7 @@ impl<B: FixedRatio> RatioRollingWindows<B> {
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         Ok(Self(Windows::try_from_fn(|suffix| {
-            RatioPerBlock::forced_import_raw(db, &format!("{name}_{suffix}"), version, indexes)
+            RatioPerBlock::forced_import_ppm(db, &format!("{name}_{suffix}"), version, indexes)
         })?))
     }
 
@@ -50,7 +50,7 @@ impl<B: FixedRatio> RatioRollingWindows<B> {
             .zip(sources2)
         {
             target
-                .raw
+                .ppm
                 .compute_binary::<S1T, S2T, F>(max_from, s1, s2, exit)?;
         }
         Ok(())

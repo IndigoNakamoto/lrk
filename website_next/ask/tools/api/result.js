@@ -1,4 +1,4 @@
-/** @param {unknown} value */
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -17,16 +17,21 @@ function equalValue(left, right) {
  * @param {Record<string, unknown>} [arguments_]
  */
 export function focusApiData(data, arguments_ = {}) {
-  if (!Array.isArray(data)) return data;
-  if (data.length === 1) return data[0];
+  const page = isObject(data) &&
+      typeof data.count === "number" &&
+      Array.isArray(data.sample)
+    ? data.sample
+    : data;
+  if (!Array.isArray(page)) return page;
+  if (page.length === 1) return page[0];
 
   const supplied = Object.entries(arguments_);
-  if (!supplied.length) return data;
-  const matches = data.filter((item) =>
+  if (!supplied.length) return page;
+  const matches = page.filter((item) =>
     isObject(item) &&
     supplied.every(([name, value]) =>
       Object.hasOwn(item, name) && equalValue(item[name], value)
     )
   );
-  return matches.length === 1 ? matches[0] : data;
+  return matches.length === 1 ? matches[0] : page;
 }

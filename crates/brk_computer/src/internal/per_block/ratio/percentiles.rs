@@ -53,7 +53,7 @@ impl RatioPerBlockPercentiles {
 
         macro_rules! import_ratio {
             ($suffix:expr) => {
-                RatioPerBlock::forced_import_raw(db, &format!("{name}_{}", $suffix), v, indexes)?
+                RatioPerBlock::forced_import_ppm(db, &format!("{name}_{}", $suffix), v, indexes)?
             };
         }
 
@@ -120,14 +120,14 @@ impl RatioPerBlockPercentiles {
 
             let new_ratios = ratio_source.collect_range_at(start, ratio_len);
             let mut pct_vecs: [&mut EagerVec<PcoVec<Height, PartsPerMillion32>>; 8] = [
-                &mut self.pct0_5.ratio.raw.height,
-                &mut self.pct1.ratio.raw.height,
-                &mut self.pct2.ratio.raw.height,
-                &mut self.pct5.ratio.raw.height,
-                &mut self.pct95.ratio.raw.height,
-                &mut self.pct98.ratio.raw.height,
-                &mut self.pct99.ratio.raw.height,
-                &mut self.pct99_5.ratio.raw.height,
+                &mut self.pct0_5.ratio.ppm.height,
+                &mut self.pct1.ratio.ppm.height,
+                &mut self.pct2.ratio.ppm.height,
+                &mut self.pct5.ratio.ppm.height,
+                &mut self.pct95.ratio.ppm.height,
+                &mut self.pct98.ratio.ppm.height,
+                &mut self.pct99.ratio.ppm.height,
+                &mut self.pct99_5.ratio.ppm.height,
             ];
             const PCTS: [f64; 8] = [0.005, 0.01, 0.02, 0.05, 0.95, 0.98, 0.99, 0.995];
             let mut out = [0.0; 8];
@@ -162,7 +162,7 @@ impl RatioPerBlockPercentiles {
                     .compute_binary::<Cents, PartsPerMillion32, PriceTimesRatio<PartsPerMillion32>>(
                         starting_lengths.height,
                         series_price,
-                        &self.$band.ratio.raw.height,
+                        &self.$band.ratio.ppm.height,
                         exit,
                     )?;
             };
@@ -184,14 +184,14 @@ impl RatioPerBlockPercentiles {
         &mut self,
     ) -> impl Iterator<Item = &mut EagerVec<PcoVec<Height, PartsPerMillion32>>> {
         [
-            &mut self.pct0_5.ratio.raw.height,
-            &mut self.pct1.ratio.raw.height,
-            &mut self.pct2.ratio.raw.height,
-            &mut self.pct5.ratio.raw.height,
-            &mut self.pct95.ratio.raw.height,
-            &mut self.pct98.ratio.raw.height,
-            &mut self.pct99.ratio.raw.height,
-            &mut self.pct99_5.ratio.raw.height,
+            &mut self.pct0_5.ratio.ppm.height,
+            &mut self.pct1.ratio.ppm.height,
+            &mut self.pct2.ratio.ppm.height,
+            &mut self.pct5.ratio.ppm.height,
+            &mut self.pct95.ratio.ppm.height,
+            &mut self.pct98.ratio.ppm.height,
+            &mut self.pct99.ratio.ppm.height,
+            &mut self.pct99_5.ratio.ppm.height,
         ]
         .into_iter()
     }

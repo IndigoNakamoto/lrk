@@ -31,8 +31,8 @@ function schemaTokens(values) {
 }
 
 /** @param {Set<string>} query @param {Set<string>} document */
-function overlaps(query, document) {
-  return [...query].some((token) => document.has(token));
+function overlapCount(query, document) {
+  return [...query].filter((token) => document.has(token)).length;
 }
 
 export class AskToolSession {
@@ -107,7 +107,8 @@ export class AskToolSession {
                     ? "source"
                     : context.knowledge
                       ? "general"
-                      : undefined,
+                    : undefined,
+            previousCapability: context.capability,
             ...(context.chart
               ? {
                   activeChart: {
@@ -186,8 +187,47 @@ export class AskToolSession {
 
   directRoute() {
     if (!this.evidence) return undefined;
+    if (this.evidence.variantMiss) {
+      const metric = this.evidence.context.metrics[0];
+      return {
+        action: "clarify",
+        call: {
+          name: "clarify",
+          arguments: {
+            question: `I could not find a matching variant of ${
+              normalize(metric?.name ?? "the active metric").replaceAll("_", " ")
+            }. Which available cohort or variant should I use?`,
+          },
+        },
+      };
+    }
+    const action = directAction(this.evidence, this.question);
+    if (action === "search_source") {
+      if (this.evidence.context.source.length) return undefined;
+      return {
+        action,
+        call: {
+          name: action,
+          arguments: { query: this.question },
+        },
+      };
+    }
+    if (action) {
+      return {
+        action,
+        call: this.directCall(action),
+      };
+    }
+    if (
+      this.evidence.context.metrics.length ||
+      this.evidence.context.chart
+    ) {
+      return undefined;
+    }
+
     const query = schemaTokens([this.question]);
     const contextKey = this.evidence.context.api?.operation.key;
+    const apiMatches = [];
     for (const { ref, operation } of this.evidence.apiOptions) {
       const required = schemaTokens(
         operation.parameters
@@ -203,44 +243,56 @@ export class AskToolSession {
           field.description,
         ]),
       );
-      const fieldMatch = overlaps(query, returned);
-      const suppliedResource = required.size > 0 && overlaps(query, required);
+      const fieldMatches = overlapCount(query, returned);
+      const suppliedResource = required.size > 0 &&
+        overlapCount(query, required) > 0;
+      const inheritedResource = reusableArguments(
+        operation,
+        this.evidence.context.api,
+      );
       if (
-        fieldMatch &&
-        (suppliedResource || operation.key === contextKey)
+        fieldMatches > 0 &&
+        (suppliedResource || inheritedResource || operation.key === contextKey)
       ) {
-        return {
+        apiMatches.push({
+          score: fieldMatches,
           action: "call_api",
           call: {
             name: "call_api",
             arguments: { ref },
           },
-        };
+        });
       }
     }
-    const action = directAction(this.evidence, this.question);
-    if (action === "search_source") {
-      return {
-        action,
-        call: {
-          name: action,
-          arguments: { query: this.question },
-        },
-      };
+    apiMatches.sort((left, right) => right.score - left.score);
+    if (
+      apiMatches[0] &&
+      apiMatches[0].score > (apiMatches[1]?.score ?? 0)
+    ) {
+      return apiMatches[0];
     }
-    if (action) {
-      return {
-        action,
-        call: this.directCall(action),
-      };
-    }
-    return undefined;
+
+    const supplied = this.evidence.apiOptions.find(({ operation }) =>
+      hasRequiredArguments(
+        operation,
+        explicitArguments(operation, this.question),
+      )
+    );
+    return supplied
+      ? {
+          action: "call_api",
+          call: {
+            name: "call_api",
+            arguments: { ref: supplied.ref },
+          },
+        }
+      : undefined;
   }
 
   /** @param {string} action @param {(status: string) => void} onStatus */
   async prepareAction(action, onStatus) {
     if (
-      action !== "explain_evidence" ||
+      action !== "explain_metric_calculation" ||
       !this.evidence ||
       !this.refs
     ) return;
@@ -318,7 +370,7 @@ export class AskToolSession {
       };
     }
 
-    if (action === "list_metric_variants") {
+    if (action === "list_metric_cohorts_variants") {
       const variants = evidence.metricOptions.filter(
         ({ origin }) => origin === "variant",
       );
@@ -355,7 +407,7 @@ export class AskToolSession {
       }
     }
 
-    if (action !== "explain_evidence") return undefined;
+    if (action !== "explain_metric_calculation") return undefined;
     const { context, metricOptions, sourceOptions, guideOptions } = evidence;
     const contextual = context.metrics[0]
       ? metricOptions.find(({ metric }) =>
@@ -403,9 +455,9 @@ export class AskToolSession {
       "add_chart_series",
       "remove_chart_series",
       "replace_chart_series",
-      "list_metric_variants",
+      "list_metric_cohorts_variants",
       "select_metric_variant",
-      "explain_evidence",
+      "explain_metric_calculation",
     ].includes(action)) {
       evidence.metrics = actionMetrics.map(
         (/** @type {any} */ { ref, label, metric, origin }) => ({
@@ -421,7 +473,7 @@ export class AskToolSession {
         }),
       );
     }
-    if (action === "explain_evidence" || action === "search_source") {
+    if (action === "explain_metric_calculation" || action === "search_source") {
       evidence.source = sourceOptions.map(
         (/** @type {any} */ { ref, source }) => ({
         ref,

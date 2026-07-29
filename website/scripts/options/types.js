@@ -93,7 +93,7 @@
  * @typedef {Object} PartialChartOptionSpecific
  * @property {"chart"} [kind]
  * @property {string} title
- * @property {FetchedPriceSeriesBlueprint[]} [top]
+ * @property {(FetchedPriceSeriesBlueprint | AnyFetchedSeriesBlueprint)[]} [top]
  * @property {AnyFetchedSeriesBlueprint[]} [bottom]
  *
  * @typedef {PartialOption & PartialChartOptionSpecific} PartialChartOption

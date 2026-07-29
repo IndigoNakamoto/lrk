@@ -43,6 +43,7 @@ const CHART_COLORS = new Set([
  * @property {number} [elapsedMs]
  * @property {StoredResponseStep[]} [steps]
  * @property {StoredArtifact[]} [artifacts]
+ * @property {string} [capability]
  * @property {string[]} [metricPaths]
  * @property {ApiContext} [apiContext]
  * @property {SourceContext[]} [sourceContext]
@@ -276,6 +277,11 @@ function readMessage(value) {
       )
     : [];
   const rawMetricPaths = message.metricPaths;
+  const capability =
+    typeof message.capability === "string" &&
+      /^[a-z][a-z0-9_]{0,63}$/.test(message.capability)
+      ? message.capability
+      : undefined;
   const hasMetricPaths = Array.isArray(rawMetricPaths);
   const metricPaths = hasMetricPaths
     ? [...new Set(/** @type {string[]} */ (rawMetricPaths.filter(
@@ -295,6 +301,7 @@ function readMessage(value) {
     ...(elapsedMs !== undefined ? { elapsedMs } : {}),
     ...(steps.length ? { steps } : {}),
     ...(artifacts.length ? { artifacts } : {}),
+    ...(capability ? { capability } : {}),
     ...(hasMetricPaths ? { metricPaths } : {}),
     ...(apiContext ? { apiContext } : {}),
     ...(sourceContext.length ? { sourceContext } : {}),

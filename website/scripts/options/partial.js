@@ -24,7 +24,10 @@ import {
 import { createMarketSection } from "./market.js";
 import { createNetworkSection } from "./network.js";
 import { createMiningSection } from "./mining.js";
-import { createCointimeSection } from "./cointime.js";
+import { createCointimeSection } from "./frameworks/cointime/index.js";
+import { createCoinflowSection } from "./frameworks/coinflow.js";
+import { createBedrockSection } from "./models/bedrock.js";
+import { createRarityMeterSection } from "./models/rarity-meter.js";
 import { createInvestingSection } from "./investing.js";
 import {
   oracleOutputsHeatmapOption,
@@ -316,7 +319,12 @@ export function createPartialOptions() {
 
         {
           name: "Frameworks",
-          tree: [createCointimeSection()],
+          tree: [createCointimeSection(), createCoinflowSection()],
+        },
+
+        {
+          name: "Models",
+          tree: [createRarityMeterSection(), createBedrockSection()],
         },
       ],
     },
