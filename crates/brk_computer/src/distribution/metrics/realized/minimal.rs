@@ -61,22 +61,22 @@ impl RealizedMinimal {
             .cents
             .height
             .len()
-            .min(self.profit.block.cents.len())
-            .min(self.loss.block.cents.len())
+            .min(self.profit.cumulative.cents.height.len())
+            .min(self.loss.cumulative.cents.height.len())
     }
 
     #[inline(always)]
     pub(crate) fn push_state(&mut self, state: &CohortState<impl RealizedOps, impl CostBasisOps>) {
         self.cap.cents.height.push(state.realized.cap());
-        self.profit.block.cents.push(state.realized.profit());
-        self.loss.block.cents.push(state.realized.loss());
+        self.profit.push_block(state.realized.profit());
+        self.loss.push_block(state.realized.loss());
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         vec![
             &mut self.cap.cents.height as &mut dyn AnyStoredVec,
-            &mut self.profit.block.cents,
-            &mut self.loss.block.cents,
+            self.profit.stored_mut(),
+            self.loss.stored_mut(),
         ]
     }
 
@@ -87,18 +87,16 @@ impl RealizedMinimal {
         exit: &Exit,
     ) -> Result<()> {
         sum_others!(self, starting_lengths, others, exit; cap.cents.height);
-        sum_others!(self, starting_lengths, others, exit; profit.block.cents);
-        sum_others!(self, starting_lengths, others, exit; loss.block.cents);
-        Ok(())
-    }
-
-    pub(crate) fn compute_rest_part1(
-        &mut self,
-        starting_lengths: &Lengths,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.profit.compute_rest(starting_lengths.height, exit)?;
-        self.loss.compute_rest(starting_lengths.height, exit)?;
+        self.profit.compute_sum_of_others(
+            starting_lengths.height,
+            &others.iter().map(|v| &v.profit).collect::<Vec<_>>(),
+            exit,
+        )?;
+        self.loss.compute_sum_of_others(
+            starting_lengths.height,
+            &others.iter().map(|v| &v.loss).collect::<Vec<_>>(),
+            exit,
+        )?;
         Ok(())
     }
 

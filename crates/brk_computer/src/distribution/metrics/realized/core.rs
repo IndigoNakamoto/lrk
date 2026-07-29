@@ -142,22 +142,13 @@ impl RealizedCore {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.minimal.compute_rest_part1(starting_lengths, exit)?;
-
-        self.net_pnl.block.cents.compute_transform2(
+        self.net_pnl.compute_from_cumulative_pair(
             starting_lengths.height,
-            &self.minimal.profit.block.cents,
-            &self.minimal.loss.block.cents,
-            |(i, profit, loss, ..)| {
-                (
-                    i,
-                    CentsSigned::new(profit.inner() as i64 - loss.inner() as i64),
-                )
-            },
+            &self.minimal.profit.cumulative.cents.height,
+            &self.minimal.loss.cumulative.cents.height,
+            |_, profit, loss| CentsSigned::new(profit.inner() as i64 - loss.inner() as i64),
             exit,
-        )?;
-
-        Ok(())
+        )
     }
 
     pub(crate) fn compute_rest_part2(
@@ -170,8 +161,6 @@ impl RealizedCore {
     ) -> Result<()> {
         self.minimal
             .compute_rest_part2(prices, starting_lengths, height_to_supply, exit)?;
-
-        self.net_pnl.compute_rest(starting_lengths.height, exit)?;
 
         self.sopr
             .ratio

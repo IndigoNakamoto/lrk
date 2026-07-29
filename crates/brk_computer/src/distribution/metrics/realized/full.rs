@@ -128,7 +128,7 @@ impl RealizedFull {
             .len()
             .min(self.cap_raw.len())
             .min(self.capitalized.cap_raw.len())
-            .min(self.peak_regret.value.block.cents.len())
+            .min(self.peak_regret.value.cumulative.cents.height.len())
     }
 
     #[inline(always)]
@@ -148,9 +148,7 @@ impl RealizedFull {
             .push(state.realized.capitalized_cap_raw());
         self.peak_regret
             .value
-            .block
-            .cents
-            .push(state.realized.peak_regret());
+            .push_block(state.realized.peak_regret());
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
@@ -158,7 +156,7 @@ impl RealizedFull {
         vecs.push(&mut self.capitalized.price.cents.height);
         vecs.push(&mut self.cap_raw as &mut dyn AnyStoredVec);
         vecs.push(&mut self.capitalized.cap_raw as &mut dyn AnyStoredVec);
-        vecs.push(&mut self.peak_regret.value.block.cents);
+        vecs.push(self.peak_regret.value.stored_mut());
         vecs
     }
 
@@ -169,9 +167,7 @@ impl RealizedFull {
         exit: &Exit,
     ) -> Result<()> {
         self.core
-            .compute_from_stateful(starting_lengths, others, exit)?;
-
-        Ok(())
+            .compute_from_stateful(starting_lengths, others, exit)
     }
 
     #[inline(always)]
@@ -189,7 +185,7 @@ impl RealizedFull {
         };
         self.capitalized.price.cents.height.push(capitalized_price);
 
-        self.peak_regret.value.block.cents.push(accum.peak_regret());
+        self.peak_regret.value.push_block(accum.peak_regret());
 
         capitalized_price
     }
@@ -199,12 +195,7 @@ impl RealizedFull {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.core.compute_rest_part1(starting_lengths, exit)?;
-
-        self.peak_regret
-            .value
-            .compute_rest(starting_lengths.height, exit)?;
-        Ok(())
+        self.core.compute_rest_part1(starting_lengths, exit)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -243,13 +234,13 @@ impl RealizedFull {
         }
 
         // Gross PnL
-        self.gross_pnl.block.cents.compute_add(
+        self.gross_pnl.compute_from_cumulative_pair(
             starting_lengths.height,
-            &self.core.minimal.profit.block.cents,
-            &self.core.minimal.loss.block.cents,
+            &self.core.minimal.profit.cumulative.cents.height,
+            &self.core.minimal.loss.cumulative.cents.height,
+            |_, profit, loss| profit + loss,
             exit,
         )?;
-        self.gross_pnl.compute_rest(starting_lengths.height, exit)?;
 
         // Net PnL 1m change relative to rcap and mcap
         self.net_pnl

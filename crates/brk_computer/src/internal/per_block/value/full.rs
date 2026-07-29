@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, Sats, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{Database, EagerVec, Exit, PcoVec, Rw, StorageMode};
+use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode, VecIndex, VecValue};
 
 use crate::{
     indexes,
@@ -45,18 +45,39 @@ impl ValuePerBlockFull {
         })
     }
 
-    pub(crate) fn compute(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn compute_from_indexes<A, B>(
         &mut self,
         max_from: Height,
         windows: &WindowStarts<'_>,
         prices: &price::Vecs,
+        first_indexes: &impl ReadableVec<Height, A>,
+        indexes_count: &impl ReadableVec<Height, B>,
+        source: &impl ReadableVec<A, Sats>,
         exit: &Exit,
-        compute_sats: impl FnOnce(&mut EagerVec<PcoVec<Height, Sats>>) -> Result<()>,
+    ) -> Result<()>
+    where
+        A: VecIndex + VecValue,
+        B: VecValue,
+        usize: From<B>,
+    {
+        self.inner.compute_from_indexes(
+            max_from,
+            prices,
+            first_indexes,
+            indexes_count,
+            source,
+            exit,
+        )?;
+        self.compute_distribution(max_from, windows, exit)
+    }
+
+    fn compute_distribution(
+        &mut self,
+        max_from: Height,
+        windows: &WindowStarts<'_>,
+        exit: &Exit,
     ) -> Result<()> {
-        compute_sats(&mut self.inner.block.sats)?;
-
-        self.inner.compute_rest(max_from, prices, exit)?;
-
         self.distribution.compute(
             max_from,
             windows,

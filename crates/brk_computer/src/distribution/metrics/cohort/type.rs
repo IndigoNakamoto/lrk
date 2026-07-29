@@ -67,7 +67,6 @@ impl TypeCohortMetrics {
         self.outputs.compute_rest(starting_lengths.height, exit)?;
         self.activity
             .compute_rest_part1(prices, starting_lengths, exit)?;
-        self.realized.compute_rest_part1(starting_lengths, exit)?;
         Ok(())
     }
 

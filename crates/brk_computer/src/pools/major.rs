@@ -87,16 +87,14 @@ impl Vecs {
             )?;
         }
 
-        self.rewards.compute(starting_height, prices, exit, |vec| {
-            Ok(vec.compute_transform2(
-                starting_height,
-                &self.base.blocks_mined.block,
-                &mining.rewards.coinbase.block.sats,
-                |(h, mask, val, ..)| (h, MaskSats::apply(mask, val)),
-                exit,
-            )?)
-        })?;
-
+        self.rewards.compute_from_pair(
+            starting_height,
+            prices,
+            &self.base.blocks_mined.block,
+            &mining.rewards.coinbase.block.sats,
+            |_, mask, value| MaskSats::apply(mask, value),
+            exit,
+        )?;
         Ok(())
     }
 }

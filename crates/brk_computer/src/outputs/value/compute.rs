@@ -14,85 +14,88 @@ impl Vecs {
         exit: &Exit,
     ) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
-        self.op_return
-            .compute_with(starting_lengths.height, prices, exit, |height_vec| {
-                // Validate computed versions against dependencies
-                let dep_version = indexer.vecs.outputs.first_txout_index.version()
-                    + indexer.vecs.outputs.output_type.version()
-                    + indexer.vecs.outputs.value.version();
-                height_vec.validate_computed_version_or_reset(dep_version)?;
+        let height_vec = &mut self.op_return.cumulative.sats.height;
 
-                // Get target height
-                let target_len = indexer.vecs.outputs.first_txout_index.len();
-                if target_len == 0 {
-                    return Ok(());
-                }
-                let target_height = Height::from(target_len - 1);
+        // Validate computed versions against dependencies
+        let dep_version = indexer.vecs.outputs.first_txout_index.version()
+            + indexer.vecs.outputs.output_type.version()
+            + indexer.vecs.outputs.value.version();
+        height_vec.validate_computed_version_or_reset(dep_version)?;
 
-                // Find starting height for this vec
-                let current_len = height_vec.len();
-                let starting_height =
-                    Height::from(current_len.min(starting_lengths.height.to_usize()));
+        // Get target height
+        let target_len = indexer.vecs.outputs.first_txout_index.len();
+        if target_len == 0 {
+            self.op_return
+                .compute_cents(starting_lengths.height, prices, exit)?;
+            return Ok(());
+        }
+        let target_height = Height::from(target_len - 1);
 
-                if starting_height > target_height {
-                    return Ok(());
-                }
+        // Find starting height for this vec
+        let current_len = height_vec.len();
+        let starting_height = Height::from(current_len.min(starting_lengths.height.to_usize()));
 
-                // Pre-collect height-indexed data
-                let first_txout_indexes: Vec<TxOutIndex> =
-                    indexer.vecs.outputs.first_txout_index.collect_range_at(
-                        starting_height.to_usize(),
-                        target_height.to_usize()
-                            + 2.min(indexer.vecs.outputs.first_txout_index.len()),
-                    );
+        if starting_height <= target_height {
+            // Pre-collect height-indexed data
+            let first_txout_indexes: Vec<TxOutIndex> =
+                indexer.vecs.outputs.first_txout_index.collect_range_at(
+                    starting_height.to_usize(),
+                    target_height.to_usize() + 2.min(indexer.vecs.outputs.first_txout_index.len()),
+                );
 
-                let mut output_types_buf: Vec<OutputType> = Vec::new();
-                let mut values_buf: Vec<Sats> = Vec::new();
+            let mut output_types_buf: Vec<OutputType> = Vec::new();
+            let mut values_buf: Vec<Sats> = Vec::new();
+            let mut cumulative = starting_height
+                .decremented()
+                .and_then(|height| height_vec.collect_one(height))
+                .unwrap_or_default();
 
-                height_vec.truncate_if_needed(starting_height)?;
+            height_vec.truncate_if_needed(starting_height)?;
 
-                // Iterate blocks
-                for h in starting_height.to_usize()..=target_height.to_usize() {
-                    let local_idx = h - starting_height.to_usize();
+            // Iterate blocks
+            for h in starting_height.to_usize()..=target_height.to_usize() {
+                let local_idx = h - starting_height.to_usize();
 
-                    // Get output range for this block
-                    let first_txout_index = first_txout_indexes[local_idx];
-                    let next_first_txout_index =
-                        if let Some(&next) = first_txout_indexes.get(local_idx + 1) {
-                            next
-                        } else {
-                            TxOutIndex::from(indexer.vecs.outputs.value.len())
-                        };
+                // Get output range for this block
+                let first_txout_index = first_txout_indexes[local_idx];
+                let next_first_txout_index =
+                    if let Some(&next) = first_txout_indexes.get(local_idx + 1) {
+                        next
+                    } else {
+                        TxOutIndex::from(indexer.vecs.outputs.value.len())
+                    };
 
-                    let out_start = first_txout_index.to_usize();
-                    let out_end = next_first_txout_index.to_usize();
+                let out_start = first_txout_index.to_usize();
+                let out_end = next_first_txout_index.to_usize();
 
-                    // Pre-collect both vecs into reusable buffers
-                    indexer.vecs.outputs.output_type.collect_range_into_at(
-                        out_start,
-                        out_end,
-                        &mut output_types_buf,
-                    );
-                    indexer.vecs.outputs.value.collect_range_into_at(
-                        out_start,
-                        out_end,
-                        &mut values_buf,
-                    );
+                // Pre-collect both vecs into reusable buffers
+                indexer.vecs.outputs.output_type.collect_range_into_at(
+                    out_start,
+                    out_end,
+                    &mut output_types_buf,
+                );
+                indexer.vecs.outputs.value.collect_range_into_at(
+                    out_start,
+                    out_end,
+                    &mut values_buf,
+                );
 
-                    let mut op_return_value = Sats::ZERO;
-                    for (ot, val) in output_types_buf.iter().zip(values_buf.iter()) {
-                        if *ot == OutputType::OpReturn {
-                            op_return_value += *val;
-                        }
+                let mut op_return_value = Sats::ZERO;
+                for (ot, val) in output_types_buf.iter().zip(values_buf.iter()) {
+                    if *ot == OutputType::OpReturn {
+                        op_return_value += *val;
                     }
-
-                    height_vec.push(op_return_value);
                 }
 
-                height_vec.write()?;
+                cumulative += op_return_value;
+                height_vec.push(cumulative);
+            }
 
-                Ok(())
-            })?;
+            height_vec.write()?;
+        }
+
+        self.op_return
+            .compute_cents(starting_lengths.height, prices, exit)?;
 
         Ok(())
     }

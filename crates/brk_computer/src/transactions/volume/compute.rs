@@ -20,18 +20,15 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.transfer_volume
-            .compute(starting_height, prices, exit, |sats_vec| {
-                Ok(sats_vec.compute_filtered_sum_from_indexes(
-                    starting_height,
-                    &indexer.vecs.transactions.first_tx_index,
-                    &indexes.height.tx_index_count,
-                    &fees_vecs.input_value,
-                    |sats| !sats.is_max(),
-                    exit,
-                )?)
-            })?;
-
+        self.transfer_volume.compute_filtered_from_indexes(
+            starting_height,
+            prices,
+            &indexer.vecs.transactions.first_tx_index,
+            &indexes.height.tx_index_count,
+            &fees_vecs.input_value,
+            |sats| !sats.is_max(),
+            exit,
+        )?;
         let tx_sums = count_vecs.total.rolling.sum.0.as_array();
         let tx_per_sec = self.tx_per_sec.as_mut_array();
         for (i, &secs) in Windows::<()>::SECS.iter().enumerate() {

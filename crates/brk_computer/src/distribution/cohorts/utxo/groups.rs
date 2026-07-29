@@ -394,7 +394,7 @@ impl UTXOCohorts<Rw> {
     #[inline(always)]
     pub(crate) fn push_maturation(&mut self, matured: &AgeRange<Sats>) {
         for (v, &sats) in self.matured.iter_mut().zip(matured.iter()) {
-            v.block.sats.push(sats);
+            v.push_block_sats(sats);
         }
     }
 
@@ -605,7 +605,7 @@ impl UTXOCohorts<Rw> {
             .transfer_volume
             .block
             .cents
-            .read_only_clone();
+            .clone();
         let under_1h_value_destroyed = self
             .age_range
             .under_1h
@@ -801,8 +801,6 @@ impl UTXOCohorts<Rw> {
         vecs.extend(self.profitability.collect_all_vecs_mut());
         for v in self.matured.iter_mut() {
             let inner = &mut v.inner;
-            vecs.push(&mut inner.block.sats);
-            vecs.push(&mut inner.block.cents);
             vecs.push(&mut inner.cumulative.sats.height);
             vecs.push(&mut inner.cumulative.cents.height);
         }
@@ -821,7 +819,7 @@ impl UTXOCohorts<Rw> {
             .chain(
                 self.matured
                     .iter()
-                    .map(|v| Height::from(v.block.sats.len())),
+                    .map(|v| Height::from(v.cumulative.sats.height.len())),
             )
             .min()
             .unwrap_or_default()

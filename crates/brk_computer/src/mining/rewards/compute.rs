@@ -27,67 +27,59 @@ impl Vecs {
         let window_starts = lookback.window_starts();
         let (r_coinbase, r_fees) = rayon::join(
             || {
-                self.coinbase.compute(starting_height, prices, exit, |vec| {
-                    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
-                    let mut count_cursor = indexes.tx_index.output_count.cursor();
+                self.coinbase.compute_from(
+                    starting_height,
+                    prices,
+                    &indexer.vecs.transactions.first_tx_index,
+                    |_, tx_index| {
+                        let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+                        let mut count_cursor = indexes.tx_index.output_count.cursor();
 
-                    vec.compute_transform(
-                        starting_height,
-                        &indexer.vecs.transactions.first_tx_index,
-                        |(height, tx_index, ..)| {
-                            let ti = tx_index.to_usize();
+                        let ti = tx_index.to_usize();
 
-                            txout_cursor.advance(ti - txout_cursor.position());
-                            let first_txout_index = txout_cursor.next().unwrap().to_usize();
+                        txout_cursor.advance(ti - txout_cursor.position());
+                        let first_txout_index = txout_cursor.next().unwrap().to_usize();
 
-                            count_cursor.advance(ti - count_cursor.position());
-                            let output_count: usize = count_cursor.next().unwrap().into();
+                        count_cursor.advance(ti - count_cursor.position());
+                        let output_count: usize = count_cursor.next().unwrap().into();
 
-                            let sats = indexer.vecs.outputs.value.fold_range_at(
-                                first_txout_index,
-                                first_txout_index + output_count,
-                                Sats::ZERO,
-                                |acc, v| acc + v,
-                            );
-                            (height, sats)
-                        },
-                        exit,
-                    )?;
-                    Ok(())
-                })
+                        indexer.vecs.outputs.value.fold_range_at(
+                            first_txout_index,
+                            first_txout_index + output_count,
+                            Sats::ZERO,
+                            |acc, v| acc + v,
+                        )
+                    },
+                    exit,
+                )
             },
             || {
-                self.fees
-                    .compute(starting_height, &window_starts, prices, exit, |vec| {
-                        vec.compute_sum_from_indexes(
-                            starting_height,
-                            &indexer.vecs.transactions.first_tx_index,
-                            &indexes.height.tx_index_count,
-                            &transactions.fees.fee.tx_index,
-                            exit,
-                        )?;
-                        Ok(())
-                    })
+                self.fees.compute_from_indexes(
+                    starting_height,
+                    &window_starts,
+                    prices,
+                    &indexer.vecs.transactions.first_tx_index,
+                    &indexes.height.tx_index_count,
+                    &transactions.fees.fee.tx_index,
+                    exit,
+                )
             },
         );
         r_coinbase?;
         r_fees?;
 
-        self.subsidy.block.sats.compute_transform2(
+        self.subsidy.compute_from_pair(
             starting_height,
+            prices,
             &self.coinbase.block.sats,
             &self.fees.block.sats,
-            |(height, coinbase, fees, ..)| {
-                (
-                    height,
-                    coinbase.checked_sub(fees).unwrap_or_else(|| {
-                        panic!("coinbase {coinbase:?} < fees {fees:?} at {height:?}")
-                    }),
-                )
+            |height, coinbase, fees| {
+                coinbase.checked_sub(fees).unwrap_or_else(|| {
+                    panic!("coinbase {coinbase:?} < fees {fees:?} at {height:?}")
+                })
             },
             exit,
         )?;
-        self.subsidy.compute_rest(starting_height, prices, exit)?;
 
         self.output_volume.compute_subtract(
             starting_height,
@@ -96,17 +88,17 @@ impl Vecs {
             exit,
         )?;
 
-        self.unclaimed.block.sats.compute_transform(
+        self.unclaimed.compute_from(
             starting_height,
+            prices,
             &self.subsidy.block.sats,
-            |(height, subsidy, ..)| {
+            |height, subsidy| {
                 let halving = Halving::from(height);
                 let expected = Sats::FIFTY_BTC / 2_usize.pow(halving.to_usize() as u32);
-                (height, expected.checked_sub(subsidy).unwrap())
+                expected.checked_sub(subsidy).unwrap()
             },
             exit,
         )?;
-        self.unclaimed.compute(prices, starting_height, exit)?;
 
         self.fee_dominance
             .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>, _, _, _, _>(

@@ -1,9 +1,9 @@
 mod base;
-mod block;
 mod cumulative;
 mod cumulative_rolling;
 mod full;
 mod lazy;
+mod lazy_block;
 mod lazy_derived_resolutions;
 mod lazy_rolling_avg;
 mod lazy_rolling_sum;
@@ -11,11 +11,11 @@ mod rolling_distribution;
 mod with_deltas;
 
 pub use base::*;
-pub use block::*;
 pub use cumulative::*;
 pub use cumulative_rolling::*;
 pub use full::*;
 pub use lazy::*;
+pub use lazy_block::*;
 pub use lazy_derived_resolutions::*;
 pub use lazy_rolling_avg::*;
 pub use lazy_rolling_sum::*;

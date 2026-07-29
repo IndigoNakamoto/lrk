@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::Version;
-use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode, WritableVec};
+use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::{
@@ -27,19 +27,19 @@ impl ActivityMinimal {
     }
 
     pub(crate) fn min_len(&self) -> usize {
-        self.transfer_volume.block.sats.len()
+        self.transfer_volume.cumulative.sats.height.len()
     }
 
     #[inline(always)]
     pub(crate) fn push_state(&mut self, state: &CohortState<impl RealizedOps, impl CostBasisOps>) {
-        self.transfer_volume.block.sats.push(state.sent);
+        self.transfer_volume.push_block_sats(state.sent);
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let inner = &mut self.transfer_volume.inner;
         vec![
-            &mut inner.block.sats as &mut dyn AnyStoredVec,
-            &mut inner.block.cents,
+            &mut inner.cumulative.sats.height as &mut dyn AnyStoredVec,
+            &mut inner.cumulative.cents.height,
         ]
     }
 
@@ -49,14 +49,18 @@ impl ActivityMinimal {
         others: &[&Self],
         exit: &Exit,
     ) -> Result<()> {
-        self.transfer_volume.block.sats.compute_sum_of_others(
-            starting_lengths.height,
-            &others
-                .iter()
-                .map(|v| &v.transfer_volume.block.sats)
-                .collect::<Vec<_>>(),
-            exit,
-        )?;
+        self.transfer_volume
+            .cumulative
+            .sats
+            .height
+            .compute_sum_of_others(
+                starting_lengths.height,
+                &others
+                    .iter()
+                    .map(|v| &v.transfer_volume.cumulative.sats.height)
+                    .collect::<Vec<_>>(),
+                exit,
+            )?;
 
         Ok(())
     }

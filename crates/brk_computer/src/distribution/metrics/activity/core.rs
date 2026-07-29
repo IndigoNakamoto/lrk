@@ -3,7 +3,7 @@ use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{Bitcoin, StoredF64, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode, WritableVec};
+use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::{
@@ -45,8 +45,8 @@ impl ActivityCore {
         self.minimal
             .min_len()
             .min(self.coindays_destroyed.block.len())
-            .min(self.transfer_volume_in_profit.block.sats.len())
-            .min(self.transfer_volume_in_loss.block.sats.len())
+            .min(self.transfer_volume_in_profit.cumulative.sats.height.len())
+            .min(self.transfer_volume_in_loss.cumulative.sats.height.len())
     }
 
     #[inline(always)]
@@ -55,22 +55,18 @@ impl ActivityCore {
         self.coindays_destroyed
             .push_block(StoredF64::from(Bitcoin::from(state.satdays_destroyed)));
         self.transfer_volume_in_profit
-            .block
-            .sats
-            .push(state.realized.sent_in_profit());
+            .push_block_sats(state.realized.sent_in_profit());
         self.transfer_volume_in_loss
-            .block
-            .sats
-            .push(state.realized.sent_in_loss());
+            .push_block_sats(state.realized.sent_in_loss());
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let mut vecs = self.minimal.collect_vecs_mut();
         vecs.push(self.coindays_destroyed.stored_mut());
-        vecs.push(&mut self.transfer_volume_in_profit.inner.block.sats);
-        vecs.push(&mut self.transfer_volume_in_profit.inner.block.cents);
-        vecs.push(&mut self.transfer_volume_in_loss.inner.block.sats);
-        vecs.push(&mut self.transfer_volume_in_loss.inner.block.cents);
+        vecs.push(&mut self.transfer_volume_in_profit.inner.cumulative.sats.height);
+        vecs.push(&mut self.transfer_volume_in_profit.inner.cumulative.cents.height);
+        vecs.push(&mut self.transfer_volume_in_loss.inner.cumulative.sats.height);
+        vecs.push(&mut self.transfer_volume_in_loss.inner.cumulative.cents.height);
         vecs
     }
 
@@ -89,8 +85,8 @@ impl ActivityCore {
             .compute_from_stateful(starting_lengths, &minimal_refs, exit)?;
 
         sum_others!(self, starting_lengths, others, exit; coindays_destroyed.cumulative.height);
-        sum_others!(self, starting_lengths, others, exit; transfer_volume_in_profit.block.sats);
-        sum_others!(self, starting_lengths, others, exit; transfer_volume_in_loss.block.sats);
+        sum_others!(self, starting_lengths, others, exit; transfer_volume_in_profit.cumulative.sats.height);
+        sum_others!(self, starting_lengths, others, exit; transfer_volume_in_loss.cumulative.sats.height);
 
         Ok(())
     }
