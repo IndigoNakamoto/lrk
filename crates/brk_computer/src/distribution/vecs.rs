@@ -16,7 +16,6 @@ use vecdb::{
 };
 
 use crate::{
-    blocks,
     distribution::{
         compute::{
             PriceRangeMax, StartMode, determine_start_mode, process_blocks, recover_state,
@@ -315,7 +314,6 @@ impl Vecs {
         inputs: &inputs::Vecs,
         outputs: &outputs::Vecs,
         transactions: &transactions::Vecs,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -668,7 +666,6 @@ impl Vecs {
 
         info!("Computing rest part 2...");
         self.utxo_cohorts.compute_rest_part2(
-            blocks,
             prices,
             &starting_lengths,
             &height_to_market_cap,

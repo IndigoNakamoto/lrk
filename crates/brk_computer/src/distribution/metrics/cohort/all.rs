@@ -6,7 +6,6 @@ use brk_types::{Cents, Dollars, Height, Version};
 use vecdb::{AnyStoredVec, Exit, ReadOnlyClone, ReadableVec, Rw, StorageMode};
 
 use crate::{
-    blocks,
     distribution::metrics::{
         ActivityFull, AdjustedSopr, CohortMetricsBase, CostBasis, ImportConfig, OutputsBase,
         RealizedFull, RelativeForAll, SupplyCore, UnrealizedFull,
@@ -99,7 +98,6 @@ impl AllCohortMetrics {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_rest_part2(
         &mut self,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         height_to_market_cap: &impl ReadableVec<Height, Dollars>,
@@ -108,7 +106,6 @@ impl AllCohortMetrics {
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
-            blocks,
             prices,
             starting_lengths,
             &self.supply.total.btc.height,

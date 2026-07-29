@@ -121,6 +121,7 @@ function acceptsMetric(metric) {
 /** @param {any} operation @param {string} question @param {any} previous */
 function acceptsApi(operation, question, previous) {
   const specificity = Number(operation.specificity ?? 0);
+  const reusable = Boolean(reusableArguments(operation, previous));
   const required = operation.parameters.some(
     (/** @type {any} */ parameter) => parameter.required,
   );
@@ -128,11 +129,14 @@ function acceptsApi(operation, question, previous) {
     return Number(operation.titleMatchedTerms ?? 0) > 0 &&
       specificity >= 2.5;
   }
-  return Number(operation.titleMatchedTerms ?? 0) > 0 &&
-    (
-      hasRequiredArguments(operation, explicitArguments(operation, question)) ||
-      Boolean(reusableArguments(operation, previous))
-    );
+  const supplied = hasRequiredArguments(
+    operation,
+    explicitArguments(operation, question),
+  );
+  return supplied || reusable
+    ? Number(operation.titleMatchedTerms ?? 0) > 0 ||
+      reusable && Number(operation.matchedTerms ?? 0) > 0
+    : Number(operation.titleMatchedTerms ?? 0) > 0;
 }
 
 /** @param {any} match */
@@ -180,7 +184,7 @@ export async function collectEvidence({
   refs,
   onStatus,
 }) {
-  const [foundMetrics, foundApi, searchedGuides, mentionedNames] =
+  const [foundMetrics, foundApi, currentGuides, contextGuides, mentionedNames] =
     await Promise.all([
     searchMetrics(
       [question],
@@ -194,9 +198,22 @@ export async function collectEvidence({
       () => onStatus("Indexing API…"),
     ),
     searchLearn(question, MAX_GUIDES),
+    context.knowledge?.title
+      ? searchLearn(context.knowledge.title, MAX_GUIDES)
+      : [],
     mentionedMetricNames(question),
   ]);
-  const foundGuides = searchedGuides.filter(acceptsGuide);
+  const foundGuides = unique(
+    [
+      ...currentGuides
+        .filter(acceptsGuide)
+        .map((guide) => ({ ...guide, origin: "current" })),
+      ...contextGuides
+        .filter(acceptsGuide)
+        .map((guide) => ({ ...guide, origin: "context" })),
+    ],
+    (guide) => guide.breadcrumbs.join("/"),
+  );
   const mentionedMetrics = (await Promise.all(
     mentionedNames.map((name) => metricByName(name)),
   )).filter(Boolean);
@@ -269,6 +286,8 @@ export async function collectEvidence({
         .sort((left, right) =>
           Number(right.titleMatchedTerms ?? 0) -
             Number(left.titleMatchedTerms ?? 0) ||
+          Number(Boolean(reusableArguments(right, context.api))) -
+            Number(Boolean(reusableArguments(left, context.api))) ||
           right.response.fields.length - left.response.fields.length ||
           Number(right.matchedTerms ?? 0) -
             Number(left.matchedTerms ?? 0) ||
@@ -317,6 +336,7 @@ export async function collectEvidence({
     ),
     label: guide.title,
     guide,
+    origin: guide.origin,
   }));
 
   return {
@@ -348,7 +368,13 @@ export async function collectSourceOptions({
   refs,
   onStatus,
 }) {
-  const metric = evidence.metricOptions[0]?.metric;
+  const currentGuide = evidence.guideOptions.some(
+    (/** @type {any} */ { origin }) => origin === "current",
+  );
+  const metricOption = evidence.metricOptions.find(
+    (/** @type {any} */ { origin }) => origin === "mentioned",
+  ) ?? (currentGuide ? undefined : evidence.metricOptions[0]);
+  const metric = metricOption?.metric;
   const metricSubject = metric
     ? await sourceMetricSubject(metric)
     : undefined;

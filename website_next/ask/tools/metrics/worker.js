@@ -112,7 +112,13 @@ function state(id, url) {
   if (!statePromise || url !== stateUrl) {
     stateUrl = url;
     self.postMessage({ id, status: "progress" });
-    statePromise = buildState(url);
+    const pending = buildState(url);
+    statePromise = pending;
+    void pending.catch(() => {
+      if (statePromise !== pending) return;
+      statePromise = undefined;
+      stateUrl = "";
+    });
   }
   return statePromise;
 }

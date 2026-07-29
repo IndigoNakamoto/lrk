@@ -4,12 +4,24 @@ import { createChartArtifact } from "../chart.js";
 import { resolveChartUnit } from "../chart/units.js";
 import { readMetric } from "../data.js";
 import { metricVariants, searchMetrics } from "../metrics/index.js";
-import { renderData } from "../render.js";
+import { renderData, renderEvidence } from "../render.js";
 import { normalize } from "../text.js";
 import { schemaSourceQueries } from "./evidence.js";
 
 const CHART_VIEWS = new Set(["line", "area", "stacked", "bar", "dots"]);
 const CHART_SCALES = new Set(["linear", "log"]);
+const SOURCE_USAGE_TERMS = new Set([
+  "called",
+  "usage",
+  "usages",
+]);
+const SOURCE_DEFINITION_TERMS = new Set([
+  "declared",
+  "defined",
+  "definition",
+  "implemented",
+  "implementation",
+]);
 
 /** @param {unknown} value @param {string} name */
 function requiredString(value, name) {
@@ -48,19 +60,45 @@ function inlineCode(value) {
 
 /** @param {string | undefined} value */
 function sourceSubject(value) {
-  return inlineCode(value).find((term) =>
+  const subject = inlineCode(value).find((term) =>
     !term.includes("/") && !term.includes("\\")
   );
+  if (!subject) return undefined;
+  return subject.match(/\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/)?.[1] ?? subject;
+}
+
+/** @param {string} value */
+function querySubject(value) {
+  const query = value.trim();
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(query)) return query;
+  return query.match(/\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/)?.[1] ??
+    query.match(
+      /\b(?:[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+|[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)\b/,
+    )?.[0];
+}
+
+/** @param {string} value */
+function sourceFocus(value) {
+  const words = new Set(normalize(value).split(" "));
+  if ([...words].some((word) => SOURCE_USAGE_TERMS.has(word))) {
+    return /** @type {const} */ ("usage");
+  }
+  if ([...words].some((word) => SOURCE_DEFINITION_TERMS.has(word))) {
+    return /** @type {const} */ ("definition");
+  }
+  return undefined;
 }
 
 /** @param {string} content @param {string} field */
 function computesField(content, field) {
-  return content.split("\n").some((line) => {
-    const normalized = normalize(line);
-    return normalized.includes(field) &&
-      ["+=", "-=", "*=", "/=", " + ", " - ", " * ", " / "]
-        .some((operator) => line.includes(operator));
-  });
+  const code = content
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => line.split("//")[0])
+    .join("\n");
+  return normalize(code).includes(field) &&
+    ["+=", "-=", "*=", "/=", " + ", " - ", " * ", " / "]
+      .some((operator) => code.includes(operator));
 }
 
 /** @param {any} result @param {string} query */
@@ -69,13 +107,15 @@ function rankedSchemaMatches(result, query) {
   const field = normalize(parts.at(-1) ?? "");
   const owner = normalize(parts.slice(0, -1).join(" "));
   const terms = normalize(query).split(" ").filter(Boolean);
-  return [...result.matches].sort((left, right) => {
+  return result.matches.filter((match) =>
+    normalize(match.content).includes(field)
+  ).sort((left, right) => {
     const leftContent = normalize(left.content);
     const rightContent = normalize(right.content);
     const leftOwner = owner && leftContent.includes(owner) ? 1 : 0;
     const rightOwner = owner && rightContent.includes(owner) ? 1 : 0;
-    const leftComputes = leftOwner && computesField(left.content, field) ? 1 : 0;
-    const rightComputes = rightOwner && computesField(right.content, field) ? 1 : 0;
+    const leftComputes = computesField(left.content, field) ? 1 : 0;
+    const rightComputes = computesField(right.content, field) ? 1 : 0;
     const leftPath = terms.filter((term) =>
       normalize(left.path).split(" ").includes(term)
     ).length;
@@ -87,6 +127,80 @@ function rankedSchemaMatches(result, query) {
       rightPath - leftPath ||
       Number(right.score ?? 0) - Number(left.score ?? 0);
   });
+}
+
+/** @param {string} value */
+function regexEscape(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** @param {string} content @param {string} subject */
+function containsSymbol(content, subject) {
+  return new RegExp(`\\b${regexEscape(subject)}\\b`).test(content);
+}
+
+/** @param {string} content @param {string} subject */
+function declaresSymbol(content, subject) {
+  return new RegExp(
+    `\\b(?:fn|function|class|struct|enum|trait|interface)\\s+${
+      regexEscape(subject)
+    }\\b`,
+  ).test(content);
+}
+
+/** @param {{ content: string, startLine: number }} source @param {string} subject */
+function declarationLine(source, subject) {
+  const declaration = new RegExp(
+    `\\b(?:fn|function|class|struct|enum|trait|interface)\\s+${
+      regexEscape(subject)
+    }\\b`,
+  );
+  const index = source.content.split("\n").findIndex((line) =>
+    declaration.test(line)
+  );
+  return index < 0 ? source.startLine : source.startLine + index;
+}
+
+/** @param {any[]} excerpts @param {string} subject */
+function usageCallers(excerpts, subject) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(subject)) return [];
+  const call = new RegExp(`\\b${regexEscape(subject)}\\s*\\(`);
+  const declaration = /\b(?:fn|function|def)\s+([A-Za-z_][A-Za-z0-9_]*)/;
+  const callers = [];
+  for (const excerpt of excerpts) {
+    let owner;
+    let ownerType;
+    for (const line of excerpt.content.split("\n")) {
+      const implemented = line.match(
+        /\bimpl(?:<[^>]*>)?\s+(?:[A-Za-z_][A-Za-z0-9_:<>]*\s+for\s+)?([A-Za-z_][A-Za-z0-9_]*)/,
+      )?.[1];
+      if (implemented) ownerType = implemented;
+      const declarationMatch = line.match(declaration);
+      const declared = declarationMatch?.[1];
+      if (declared) {
+        const indented = /^\s/.test(line);
+        const module = excerpt.path.split("/").at(-1)?.replace(/\.[^.]+$/, "");
+        owner = ownerType
+          ? `${ownerType}::${declared}`
+          : indented && module
+            ? `${module}::${declared}`
+            : declared;
+      }
+      if (
+        !owner ||
+        owner === subject ||
+        declared ||
+        !call.test(line.split("//")[0])
+      ) continue;
+      callers.push({ name: owner, source: excerpt });
+    }
+  }
+  return [...new Map(
+    callers.map((caller) => [
+      `${caller.source.path}:${caller.name}`,
+      caller,
+    ]),
+  ).values()];
 }
 
 export class CapabilityExecutor {
@@ -115,12 +229,29 @@ export class CapabilityExecutor {
   /** @param {Record<string, unknown>} arguments_ */
   answerGeneral(arguments_) {
     const answer = requiredString(arguments_.answer, "an answer");
+    const topic = requiredString(arguments_.topic, "an answer topic");
     return {
       done: true,
       output: answer,
+      sourceContext: this.evidence.context.source,
       knowledgeContext: {
-        title: this.question.slice(0, 160),
+        title: topic.slice(0, 160),
         description: answer,
+      },
+    };
+  }
+
+  /** @param {Record<string, unknown>} arguments_ */
+  guideExample(arguments_) {
+    const [{ value: guide }] = this.selected(arguments_.refs, "guide");
+    const example = requiredString(guide.example, "a guide example");
+    return {
+      done: true,
+      output: example,
+      sourceContext: this.evidence.context.source,
+      knowledgeContext: {
+        title: guide.title,
+        description: example,
       },
     };
   }
@@ -187,13 +318,30 @@ export class CapabilityExecutor {
   /** @param {Record<string, unknown>} arguments_ @param {(status: string) => void} onStatus */
   async searchSource(arguments_, onStatus) {
     const query = requiredString(arguments_.query, "a source search query");
+    const requestedFocus = sourceFocus(this.question);
+    const structuredSubjects =
+      this.evidence.context.knowledge?.subjects ?? [];
+    const candidateSubject = querySubject(query);
+    const explicitCodeSubject = candidateSubject &&
+      (
+        inlineCode(this.question).includes(candidateSubject) ||
+        this.question.includes(`${candidateSubject}(`)
+      );
+    const exactSubject = candidateSubject &&
+        (
+          !structuredSubjects.length ||
+          structuredSubjects.includes(candidateSubject) ||
+          explicitCodeSubject
+        )
+      ? candidateSubject
+      : undefined;
     const schemaQueries = schemaSourceQueries(
       this.question,
       this.evidence.apiCandidates ?? [],
     );
-    const subject = sourceSubject(
-      this.evidence.context.knowledge?.description,
-    );
+    const subject = exactSubject ??
+      structuredSubjects[0] ??
+      sourceSubject(this.evidence.context.knowledge?.description);
     const context = this.evidence.context.source;
     const subjectContext = subject
       ? context.filter((/** @type {{ content: string }} */ source) =>
@@ -208,7 +356,7 @@ export class CapabilityExecutor {
       ? `${query} ${subject}`
       : query;
     const searches = [
-      { query, path: undefined, focus: undefined },
+      { query, path: undefined, focus: requestedFocus },
       ...schemaQueries.map((schemaQuery) => ({
         query: schemaQuery,
         path: undefined,
@@ -216,15 +364,30 @@ export class CapabilityExecutor {
       })),
       ...(contextualQuery === query
         ? []
-        : [{ query: contextualQuery, path: undefined, focus: undefined }]),
+        : [{
+            query: contextualQuery,
+            path: undefined,
+            focus: requestedFocus,
+          }]),
       ...(subject
-        ? [{ query: subject, path: undefined, focus: undefined }]
+        ? [{
+            query: subject,
+            path: undefined,
+            focus: requestedFocus ?? /** @type {const} */ ("implementation"),
+          }]
         : []),
       ...paths.map((path) => ({
         query: contextualQuery,
         path,
-        focus: undefined,
+        focus: requestedFocus,
       })),
+      ...(subject
+        ? [{
+            query: subject,
+            path: undefined,
+            focus: /** @type {const} */ ("usage"),
+          }]
+        : []),
     ];
 
     onStatus("Searching source…");
@@ -250,31 +413,73 @@ export class CapabilityExecutor {
         contextualIndex + (contextualQuery === query ? 0 : 1)
       ]
       : undefined;
+    const usageResult = subject ? results.at(-1) : undefined;
     const rawResult = results[0];
+    const definition = requestedFocus === "definition" && exactSubject
+      ? subjectResult?.matches.find((/** @type {any} */ match) =>
+          declaresSymbol(match.content, exactSubject)
+        )
+      : undefined;
+    if (definition) {
+      const source = {
+        ...definition,
+        revision: subjectResult.revision,
+      };
+      const line = declarationLine(source, exactSubject);
+      const description = `\`${exactSubject}\` is defined in \`${source.path}\` at line ${line}.`;
+      return {
+        done: true,
+        output: renderEvidence({
+          facts: [description],
+          sources: [source],
+          excerpts: [],
+        }),
+        sourceContext: [source],
+        knowledgeContext: {
+          title: exactSubject,
+          description,
+          subjects: [exactSubject],
+        },
+      };
+    }
     const seeded = this.evidence.sourceOptions.map(
       (/** @type {{ source: any }} */ { source }) => source,
     );
-    const excerpts = [...new Map([
-      ...(paths.length ? [] : seeded),
-      ...schemaResults.flatMap((result, index) =>
-        rankedSchemaMatches(result, schemaQueries[index]).slice(0, 2)
-          .map((/** @type {any} */ match) => ({
-          ...match,
-          revision: result.revision,
-          }))
-      ),
-      ...scopedResults.flatMap((result) =>
-        result.matches.slice(0, 1).map((/** @type {any} */ match) => ({
+    const schemaMatches = schemaResults.flatMap((result, index) =>
+      rankedSchemaMatches(result, schemaQueries[index]).slice(0, 2)
+        .map((/** @type {any} */ match) => ({
           ...match,
           revision: result.revision,
         }))
-      ),
+    );
+    if (schemaQueries.length && !schemaMatches.length) {
+      return {
+        done: true,
+        output: "I could not find enough verified source evidence to answer that.",
+      };
+    }
+    const candidates = [...new Map([
+      ...subjectContext,
+      ...(paths.length ? [] : seeded),
+      ...schemaMatches,
       ...(subjectResult?.matches.slice(0, 3).map(
         (/** @type {any} */ match) => ({
           ...match,
           revision: subjectResult.revision,
         }),
       ) ?? []),
+      ...(usageResult?.matches.slice(0, 6).map(
+        (/** @type {any} */ match) => ({
+          ...match,
+          revision: usageResult.revision,
+        }),
+      ) ?? []),
+      ...scopedResults.flatMap((result) =>
+        result.matches.slice(0, 1).map((/** @type {any} */ match) => ({
+          ...match,
+          revision: result.revision,
+        }))
+      ),
       ...(contextualResult?.matches.slice(0, 3).map(
         (/** @type {any} */ match) => ({
           ...match,
@@ -289,7 +494,51 @@ export class CapabilityExecutor {
     ].map((excerpt) => [
       `${excerpt.revision}:${excerpt.path}:${excerpt.startLine}`,
       excerpt,
-    ])).values()].slice(0, 3);
+    ])).values()];
+    const contextualExplanation = subjectContext.length &&
+      requestedFocus !== "usage";
+    const excerpts = (contextualExplanation
+      ? subjectContext
+      : exactSubject
+        ? candidates.filter(({ content }) =>
+            containsSymbol(content, exactSubject)
+          )
+        : candidates).slice(0, 3);
+    const callers = subject
+      ? usageCallers(
+          (usageResult?.matches ?? []).map((/** @type {any} */ match) => ({
+            ...match,
+            revision: usageResult.revision,
+          })),
+          subject,
+        )
+      : [];
+    if (requestedFocus === "usage" && subject && callers.length) {
+      const sources = [...new Map(
+        callers.map(({ source }) => [
+          `${source.revision}:${source.path}:${source.startLine}`,
+          source,
+        ]),
+      ).values()].slice(0, 3);
+      const names = callers.map(({ name }) => name);
+      const description = `\`${subject}\` is called by ${
+        names.map((name) => `\`${name}\``).join(", ")
+      }.`;
+      return {
+        done: true,
+        output: renderEvidence({
+          facts: [description],
+          sources,
+          excerpts: [],
+        }),
+        sourceContext: sources,
+        knowledgeContext: {
+          title: subject,
+          description,
+          subjects: names.map((name) => name.split("::").at(-1) ?? name),
+        },
+      };
+    }
     if (!excerpts.length) {
       return {
         done: true,
@@ -303,7 +552,20 @@ export class CapabilityExecutor {
         question: this.question,
         metrics: [],
         facts: [],
+        contextFacts: [
+          ...(this.evidence.context.knowledge?.description
+            ? [this.evidence.context.knowledge.description]
+            : []),
+          ...(callers.length
+            ? [
+              `Verified functions that call \`${subject}\`: ${
+                callers.map(({ name }) => `\`${name}\``).join(", ")
+              }.`,
+            ]
+            : []),
+        ],
         excerpts,
+        ...(subject ? { subjects: [subject] } : {}),
       },
     };
   }
@@ -535,7 +797,15 @@ export class CapabilityExecutor {
       },
       apiGrounding: {
         question: this.question,
-        previousFields: this.evidence.context.api?.fields ?? [],
+        previousFields:
+          this.evidence.context.api?.operation.key === operation.key
+            ? this.evidence.context.api.fields ?? []
+            : [],
+        previousArguments: this.evidence.context.api?.arguments ?? {},
+        previousRecords:
+          this.evidence.context.api?.operation.key === operation.key
+            ? this.evidence.context.api.records ?? []
+            : [],
         ...result,
       },
     };
@@ -550,6 +820,9 @@ export class CapabilityExecutor {
     signal.throwIfAborted();
     if (call.name === "answer_general") {
       return this.answerGeneral(call.arguments);
+    }
+    if (call.name === "show_guide_example") {
+      return this.guideExample(call.arguments);
     }
     if (call.name === "describe_capabilities") {
       return this.describeCapabilities(call.arguments);

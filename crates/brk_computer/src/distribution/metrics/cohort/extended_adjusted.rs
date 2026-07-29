@@ -6,7 +6,6 @@ use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
-    blocks,
     distribution::metrics::{
         ActivityFull, AdjustedSopr, CohortMetricsBase, ImportConfig, RealizedFull, UnrealizedFull,
     },
@@ -61,7 +60,6 @@ impl ExtendedAdjustedCohortMetrics {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_rest_part2(
         &mut self,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         height_to_market_cap: &impl ReadableVec<Height, Dollars>,
@@ -72,7 +70,6 @@ impl ExtendedAdjustedCohortMetrics {
         exit: &Exit,
     ) -> Result<()> {
         self.inner.compute_rest_part2(
-            blocks,
             prices,
             starting_lengths,
             height_to_market_cap,

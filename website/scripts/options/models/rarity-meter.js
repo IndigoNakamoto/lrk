@@ -14,7 +14,9 @@ import {
  */
 export function createRarityMeterSection() {
   const { rarityMeter } = brk.series.indicators;
-  const { all, sth, lth } = brk.series.cohorts.utxo;
+  const { all, sth, lth, overAge, underAge } = brk.series.cohorts.utxo;
+  const { cointime, coinflow } = brk.series;
+  const components = rarityMeter.components;
 
   return {
     name: "Rarity Meter",
@@ -28,7 +30,7 @@ export function createRarityMeterSection() {
         return {
           name: variant.name,
           title: variant.title,
-          top: priceBands(percentileBands(meter), { defaultActive: true }),
+          top: priceBands(percentileBands(meter)),
           bottom: [
             histogram({
               series: meter.index,
@@ -36,6 +38,7 @@ export function createRarityMeterSection() {
               unit: Unit.count,
               colorFn: (value) =>
                 /** @type {const} */ ([
+                  colors.ratioPct._0_01,
                   colors.ratioPct._0_5,
                   colors.ratioPct._1,
                   colors.ratioPct._2,
@@ -45,13 +48,14 @@ export function createRarityMeterSection() {
                   colors.ratioPct._98,
                   colors.ratioPct._99,
                   colors.ratioPct._99_5,
-                ])[value + 4],
+                  colors.ratioPct._99_9,
+                ])[value + 5],
             }),
             baseline({
               series: meter.score,
               name: "Score",
               unit: Unit.count,
-              color: [colors.ratioPct._99, colors.ratioPct._1],
+              color: [colors.ratioPct._99_9, colors.ratioPct._0_01],
               defaultActive: false,
             }),
           ],
@@ -61,56 +65,134 @@ export function createRarityMeterSection() {
         name: "Components",
         tree: [
           {
-            name: "Realized Price",
+            name: "RP",
             title: "Realized Price",
             pattern: all.realized.price,
-            legend: "Realized",
+            percentiles: components.realizedPrice,
+            legend: "RP",
             color: colors.realized,
           },
           {
-            name: "Capitalized Price",
+            name: "CP",
             title: "Capitalized Price",
             pattern: all.realized.capitalized.price,
-            legend: "Capitalized",
+            percentiles: components.capitalizedPrice,
+            legend: "CP",
             color: colors.capitalized,
           },
           {
             name: "STH RP",
             title: "STH Realized Price",
             pattern: sth.realized.price,
-            legend: "Realized",
+            percentiles: components.sthRealizedPrice,
+            legend: "STH RP",
             color: colors.realized,
           },
           {
             name: "STH CP",
             title: "STH Capitalized Price",
             pattern: sth.realized.capitalized.price,
-            legend: "Capitalized",
+            percentiles: components.sthCapitalizedPrice,
+            legend: "STH CP",
             color: colors.capitalized,
           },
           {
             name: "LTH RP",
             title: "LTH Realized Price",
             pattern: lth.realized.price,
-            legend: "Realized",
+            percentiles: components.lthRealizedPrice,
+            legend: "LTH RP",
             color: colors.realized,
           },
           {
             name: "LTH CP",
             title: "LTH Capitalized Price",
             pattern: lth.realized.capitalized.price,
-            legend: "Capitalized",
+            percentiles: components.lthCapitalizedPrice,
+            legend: "LTH CP",
             color: colors.capitalized,
           },
+          {
+            name: ">6M RP",
+            title: ">6M Realized Price",
+            pattern: overAge._6m.realized.price,
+            percentiles: components.over6mRealizedPrice,
+            legend: ">6M RP",
+            color: colors.realized,
+          },
+          {
+            name: ">4M RP",
+            title: ">4M Realized Price",
+            pattern: overAge._4m.realized.price,
+            percentiles: components.over4mRealizedPrice,
+            legend: ">4M RP",
+            color: colors.realized,
+          },
+          {
+            name: "<4M RP",
+            title: "<4M Realized Price",
+            pattern: underAge._4m.realized.price,
+            percentiles: components.under4mRealizedPrice,
+            legend: "<4M RP",
+            color: colors.realized,
+          },
+          {
+            name: "<6M RP",
+            title: "<6M Realized Price",
+            pattern: underAge._6m.realized.price,
+            percentiles: components.under6mRealizedPrice,
+            legend: "<6M RP",
+            color: colors.realized,
+          },
+          {
+            name: "Vaulted Price",
+            title: "Vaulted Price",
+            pattern: cointime.prices.vaulted,
+            percentiles: components.vaultedPrice,
+            legend: "Vaulted",
+            color: colors.vaulted,
+          },
+          {
+            name: "Active Price",
+            title: "Active Price",
+            pattern: cointime.prices.active,
+            percentiles: components.activePrice,
+            legend: "Active",
+            color: colors.active,
+          },
+          {
+            name: "True Market Mean",
+            title: "True Market Mean",
+            pattern: cointime.prices.trueMarketMean,
+            percentiles: components.trueMarketMeanPrice,
+            legend: "True Market Mean",
+            color: colors.trueMarketMean,
+          },
+          {
+            name: "Cointime Price",
+            title: "Cointime Price",
+            pattern: cointime.prices.cointime,
+            percentiles: components.cointimePrice,
+            legend: "Cointime",
+            color: colors.cointime,
+          },
+          {
+            name: "Coinflow Price",
+            title: "Coinflow Price",
+            pattern: coinflow.price,
+            percentiles: components.coinflowPrice,
+            legend: "Coinflow",
+            color: colors.coinflow,
+          },
         ].map((component) => {
-          const [, ratioChart] = priceRatioPercentilesTree({
+          const [chart] = priceRatioPercentilesTree({
             pattern: component.pattern,
-            title: component.title,
+            percentiles: component.percentiles,
+            title: `Bitcoin Rarity Meter: ${component.title}`,
             legend: component.legend,
             color: component.color,
-            defaultActivePercentiles: true,
           });
-          return { ...ratioChart, name: component.name };
+          return { ...chart, name: component.name };
         }),
       },
     ],

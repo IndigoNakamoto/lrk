@@ -1,12 +1,12 @@
 use brk_traversable::Traversable;
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::PriceWithRatioExtendedPerBlock;
+use crate::internal::PriceWithRatioPerBlock;
 
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    pub vaulted: PriceWithRatioExtendedPerBlock<M>,
-    pub active: PriceWithRatioExtendedPerBlock<M>,
-    pub true_market_mean: PriceWithRatioExtendedPerBlock<M>,
-    pub cointime: PriceWithRatioExtendedPerBlock<M>,
+    pub vaulted: PriceWithRatioPerBlock<M>,
+    pub active: PriceWithRatioPerBlock<M>,
+    pub true_market_mean: PriceWithRatioPerBlock<M>,
+    pub cointime: PriceWithRatioPerBlock<M>,
 }

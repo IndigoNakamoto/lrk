@@ -3,18 +3,18 @@
  *
  * Structure (single cohort):
  * - Compare: Both prices on one chart
- * - Realized: Price + Ratio (MVRV) + Z-Scores (for full cohorts)
- * - Capitalized: Price + Ratio + Z-Scores (for full cohorts)
+ * - Realized: Price + Ratio (MVRV)
+ * - Capitalized: Price + Ratio
  *
  * Structure (grouped cohorts):
  * - Realized: Price + Ratio comparison across cohorts
  * - Capitalized: Price + Ratio comparison across cohorts
  *
- * For cohorts WITHOUT full ratio patterns: basic Price/Ratio charts only (no Z-Scores)
+ * Cohorts without percentile patterns use basic Price/Ratio charts.
  */
 
 import { colors } from "../../utils/colors.js";
-import { createPriceRatioCharts, mapCohortsWithAll, priceRatioPercentilesTree } from "../shared.js";
+import { mapCohortsWithAll } from "../shared.js";
 import { baseline, price } from "../series.js";
 import { Unit } from "../../utils/units.js";
 
@@ -39,25 +39,41 @@ export function createPricesSectionFull({ cohort, title }) {
       },
       {
         name: "Realized",
-        tree: createPriceRatioCharts({
-          context: cohort.title,
-          legend: "Realized",
-          pricePattern: tree.realized.price,
-          ratio: tree.realized.price,
-          color,
-          priceTitle: title("Realized Price"),
-          titlePrefix: "Realized Price",
-        }),
+        title: title("Realized Price"),
+        top: [
+          price({
+            series: tree.realized.price,
+            name: "Realized",
+            color,
+          }),
+        ],
+        bottom: [
+          baseline({
+            series: tree.realized.price.ratio,
+            name: "Ratio",
+            unit: Unit.ratio,
+            base: 1,
+          }),
+        ],
       },
       {
         name: "Capitalized",
-        tree: priceRatioPercentilesTree({
-          pattern: tree.realized.capitalized.price,
-          title: title("Capitalized Price"),
-          ratioTitle: title("Capitalized Price Ratio"),
-          legend: "Capitalized",
-          color,
-        }),
+        title: title("Capitalized Price"),
+        top: [
+          price({
+            series: tree.realized.capitalized.price,
+            name: "Capitalized",
+            color,
+          }),
+        ],
+        bottom: [
+          baseline({
+            series: tree.realized.capitalized.price.ratio,
+            name: "Ratio",
+            unit: Unit.ratio,
+            base: 1,
+          }),
+        ],
       },
     ],
   };
@@ -76,24 +92,21 @@ export function createPricesSectionBasic({ cohort, title }) {
     tree: [
       {
         name: "Realized",
-        tree: [
-          {
-            name: "Price",
-            title: title("Realized Price"),
-            top: [price({ series: tree.realized.price, name: "Realized", color })],
-          },
-          {
+        title: title("Realized Price"),
+        top: [
+          price({
+            series: tree.realized.price,
+            name: "Realized",
+            color,
+          }),
+        ],
+        bottom: [
+          baseline({
+            series: tree.realized.price.ratio,
             name: "Ratio",
-            title: title("Realized Price Ratio"),
-            bottom: [
-              baseline({
-                series: tree.realized.price.ratio,
-                name: "Ratio",
-                unit: Unit.ratio,
-                base: 1,
-              }),
-            ],
-          },
+            unit: Unit.ratio,
+            base: 1,
+          }),
         ],
       },
     ],

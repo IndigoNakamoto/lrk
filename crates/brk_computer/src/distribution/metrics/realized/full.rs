@@ -9,13 +9,12 @@ use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
-    blocks,
     distribution::state::{CohortState, CostBasisData, RealizedState, WithCapital},
     internal::{
         FiatPerBlockCumulativeWithSums, PercentPerBlock, PercentRollingWindows,
-        PriceWithRatioExtendedPerBlock, RatioCents, RatioCents64, RatioCentsSignedCents,
-        RatioCentsSignedDollars, RatioDollars, RatioPerBlockPercentiles, RatioPerBlockStdDevBands,
-        RatioSma, RollingWindows, RollingWindowsFrom1w, ValuePerBlockCumulativeRolling,
+        PriceWithRatioPerBlock, RatioCents, RatioCents64, RatioCentsSignedCents,
+        RatioCentsSignedDollars, RatioDollars, RollingWindows, RollingWindowsFrom1w,
+        ValuePerBlockCumulativeRolling,
     },
     price,
 };
@@ -46,7 +45,7 @@ pub struct RealizedPeakRegret<M: StorageMode = Rw> {
 
 #[derive(Traversable)]
 pub struct RealizedCapitalized<M: StorageMode = Rw> {
-    pub price: PriceWithRatioExtendedPerBlock<M>,
+    pub price: PriceWithRatioPerBlock<M>,
     #[traversable(hidden)]
     pub cap_raw: M::Stored<BytesVec<Height, CentsSquaredSats>>,
 }
@@ -71,13 +70,6 @@ pub struct RealizedFull<M: StorageMode = Rw> {
     pub cap_raw: M::Stored<BytesVec<Height, CentsSats>>,
     #[traversable(wrap = "cap", rename = "to_own_mcap")]
     pub cap_to_own_mcap: PercentPerBlock<PartsPerMillion32, M>,
-
-    #[traversable(wrap = "price", rename = "percentiles")]
-    pub price_ratio_percentiles: RatioPerBlockPercentiles<M>,
-    #[traversable(wrap = "price", rename = "sma")]
-    pub price_ratio_sma: RatioSma<M>,
-    #[traversable(wrap = "price", rename = "std_dev")]
-    pub price_ratio_std_dev: RatioPerBlockStdDevBands<M>,
 }
 
 impl RealizedFull {
@@ -114,10 +106,6 @@ impl RealizedFull {
             cap_raw: cfg.import("capitalized_cap_raw", v0)?,
         };
 
-        // Price ratio stats
-        let realized_price_name = cfg.name("realized_price");
-        let realized_price_version = cfg.version + v1;
-
         Ok(Self {
             core,
             gross_pnl,
@@ -129,24 +117,6 @@ impl RealizedFull {
             profit_to_loss_ratio: cfg.import("realized_profit_to_loss_ratio", v1)?,
             cap_raw: cfg.import("cap_raw", v0)?,
             cap_to_own_mcap: cfg.import("realized_cap_to_own_mcap", v1)?,
-            price_ratio_percentiles: RatioPerBlockPercentiles::forced_import(
-                cfg.db,
-                &realized_price_name,
-                realized_price_version,
-                cfg.indexes,
-            )?,
-            price_ratio_sma: RatioSma::forced_import(
-                cfg.db,
-                &realized_price_name,
-                realized_price_version,
-                cfg.indexes,
-            )?,
-            price_ratio_std_dev: RatioPerBlockStdDevBands::forced_import(
-                cfg.db,
-                &realized_price_name,
-                realized_price_version,
-                cfg.indexes,
-            )?,
         })
     }
 
@@ -240,7 +210,6 @@ impl RealizedFull {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_rest_part2(
         &mut self,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         height_to_supply: &impl ReadableVec<Height, Bitcoin>,
@@ -304,10 +273,10 @@ impl RealizedFull {
                 exit,
             )?;
 
-        // Capitalized price ratio, percentiles and bands
+        // Capitalized price ratio
         self.capitalized
             .price
-            .compute_rest(prices, starting_lengths, exit)?;
+            .compute_ratio(starting_lengths, &prices.spot.cents.height, exit)?;
 
         // Sell-side risk ratios
         for (ssrr, rv) in self
@@ -348,30 +317,6 @@ impl RealizedFull {
                 exit,
             )?;
         }
-
-        // Price ratio: percentiles, sma and std dev bands
-        self.price_ratio_percentiles.compute(
-            starting_lengths,
-            exit,
-            &self.core.minimal.price.ratio.height,
-            &self.core.minimal.price.cents.height,
-        )?;
-
-        self.price_ratio_sma.compute(
-            blocks,
-            starting_lengths,
-            exit,
-            &self.core.minimal.price.ratio.height,
-        )?;
-
-        self.price_ratio_std_dev.compute(
-            blocks,
-            starting_lengths,
-            exit,
-            &self.core.minimal.price.ratio.height,
-            &self.core.minimal.price.cents.height,
-            &self.price_ratio_sma,
-        )?;
 
         Ok(())
     }

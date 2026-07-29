@@ -436,7 +436,6 @@ impl Computer {
                     &self.inputs,
                     &self.outputs,
                     &self.transactions,
-                    &self.blocks,
                     &self.price,
                     exit,
                 )
@@ -517,7 +516,14 @@ impl Computer {
 
         self.indicators
             .rarity_meter
-            .compute(indexer, &self.distribution, &self.price, exit)?;
+            .compute(
+                indexer,
+                &self.distribution,
+                &self.cointime,
+                &self.coinflow,
+                &self.price,
+                exit,
+            )?;
 
         info!("Total compute time: {:?}", compute_start.elapsed());
         Ok(())

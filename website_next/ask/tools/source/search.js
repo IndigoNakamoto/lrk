@@ -94,6 +94,27 @@ function computationWeight(content) {
   return arithmetic ? 2 : code.includes(".compute") ? 1 : 0;
 }
 
+/** @param {string} value */
+function regexEscape(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** @param {string} line @param {string} query */
+function callsQuery(line, query) {
+  if (!/^[a-z_][a-z0-9_]*$/i.test(query)) {
+    return line.includes("(") && normalize(line).includes(query);
+  }
+  return new RegExp(`\\b${regexEscape(query)}\\s*\\(`).test(line);
+}
+
+/** @param {string} content @param {string} query */
+function usageWeight(content, query) {
+  return codeOnly(content).split("\n").filter((line) =>
+    !DECLARATION.test(line) &&
+    callsQuery(line, query)
+  ).length;
+}
+
 /** @param {string} content @param {string} query */
 function computesQueryDirectly(content, query) {
   return codeOnly(content).split("\n").some((line) => {
@@ -139,8 +160,16 @@ function relatedToken(left, right) {
   return left === right || tokenAffinity(left, right) >= TOKEN_AFFINITY;
 }
 
-/** @param {string} text @param {string[]} tokens @param {number[]} weights @param {string} phrase @param {boolean} preferComputation */
-function bestExcerptLine(text, tokens, weights, phrase, preferComputation) {
+/** @param {string} text @param {string[]} tokens @param {number[]} weights @param {string} phrase @param {boolean} preferComputation @param {boolean} preferUsage @param {string} usageQuery */
+function bestExcerptLine(
+  text,
+  tokens,
+  weights,
+  phrase,
+  preferComputation,
+  preferUsage,
+  usageQuery,
+) {
   const lines = text.split("\n");
   const normalized = lines.map((line) => normalize(line));
   const strongest = Math.max(...weights, 1);
@@ -169,6 +198,12 @@ function bestExcerptLine(text, tokens, weights, phrase, preferComputation) {
         lines.slice(scope.start, scope.end + 1).join("\n"),
       ) * strongest * 4;
     }
+    if (preferUsage) {
+      score += usageWeight(
+        lines.slice(scope.start, scope.end + 1).join("\n"),
+        usageQuery,
+      ) * strongest * 4;
+    }
     return { ...scope, score };
   }).sort((left, right) => right.score - left.score || left.start - right.start);
   const scope = rankedScopes[0];
@@ -194,6 +229,11 @@ function bestExcerptLine(text, tokens, weights, phrase, preferComputation) {
         : sum;
     }, 0);
     if (phrase && line.includes(phrase)) score += strongest * 3;
+    if (
+      preferUsage &&
+      !DECLARATION.test(lines[index]) &&
+      callsQuery(lines[index], usageQuery)
+    ) score += strongest * 4;
     if (!score || score <= bestScore) continue;
     bestScore = score;
     bestLine = index + 1;
@@ -225,9 +265,12 @@ function candidateFiles(index, token) {
  * @param {ReturnType<typeof createSourceSearchIndex>} index
  * @param {string} rawQuery
  * @param {string} [pathPrefix]
- * @param {"definition" | "implementation" | "availability"} [focus]
+ * @param {"definition" | "implementation" | "usage" | "availability"} [focus]
  */
 export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined) {
+  const exactUsageQuery = /^[A-Za-z_][A-Za-z0-9_]*$/.test(rawQuery.trim())
+    ? rawQuery.trim()
+    : normalize(rawQuery);
   const query = normalize(rawQuery);
   if (!query) throw new Error("Search query is empty");
 
@@ -304,6 +347,8 @@ export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined
         match.weights,
         query,
         focus === "implementation",
+        focus === "usage",
+        exactUsageQuery,
       );
       const excerpt = excerptAt(file.text, line, declaration);
       const localPhraseOccurrences = phraseOccurrences(
@@ -331,6 +376,9 @@ export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined
       const formulaScore = containsDirectFormula(excerpt.content, query)
         ? 80
         : 0;
+      const usageScore = focus === "usage"
+        ? usageWeight(excerpt.content, exactUsageQuery) * 40
+        : 0;
       return {
         ...match,
         score: match.score +
@@ -338,7 +386,8 @@ export function searchSource(index, rawQuery, pathPrefix = "", focus = undefined
           definitionScore +
           implementationScore +
           directImplementationScore +
-          formulaScore,
+          formulaScore +
+          usageScore,
         phraseOccurrences: localPhraseOccurrences,
         ...excerpt,
       };

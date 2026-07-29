@@ -59,6 +59,7 @@ export async function loadSessionContext(history, onProgress) {
             operation,
             arguments: message.apiContext?.arguments ?? {},
             fields: message.apiContext?.fields ?? [],
+            records: message.apiContext?.records ?? [],
           },
         }
       : {}),

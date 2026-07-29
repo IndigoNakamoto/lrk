@@ -14,7 +14,6 @@ use vecdb::{
 };
 
 use crate::{
-    blocks,
     distribution::{
         DynCohortVecs,
         metrics::{
@@ -592,7 +591,6 @@ impl UTXOCohorts<Rw> {
     /// Second phase of post-processing: compute relative metrics.
     pub(crate) fn compute_rest_part2(
         &mut self,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         height_to_market_cap: &impl ReadableVec<Height, Dollars>,
@@ -620,7 +618,6 @@ impl UTXOCohorts<Rw> {
 
         // "all" cohort computed first (no all_supply_sats needed).
         self.all.metrics.compute_rest_part2(
-            blocks,
             prices,
             starting_lengths,
             height_to_market_cap,
@@ -666,7 +663,6 @@ impl UTXOCohorts<Rw> {
         let tasks: Vec<Box<dyn FnOnce() -> Result<()> + Send + '_>> = vec![
             Box::new(|| {
                 sth.metrics.compute_rest_part2(
-                    blocks,
                     prices,
                     starting_lengths,
                     height_to_market_cap,
@@ -679,7 +675,6 @@ impl UTXOCohorts<Rw> {
             }),
             Box::new(|| {
                 lth.metrics.compute_rest_part2(
-                    blocks,
                     prices,
                     starting_lengths,
                     height_to_market_cap,
@@ -727,7 +722,6 @@ impl UTXOCohorts<Rw> {
             Box::new(|| {
                 entry.par_iter_mut().try_for_each(|v| {
                     v.metrics.compute_rest_part2(
-                        blocks,
                         prices,
                         starting_lengths,
                         height_to_market_cap,

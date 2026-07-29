@@ -226,7 +226,15 @@ function historicalSubSection(name, periods) {
  * @returns {PartialOptionsGroup}
  */
 export function createMarketSection() {
-  const { market, supply, cohorts, price: prices, indicators } = brk.series;
+  const {
+    market,
+    supply,
+    cohorts,
+    price: prices,
+    indicators,
+    cointime,
+    coinflow,
+  } = brk.series;
   const {
     movingAverage: ma,
     ath,
@@ -921,6 +929,27 @@ export function createMarketSection() {
       {
         name: "Indicators",
         tree: [
+          {
+            name: "Value Anchors",
+            title: "Bitcoin Value Anchors",
+            top: [
+              price({
+                series: cointime.prices.trueMarketMean,
+                name: "True Market Mean",
+                color: colors.trueMarketMean,
+              }),
+              price({
+                series: coinflow.price,
+                name: "Coinflow Price",
+                color: colors.coinflow,
+              }),
+              price({
+                series: indicators.rarityMeter.cycle.pct50,
+                name: "Cycle Rarity Midpoint",
+                color: colors.ratioPct._50,
+              }),
+            ],
+          },
           {
             name: "NVT",
             title: "NVT Ratio",

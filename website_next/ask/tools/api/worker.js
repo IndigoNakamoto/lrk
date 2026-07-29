@@ -84,7 +84,13 @@ function state(id, url) {
   if (!statePromise || url !== stateUrl) {
     stateUrl = url;
     self.postMessage({ id, status: "progress" });
-    statePromise = buildState(url);
+    const pending = buildState(url);
+    statePromise = pending;
+    void pending.catch(() => {
+      if (statePromise !== pending) return;
+      statePromise = undefined;
+      stateUrl = "";
+    });
   }
   return statePromise;
 }
@@ -93,7 +99,7 @@ function state(id, url) {
 function searchOne(index, query, limit) {
   const normalized = searchable(query)
     .split(" ")
-    .filter((word) => word.length < 32)
+    .filter((word) => word.length >= 3 && word.length < 32)
     .join(" ");
   if (!normalized) return [];
   const words = [...new Set(normalized.split(" ").filter(Boolean))];

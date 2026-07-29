@@ -10,7 +10,7 @@ import {
   sumsAndAveragesCumulative,
 } from "../../series.js";
 import { ageRanges } from "../../age-ranges.js";
-import { satsBtcUsd, priceRatioPercentilesTree } from "../../shared.js";
+import { satsBtcUsd, simplePriceRatioTree } from "../../shared.js";
 import { createCointimeAgeRangeSection } from "./age-range.js";
 
 /**
@@ -44,7 +44,7 @@ export function createCointimeSection() {
     },
   ]);
 
-  /** @type {readonly { pattern: PriceRatioPercentilesPattern, name: string, title: (name: string) => string, color: Color, defaultActive: boolean }[]} */
+  /** @type {readonly { pattern: AnyPricePattern & { ratio: AnySeriesPattern }, name: string, title: (name: string) => string, color: Color, defaultActive: boolean }[]} */
   const prices = [
     {
       pattern: cointimePrices.trueMarketMean,
@@ -198,23 +198,15 @@ export function createCointimeSection() {
               ),
             ],
           },
-          ...prices.map(({ pattern, name, title, color }) => ({
-            name,
-            tree: priceRatioPercentilesTree({
+          ...prices.map(({ pattern, name, title, color }) => {
+            const [chart] = simplePriceRatioTree({
               pattern,
               title: title(name),
               legend: name,
               color,
-              priceReferences: [
-                price({
-                  series: all.realized.price,
-                  name: "Realized",
-                  color: colors.realized,
-                  defaultActive: false,
-                }),
-              ],
-            }),
-          })),
+            });
+            return { ...chart, name };
+          }),
         ],
       },
 

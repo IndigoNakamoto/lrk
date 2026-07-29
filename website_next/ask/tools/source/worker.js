@@ -49,7 +49,7 @@ async function prewarm(reportProgress) {
 }
 
 /**
- * @param {{ query: string, path?: string, focus?: "definition" | "implementation" | "availability" }} args
+ * @param {{ query: string, path?: string, focus?: "definition" | "implementation" | "usage" | "availability" }} args
  * @param {(loaded: number, total: number) => void} reportProgress
  */
 async function search(args, reportProgress) {

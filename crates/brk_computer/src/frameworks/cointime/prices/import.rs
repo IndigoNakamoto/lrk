@@ -3,7 +3,7 @@ use brk_types::Version;
 use vecdb::Database;
 
 use super::Vecs;
-use crate::{indexes, internal::PriceWithRatioExtendedPerBlock};
+use crate::{indexes, internal::PriceWithRatioPerBlock};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -13,7 +13,7 @@ impl Vecs {
     ) -> Result<Self> {
         macro_rules! import {
             ($name:expr) => {
-                PriceWithRatioExtendedPerBlock::forced_import(db, $name, version, indexes)?
+                PriceWithRatioPerBlock::forced_import(db, $name, version, indexes)?
             };
         }
 

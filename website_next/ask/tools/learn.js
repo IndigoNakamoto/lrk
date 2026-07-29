@@ -22,6 +22,7 @@ function record(node, breadcrumbs) {
     sectionTitle: node.title,
     breadcrumbs,
     description: node.description ?? "",
+    ...(node.example ? { example: node.example } : {}),
     unit: node.chart.unit?.id,
     series,
   };

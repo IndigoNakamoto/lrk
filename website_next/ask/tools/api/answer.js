@@ -1,5 +1,5 @@
 import { renderApiAnswer } from "../render.js";
-import { relevance } from "../text.js";
+import { normalize, relevance, tokenAffinity } from "../text.js";
 import { focusApiData } from "./result.js";
 
 const MAX_FIELDS = 10;
@@ -8,6 +8,8 @@ const MAX_FIELDS = 10;
 function dimension(type) {
   const value = type.toLowerCase();
   if (value.includes("sats")) return "sats";
+  if (value.includes("vsize")) return "vB";
+  if (value.includes("feerate")) return "sat/vB";
   return value;
 }
 
@@ -15,8 +17,35 @@ function dimension(type) {
 function displayedUnit(type) {
   const value = dimension(type);
   if (value === "sats") return " sats";
+  if (value === "vB") return " vB";
+  if (value === "sat/vB") return " sat/vB";
+  if (value.includes("timestamp")) return "";
   if (value === "number" || value === "integer" || value === "float") return "";
   return ` ${type}`;
+}
+
+/** @param {string} question */
+function languageHints(question) {
+  const words = new Set(question.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  return [
+    ...(words.has("when") ? ["time timestamp date"] : []),
+    ...(words.has("many") ? ["count number total"] : []),
+    ...(words.has("much") ? ["amount value total"] : []),
+  ];
+}
+
+/** @param {string} query @param {string} document */
+function lexicalAffinity(query, document) {
+  const queryWords = normalize(query).split(" ").filter(Boolean);
+  const documentWords = normalize(document).split(" ").filter(Boolean);
+  return Math.max(
+    0,
+    ...queryWords.flatMap((queryWord) =>
+      documentWords.map((documentWord) =>
+        tokenAffinity(queryWord, documentWord)
+      )
+    ),
+  );
 }
 
 /**
@@ -34,6 +63,7 @@ function displayedUnit(type) {
  * @property {ApiAnswerField} [previous]
  * @property {ApiAnswerField} [resolved]
  * @property {ApiAnswerField} [direct]
+ * @property {ApiAnswerField[]} related
  * @property {ApiAnswerField[]} ambiguous
  * @property {any[]} tools
  */
@@ -50,9 +80,15 @@ function valueAt(value, path) {
   return current;
 }
 
-/** @param {unknown} value */
-function formattedValue(value) {
+/** @param {unknown} value @param {string} [type] */
+function formattedValue(value, type = "") {
   if (typeof value === "number") {
+    if (dimension(type).includes("timestamp")) {
+      return new Date(value * 1_000).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "medium",
+      });
+    }
     return new Intl.NumberFormat("en-US", {
       maximumFractionDigits: 8,
     }).format(value);
@@ -67,6 +103,74 @@ export function summarizeApiAnswer(grounding) {
   const responseFields = /** @type {{ name: string, type: string, description?: string, ownDescription?: string }[]} */ (
     grounding.operation.response.fields ?? []
   );
+  if (Array.isArray(data)) {
+    const rows = data.slice(0, 4);
+    const fields = responseFields.slice(0, 4);
+    const total = grounding.data &&
+        typeof grounding.data === "object" &&
+        !Array.isArray(grounding.data) &&
+        typeof grounding.data.count === "number"
+      ? grounding.data.count
+      : data.length;
+    const primitiveRows = rows.every((row) =>
+      typeof row === "string" ||
+      typeof row === "number" ||
+      typeof row === "boolean"
+    );
+    if (primitiveRows) {
+      const itemType = grounding.operation.response.type.replace(/\[\]$/, "");
+      return {
+        output: renderApiAnswer(
+          [
+            `${total.toLocaleString()} record${total === 1 ? "" : "s"}${
+              total > rows.length ? ` · showing ${rows.length}` : ""
+            }`,
+            ...rows.map((row, index) =>
+              `${index + 1}. ${formattedValue(row, itemType)}`
+            ),
+          ].join("\n\n"),
+          grounding.operation,
+        ),
+        fields: [],
+      };
+    }
+    if (!rows.length || !fields.length) {
+      return {
+        output: renderApiAnswer(
+          "The API returned no compact records to display.",
+          grounding.operation,
+        ),
+        fields: [],
+      };
+    }
+    const output = [
+      `${total.toLocaleString()} record${total === 1 ? "" : "s"}${
+        total > rows.length ? ` · showing ${rows.length}` : ""
+      }`,
+      ...rows.map((row, index) => {
+        const values = fields
+          .map((field) => ({
+            field,
+            value: valueAt(row, field.name.split(".")),
+          }))
+          .filter(({ value }) =>
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
+          )
+          .map(({ field, value }) =>
+            `**${field.name.replaceAll(".", " · ").replaceAll("_", " ")}**: ${
+              formattedValue(value, field.type)
+            }${typeof value === "number" ? displayedUnit(field.type) : ""}`
+          );
+        return `${index + 1}. ${values.join(" · ")}`;
+      }),
+    ].join("\n\n");
+    return {
+      output: renderApiAnswer(output, grounding.operation),
+      fields: fields.map(({ name }) => name),
+    };
+  }
   const fields = responseFields
     .map((field) => ({
       ...field,
@@ -90,7 +194,7 @@ export function summarizeApiAnswer(grounding) {
   const output = fields
     .map((/** @type {any} */ field) =>
       `- **${field.name.replaceAll(".", " · ").replaceAll("_", " ")}**: ${
-        formattedValue(field.value)
+        formattedValue(field.value, field.type)
       }${typeof field.value === "number" ? displayedUnit(field.type) : ""}`
     )
     .join("\n");
@@ -112,7 +216,7 @@ export function createApiAnswerTool(grounding) {
   const previousParents = new Set(
     (grounding.previousFields ?? []).map((/** @type {string} */ name) =>
       name.split(".").slice(0, -1).join(".")
-    ),
+    ).filter(Boolean),
   );
   const previousParent = previousParents.size === 1
     ? [...previousParents][0]
@@ -140,19 +244,32 @@ export function createApiAnswerTool(grounding) {
         `${field.name} ${field.ownDescription || field.description || ""}`,
       ) +
         relevance(grounding.question, field.name) +
+        lexicalAffinity(grounding.question, field.name) * 8 +
         relevance(
           grounding.question,
           field.ownDescription || field.description || "",
+        ) +
+        Math.max(
+          0,
+          ...languageHints(grounding.question).map((hint) =>
+            relevance(
+              hint,
+              `${field.name} ${field.type} ${
+                field.ownDescription || field.description || ""
+              }`,
+            )
+          ),
         ) -
-        Math.max(0, field.name.split(".").length - 1) * 2,
+        Math.max(0, field.name.split(".").length - 1) * 2 +
+        (
+          previousParent &&
+            field.name.split(".").slice(0, -1).join(".") === previousParent
+            ? 2
+            : 0
+        ),
     }))
     .sort((left, right) => {
-      const leftParent = left.name.split(".").slice(0, -1).join(".");
-      const rightParent = right.name.split(".").slice(0, -1).join(".");
-      const leftAffinity = previousParent && leftParent === previousParent ? 2 : 0;
-      const rightAffinity = previousParent && rightParent === previousParent ? 2 : 0;
-      return right.score + rightAffinity - left.score - leftAffinity ||
-        left.index - right.index;
+      return right.score - left.score || left.index - right.index;
     });
   const answerCandidates = primitive.filter(({ name }) =>
     name !== previousName &&
@@ -196,6 +313,11 @@ export function createApiAnswerTool(grounding) {
       value: /** @type {string | number | boolean} */ (field.value),
       ref: `n${index + 1}`,
     }));
+  const related = best
+    ? fields.filter((field) =>
+      field.score >= 6 && best.score - field.score < 3
+    )
+    : [];
   const previousChoices = fields
     .filter(({ name }) => grounding.previousFields?.includes(name))
     .sort((left, right) => right.score - left.score);
@@ -258,6 +380,7 @@ export function createApiAnswerTool(grounding) {
       "answer_api",
       [
         "Choose select for one raw primitive field.",
+        "Choose select_many when several raw primitive fields were requested.",
         "Choose calculate to derive the result from component fields, including a narrower concept than an aggregate.",
         previous
           ? `Choose continue only to apply arithmetic to preceding ${previous.ref}=${previous.name}.`
@@ -269,6 +392,7 @@ export function createApiAnswerTool(grounding) {
           type: "string",
           enum: [
             ...(fields.length ? ["select"] : []),
+            ...(fields.length > 1 ? ["select_many"] : []),
             ...(calculationFields.length >= 2 ? ["calculate"] : []),
             ...(previous ? ["continue"] : []),
             "text",
@@ -277,6 +401,14 @@ export function createApiAnswerTool(grounding) {
         ...(fields.length
           ? {
             field: reference,
+            fields: {
+              type: "array",
+              minItems: 2,
+              maxItems: Math.min(10, fields.length),
+              items: reference,
+              description:
+                "Ordered verified field refs when several raw fields were requested.",
+            },
             ...(calculationFields.length === 2
               ? {
                 operator,
@@ -329,6 +461,7 @@ export function createApiAnswerTool(grounding) {
     previous,
     resolved,
     direct: direct ? fields.find(({ name }) => name === direct.name) : undefined,
+    related,
     ambiguous: fields.filter(({ name }) => ambiguousNames.has(name)),
     tools,
   };
@@ -337,19 +470,67 @@ export function createApiAnswerTool(grounding) {
 /** @param {string} name @param {Record<string, unknown>} action @param {ApiAnswerField[]} fields @param {any} grounding */
 export function finishApiAnswer(name, action, fields, grounding) {
   const byRef = new Map(fields.map((field) => [field.ref, field]));
+  if (name === "calculate_api_rate") {
+    const numerator = byRef.get(String(action.left));
+    const denominator = byRef.get(String(action.right));
+    if (
+      !numerator ||
+      !denominator ||
+      typeof numerator.value !== "number" ||
+      typeof denominator.value !== "number"
+    ) {
+      throw new Error("The AI returned invalid rate fields");
+    }
+    const denominatorDimension = dimension(denominator.type);
+    const divisor = denominatorDimension === "vB"
+      ? denominator.value
+      : denominatorDimension === "weight"
+        ? Math.ceil(denominator.value / 4)
+        : 0;
+    if (!divisor) throw new Error("Cannot calculate this rate");
+    const value = dimension(numerator.type) === "sats"
+      ? Math.ceil(numerator.value * 1_000 / divisor) / 1_000
+      : numerator.value / divisor;
+    const label = typeof action.label === "string" && action.label.trim()
+      ? action.label.trim().replaceAll("_", " ")
+      : "rate";
+    const unit = dimension(numerator.type) === "sats" ? " sat/vB" : "";
+    return renderApiAnswer(
+      `**${label}**: ${
+        new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(value)
+      }${unit}`,
+      grounding.operation,
+    );
+  }
   if (name === "select_api_field") {
     const field = byRef.get(String(action.field));
     if (!field) throw new Error("The AI selected an unknown API field");
     const label = typeof action.label === "string" && action.label.trim()
       ? action.label.trim().replaceAll("_", " ")
       : field.name.replaceAll(".", " · ").replaceAll("_", " ");
-    const formatted = formattedValue(field.value);
+    const formatted = formattedValue(field.value, field.type);
     return renderApiAnswer(
       `**${label}**: ${formatted}${
         typeof field.value === "number" ? displayedUnit(field.type) : ""
       }`,
       grounding.operation,
     );
+  }
+  if (name === "select_api_fields") {
+    const refs = Array.isArray(action.fields) ? action.fields : [];
+    const selected = refs.map((ref) => byRef.get(String(ref))).filter(Boolean);
+    if (selected.length < 2) {
+      throw new Error("The AI selected too few API fields");
+    }
+    const output = selected.map((field) => {
+      const formatted = formattedValue(field.value, field.type);
+      return `- **${
+        field.name.replaceAll(".", " · ").replaceAll("_", " ")
+      }**: ${formatted}${
+        typeof field.value === "number" ? displayedUnit(field.type) : ""
+      }`;
+    }).join("\n");
+    return renderApiAnswer(output, grounding.operation);
   }
   if (name === "answer_api_text") {
     const text = typeof action.text === "string" ? action.text.trim() : "";

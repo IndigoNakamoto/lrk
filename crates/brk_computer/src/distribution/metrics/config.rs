@@ -11,9 +11,9 @@ use crate::{
     internal::{
         FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue, PerBlock,
         PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
-        PriceWithRatioExtendedPerBlock, PriceWithRatioPerBlock, RatioPerBlock,
-        RollingWindow24hPerBlock, RollingWindows, RollingWindowsFrom1w, ValuePerBlock,
-        ValuePerBlockCumulative, ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
+        PriceWithRatioPerBlock, RatioPerBlock, RollingWindow24hPerBlock, RollingWindows,
+        RollingWindowsFrom1w, ValuePerBlock, ValuePerBlockCumulative,
+        ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
     },
 };
 
@@ -40,7 +40,6 @@ impl_config_import!(
     ValuePerBlock,
     ValuePerBlockCumulative,
     PriceWithRatioPerBlock,
-    PriceWithRatioExtendedPerBlock,
     RatioPerBlock<PartsPerMillionSigned32>,
     PercentPerBlock<PartsPerMillion32>,
     PercentPerBlock<PartsPerMillionSigned32>,

@@ -16,8 +16,7 @@ pub use currency::{
     NegCentsUnsignedToDollars, SatsSignedToBitcoin, SatsToBitcoin, SatsToCents,
 };
 pub use derived::{
-    Days1, Days7, Days30, Days365, DaysToYears, PriceTimesRatio, PriceTimesRatioCents,
-    RatioCents64, TimesSqrt,
+    Days1, Days7, Days30, Days365, DaysToYears, PriceTimesRatio, RatioCents64, TimesSqrt,
 };
 pub use fixed_ratio::{FixedToPercent, FixedToRatio};
 pub use ratio::{

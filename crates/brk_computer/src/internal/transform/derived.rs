@@ -47,15 +47,6 @@ impl<D: SqrtDays> UnaryTransform<StoredF32, StoredF32> for TimesSqrt<D> {
     }
 }
 
-pub struct PriceTimesRatioCents;
-
-impl BinaryTransform<Cents, StoredF32, Cents> for PriceTimesRatioCents {
-    #[inline(always)]
-    fn apply(price: Cents, ratio: StoredF32) -> Cents {
-        Cents::from(f64::from(price) * f64::from(ratio))
-    }
-}
-
 pub struct PriceTimesRatio<R>(PhantomData<R>);
 
 impl<R: FixedRatio> BinaryTransform<Cents, R, Cents> for PriceTimesRatio<R> {

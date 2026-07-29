@@ -1131,8 +1131,8 @@ mod tests {
 
     #[test]
     fn test_all_empty_same_type_marks_outlier() {
-        // RatioPerBlockStdDevBands: all children are the same type (StdDevPerBlockExtended)
-        // and all return the same base → all-empty field_parts.
+        // A wrapper whose children share one type and return the same base
+        // produces all-empty field_parts.
         // Should be marked as outlier so the tree inlines instead of using a
         // factory that can't differentiate the children.
         let mut child_bases = BTreeMap::new();
@@ -1184,7 +1184,8 @@ mod tests {
 
     #[test]
     fn test_extract_disc_from_instance() {
-        // StdDevPerBlockExtended 4y instance: field_parts include "0sd_4y", "p1sd_4y", "ratio_sd_4y".
+        // A discriminated instance has field_parts such as "0sd_4y", "p1sd_4y",
+        // and "ratio_sd_4y".
         // Templates are "0sd{disc}", "p1sd{disc}", "ratio_sd{disc}".
         // The extracted disc should be "_4y", not "0sd_4y" (the shortest field_part).
         use crate::StructuralPattern;

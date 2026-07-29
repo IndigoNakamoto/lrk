@@ -36,7 +36,7 @@
  * @typedef {Brk.SeriesTree_Cohorts_Addr} AddrCohortTree
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_All} AllUtxoPattern
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_Sth} ShortTermPattern
- * @typedef {Brk.SeriesTree_Cohorts_Utxo_Lth} LongTermPattern
+ * @typedef {Brk.ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2} LongTermPattern
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_All_Unrealized} AllRelativePattern
  * @typedef {keyof Brk.BtcCentsSatsUsdPattern} BtcSatsUsdKey
  * @typedef {Brk.BtcCentsSatsUsdPattern} SupplyPattern
@@ -53,7 +53,6 @@
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} BasicUtxoPattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} EpochPattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern3} EmptyPattern
- * @typedef {Brk._0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern} Ratio1ySdPattern
  * @typedef {Brk.Dollars} Dollars
  * @typedef {Brk.BlockInfo} BlockInfo
  * @typedef {Brk.Height} Height
@@ -68,12 +67,8 @@
  * @typedef {Brk.BlockTemplate} BlockTemplate
  * @typedef {Brk.MempoolBlock} MempoolBlock
  * @typedef {Brk.NextBlockHash} NextBlockHash
- * ActivePriceRatioPattern: ratio pattern with price (extended)
- * @typedef {Brk.PriceRatioPattern} ActivePriceRatioPattern
- * PriceRatioPercentilesPattern: price pattern with ratio + percentiles (no SMAs/stdDev)
- * @typedef {Brk.CentsPercentilesPpmRatioSatsUsdPattern} PriceRatioPercentilesPattern
- * AnyRatioPattern: full ratio pattern with percentiles, SMAs, and std dev bands
- * @typedef {Brk.CentsPercentilesPpmRatioSatsSmaStdUsdPattern} AnyRatioPattern
+ * AnyRatioPattern: price pattern with a ratio
+ * @typedef {AnyPricePattern & { ratio: AnySeriesPattern }} AnyRatioPattern
  * FullValuePattern: block + cumulative + sum + average rolling windows (sats/btc/cents/usd)
  * @typedef {Brk.AverageBlockCumulativeSumPattern3} FullValuePattern
  * RollingWindowSlot: a single rolling window with stats (pct10, pct25, median, pct75, pct90, max, min) per unit
@@ -112,9 +107,6 @@
  *
  * PPM + ratio pattern (for NUPL and similar)
  * @typedef {Brk.PpmRatioPattern} NuplPattern
- *
- * LTH realized tree
- * @typedef {Brk.SeriesTree_Cohorts_Utxo_Lth_Realized} LthRealizedPattern
  *
  * Net PnL pattern with change (base + change + cumulative + delta + rel + sum)
  * @typedef {Brk.BlockChangeCumulativeDeltaSumPattern} NetPnlFullPattern
@@ -256,7 +248,6 @@
  *
  * Capitalized price percentiles (pct1/2/5/95/98/99)
  * @typedef {Brk.Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} CapitalizedPercentilesPattern
- * @typedef {Brk.PriceRatioPattern} CapitalizedPercentileEntry
  *
  * Generic tree node type for walking
  * @typedef {AnySeriesPattern | Record<string, unknown>} TreeNode

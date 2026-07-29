@@ -10,7 +10,6 @@ import {
   chartsFromPercentCumulativeEntries,
   sumsAndAveragesCumulativeWith,
 } from "./series.js";
-import { priceLine, priceLines } from "./constants.js";
 import { colors } from "../utils/colors.js";
 
 // ============================================================================
@@ -611,13 +610,8 @@ export function avgHoldingsSubtree(pattern, title) {
 export function simplePriceRatioTree({ pattern, title, legend, color }) {
   return [
     {
-      name: "Price",
+      name: title,
       title,
-      top: [price({ series: pattern, name: legend, color })],
-    },
-    {
-      name: "Ratio",
-      title: `${title} Ratio`,
       top: [price({ series: pattern, name: legend, color })],
       bottom: [
         baseline({
@@ -632,7 +626,7 @@ export function simplePriceRatioTree({ pattern, title, legend, color }) {
 }
 
 /**
- * @param {{ pct95: AnyPricePattern, pct5: AnyPricePattern, pct98: AnyPricePattern, pct2: AnyPricePattern, pct99: AnyPricePattern, pct1: AnyPricePattern, pct995: AnyPricePattern, pct05: AnyPricePattern }} p
+ * @param {{ pct001: AnyPricePattern, pct05: AnyPricePattern, pct1: AnyPricePattern, pct2: AnyPricePattern, pct5: AnyPricePattern, pct10: AnyPricePattern, pct20: AnyPricePattern, pct30: AnyPricePattern, pct40: AnyPricePattern, pct50: AnyPricePattern, pct60: AnyPricePattern, pct70: AnyPricePattern, pct80: AnyPricePattern, pct90: AnyPricePattern, pct95: AnyPricePattern, pct98: AnyPricePattern, pct99: AnyPricePattern, pct995: AnyPricePattern, pct999: AnyPricePattern }} p
  */
 export function percentileBands(p) {
   return percentileBandsWith(p, (e) => e);
@@ -641,51 +635,126 @@ export function percentileBands(p) {
 /**
  * @template E
  * @template T
- * @param {{ pct95: E, pct5: E, pct98: E, pct2: E, pct99: E, pct1: E, pct995: E, pct05: E }} p
+ * @param {{ pct001: E, pct05: E, pct1: E, pct2: E, pct5: E, pct10: E, pct20: E, pct30: E, pct40: E, pct50: E, pct60: E, pct70: E, pct80: E, pct90: E, pct95: E, pct98: E, pct99: E, pct995: E, pct999: E }} p
  * @param {(entry: E) => T} extract
  */
 export function percentileBandsWith(p, extract) {
   return [
-    { name: "P95", prop: extract(p.pct95), color: colors.ratioPct._95 },
-    { name: "P5", prop: extract(p.pct5), color: colors.ratioPct._5 },
-    { name: "P98", prop: extract(p.pct98), color: colors.ratioPct._98 },
-    { name: "P2", prop: extract(p.pct2), color: colors.ratioPct._2 },
-    { name: "P99", prop: extract(p.pct99), color: colors.ratioPct._99 },
-    { name: "P1", prop: extract(p.pct1), color: colors.ratioPct._1 },
-    { name: "P99.5", prop: extract(p.pct995), color: colors.ratioPct._99_5 },
-    { name: "P0.5", prop: extract(p.pct05), color: colors.ratioPct._0_5 },
+    {
+      name: "P95",
+      prop: extract(p.pct95),
+      color: colors.ratioPct._95,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P98",
+      prop: extract(p.pct98),
+      color: colors.ratioPct._98,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P99",
+      prop: extract(p.pct99),
+      color: colors.ratioPct._99,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P99.5",
+      prop: extract(p.pct995),
+      color: colors.ratioPct._99_5,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P99.9",
+      prop: extract(p.pct999),
+      color: colors.ratioPct._99_9,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P5",
+      prop: extract(p.pct5),
+      color: colors.ratioPct._5,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P2",
+      prop: extract(p.pct2),
+      color: colors.ratioPct._2,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P1",
+      prop: extract(p.pct1),
+      color: colors.ratioPct._1,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P0.5",
+      prop: extract(p.pct05),
+      color: colors.ratioPct._0_5,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P0.01",
+      prop: extract(p.pct001),
+      color: colors.ratioPct._0_01,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    {
+      name: "P50",
+      prop: extract(p.pct50),
+      color: colors.ratioPct._50,
+      defaultActive: true,
+      lineStyle: 0,
+    },
+    { name: "P10", prop: extract(p.pct10), color: colors.ratioPct._10 },
+    { name: "P20", prop: extract(p.pct20), color: colors.ratioPct._20 },
+    { name: "P30", prop: extract(p.pct30), color: colors.ratioPct._30 },
+    { name: "P40", prop: extract(p.pct40), color: colors.ratioPct._40 },
+    { name: "P60", prop: extract(p.pct60), color: colors.ratioPct._60 },
+    { name: "P70", prop: extract(p.pct70), color: colors.ratioPct._70 },
+    { name: "P80", prop: extract(p.pct80), color: colors.ratioPct._80 },
+    { name: "P90", prop: extract(p.pct90), color: colors.ratioPct._90 },
   ];
 }
 
 /**
- * @param {{ name: string, prop: AnyPricePattern, color: Color }[]} bands
- * @param {{ defaultActive?: boolean }} [opts]
+ * @param {{ name: string, prop: AnyPricePattern, color: Color, defaultActive?: boolean, lineStyle?: number }[]} bands
  */
-export function priceBands(bands, opts) {
-  return bands.map(({ name, prop, color }) =>
+export function priceBands(bands) {
+  return bands.map(({ name, prop, color, defaultActive, lineStyle }) =>
     price({
       series: prop,
       name,
       color,
-      defaultActive: opts?.defaultActive ?? false,
-      options: { lineStyle: 1 },
+      defaultActive: defaultActive ?? false,
+      options: { lineStyle: lineStyle ?? 1 },
     }),
   );
 }
 
 /**
- * @param {{ name: string, prop: AnySeriesPattern, color: Color }[]} bands
- * @param {{ defaultActive?: boolean }} [opts]
+ * @param {{ name: string, prop: AnySeriesPattern, color: Color, defaultActive?: boolean, lineStyle?: number }[]} bands
  */
-function ratioBands(bands, opts) {
-  return bands.map(({ name, prop, color }) =>
+function ratioBands(bands) {
+  return bands.map(({ name, prop, color, defaultActive, lineStyle }) =>
     line({
       series: prop,
       name,
       color,
-      defaultActive: opts?.defaultActive ?? false,
+      defaultActive: defaultActive ?? false,
       unit: Unit.ratio,
-      options: { lineStyle: 1 },
+      options: { lineStyle: lineStyle ?? 1 },
     }),
   );
 }
@@ -693,43 +762,32 @@ function ratioBands(bands, opts) {
 /**
  * Price + Ratio charts with percentile bands
  * @param {Object} args
- * @param {PriceRatioPercentilesPattern} args.pattern
+ * @param {AnyPricePattern & { ratio: AnySeriesPattern }} args.pattern
+ * @param {{ pct001: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct05: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct1: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct2: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct5: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct10: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct20: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct30: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct40: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct50: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct60: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct70: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct80: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct90: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct95: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct98: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct99: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct995: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct999: { price: AnyPricePattern, ratio: AnySeriesPattern }} args.percentiles
  * @param {string} args.title
  * @param {string} args.legend
  * @param {Color} [args.color]
- * @param {string} [args.ratioTitle]
  * @param {FetchedPriceSeriesBlueprint[]} [args.priceReferences]
- * @param {boolean} [args.defaultActivePercentiles]
  * @returns {PartialOptionsTree}
  */
 export function priceRatioPercentilesTree({
   pattern,
+  percentiles,
   title,
   legend,
   color,
-  ratioTitle,
   priceReferences,
-  defaultActivePercentiles,
 }) {
-  const p = pattern.percentiles;
-  const pctUsd = percentileBandsWith(p, (e) => e.price);
-  const pctRatio = percentileBandsWith(p, (e) => e.ratio);
+  const pctUsd = percentileBandsWith(percentiles, (e) => e.price);
+  const pctRatio = percentileBandsWith(percentiles, (e) => e.ratio);
   return [
     {
-      name: "Price",
+      name: title,
       title,
       top: [
         price({ series: pattern, name: legend, color }),
         ...(priceReferences ?? []),
-        ...priceBands(pctUsd, { defaultActive: defaultActivePercentiles }),
-      ],
-    },
-    {
-      name: "Ratio",
-      title: ratioTitle ?? `${title} Ratio`,
-      top: [
-        price({ series: pattern, name: legend, color }),
-        ...priceBands(pctUsd, { defaultActive: defaultActivePercentiles }),
+        ...priceBands(pctUsd),
       ],
       bottom: [
         baseline({
@@ -738,7 +796,7 @@ export function priceRatioPercentilesTree({
           unit: Unit.ratio,
           base: 1,
         }),
-        ...ratioBands(pctRatio, { defaultActive: defaultActivePercentiles }),
+        ...ratioBands(pctRatio),
       ],
     },
   ];
@@ -772,115 +830,8 @@ export function revenueRollingBtcSatsUsd({ coinbase, subsidy, fee }) {
   ];
 }
 
-/** @param {AnyRatioPattern} ratio */
-export function percentileUsdMap(ratio) {
-  return percentileBandsWith(ratio.percentiles, (e) => e.price);
-}
-
-/** @param {AnyRatioPattern} ratio */
-export function percentileMap(ratio) {
-  return percentileBandsWith(ratio.percentiles, (e) => e.ratio);
-}
-
 /**
- * Build SD patterns from a ratio pattern
- * @param {AnyRatioPattern} ratio
- */
-export function sdPatterns(ratio) {
-  return /** @type {const} */ ([
-    {
-      nameAddon: "All Time",
-      titleAddon: "All Time",
-      sd: ratio.stdDev.all,
-      smaRatio: ratio.sma.all.ratio,
-    },
-    {
-      nameAddon: "4y",
-      titleAddon: "4y",
-      sd: ratio.stdDev._4y,
-      smaRatio: ratio.sma._4y.ratio,
-    },
-    {
-      nameAddon: "2y",
-      titleAddon: "2y",
-      sd: ratio.stdDev._2y,
-      smaRatio: ratio.sma._2y.ratio,
-    },
-    {
-      nameAddon: "1y",
-      titleAddon: "1y",
-      sd: ratio.stdDev._1y,
-      smaRatio: ratio.sma._1y.ratio,
-    },
-  ]);
-}
-
-/**
- * Build SD band mappings from an SD pattern
- * @param {Ratio1ySdPattern} sd
- */
-export function sdBandsUsd(sd) {
-  return /** @type {const} */ ([
-    { name: "0σ", prop: sd._0sd, color: colors.sd._0 },
-    { name: "+0.5σ", prop: sd.p05sd.price, color: colors.sd.p05 },
-    { name: "−0.5σ", prop: sd.m05sd.price, color: colors.sd.m05 },
-    { name: "+1σ", prop: sd.p1sd.price, color: colors.sd.p1 },
-    { name: "−1σ", prop: sd.m1sd.price, color: colors.sd.m1 },
-    { name: "+1.5σ", prop: sd.p15sd.price, color: colors.sd.p15 },
-    { name: "−1.5σ", prop: sd.m15sd.price, color: colors.sd.m15 },
-    { name: "+2σ", prop: sd.p2sd.price, color: colors.sd.p2 },
-    { name: "−2σ", prop: sd.m2sd.price, color: colors.sd.m2 },
-    { name: "+2.5σ", prop: sd.p25sd.price, color: colors.sd.p25 },
-    { name: "−2.5σ", prop: sd.m25sd.price, color: colors.sd.m25 },
-    { name: "+3σ", prop: sd.p3sd.price, color: colors.sd.p3 },
-    { name: "−3σ", prop: sd.m3sd.price, color: colors.sd.m3 },
-  ]);
-}
-
-/**
- * Build SD band mappings (ratio) from an SD pattern
- * @param {Ratio1ySdPattern} sd
- * @param {AnySeriesPattern} smaRatio
- */
-export function sdBandsRatio(sd, smaRatio) {
-  return /** @type {const} */ ([
-    { name: "0σ", prop: smaRatio, color: colors.sd._0 },
-    { name: "+0.5σ", prop: sd.p05sd.ratio, color: colors.sd.p05 },
-    { name: "−0.5σ", prop: sd.m05sd.ratio, color: colors.sd.m05 },
-    { name: "+1σ", prop: sd.p1sd.ratio, color: colors.sd.p1 },
-    { name: "−1σ", prop: sd.m1sd.ratio, color: colors.sd.m1 },
-    { name: "+1.5σ", prop: sd.p15sd.ratio, color: colors.sd.p15 },
-    { name: "−1.5σ", prop: sd.m15sd.ratio, color: colors.sd.m15 },
-    { name: "+2σ", prop: sd.p2sd.ratio, color: colors.sd.p2 },
-    { name: "−2σ", prop: sd.m2sd.ratio, color: colors.sd.m2 },
-    { name: "+2.5σ", prop: sd.p25sd.ratio, color: colors.sd.p25 },
-    { name: "−2.5σ", prop: sd.m25sd.ratio, color: colors.sd.m25 },
-    { name: "+3σ", prop: sd.p3sd.ratio, color: colors.sd.p3 },
-    { name: "−3σ", prop: sd.m3sd.ratio, color: colors.sd.m3 },
-  ]);
-}
-
-/**
- * Build ratio SMA series from a ratio pattern
- * @param {AnyRatioPattern} ratio
- */
-export function ratioSmas(ratio) {
-  return [
-    { name: "1w SMA", series: ratio.sma._1w.ratio },
-    { name: "1m SMA", series: ratio.sma._1m.ratio },
-    { name: "1y SMA", series: ratio.sma._1y.ratio },
-    { name: "2y SMA", series: ratio.sma._2y.ratio },
-    { name: "4y SMA", series: ratio.sma._4y.ratio },
-    {
-      name: "All Time SMA",
-      series: ratio.sma.all.ratio,
-      color: colors.time.all,
-    },
-  ].map((s, i, arr) => ({ color: colors.at(i, arr.length), ...s }));
-}
-
-/**
- * Ratio bottom series: baseline + SMAs + percentiles
+ * Ratio bottom series
  * @param {AnyRatioPattern} ratio
  * @returns {AnyFetchedSeriesBlueprint[]}
  */
@@ -891,249 +842,6 @@ export function ratioBottomSeries(ratio) {
       name: "Ratio",
       unit: Unit.ratio,
       base: 1,
-    }),
-    ...ratioSmas(ratio).map(({ name, series, color }) =>
-      line({ series, name, color, unit: Unit.ratio, defaultActive: false }),
-    ),
-    ...percentileMap(ratio).map(({ name, prop, color }) =>
-      line({
-        series: prop,
-        name,
-        color,
-        defaultActive: false,
-        unit: Unit.ratio,
-        options: { lineStyle: 1 },
-      }),
-    ),
-  ];
-}
-
-/**
- * @param {Object} args
- * @param {(name: string) => string} args.title
- * @param {AnyPricePattern} args.pricePattern
- * @param {AnyRatioPattern} args.ratio
- * @param {Color} args.color
- * @param {string} [args.name]
- * @param {string} [args.legend]
- * @returns {PartialChartOption}
- */
-export function createRatioChart({
-  title,
-  pricePattern,
-  ratio,
-  color,
-  name,
-  legend,
-}) {
-  return {
-    name: name ?? "Ratio",
-    title: title(name ?? "Ratio"),
-    top: [
-      price({ series: pricePattern, name: legend ?? "Price", color }),
-      ...percentileUsdMap(ratio).map(({ name, prop, color }) =>
-        price({
-          series: prop,
-          name,
-          color,
-          defaultActive: false,
-          options: { lineStyle: 1 },
-        }),
-      ),
-    ],
-    bottom: ratioBottomSeries(ratio),
-  };
-}
-
-/**
- * Create ZScores folder from ActivePriceRatioPattern
- * @param {Object} args
- * @param {(suffix: string) => string} args.formatTitle - Function that takes series suffix and returns full title
- * @param {string} args.legend
- * @param {AnyPricePattern} args.pricePattern - The price pattern to show in top pane
- * @param {AnyRatioPattern} args.ratio - The ratio pattern
- * @param {Color} args.color
- * @returns {PartialOptionsGroup}
- */
-export function createZScoresFolder({
-  formatTitle,
-  legend,
-  pricePattern,
-  ratio,
-  color,
-}) {
-  const sdPats = sdPatterns(ratio);
-
-  const zscorePeriods = [
-    { name: "1y", sd: ratio.stdDev._1y },
-    { name: "2y", sd: ratio.stdDev._2y },
-    { name: "4y", sd: ratio.stdDev._4y },
-    { name: "All Time", sd: ratio.stdDev.all, color: colors.time.all },
-  ].map((s, i, arr) => ({ color: colors.at(i, arr.length), ...s }));
-
-  return {
-    name: "Z-Scores",
-    tree: [
-      {
-        name: "Compare",
-        title: formatTitle("Z-Scores"),
-        top: [
-          price({ series: pricePattern, name: legend, color }),
-          ...zscorePeriods.map((p) =>
-            price({
-              series: p.sd._0sd,
-              name: `${p.name} 0σ`,
-              color: p.color,
-              defaultActive: false,
-            }),
-          ),
-        ],
-        bottom: [
-          ...zscorePeriods.reverse().map((p) =>
-            line({
-              series: p.sd.zscore,
-              name: p.name,
-              color: p.color,
-              unit: Unit.sd,
-            }),
-          ),
-          ...priceLines({
-            unit: Unit.sd,
-            numbers: [0, 1, -1, 2, -2, 3, -3],
-            defaultActive: false,
-          }),
-        ],
-      },
-      ...sdPats.map(({ nameAddon, titleAddon, sd, smaRatio }) => {
-        const prefix = titleAddon ? `${titleAddon} ` : "";
-        const topPrice = price({ series: pricePattern, name: legend, color });
-        return {
-          name: nameAddon,
-          tree: [
-            {
-              name: "Score",
-              title: formatTitle(`${prefix}Z-Score`),
-              top: [
-                topPrice,
-                ...sdBandsUsd(sd).map(
-                  ({ name: bandName, prop, color: bandColor }) =>
-                    price({
-                      series: prop,
-                      name: bandName,
-                      color: bandColor,
-                      defaultActive: false,
-                    }),
-                ),
-              ],
-              bottom: [
-                baseline({
-                  series: sd.zscore,
-                  name: "Z-Score",
-                  unit: Unit.sd,
-                }),
-                priceLine({
-                  unit: Unit.sd,
-                }),
-                ...priceLines({
-                  unit: Unit.sd,
-                  numbers: [1, -1, 2, -2, 3, -3],
-                  defaultActive: false,
-                }),
-              ],
-            },
-            {
-              name: "Ratio",
-              title: formatTitle(`${prefix}Ratio`),
-              top: [topPrice],
-              bottom: [
-                baseline({
-                  series: ratio.ratio,
-                  name: "Ratio",
-                  unit: Unit.ratio,
-                  base: 1,
-                }),
-                ...sdBandsRatio(sd, smaRatio).map(
-                  ({ name: bandName, prop, color: bandColor }) =>
-                    line({
-                      series: prop,
-                      name: bandName,
-                      color: bandColor,
-                      unit: Unit.ratio,
-                      defaultActive: false,
-                    }),
-                ),
-              ],
-            },
-            {
-              name: "Volatility",
-              title: formatTitle(`${prefix}Volatility`),
-              top: [topPrice],
-              bottom: [
-                line({
-                  series: sd.sd,
-                  name: "Volatility",
-                  color: colors.gray,
-                  unit: Unit.percentage,
-                }),
-              ],
-            },
-          ],
-        };
-      }),
-    ],
-  };
-}
-
-/**
- * Create price + ratio + z-scores charts - flat array
- * Unified helper for averages, distribution, and other price-based series
- * @param {Object} args
- * @param {string} args.context - Context string for ratio/z-scores titles (e.g., "1 Week SMA", "STH")
- * @param {string} args.legend - Legend name for the price series
- * @param {AnyPricePattern} args.pricePattern - The price pattern
- * @param {AnyRatioPattern} args.ratio - The ratio pattern
- * @param {Color} args.color
- * @param {string} [args.priceTitle] - Optional override for price chart title (default: context)
- * @param {string} [args.titlePrefix] - Optional prefix for ratio/z-scores titles (e.g., "Realized Price" gives "Realized Price Ratio: STH")
- * @param {FetchedPriceSeriesBlueprint[]} [args.priceReferences] - Optional additional price series to show in Price chart
- * @returns {PartialOptionsTree}
- */
-export function createPriceRatioCharts({
-  context,
-  legend,
-  pricePattern,
-  ratio,
-  color,
-  priceTitle,
-  titlePrefix,
-  priceReferences,
-}) {
-  const titleFn = formatCohortTitle(context);
-  const pctUsd = percentileBandsWith(ratio.percentiles, (e) => e.price);
-  return [
-    {
-      name: "Price",
-      title: priceTitle ?? context,
-      top: [
-        price({ series: pricePattern, name: legend, color }),
-        ...(priceReferences ?? []),
-        ...priceBands(pctUsd),
-      ],
-    },
-    createRatioChart({
-      title: (name) => titleFn(titlePrefix ? `${titlePrefix} ${name}` : name),
-      pricePattern,
-      ratio,
-      color,
-      legend,
-    }),
-    createZScoresFolder({
-      formatTitle: (name) =>
-        titleFn(titlePrefix ? `${titlePrefix} ${name}` : name),
-      legend,
-      pricePattern,
-      ratio,
-      color,
     }),
   ];
 }

@@ -4,12 +4,17 @@ import {
   summarizeApiAnswer,
 } from "./api/answer.js";
 import { prewarmApiIndex, terminateApiIndex } from "./api/index.js";
+import {
+  apiRows,
+  recordArguments,
+  selectApiRecord,
+} from "./api/records.js";
 import { prewarmMetricIndex, terminateMetricIndex } from "./metrics/index.js";
 import { renderEvidence } from "./render.js";
 import { AskToolSession } from "./session/index.js";
 import { arithmeticAnswer } from "./source/arithmetic.js";
 import { AskSource } from "./source/index.js";
-import { normalize } from "./text.js";
+import { normalize, relevance } from "./text.js";
 
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 
@@ -59,6 +64,13 @@ function removeUnsupportedQuantitySentences(answer, messages) {
   return kept.join(" ").trim();
 }
 
+/** @param {string} reference */
+function codeSubject(reference) {
+  const value = reference.trim();
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) return value;
+  return value.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*\(/)?.[1];
+}
+
 /**
  * @typedef {Object} ToolOutcome
  * @property {boolean} done
@@ -68,8 +80,8 @@ function removeUnsupportedQuantitySentences(answer, messages) {
  * @property {import("../storage.js").ApiContext} [apiContext]
  * @property {import("../storage.js").SourceContext[]} [sourceContext]
  * @property {import("../storage.js").KnowledgeContext} [knowledgeContext]
- * @property {{ question: string, metrics: { name: string, path: string, unit?: string }[], facts: string[], excerpts: import("../storage.js").SourceContext[] }} [grounding]
- * @property {{ question: string, previousFields: string[], operation: { key: string, method: string, path: string, summary: string, description: string, parameters: { name: string }[], response: { fields?: { name: string, type: string, description?: string }[] } }, arguments: Record<string, unknown>, requestPath: string, data: unknown, truncated: boolean }} [apiGrounding]
+ * @property {{ question: string, title?: string, metrics: { name: string, path: string, unit?: string }[], facts: string[], contextFacts?: string[], excerpts: import("../storage.js").SourceContext[], subjects?: string[], renderFacts?: boolean, validateNumbers?: boolean }} [grounding]
+ * @property {{ question: string, previousFields: string[], previousArguments?: Record<string, unknown>, previousRecords?: unknown[], operation: { key: string, method: string, path: string, summary: string, description: string, parameters: { name: string }[], response: { type: string, fields?: { name: string, type: string, description?: string }[] } }, arguments: Record<string, unknown>, requestPath: string, data: unknown, truncated: boolean }} [apiGrounding]
  *
  * @typedef {Object} AskAnswer
  * @property {string} output
@@ -112,8 +124,11 @@ async function answerFromEvidence(model, grounding, onStatus) {
           `- ${name} | ${path}${unit ? ` | unit: ${unit}` : ""}`
         ).join("\n")}`
       : "",
-    grounding.facts.length
-      ? `Verified facts:\n${grounding.facts.map((fact) => `- ${fact}`).join("\n")}`
+    grounding.facts.length || grounding.contextFacts?.length
+      ? `Verified facts:\n${
+          [...grounding.facts, ...(grounding.contextFacts ?? [])]
+            .map((fact) => `- ${fact}`).join("\n")
+        }`
       : "",
     grounding.excerpts.length
       ? `Verified source excerpts, strongest first:\n${grounding.excerpts.map(
@@ -122,32 +137,101 @@ async function answerFromEvidence(model, grounding, onStatus) {
         ).join("\n\n")}`
       : "",
   ].filter(Boolean).join("\n\n");
-  const result = await model.generate(
-    [
-      {
-        role: "system",
-        content: "Use only the verified evidence. Answer the exact request in at most 45 words. Metric names and units are exact. Never add a fact absent from the evidence. Do not cite, number, name, or quote source files; the renderer appends source links.",
-      },
-      {
-        role: "user",
-        content: `${evidence}\n\nUse only the verified evidence above. Do not explain what code identifiers mean unless the evidence does.`,
-      },
-    ],
+  const messages = [
+    {
+      role: /** @type {const} */ ("system"),
+      content: "Use only the verified evidence. Answer the exact request in at most 45 words. When an example is requested, instantiate the evidence as a clearly hypothetical sequence with named actors or objects and concrete actions instead of summarizing it; use symbolic labels or qualitative amounts rather than unsupported quantities. Metric names and units are exact. Never add a fact absent from the evidence. Do not cite, number, name, or quote source files; the renderer appends source links.",
+    },
+    {
+      role: /** @type {const} */ ("user"),
+      content: `${evidence}\n\nUse only the verified evidence above. Do not explain what code identifiers mean unless the evidence does.`,
+    },
+  ];
+  let result = await model.generate(
+    messages,
     () => {},
     [],
     "none",
     { maxTokens: 72 },
   );
-  const answer = result.text.trim();
+  if (
+    grounding.validateNumbers &&
+    unsupportedNumbers(result.text, messages).size
+  ) {
+    result = await model.generate(
+      [
+        ...messages,
+        {
+          role: "assistant",
+          content: result.text,
+        },
+        {
+          role: "user",
+          content: "Replace the draft with the exact requested answer using no numeric quantities absent from the verified evidence. For a hypothetical example, reconstruct it directly from the evidence: name individual entities with symbolic labels such as A and B, then state the before state, the action, and the after state. Use only entities and actions supported by the evidence, with no numerals or value calculations. Return only the replacement answer.",
+        },
+      ],
+      () => {},
+      [],
+      "none",
+      { maxTokens: 72 },
+    );
+  }
+  if (!result.text.trim()) {
+    result = await model.generate(
+      [
+        ...messages,
+        {
+          role: "user",
+          content: "Return one concise direct answer to the request using only the verified evidence. If the request asks for an example, use the example already present in the evidence. Return only the answer.",
+        },
+      ],
+      () => {},
+      [],
+      "none",
+      { maxTokens: 72 },
+    );
+  }
+  const draft = (
+    grounding.validateNumbers
+      ? removeUnsupportedQuantitySentences(result.text, messages)
+      : result.text
+  ).trim();
+  const evidenceText = normalize([
+    ...grounding.metrics.flatMap(({ name, path, unit }) => [
+      name,
+      path,
+      unit,
+    ]),
+    ...grounding.facts,
+    ...(grounding.contextFacts ?? []),
+    ...grounding.excerpts.flatMap(({ path, content }) => [path, content]),
+  ].filter(Boolean).join(" "));
+  const inline = [...draft.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]);
+  const paths = draft.match(/(?:[A-Za-z0-9_.-]+\/){2,}[A-Za-z0-9_.-]+/g) ?? [];
+  const unsupportedReference = [...inline, ...paths].some((reference) => {
+    const normalized = normalize(reference);
+    return normalized && !evidenceText.includes(normalized);
+  });
+  const answer = unsupportedReference ? "" : draft;
+  const answerSubjects = [...new Set(
+    inline.map(codeSubject).filter(Boolean),
+  )];
+  const groundedSubject = grounding.subjects?.[0];
+  const referencedSubjects = answerSubjects.length > 1 && groundedSubject
+    ? answerSubjects.filter((subject) => subject !== groundedSubject)
+    : answerSubjects;
+  const subjects = grounding.subjects?.length
+    ? grounding.subjects
+    : referencedSubjects;
   const sources = grounding.excerpts.slice(0, 2);
   const fallback = !answer && sources[0]
-    ? `The strongest verified source match is \`${sources[0].path}:${sources[0].startLine}${sources[0].endLine ? `-${sources[0].endLine}` : ""}\`.`
+    ? "I found related source, but not enough verified evidence for a precise answer."
     : "";
   return {
     output: renderEvidence({
       facts: [
         answer || fallback,
-        ...grounding.facts,
+        ...(grounding.renderFacts === false ? [] : grounding.facts),
       ].filter(Boolean),
       sources,
       excerpts: [],
@@ -155,8 +239,14 @@ async function answerFromEvidence(model, grounding, onStatus) {
     sourceContext: sources,
     knowledgeContext: answer
       ? {
-          title: grounding.metrics[0]?.name ?? grounding.question.slice(0, 160),
+          title: grounding.metrics[0]?.name ??
+            grounding.title ??
+            subjects[0] ??
+            grounding.question.slice(0, 160),
           description: answer,
+          ...(subjects.length
+            ? { subjects }
+            : {}),
         }
       : undefined,
   };
@@ -169,7 +259,7 @@ function requestedArithmetic(question) {
     { action: "add", words: ["add", "plus"] },
     { action: "subtract", words: ["subtract", "minus"] },
     { action: "multiply", words: ["multiply", "times"] },
-    { action: "divide", words: ["divide"] },
+    { action: "divide", words: ["divide", "rate"] },
   ].filter(({ words: candidates }) =>
     candidates.some((word) => words.has(word))
   );
@@ -190,16 +280,113 @@ function fieldPosition(question, field) {
   return positions.length ? Math.min(...positions) : -1;
 }
 
+/** @param {{ name: string, description?: string, ownDescription?: string }} field */
+function apiFieldText(field) {
+  return `${field.name} ${field.ownDescription || field.description || ""}`;
+}
+
+/**
+ * Match clauses to independently described schema fields. Returns nothing
+ * unless every clause has one clear winner.
+ *
+ * @param {string[]} clauses
+ * @param {import("./api/answer.js").ApiAnswerField[]} fields
+ * @param {string[] | undefined} previousFields
+ */
+function matchApiClauses(clauses, fields, previousFields) {
+  const parents = new Set(
+    (previousFields ?? [])
+      .map((name) => name.split(".").slice(0, -1).join("."))
+      .filter(Boolean),
+  );
+  const preferredParent = parents.size === 1 ? [...parents][0] : undefined;
+  const resolve = (candidates) => {
+    const chosen = [];
+    for (const clause of clauses) {
+      const ranked = candidates
+        .filter(({ ref }) => !chosen.some((field) => field.ref === ref))
+        .map((field) => ({
+          field,
+          score: relevance(clause, apiFieldText(field)) +
+            (
+              preferredParent &&
+                field.name.split(".").slice(0, -1).join(".") === preferredParent
+                ? 2
+                : 0
+            ),
+        }))
+        .sort((left, right) => right.score - left.score);
+      const [best, runnerUp] = ranked;
+      if (
+        !best ||
+        best.score < 2 ||
+        best.score - (runnerUp?.score ?? 0) < 0.4
+      ) {
+        return [];
+      }
+      chosen.push(best.field);
+    }
+    return chosen;
+  };
+  const previousNames = new Set(previousFields ?? []);
+  const previous = fields.filter(({ name }) => previousNames.has(name));
+  const contextual = previous.length >= clauses.length
+    ? resolve(previous)
+    : [];
+  return contextual.length ? contextual : resolve(fields);
+}
+
+/**
+ * @param {string} question
+ * @param {import("./api/answer.js").ApiAnswerField[]} fields
+ * @param {string[] | undefined} previousFields
+ */
+function coordinatedApiFields(question, fields, previousFields) {
+  const clauses = normalize(question)
+    .split(" and ")
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  return clauses.length < 2
+    ? []
+    : matchApiClauses(clauses, fields, previousFields);
+}
+
+/**
+ * @param {string} question
+ * @param {"add" | "subtract" | "multiply" | "divide"} arithmetic
+ * @param {import("./api/answer.js").ApiAnswerField[]} fields
+ * @param {string[] | undefined} previousFields
+ */
+function arithmeticApiFields(question, arithmetic, fields, previousFields) {
+  const normalized = ` ${normalize(question)} `;
+  const separator = arithmetic === "subtract"
+    ? " from "
+    : arithmetic === "divide"
+      ? " by "
+      : " and ";
+  const parts = normalized
+    .split(separator)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length !== 2) return [];
+  const clauses = arithmetic === "subtract"
+    ? [parts[1], parts[0]]
+    : parts;
+  return matchApiClauses(clauses, fields, previousFields);
+}
+
 /**
  * @param {import("../model.js").AskModel} model
  * @param {NonNullable<ToolOutcome["apiGrounding"]>} grounding
  * @param {(status: string) => void} onStatus
  */
-async function answerFromApi(model, grounding, onStatus) {
+async function answerFromApiGrounding(model, grounding, onStatus) {
   const apiAnswer = createApiAnswerTool(grounding);
   const normalizedQuestion = normalize(grounding.question);
   const question = ` ${normalizedQuestion} `;
+  const questionWords = new Set(normalizedQuestion.split(" "));
   const arithmetic = requestedArithmetic(grounding.question);
+  const asksForSeveral = questionWords.has("and");
   const parameterNames = new Set(
     grounding.operation.parameters.map(({ name }) => normalize(name)),
   );
@@ -214,9 +401,137 @@ async function answerFromApi(model, grounding, onStatus) {
     const name = normalize(field.name.split(".").at(-1));
     return name && question.includes(` ${name} `);
   });
-  if (arithmetic && apiAnswer.previous && directFields.length === 1) {
+  const coordinated = coordinatedApiFields(
+    grounding.question,
+    apiAnswer.fields,
+    grounding.previousFields,
+  );
+  const calculated = arithmetic
+    ? arithmeticApiFields(
+      grounding.question,
+      arithmetic,
+      apiAnswer.fields,
+      grounding.previousFields,
+    )
+    : [];
+  if (calculated.length > 1) {
+    return {
+      output: finishApiAnswer(
+        "calculate_api_fields",
+        {
+          operator: arithmetic,
+          operands: calculated.map(({ ref }) => ref),
+          label: "result",
+        },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: calculated.map(({ name }) => name),
+    };
+  }
+  if (coordinated.length > 1) {
+    if (arithmetic) {
+      return {
+        output: finishApiAnswer(
+          "calculate_api_fields",
+          {
+            operator: arithmetic,
+            operands: coordinated.map(({ ref }) => ref),
+            label: "result",
+          },
+          apiAnswer.fields,
+          grounding,
+        ),
+        fields: coordinated.map(({ name }) => name),
+      };
+    }
+    return {
+      output: finishApiAnswer(
+        "select_api_fields",
+        { fields: coordinated.map(({ ref }) => ref) },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: coordinated.map(({ name }) => name),
+    };
+  }
+  if (
+    arithmetic === "divide" &&
+    directFields.length === 1
+  ) {
+    const numerator = directFields[0];
+    const rateDenominators = apiAnswer.fields.filter((field) =>
+      field.ref !== numerator.ref &&
+      typeof field.value === "number" &&
+      ["vsize", "weight"].some((type) =>
+        normalize(field.type).includes(type)
+      )
+    );
+    if (rateDenominators.length) {
+      const denominator = rateDenominators.find(({ type }) =>
+        normalize(type).includes("vsize")
+      ) ?? rateDenominators[0];
+      return {
+        output: finishApiAnswer(
+          "calculate_api_rate",
+          {
+            left: numerator.ref,
+            right: denominator.ref,
+            label: `${
+              numerator.name.split(".").at(-1)?.replaceAll("_", " ")
+            } rate`,
+          },
+          apiAnswer.fields,
+          grounding,
+        ),
+        fields: [numerator.name, denominator.name],
+      };
+    }
+    const denominators = apiAnswer.fields.filter((field) =>
+      field.ref !== numerator.ref &&
+      typeof field.value === "number" &&
+      field.type !== numerator.type &&
+      !directFields.some(({ ref }) => ref === field.ref)
+    );
+    if (denominators.length === 1) {
+      const denominator = denominators[0];
+      return {
+        output: finishApiAnswer(
+          "calculate_api_fields",
+          {
+            operator: "divide",
+            left: numerator.ref,
+            right: denominator.ref,
+            label: `${
+              numerator.name.split(".").at(-1)?.replaceAll("_", " ")
+            } rate`,
+          },
+          apiAnswer.fields,
+          grounding,
+        ),
+        fields: [numerator.name, denominator.name],
+      };
+    }
+  }
+  const previousOperand = arithmetic && apiAnswer.previous
+    ? directFields.find(({ ref }) => ref !== apiAnswer.previous.ref) ??
+      (() => {
+        const compatible = apiAnswer.fields
+          .filter((field) =>
+            field.ref !== apiAnswer.previous.ref &&
+            typeof field.value === "number" &&
+            field.type === apiAnswer.previous.type
+          )
+          .sort((left, right) => right.score - left.score);
+        return compatible[0]?.score >= 6 &&
+            compatible[0].score - (compatible[1]?.score ?? 0) >= 0.5
+          ? compatible[0]
+          : undefined;
+      })()
+    : undefined;
+  if (arithmetic && apiAnswer.previous && previousOperand) {
     const previous = apiAnswer.previous;
-    const current = directFields[0];
+    const current = previousOperand;
     const previousPosition = fieldPosition(grounding.question, previous.name);
     const currentPosition = fieldPosition(grounding.question, current.name);
     const fromPosition = normalizedQuestion.split(" ").indexOf("from");
@@ -258,6 +573,7 @@ async function answerFromApi(model, grounding, onStatus) {
   }
   if (
     !arithmetic &&
+    !asksForSeveral &&
     apiAnswer.resolved
   ) {
     const field = apiAnswer.resolved;
@@ -293,12 +609,11 @@ async function answerFromApi(model, grounding, onStatus) {
   }
   if (
     !grounding.previousFields?.length &&
-    !mentionedResponse &&
-    !apiAnswer.direct
+    !mentionedResponse
   ) {
     return summarizeApiAnswer(grounding);
   }
-  if (!arithmetic && apiAnswer.direct) {
+  if (!arithmetic && !asksForSeveral && apiAnswer.direct) {
     const field = apiAnswer.direct;
     return {
       output: finishApiAnswer(
@@ -310,9 +625,20 @@ async function answerFromApi(model, grounding, onStatus) {
       fields: [field.name],
     };
   }
+  if (!arithmetic && apiAnswer.related.length > 1) {
+    return {
+      output: finishApiAnswer(
+        "select_api_fields",
+        { fields: apiAnswer.related.map(({ ref }) => ref) },
+        apiAnswer.fields,
+        grounding,
+      ),
+      fields: apiAnswer.related.map(({ name }) => name),
+    };
+  }
   onStatus("Answering from API…");
   const instruction = apiAnswer.fields.length
-    ? `Answer the exact newest request using only the verified API result. Call exactly one matching tool. Select a raw field only when that field itself was requested${apiAnswer.previous ? "; continue the preceding numeric answer when the request applies arithmetic to it" : ""}. When the requested concept is narrower than an aggregate field, derive it from matching component fields. Never replace requested arithmetic with a convenient field. For subtraction and division, keep operands in the request's arithmetic order: minuend or dividend first. Preserve identifiers and units. Never invent missing values.`
+    ? `Answer the exact newest request using only the verified API result. Call exactly one matching tool. Select one raw field only when that field itself was requested; select_many when several raw fields were requested${apiAnswer.previous ? "; continue the preceding numeric answer when the request applies arithmetic to it" : ""}. When the requested concept is narrower than an aggregate field, derive it from matching component fields. Never replace requested arithmetic with a convenient field. For subtraction and division, keep operands in the request's arithmetic order: minuend or dividend first. Preserve identifiers and units. Never invent missing values.`
     : "Answer the exact request using only the verified API result. Call answer_api_text exactly once. Preserve identifiers and units. Never invent missing values.";
   const prompt = {
     question: grounding.question,
@@ -331,14 +657,13 @@ async function answerFromApi(model, grounding, onStatus) {
       description,
       value,
     })),
-    ...(!apiAnswer.previous ? { data: grounding.data } : {}),
   };
-  const generateAnswer = (extra = "") =>
+  const generateAnswer = () =>
     model.generate(
       [
         {
           role: "system",
-          content: extra ? `${instruction} ${extra}` : instruction,
+          content: instruction,
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -355,6 +680,8 @@ async function answerFromApi(model, grounding, onStatus) {
   const actionFor = (/** @type {Record<string, unknown>} */ arguments_) =>
     arguments_.action === "select"
     ? "select_api_field"
+    : arguments_.action === "select_many"
+      ? "select_api_fields"
     : arguments_.action === "continue"
       ? "continue_api_calculation"
       : arguments_.action === "calculate"
@@ -366,6 +693,8 @@ async function answerFromApi(model, grounding, onStatus) {
   if (!actionName) return summarizeApiAnswer(grounding);
   const selectedRefs = actionName === "select_api_field"
     ? [call.arguments.field]
+    : actionName === "select_api_fields"
+      ? Array.isArray(call.arguments.fields) ? call.arguments.fields : []
     : actionName === "continue_api_calculation"
       ? [apiAnswer.previous?.ref, call.arguments.operand]
       : typeof call.arguments.left === "string" &&
@@ -390,6 +719,46 @@ async function answerFromApi(model, grounding, onStatus) {
   } catch {
     return summarizeApiAnswer(grounding);
   }
+}
+
+/**
+ * @param {import("../model.js").AskModel} model
+ * @param {NonNullable<ToolOutcome["apiGrounding"]>} grounding
+ * @param {(status: string) => void} onStatus
+ */
+async function answerFromApi(model, grounding, onStatus) {
+  const previousRows = apiRows(grounding.previousRecords);
+  const currentRows = apiRows(grounding.data);
+  const previousRecord = selectApiRecord(
+    previousRows,
+    grounding.question,
+    grounding.previousArguments,
+  );
+  const record = previousRecord ?? selectApiRecord(
+    currentRows,
+    grounding.question,
+    grounding.previousArguments,
+  );
+  const contextRows = previousRecord ? previousRows : currentRows;
+  const answered = await answerFromApiGrounding(
+    model,
+    record ? { ...grounding, data: record } : grounding,
+    onStatus,
+  );
+  return {
+    ...answered,
+    ...(record
+      ? {
+          contextArguments: {
+            ...grounding.arguments,
+            ...recordArguments(record, grounding.operation.response.type),
+          },
+        }
+      : {}),
+    ...(contextRows?.length
+      ? { contextRecords: contextRows.slice(0, 4) }
+      : {}),
+  };
 }
 
 export function createAskTools() {
@@ -439,6 +808,7 @@ export function createAskTools() {
         const direct = session.directRoute();
         let call = direct?.call;
         let action = direct?.action ?? "";
+        let continueContext = false;
         if (!action) {
           onStatus("Choosing capability…");
           const routeTools = session.routeTools();
@@ -450,41 +820,21 @@ export function createAskTools() {
             { maxTokens: 48 },
           );
           const selected = route.toolCalls[0];
-          const sourceQuery = selected?.name === "choose_capability" &&
-              typeof selected.arguments.sourceQuery === "string"
-            ? selected.arguments.sourceQuery
-            : "";
           const selectedCapability = selected?.name === "choose_capability" &&
               typeof selected.arguments.capability === "string"
             ? selected.arguments.capability
             : "";
-          action = sourceQuery &&
-              (
-                (
-                  selectedCapability === "answer_general" &&
-                  session.hasSourceContext()
-                ) ||
-                selectedCapability === "search_source"
-              )
-            ? "search_source"
-            : selectedCapability;
+          const selectedContinuesContext = selected?.name ===
+                "choose_capability" &&
+              selected.arguments.continuesContext === true;
+          action = selectedCapability;
+          if (action === "answer_general" && selectedContinuesContext) {
+            action = session.contextualGeneralAction(true) ?? action;
+          }
           if (!action) {
             throw new Error("The AI did not choose a valid capability");
           }
-          call = action === "call_api" &&
-              typeof selected?.arguments.apiRef === "string"
-            ? {
-              name: action,
-              arguments: { ref: selected.arguments.apiRef },
-            }
-            : action === "search_source"
-              ? {
-                  name: action,
-                  arguments: {
-                    query: sourceQuery || question,
-                  },
-                }
-              : session.directCall(action);
+          call = session.directCall(action);
         }
 
         signal.throwIfAborted();
@@ -497,40 +847,49 @@ export function createAskTools() {
           onStatus("Understanding request…");
           if (action === "answer_general") {
             const messages = session.actionMessages(action);
-            let result = await model.generate(
+            const tool = session.actionTool(action);
+            const result = await model.generate(
               messages,
               () => {},
-              [],
-              "none",
-              { maxTokens: 96 },
+              [tool],
+              { name: action },
+              { maxTokens: 128 },
             );
-            if (unsupportedNumbers(result.text, messages).size) {
-              result = await model.generate(
-                [
-                  ...messages,
-                  {
-                    role: "assistant",
-                    content: result.text,
-                  },
-                  {
-                    role: "user",
-                    content: "Inspect the newest request before replacing the draft. If it requests quantities but the verified context identifies no exact metric, resource, object, or timeframe, return one concise clarification question asking what to measure. Otherwise replace the draft with a direct answer containing no unsupported observations; established static Bitcoin facts are allowed only when directly requested. Return only the replacement answer. Never mention the draft, review, evidence, context, or these instructions.",
-                  },
-                ],
-                () => {},
-                [],
-                "none",
-                { maxTokens: 96 },
+            const generalCall = result.toolCalls[0];
+            continueContext = session.continuesGeneral(
+              generalCall?.arguments.explicitSubject,
+              generalCall?.arguments.topic,
+            );
+            const contextualAction = session.contextualGeneralAction(
+              continueContext,
+            );
+            if (contextualAction && contextualAction !== action) {
+              action = contextualAction;
+              call = session.directCall(action);
+            } else {
+              const rawAnswer =
+                typeof generalCall?.arguments.answer === "string"
+                  ? generalCall.arguments.answer
+                  : "";
+              const answer = (
+                generalCall?.arguments.quantityUse === "hypothetical"
+                  ? rawAnswer.trim()
+                  : removeUnsupportedQuantitySentences(rawAnswer, messages)
+              ) || (
+                unsupportedNumbers(rawAnswer, messages).size
+                  ? "What would you like numbers for—for example, a metric, transaction, address, or block?"
+                  : "I do not have enough verified context to answer that without guessing."
               );
+              if (generalCall?.name === action) {
+                call = {
+                  ...generalCall,
+                  arguments: {
+                    ...generalCall.arguments,
+                    answer,
+                  },
+                };
+              }
             }
-            const answer = removeUnsupportedQuantitySentences(
-              result.text,
-              messages,
-            ) || "I do not have enough verified context to answer that without guessing.";
-            call = {
-              name: action,
-              arguments: { answer },
-            };
           } else {
             const result = await model.generate(
               session.actionMessages(action),
@@ -551,7 +910,10 @@ export function createAskTools() {
             : "";
           if (!ref) throw new Error("The AI did not select an API operation");
           let arguments_ = session.apiArguments(ref);
-          if (!session.hasApiArguments(ref, arguments_)) {
+          if (
+            !session.hasApiArguments(ref, arguments_) &&
+            Object.keys(arguments_).length
+          ) {
             onStatus("Reading API arguments…");
             const argumentsResult = await model.generate(
               session.apiArgumentMessages(ref),
@@ -612,6 +974,12 @@ export function createAskTools() {
             apiContext: outcome.apiContext
               ? {
                 ...outcome.apiContext,
+                ...(answered.contextArguments
+                  ? { arguments: answered.contextArguments }
+                  : {}),
+                ...(answered.contextRecords
+                  ? { records: answered.contextRecords }
+                  : {}),
                 ...(answered.fields.length
                   ? { fields: answered.fields }
                   : {}),
@@ -642,7 +1010,9 @@ export function createAskTools() {
           capability: action,
           metricPaths: outcome.metricPaths,
           apiContext: outcome.apiContext,
-          sourceContext: outcome.sourceContext,
+          sourceContext: action === "answer_general" && !continueContext
+            ? undefined
+            : outcome.sourceContext,
           knowledgeContext: outcome.knowledgeContext,
           chat: prepared.chat,
         };

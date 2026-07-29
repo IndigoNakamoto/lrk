@@ -152,7 +152,7 @@ export const colors = {
   active: palette.rose,
   activity: palette.purple,
   cointime: palette.yellow,
-  coinflow: palette.blue,
+  coinflow: palette.purple,
   mobile: palette.rose,
   immobile: palette.lime,
   destroyed: palette.red,
@@ -220,14 +220,25 @@ export const colors = {
 
   // Ratio percentile bands (extreme values)
   ratioPct: {
+    _99_9: palette.rose,
     _99_5: palette.red,
     _99: palette.orange,
     _98: palette.amber,
     _95: palette.yellow,
+    _90: palette.avocado,
+    _80: palette.lime,
+    _70: palette.green,
+    _60: palette.emerald,
+    _50: palette.green,
+    _40: palette.teal,
+    _30: palette.cyan,
+    _20: palette.sky,
+    _10: palette.blue,
     _5: palette.cyan,
     _2: palette.sky,
     _1: palette.blue,
     _0_5: palette.indigo,
+    _0_01: palette.purple,
   },
 
   bedrock: {
@@ -250,23 +261,6 @@ export const colors = {
       palette.rose,
       palette.red,
     ],
-  },
-
-  // Standard deviation bands (warm = positive, cool = negative)
-  sd: {
-    _0: palette.lime,
-    p05: palette.yellow,
-    m05: palette.teal,
-    p1: palette.amber,
-    m1: palette.cyan,
-    p15: palette.orange,
-    m15: palette.sky,
-    p2: palette.red,
-    m2: palette.blue,
-    p25: palette.rose,
-    m25: palette.indigo,
-    p3: palette.pink,
-    m3: palette.violet,
   },
 
   time: {

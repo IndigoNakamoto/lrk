@@ -15,7 +15,7 @@ export class AskSource {
   /**
    * @param {string} query
    * @param {string | undefined} path
-   * @param {"definition" | "implementation" | "availability" | undefined} focus
+   * @param {"definition" | "implementation" | "usage" | "availability" | undefined} focus
    * @param {((progress: { loaded: number, total: number }) => void) | undefined} [onProgress]
    */
   search(query, path, focus, onProgress) {

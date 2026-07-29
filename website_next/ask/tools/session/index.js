@@ -8,18 +8,31 @@ import {
   capabilityMetrics,
   directAction,
   generalCapabilities,
+  requestedChartStyles,
   routeTools,
 } from "./capabilities.js";
 import { loadSessionContext } from "./context.js";
 import { collectEvidence, collectSourceOptions } from "./evidence.js";
 import { CapabilityExecutor } from "./executor.js";
-import { normalize } from "../text.js";
+import { normalize, relevance, tokenAffinity } from "../text.js";
+import { recordArguments, selectApiRecord } from "../api/records.js";
 import {
   explicitArguments,
   hasRequiredArguments,
   reusableArguments,
   validatedArguments,
 } from "../api/routing.js";
+
+const RETRIEVAL_TERMS = new Set([
+  "display",
+  "fetch",
+  "get",
+  "inspect",
+  "lookup",
+  "read",
+  "retrieve",
+  "show",
+]);
 
 /** @param {unknown[]} values */
 function schemaTokens(values) {
@@ -33,6 +46,43 @@ function schemaTokens(values) {
 /** @param {Set<string>} query @param {Set<string>} document */
 function overlapCount(query, document) {
   return [...query].filter((token) => document.has(token)).length;
+}
+
+/** @param {Set<string>} query @param {Set<string>} document */
+function semanticOverlapCount(query, document) {
+  return [...query].filter((token) =>
+    [...document].some((candidate) =>
+      tokenAffinity(token, candidate) >= 0.75
+    )
+  ).length;
+}
+
+/** @param {string} question */
+function explicitPosition(question) {
+  const date = question.match(
+    /(?<![A-Za-z0-9])\d{4}-\d{2}-\d{2}(?![A-Za-z0-9])/,
+  )?.[0];
+  if (date) return date;
+  const values = [...new Set(
+    question.match(
+      /(?<![A-Za-z0-9])[-+]?\d[\d,]*(?:\.\d+)?(?![A-Za-z0-9])/g,
+    ) ?? [],
+  )];
+  return values.length === 1 ? values[0].replaceAll(",", "") : undefined;
+}
+
+/** @param {any} evidence @param {string} question @param {boolean} [requiresExample] */
+function preferredGuide(evidence, question, requiresExample = false) {
+  return evidence.guideOptions
+    .filter(({ guide }) => !requiresExample || guide.example)
+    .map((option) => ({
+      option,
+      relevance: Math.max(
+        relevance(question, option.guide.title),
+        relevance(evidence.context.knowledge?.title, option.guide.title),
+      ),
+    }))
+    .sort((left, right) => right.relevance - left.relevance)[0]?.option;
 }
 
 export class AskToolSession {
@@ -49,6 +99,15 @@ export class AskToolSession {
       history,
       () => onStatus("Indexing context…"),
     );
+    if (context.api) {
+      const record = selectApiRecord(context.api.records, question);
+      if (record !== undefined) {
+        context.api.arguments = {
+          ...context.api.arguments,
+          ...recordArguments(record, context.api.operation.response.type),
+        };
+      }
+    }
     onStatus("Searching tools…");
     const evidence = await collectEvidence({
       question,
@@ -79,19 +138,43 @@ export class AskToolSession {
     return routeTools(this.evidence);
   }
 
-  hasSourceContext() {
-    return Boolean(this.evidence?.context.source.length);
+  /** @param {unknown} subject */
+  continuesKnowledge(subject) {
+    const title = this.evidence?.context.knowledge?.title;
+    if (typeof subject !== "string" || !title) return false;
+    return Math.max(
+      relevance(subject, title),
+      relevance(title, subject),
+    ) >= 10;
+  }
+
+  /** @param {unknown} explicitSubject @param {unknown} topic */
+  continuesGeneral(explicitSubject, topic) {
+    if (!this.evidence?.context.knowledge) return false;
+    if (this.continuesKnowledge(topic)) return true;
+    if (typeof explicitSubject === "string") {
+      return !explicitSubject.trim() ||
+        this.continuesKnowledge(explicitSubject);
+    }
+    return false;
   }
 
   routeMessages() {
     if (!this.evidence) throw new Error("Tool session is not ready");
-    const { context, metricOptions, apiOptions, sourceOptions, guideOptions } =
-      this.evidence;
-    return [
+    const { context, apiOptions } = this.evidence;
+    const messages = [
       {
         role: /** @type {const} */ ("system"),
         content: ROUTE_INSTRUCTION,
       },
+    ];
+    if (context.knowledge?.description) {
+      messages.push({
+        role: /** @type {const} */ ("assistant"),
+        content: context.knowledge.description,
+      });
+    }
+    messages.push(
       {
         role: /** @type {const} */ ("user"),
         content: JSON.stringify({
@@ -108,7 +191,6 @@ export class AskToolSession {
                     : context.knowledge
                       ? "general"
                     : undefined,
-            previousCapability: context.capability,
             ...(context.chart
               ? {
                   activeChart: {
@@ -152,37 +234,28 @@ export class AskToolSession {
                   source: context.source.map(
                     (/** @type {any} */ source) => source.path,
                   ),
+                  sourceSubjects: context.knowledge?.subjects ?? [],
                 }
               : {}),
-            ...(context.knowledge ? { concept: context.knowledge } : {}),
+            ...(context.knowledge
+              ? {
+                  concept: {
+                    title: context.knowledge.title,
+                    subjects: context.knowledge.subjects ?? [],
+                  },
+                }
+              : {}),
           },
-          matches: {
-            metrics: metricOptions.map(({ label, origin }) => ({
-              label,
-              origin,
-            })),
-            api: apiOptions.map(({ label, operation }) => ({
-              label,
-              required: operation.parameters
-                .filter((/** @type {any} */ parameter) => parameter.required)
-                .map((/** @type {any} */ parameter) => ({
-                  name: parameter.name,
-                  type: parameter.valueType || parameter.type,
-                  description: parameter.description,
-                })),
-              returns: operation.response.fields
-                .slice(0, 8)
-                .map((/** @type {any} */ field) => field.name),
-            })),
-            source: sourceOptions.map((/** @type {any} */ { ref, source }) => ({
-              ref,
-              path: source.path,
-            })),
-            guides: guideOptions.map(({ label }) => label),
-          },
+          apiMatches: apiOptions.map(({ label, operation }) => ({
+            label,
+            required: operation.parameters
+              .filter((/** @type {any} */ parameter) => parameter.required)
+              .map((/** @type {any} */ parameter) => parameter.description),
+          })),
         }),
       },
-    ];
+    );
+    return messages;
   }
 
   directRoute() {
@@ -201,9 +274,29 @@ export class AskToolSession {
         },
       };
     }
-    const action = directAction(this.evidence, this.question);
+    let action = directAction(this.evidence, this.question);
+    if (
+      action === "explain_metric_calculation" &&
+      !this.evidence.metricOptions.some(
+        (/** @type {any} */ { origin }) => origin === "mentioned",
+      ) &&
+      this.evidence.apiOptions.some(({ operation }) =>
+        operation.parameters.some((parameter) => parameter.required) &&
+        hasRequiredArguments(
+          operation,
+          explicitArguments(operation, this.question),
+        )
+      )
+    ) {
+      action = undefined;
+    }
     if (action === "search_source") {
-      if (this.evidence.context.source.length) return undefined;
+      if (
+        this.evidence.context.source.length &&
+        !this.evidence.context.knowledge?.subjects?.length
+      ) {
+        return undefined;
+      }
       return {
         action,
         call: {
@@ -218,6 +311,60 @@ export class AskToolSession {
         call: this.directCall(action),
       };
     }
+    const at = explicitPosition(this.question);
+    const metricAt = at
+      ? capabilityMetrics(this.evidence, "read_metric_at")
+      : [];
+    if (at && metricAt.length === 1) {
+      return {
+        action: "read_metric_at",
+        call: {
+          name: "read_metric_at",
+          arguments: {
+            refs: [metricAt[0].ref],
+            at,
+          },
+        },
+      };
+    }
+    const supplied = this.evidence.apiOptions
+      .map(({ ref, operation }) => ({
+        ref,
+        operation,
+        arguments: explicitArguments(operation, this.question),
+      }))
+      .filter(({ operation, arguments: arguments_ }) =>
+        hasRequiredArguments(operation, arguments_) &&
+        (
+          operation.parameters.some((parameter) => parameter.required) ||
+          Number(operation.titleMatchedTerms ?? 0) >= 2
+        )
+      )
+      .sort(({ operation: left }, { operation: right }) =>
+        Number(right.titleMatchedTerms ?? 0) -
+          Number(left.titleMatchedTerms ?? 0) ||
+        right.response.fields.length - left.response.fields.length ||
+        Number(right.specificity ?? 0) - Number(left.specificity ?? 0) ||
+        Number(right.score ?? 0) - Number(left.score ?? 0)
+      );
+    const priorArguments = new Set(
+      Object.values(this.evidence.context.api?.arguments ?? {}).map(String),
+    );
+    const newResource = !this.evidence.context.api ||
+      supplied.some(({ arguments: arguments_ }) =>
+        Object.values(arguments_).some((value) =>
+          !priorArguments.has(String(value))
+        )
+      );
+    if (newResource && supplied[0]) {
+      return {
+        action: "call_api",
+        call: {
+          name: "call_api",
+          arguments: { ref: supplied[0].ref },
+        },
+      };
+    }
     if (
       this.evidence.context.metrics.length ||
       this.evidence.context.chart
@@ -225,27 +372,94 @@ export class AskToolSession {
       return undefined;
     }
 
-    const query = schemaTokens([this.question]);
+    const questionTokens = schemaTokens([this.question]);
+    if (
+      !this.evidence.context.api &&
+      !this.evidence.metricOptions.some(
+        (/** @type {any} */ { origin }) => origin === "mentioned",
+      ) &&
+      [...questionTokens].some((token) => RETRIEVAL_TERMS.has(token))
+    ) {
+      const records = this.evidence.apiOptions
+        .map(({ ref, operation }) => ({
+          ref,
+          operation,
+          score: overlapCount(
+            questionTokens,
+            schemaTokens([operation.label]),
+          ),
+        }))
+        .filter(({ score }) => score > 0)
+        .sort((left, right) =>
+          right.score - left.score ||
+          right.operation.response.fields.length -
+            left.operation.response.fields.length
+        );
+      if (
+        records[0] &&
+        records[0].score > (records[1]?.score ?? 0)
+      ) {
+        return {
+          action: "call_api",
+          call: {
+            name: "call_api",
+            arguments: { ref: records[0].ref },
+          },
+        };
+      }
+    }
+
+    const query = questionTokens;
     const contextKey = this.evidence.context.api?.operation.key;
+    const contextOperation = this.evidence.context.api?.operation;
+    const currentFieldNames = schemaTokens(
+      contextOperation?.response.fields.map(
+        (/** @type {any} */ field) => field.name,
+      ) ?? [],
+    );
+    const detail = contextOperation?.response.type.endsWith("[]") &&
+        semanticOverlapCount(query, currentFieldNames) === 0
+      ? this.evidence.apiOptions
+        .filter(({ operation }) =>
+          operation.key !== contextKey &&
+          !operation.response.type.endsWith("[]") &&
+          operation.response.fields.length >
+            contextOperation.response.fields.length &&
+          Boolean(reusableArguments(operation, this.evidence.context.api))
+        )
+        .sort(({ operation: left }, { operation: right }) =>
+          Number(right.titleMatchedTerms ?? 0) -
+            Number(left.titleMatchedTerms ?? 0) ||
+          Number(right.specificity ?? 0) - Number(left.specificity ?? 0) ||
+          right.response.fields.length - left.response.fields.length ||
+          Number(right.score ?? 0) - Number(left.score ?? 0)
+        )[0]
+      : undefined;
+    if (detail) {
+      return {
+        action: "call_api",
+        call: {
+          name: "call_api",
+          arguments: { ref: detail.ref },
+        },
+      };
+    }
+
     const apiMatches = [];
     for (const { ref, operation } of this.evidence.apiOptions) {
-      const required = schemaTokens(
-        operation.parameters
-          .filter((/** @type {any} */ parameter) => parameter.required)
-          .flatMap((/** @type {any} */ parameter) => [
-            parameter.name,
-            parameter.description,
-          ]),
-      );
       const returned = schemaTokens(
         operation.response.fields.flatMap((/** @type {any} */ field) => [
           field.name,
           field.description,
         ]),
       );
-      const fieldMatches = overlapCount(query, returned);
-      const suppliedResource = required.size > 0 &&
-        overlapCount(query, required) > 0;
+      const fieldMatches = semanticOverlapCount(query, returned);
+      const suppliedResource =
+        operation.parameters.some((parameter) => parameter.required) &&
+        hasRequiredArguments(
+          operation,
+          explicitArguments(operation, this.question),
+        );
       const inheritedResource = reusableArguments(
         operation,
         this.evidence.context.api,
@@ -256,6 +470,7 @@ export class AskToolSession {
       ) {
         apiMatches.push({
           score: fieldMatches,
+          context: operation.key === contextKey,
           action: "call_api",
           call: {
             name: "call_api",
@@ -265,6 +480,8 @@ export class AskToolSession {
       }
     }
     apiMatches.sort((left, right) => right.score - left.score);
+    const activeMatch = apiMatches.find(({ context }) => context);
+    if (activeMatch) return activeMatch;
     if (
       apiMatches[0] &&
       apiMatches[0].score > (apiMatches[1]?.score ?? 0)
@@ -272,21 +489,28 @@ export class AskToolSession {
       return apiMatches[0];
     }
 
-    const supplied = this.evidence.apiOptions.find(({ operation }) =>
-      hasRequiredArguments(
-        operation,
-        explicitArguments(operation, this.question),
+    if (supplied.length) {
+      return {
+        action: "call_api",
+        call: {
+          name: "call_api",
+          arguments: { ref: supplied[0].ref },
+        },
+      };
+    }
+    if (
+      this.evidence.context.knowledge &&
+      !this.evidence.context.knowledge.subjects?.length &&
+      (
+        this.evidence.context.source.length ||
+        this.evidence.guideOptions.some(
+          (/** @type {any} */ { origin }) => origin === "context",
+        )
       )
-    );
-    return supplied
-      ? {
-          action: "call_api",
-          call: {
-            name: "call_api",
-            arguments: { ref: supplied.ref },
-          },
-        }
-      : undefined;
+    ) {
+      return { action: "answer_general" };
+    }
+    return undefined;
   }
 
   /** @param {string} action @param {(status: string) => void} onStatus */
@@ -321,11 +545,26 @@ export class AskToolSession {
     if (!evidence) return undefined;
 
     const metrics = capabilityMetrics(evidence, action);
+    if (action === "search_source") {
+      return {
+        name: action,
+        arguments: { query: this.question },
+      };
+    }
     if (action === "describe_capabilities") {
       return {
         name: action,
         arguments: { capabilities: generalCapabilities() },
       };
+    }
+    if (action === "show_guide_example") {
+      const guide = preferredGuide(evidence, this.question, true);
+      return guide
+        ? {
+            name: action,
+            arguments: { refs: [guide.ref] },
+          }
+        : undefined;
     }
     if (
       action === "add_chart_series" ||
@@ -393,12 +632,7 @@ export class AskToolSession {
     }
 
     if (action === "set_chart_view_scale") {
-      const request = ` ${normalize(this.question)} `;
-      const styles = actionTool(evidence, action).function.parameters
-        .properties.styles.items.enum
-        .filter((/** @type {string} */ style) =>
-          request.includes(` ${normalize(style)} `)
-        );
+      const styles = requestedChartStyles(this.question);
       if (styles.length) {
         return {
           name: action,
@@ -415,20 +649,34 @@ export class AskToolSession {
         )
       : undefined;
     const mentioned = metricOptions.find(({ origin }) => origin === "mentioned");
-    const metric = mentioned ?? contextual;
+    const currentGuide = guideOptions.some(
+      ({ origin }) => origin === "current",
+    );
+    const metric = mentioned ?? (currentGuide ? undefined : contextual);
     const grounding = sourceOptions[0] ?? guideOptions[0];
-    if (!metric || !grounding) return undefined;
+    if (!grounding) return undefined;
     return {
       name: action,
       arguments: {
         refs: [grounding.ref],
-        metrics: [metric.ref],
+        ...(metric ? { metrics: [metric.ref] } : {}),
       },
     };
   }
 
-  /** @param {string} action */
-  actionMessages(action) {
+  contextualGeneralAction(continueContext) {
+    if (!continueContext || !this.evidence) return undefined;
+    if (
+      this.evidence.context.source.length &&
+      this.evidence.context.knowledge?.subjects?.length
+    ) {
+      return "search_source";
+    }
+    return directAction(this.evidence, this.question, true);
+  }
+
+  /** @param {string} action @param {boolean} [continueContext] */
+  actionMessages(action, continueContext = true) {
     const scopedEvidence = this.evidence;
     if (!scopedEvidence) throw new Error("Tool session is not ready");
     const { context, apiOptions, sourceOptions, guideOptions } =
@@ -438,7 +686,6 @@ export class AskToolSession {
     const evidence = {
       request: this.question,
     };
-
     if (
       action === "set_chart_view_scale" ||
       action === "add_chart_series" ||
@@ -473,7 +720,10 @@ export class AskToolSession {
         }),
       );
     }
-    if (action === "explain_metric_calculation" || action === "search_source") {
+    if (
+      action === "explain_metric_calculation" ||
+      action === "search_source"
+    ) {
       evidence.source = sourceOptions.map(
         (/** @type {any} */ { ref, source }) => ({
         ref,
@@ -497,7 +747,7 @@ export class AskToolSession {
         );
       }
       if (context.knowledge) {
-        evidence.previousAnswer = context.knowledge.description;
+        evidence.previousContext = context.knowledge;
       }
     }
     if (action === "call_api") {
@@ -531,6 +781,54 @@ export class AskToolSession {
       context.knowledge
     ) {
       evidence.context = context.knowledge;
+    }
+    if (action === "answer_general") {
+      if (!context.knowledge || !continueContext) {
+        return [
+          {
+            role: /** @type {const} */ ("system"),
+            content: actionInstruction(action),
+          },
+          {
+            role: /** @type {const} */ ("user"),
+            content: this.question,
+          },
+        ];
+      }
+      const verified = Boolean(
+        context.source.length ||
+          guideOptions.some(({ origin }) => origin === "context"),
+      );
+      const verifiedGuideFacts = guideOptions
+        .filter(({ origin, guide }) => origin === "context" && guide.description)
+        .map(({ guide }) => guide.description);
+      return [
+        {
+          role: /** @type {const} */ ("system"),
+          content: `${actionInstruction(action)}
+The immediately preceding assistant message is the active conversation context. Its topic is "${
+            context.knowledge.title
+          }" and it is ${verified ? "verified" : "not verified"}. ${
+            verified
+              ? "Use only that answer and its direct logical consequences when the new request continues it."
+              : "Do not treat it as verified evidence."
+          }${
+            verifiedGuideFacts.length
+              ? `\nVerified supporting facts:\n${
+                  verifiedGuideFacts.map((fact) => `- ${fact}`).join("\n")
+                }`
+              : ""
+          }`,
+        },
+        {
+          role: /** @type {const} */ ("assistant"),
+          content: context.knowledge.description,
+        },
+        {
+          role: /** @type {const} */ ("user"),
+          content: this.question,
+        },
+      ];
     }
     return [
       {

@@ -53,6 +53,7 @@ const CHART_COLORS = new Set([
  * @property {string} key
  * @property {Record<string, string | number | boolean | (string | number | boolean)[]>} arguments
  * @property {string[]} [fields]
+ * @property {(string | number | boolean | Record<string, string | number | boolean>)[]} [records]
  *
  * @typedef {Object} SourceContext
  * @property {string} revision
@@ -64,6 +65,7 @@ const CHART_COLORS = new Set([
  * @typedef {Object} KnowledgeContext
  * @property {string} title
  * @property {string} description
+ * @property {string[]} [subjects]
  *
  * @typedef {Object} StoredResponseStep
  * @property {string} label
@@ -200,10 +202,38 @@ function readApiContext(value) {
       .filter((field) => typeof field === "string" && field.length <= 256)
       .slice(0, 12)
     : [];
+  const records = Array.isArray(context.records)
+    ? context.records
+      .map((record) => {
+        if (
+          typeof record === "string" ||
+          typeof record === "number" ||
+          typeof record === "boolean"
+        ) return record;
+        if (!record || typeof record !== "object" || Array.isArray(record)) {
+          return undefined;
+        }
+        return Object.fromEntries(
+          Object.entries(record)
+            .filter(([key, item]) =>
+              key.length <= 64 &&
+              (
+                typeof item === "string" ||
+                typeof item === "number" ||
+                typeof item === "boolean"
+              )
+            )
+            .slice(0, 16),
+        );
+      })
+      .filter((record) => record !== undefined)
+      .slice(0, 4)
+    : [];
   return /** @type {ApiContext} */ ({
     key: context.key,
     arguments: arguments_,
     ...(fields.length ? { fields } : {}),
+    ...(records.length ? { records } : {}),
   });
 }
 
@@ -247,6 +277,14 @@ function readKnowledgeContext(value) {
   return {
     title: context.title.trim().slice(0, 160),
     description: context.description.trim().slice(0, 1_500),
+    ...(Array.isArray(context.subjects)
+      ? {
+          subjects: context.subjects
+            .filter((subject) => typeof subject === "string" && subject.trim())
+            .map((subject) => subject.trim().slice(0, 160))
+            .slice(0, 12),
+        }
+      : {}),
   };
 }
 

@@ -1,4 +1,6 @@
+mod components;
 mod inner;
+mod percentiles;
 
 use brk_error::Result;
 use brk_indexer::Indexer;
@@ -6,18 +8,24 @@ use brk_traversable::Traversable;
 use brk_types::Version;
 use vecdb::{Database, Exit, Rw, StorageMode};
 
-use crate::{distribution, indexes, price};
+use crate::{
+    distribution,
+    frameworks::{coinflow, cointime},
+    indexes, price,
+};
 
+pub use components::{Component, Components};
 pub use inner::RarityMeterInner;
 
 #[derive(Traversable)]
 pub struct RarityMeter<M: StorageMode = Rw> {
+    pub components: Components<M>,
     pub full: RarityMeterInner<M>,
     pub local: RarityMeterInner<M>,
     pub cycle: RarityMeterInner<M>,
 }
 
-const VERSION: Version = Version::new(4);
+const VERSION: Version = Version::new(7);
 
 impl RarityMeter {
     pub(crate) fn forced_import(
@@ -27,6 +35,7 @@ impl RarityMeter {
     ) -> Result<Self> {
         let v = version + VERSION;
         Ok(Self {
+            components: Components::forced_import(db, v, indexes)?,
             full: RarityMeterInner::forced_import(db, "rarity_meter", v, indexes)?,
             local: RarityMeterInner::forced_import(db, "local_rarity_meter", v, indexes)?,
             cycle: RarityMeterInner::forced_import(db, "cycle_rarity_meter", v, indexes)?,
@@ -37,47 +46,57 @@ impl RarityMeter {
         &mut self,
         indexer: &Indexer,
         distribution: &distribution::Vecs,
+        cointime: &cointime::Vecs,
+        coinflow: &coinflow::Vecs,
         prices: &price::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        let realized = &distribution.utxo_cohorts.all.metrics.realized;
-        let sth_realized = &distribution.utxo_cohorts.sth.metrics.realized;
-        let lth_realized = &distribution.utxo_cohorts.lth.metrics.realized;
         let spot = &prices.spot.cents.height;
 
-        // Full: all + sth + lth (rp + cp), 6 models
+        self.components
+            .compute(indexer, distribution, cointime, coinflow, exit)?;
+
+        // Full: all Rainbow components, 10 models
         self.full.compute(
             &[
-                &realized.price_ratio_percentiles,
-                &realized.capitalized.price.percentiles,
-                &sth_realized.price_ratio_percentiles,
-                &sth_realized.capitalized.price.percentiles,
-                &lth_realized.price_ratio_percentiles,
-                &lth_realized.capitalized.price.percentiles,
+                &self.components.under_4m_realized_price,
+                &self.components.under_6m_realized_price,
+                &self.components.over_4m_realized_price,
+                &self.components.over_6m_realized_price,
+                &self.components.sth_realized_price,
+                &self.components.sth_capitalized_price,
+                &self.components.lth_realized_price,
+                &self.components.lth_capitalized_price,
+                &self.components.realized_price,
+                &self.components.capitalized_price,
             ],
             spot,
             indexer,
             exit,
         )?;
 
-        // Local: sth only, 2 models
+        // Local: young-coin and STH components, 4 models
         self.local.compute(
             &[
-                &sth_realized.price_ratio_percentiles,
-                &sth_realized.capitalized.price.percentiles,
+                &self.components.under_4m_realized_price,
+                &self.components.under_6m_realized_price,
+                &self.components.sth_realized_price,
+                &self.components.sth_capitalized_price,
             ],
             spot,
             indexer,
             exit,
         )?;
 
-        // Cycle: all + lth, 4 models
+        // Cycle: old-coin, all, and LTH components, 6 models
         self.cycle.compute(
             &[
-                &realized.price_ratio_percentiles,
-                &realized.capitalized.price.percentiles,
-                &lth_realized.price_ratio_percentiles,
-                &lth_realized.capitalized.price.percentiles,
+                &self.components.over_4m_realized_price,
+                &self.components.over_6m_realized_price,
+                &self.components.realized_price,
+                &self.components.capitalized_price,
+                &self.components.lth_realized_price,
+                &self.components.lth_capitalized_price,
             ],
             spot,
             indexer,

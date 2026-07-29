@@ -4,7 +4,7 @@
 
 - Version: `v0.3.6`
 - Base URL: https://bitview.space
-- Metrics: 56973
+- Metrics: 56817
 - Operations: 97
 
 For machine-readable tool construction, use [https://bitview.space/openapi.json](https://bitview.space/openapi.json). For the complete source-derived series tree, use [https://bitview.space/api/series](https://bitview.space/api/series).
