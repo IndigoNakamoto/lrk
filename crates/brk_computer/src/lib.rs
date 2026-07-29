@@ -353,7 +353,7 @@ impl Computer {
             inputs_result?;
             prices_result?;
 
-            // market, outputs, and (transactions → mining) are pairwise
+            // market, outputs, and (transactions → mining + OP_RETURN) are pairwise
             // independent. Run all three in parallel.
             let market = scope.spawn(|| {
                 timed("Computed market", || {
@@ -362,7 +362,7 @@ impl Computer {
                 })
             });
 
-            let tx_mining = scope.spawn(|| -> Result<()> {
+            let tx_mining_op_return = scope.spawn(|| -> Result<()> {
                 timed("Computed transactions", || {
                     self.transactions.compute(
                         indexer,
@@ -373,21 +373,39 @@ impl Computer {
                         exit,
                     )
                 })?;
-                timed("Computed mining", || {
-                    self.mining.compute(
-                        indexer,
-                        &self.indexes,
-                        &self.blocks,
-                        &self.transactions,
-                        &self.price,
+
+                let (mining, op_return) = rayon::join(
+                    || {
+                        timed("Computed mining", || {
+                            self.mining.compute(
+                                indexer,
+                                &self.indexes,
+                                &self.blocks,
+                                &self.transactions,
+                                &self.price,
+                                exit,
+                            )
+                        })
+                    },
+                    || {
+                        timed("Computed OP_RETURN", || {
+                            self.op_return.compute(
+                                indexer,
+                                &self.transactions.fees,
+                                &self.blocks,
+                                exit,
+                            )
+                        })
+                    },
+                );
+                mining?;
+                op_return?;
+                timed("Computed OP_RETURN fee shares", || {
+                    self.op_return.compute_fee_shares(
+                        &self.mining.rewards.fees.inner,
+                        indexer.safe_lengths().height,
                         exit,
                     )
-                })
-            });
-
-            let op_return = scope.spawn(|| {
-                timed("Computed OP_RETURN", || {
-                    self.op_return.compute(indexer, &self.blocks, exit)
                 })
             });
 
@@ -396,8 +414,7 @@ impl Computer {
                     .compute(indexer, &self.inputs, &self.blocks, &self.price, exit)
             })?;
 
-            tx_mining.join().unwrap()?;
-            op_return.join().unwrap()?;
+            tx_mining_op_return.join().unwrap()?;
             market.join().unwrap()?;
             Ok(())
         })?;
@@ -514,16 +531,14 @@ impl Computer {
             Ok(())
         })?;
 
-        self.indicators
-            .rarity_meter
-            .compute(
-                indexer,
-                &self.distribution,
-                &self.cointime,
-                &self.coinflow,
-                &self.price,
-                exit,
-            )?;
+        self.indicators.rarity_meter.compute(
+            indexer,
+            &self.distribution,
+            &self.cointime,
+            &self.coinflow,
+            &self.price,
+            exit,
+        )?;
 
         info!("Total compute time: {:?}", compute_start.elapsed());
         Ok(())

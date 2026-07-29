@@ -937,7 +937,7 @@ ancestors and no descendants (matches mempool.space).
 /**
  * URL-friendly mining pool identifier
  *
- * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners")} PoolSlug
+ * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners"|"dmnd")} PoolSlug
  */
 /**
  * Mining pool slug + block height path parameters
@@ -3254,6 +3254,37 @@ function createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, acc)
 }
 
 /**
+ * @typedef {Object} ChainDataFeeFeesOutputTxPattern
+ * @property {PercentPpmRatioPattern2} chainShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
+ * @property {PercentPpmRatioPattern2} dataShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} feeShare
+ * @property {AverageBlockCumulativeSumPattern<Sats>} fees
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ */
+
+/**
+ * Create a ChainDataFeeFeesOutputTxPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ChainDataFeeFeesOutputTxPattern}
+ */
+function createChainDataFeeFeesOutputTxPattern(client, acc) {
+  return {
+    chainShare: createPercentPpmRatioPattern2(client, _m(acc, 'chain_share')),
+    dataBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes')),
+    dataShare: createPercentPpmRatioPattern2(client, _m(acc, 'data_share')),
+    feeShare: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'fee_share')),
+    fees: createAverageBlockCumulativeSumPattern(client, _m(acc, 'fees')),
+    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
+    txCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count')),
+    txVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize')),
+  };
+}
+
+/**
  * @typedef {Object} _10y2y3y4y5y6y8yPattern
  * @property {PercentPpmRatioPattern} _10y
  * @property {PercentPpmRatioPattern} _2y
@@ -3576,33 +3607,6 @@ function createCentsNegativeToUsdPattern2(client, acc) {
     toOwnGrossPnl: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_gross_pnl')),
     toOwnMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap')),
     usd: createSeriesPattern1(client, acc),
-  };
-}
-
-/**
- * @typedef {Object} ChainDataOutputTxPattern
- * @property {PercentPpmRatioPattern2} chainShare
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
- * @property {PercentPpmRatioPattern2} dataShare
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
- * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
- */
-
-/**
- * Create a ChainDataOutputTxPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {ChainDataOutputTxPattern}
- */
-function createChainDataOutputTxPattern(client, acc) {
-  return {
-    chainShare: createPercentPpmRatioPattern2(client, _m(acc, 'chain_share')),
-    dataBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes')),
-    dataShare: createPercentPpmRatioPattern2(client, _m(acc, 'data_share')),
-    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
-    txCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count')),
-    txVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize')),
   };
 }
 
@@ -6425,42 +6429,44 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
  * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ * @property {AverageBlockCumulativeSumPattern<Sats>} fees
  * @property {PercentPpmRatioPattern2} chainShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} feeShare
  */
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_ByKind
- * @property {ChainDataOutputTxPattern} runes
- * @property {ChainDataOutputTxPattern} veriBlock
- * @property {ChainDataOutputTxPattern} omni
- * @property {ChainDataOutputTxPattern} stacks
- * @property {ChainDataOutputTxPattern} blockstack
- * @property {ChainDataOutputTxPattern} colu
- * @property {ChainDataOutputTxPattern} openAssets
- * @property {ChainDataOutputTxPattern} komodo
- * @property {ChainDataOutputTxPattern} coinSpark
- * @property {ChainDataOutputTxPattern} poet
- * @property {ChainDataOutputTxPattern} docproof
- * @property {ChainDataOutputTxPattern} openTimestamps
- * @property {ChainDataOutputTxPattern} factom
- * @property {ChainDataOutputTxPattern} eternityWall
- * @property {ChainDataOutputTxPattern} memo
- * @property {ChainDataOutputTxPattern} bitproof
- * @property {ChainDataOutputTxPattern} ascribe
- * @property {ChainDataOutputTxPattern} stampery
- * @property {ChainDataOutputTxPattern} epobc
- * @property {ChainDataOutputTxPattern} bareHash
- * @property {ChainDataOutputTxPattern} text
- * @property {ChainDataOutputTxPattern} empty
- * @property {ChainDataOutputTxPattern} unknown
+ * @property {ChainDataFeeFeesOutputTxPattern} runes
+ * @property {ChainDataFeeFeesOutputTxPattern} veriBlock
+ * @property {ChainDataFeeFeesOutputTxPattern} omni
+ * @property {ChainDataFeeFeesOutputTxPattern} stacks
+ * @property {ChainDataFeeFeesOutputTxPattern} blockstack
+ * @property {ChainDataFeeFeesOutputTxPattern} colu
+ * @property {ChainDataFeeFeesOutputTxPattern} openAssets
+ * @property {ChainDataFeeFeesOutputTxPattern} komodo
+ * @property {ChainDataFeeFeesOutputTxPattern} coinSpark
+ * @property {ChainDataFeeFeesOutputTxPattern} poet
+ * @property {ChainDataFeeFeesOutputTxPattern} docproof
+ * @property {ChainDataFeeFeesOutputTxPattern} openTimestamps
+ * @property {ChainDataFeeFeesOutputTxPattern} factom
+ * @property {ChainDataFeeFeesOutputTxPattern} eternityWall
+ * @property {ChainDataFeeFeesOutputTxPattern} memo
+ * @property {ChainDataFeeFeesOutputTxPattern} bitproof
+ * @property {ChainDataFeeFeesOutputTxPattern} ascribe
+ * @property {ChainDataFeeFeesOutputTxPattern} stampery
+ * @property {ChainDataFeeFeesOutputTxPattern} epobc
+ * @property {ChainDataFeeFeesOutputTxPattern} bareHash
+ * @property {ChainDataFeeFeesOutputTxPattern} text
+ * @property {ChainDataFeeFeesOutputTxPattern} empty
+ * @property {ChainDataFeeFeesOutputTxPattern} unknown
  */
 
 /**
  * @typedef {Object} SeriesTree_OpReturn_Policy
- * @property {ChainDataOutputTxPattern} preV30Standard
- * @property {ChainDataOutputTxPattern} preV30Nonstandard
- * @property {ChainDataOutputTxPattern} oversized
- * @property {ChainDataOutputTxPattern} multiple
+ * @property {ChainDataFeeFeesOutputTxPattern} preV30Standard
+ * @property {ChainDataFeeFeesOutputTxPattern} preV30Nonstandard
+ * @property {ChainDataFeeFeesOutputTxPattern} oversized
+ * @property {ChainDataFeeFeesOutputTxPattern} multiple
  */
 
 /**
@@ -7500,6 +7506,7 @@ function createTransferPattern(client, acc) {
  * @property {BlocksDominancePattern} braiinssolo
  * @property {BlocksDominancePattern} solopool
  * @property {BlocksDominancePattern} noderunners
+ * @property {BlocksDominancePattern} dmnd
  */
 
 /**
@@ -8119,6 +8126,7 @@ class BrkClient extends BrkClientBase {
     "dcexploration": "DCExploration",
     "digitalbtc": "digitalBTC",
     "digitalxmintsy": "digitalX Mintsy",
+    "dmnd": "DMND",
     "dpool": "DPOOL",
     "eclipsemc": "EclipseMC",
     "eightbaochi": "8baochi",
@@ -9774,38 +9782,40 @@ class BrkClient extends BrkClientBase {
           dataBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_data_bytes'),
           txCount: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_count'),
           txVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_vsize'),
+          fees: createAverageBlockCumulativeSumPattern(this, 'op_return_fees'),
           chainShare: createPercentPpmRatioPattern2(this, 'op_return_chain_share'),
+          feeShare: create_1m1w1y24hPercentPpmRatioPattern(this, 'op_return_fee_share'),
         },
         byKind: {
-          runes: createChainDataOutputTxPattern(this, 'op_return_runes'),
-          veriBlock: createChainDataOutputTxPattern(this, 'op_return_veri_block'),
-          omni: createChainDataOutputTxPattern(this, 'op_return_omni'),
-          stacks: createChainDataOutputTxPattern(this, 'op_return_stacks'),
-          blockstack: createChainDataOutputTxPattern(this, 'op_return_blockstack'),
-          colu: createChainDataOutputTxPattern(this, 'op_return_colu'),
-          openAssets: createChainDataOutputTxPattern(this, 'op_return_open_assets'),
-          komodo: createChainDataOutputTxPattern(this, 'op_return_komodo'),
-          coinSpark: createChainDataOutputTxPattern(this, 'op_return_coin_spark'),
-          poet: createChainDataOutputTxPattern(this, 'op_return_poet'),
-          docproof: createChainDataOutputTxPattern(this, 'op_return_docproof'),
-          openTimestamps: createChainDataOutputTxPattern(this, 'op_return_open_timestamps'),
-          factom: createChainDataOutputTxPattern(this, 'op_return_factom'),
-          eternityWall: createChainDataOutputTxPattern(this, 'op_return_eternity_wall'),
-          memo: createChainDataOutputTxPattern(this, 'op_return_memo'),
-          bitproof: createChainDataOutputTxPattern(this, 'op_return_bitproof'),
-          ascribe: createChainDataOutputTxPattern(this, 'op_return_ascribe'),
-          stampery: createChainDataOutputTxPattern(this, 'op_return_stampery'),
-          epobc: createChainDataOutputTxPattern(this, 'op_return_epobc'),
-          bareHash: createChainDataOutputTxPattern(this, 'op_return_bare_hash'),
-          text: createChainDataOutputTxPattern(this, 'op_return_text'),
-          empty: createChainDataOutputTxPattern(this, 'op_return_empty'),
-          unknown: createChainDataOutputTxPattern(this, 'op_return_unknown'),
+          runes: createChainDataFeeFeesOutputTxPattern(this, 'op_return_runes'),
+          veriBlock: createChainDataFeeFeesOutputTxPattern(this, 'op_return_veri_block'),
+          omni: createChainDataFeeFeesOutputTxPattern(this, 'op_return_omni'),
+          stacks: createChainDataFeeFeesOutputTxPattern(this, 'op_return_stacks'),
+          blockstack: createChainDataFeeFeesOutputTxPattern(this, 'op_return_blockstack'),
+          colu: createChainDataFeeFeesOutputTxPattern(this, 'op_return_colu'),
+          openAssets: createChainDataFeeFeesOutputTxPattern(this, 'op_return_open_assets'),
+          komodo: createChainDataFeeFeesOutputTxPattern(this, 'op_return_komodo'),
+          coinSpark: createChainDataFeeFeesOutputTxPattern(this, 'op_return_coin_spark'),
+          poet: createChainDataFeeFeesOutputTxPattern(this, 'op_return_poet'),
+          docproof: createChainDataFeeFeesOutputTxPattern(this, 'op_return_docproof'),
+          openTimestamps: createChainDataFeeFeesOutputTxPattern(this, 'op_return_open_timestamps'),
+          factom: createChainDataFeeFeesOutputTxPattern(this, 'op_return_factom'),
+          eternityWall: createChainDataFeeFeesOutputTxPattern(this, 'op_return_eternity_wall'),
+          memo: createChainDataFeeFeesOutputTxPattern(this, 'op_return_memo'),
+          bitproof: createChainDataFeeFeesOutputTxPattern(this, 'op_return_bitproof'),
+          ascribe: createChainDataFeeFeesOutputTxPattern(this, 'op_return_ascribe'),
+          stampery: createChainDataFeeFeesOutputTxPattern(this, 'op_return_stampery'),
+          epobc: createChainDataFeeFeesOutputTxPattern(this, 'op_return_epobc'),
+          bareHash: createChainDataFeeFeesOutputTxPattern(this, 'op_return_bare_hash'),
+          text: createChainDataFeeFeesOutputTxPattern(this, 'op_return_text'),
+          empty: createChainDataFeeFeesOutputTxPattern(this, 'op_return_empty'),
+          unknown: createChainDataFeeFeesOutputTxPattern(this, 'op_return_unknown'),
         },
         policy: {
-          preV30Standard: createChainDataOutputTxPattern(this, 'op_return_policy_pre_v30_standard'),
-          preV30Nonstandard: createChainDataOutputTxPattern(this, 'op_return_policy_pre_v30_nonstandard'),
-          oversized: createChainDataOutputTxPattern(this, 'op_return_policy_oversized'),
-          multiple: createChainDataOutputTxPattern(this, 'op_return_policy_multiple'),
+          preV30Standard: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_pre_v30_standard'),
+          preV30Nonstandard: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_pre_v30_nonstandard'),
+          oversized: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_oversized'),
+          multiple: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_multiple'),
         },
       },
       mining: {
@@ -10570,6 +10580,7 @@ class BrkClient extends BrkClientBase {
           braiinssolo: createBlocksDominancePattern(this, 'braiinssolo'),
           solopool: createBlocksDominancePattern(this, 'solopool'),
           noderunners: createBlocksDominancePattern(this, 'noderunners'),
+          dmnd: createBlocksDominancePattern(this, 'dmnd'),
         },
       },
       price: {

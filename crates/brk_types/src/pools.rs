@@ -7,7 +7,6 @@ use crate::PoolSlug;
 use super::Pool;
 
 const JSON_DATA: &str = include_str!("../pools-v2.json");
-const POOL_COUNT: usize = 171;
 const TESTNET_IDS: &[u16] = &[145, 146, 149, 150, 156, 163];
 
 #[derive(Deserialize)]
@@ -67,7 +66,7 @@ impl Pools {
 
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        POOL_COUNT - TESTNET_IDS.len()
+        self.iter().count()
     }
 }
 
@@ -77,7 +76,12 @@ pub fn pools() -> &'static Pools {
         let entries: Vec<JsonPoolEntry> =
             serde_json::from_str(JSON_DATA).expect("Failed to parse pools-v2.json");
 
-        let mut pools: Vec<Pool> = (0..POOL_COUNT).map(empty_pool).collect();
+        let max_id = entries.iter().map(|entry| entry.id).max().unwrap_or(0);
+        assert!(
+            max_id <= u8::MAX as u16,
+            "pool ID {max_id} exceeds PoolSlug's u8 range"
+        );
+        let mut pools: Vec<Pool> = (0..=usize::from(max_id)).map(empty_pool).collect();
 
         // Position 0: Unknown pool
         pools[0] = Pool {
@@ -123,4 +127,36 @@ pub fn pools() -> &'static Pools {
 
         Pools(pools)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundled_json_entries_have_named_slugs() {
+        let entries: Vec<JsonPoolEntry> =
+            serde_json::from_str(JSON_DATA).expect("valid pools-v2.json");
+
+        for entry in entries {
+            if TESTNET_IDS.contains(&entry.id) {
+                continue;
+            }
+            let id = u8::try_from(entry.id).expect("pool ID fits PoolSlug");
+            let slug = PoolSlug::from(id);
+            assert!(
+                serde_json::to_string(&slug).is_ok(),
+                "pool ID {} ({}) still maps to {slug:?}",
+                entry.id,
+                entry.name
+            );
+        }
+    }
+
+    #[test]
+    fn dmnd_uses_upstream_id_171() {
+        let dmnd = pools().get(PoolSlug::Dmnd);
+        assert_eq!(dmnd.name, "DMND");
+        assert_eq!(dmnd.mempool_unique_id(), 171);
+    }
 }

@@ -212,8 +212,7 @@ pub enum PoolSlug {
     #[serde(rename = "solopoolcom")]
     SoloPool,
     Noderunners,
-    #[serde(skip)]
-    Dummy171,
+    Dmnd,
     #[serde(skip)]
     Dummy172,
     #[serde(skip)]

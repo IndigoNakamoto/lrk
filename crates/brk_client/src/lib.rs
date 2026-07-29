@@ -1787,6 +1787,34 @@ impl Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern {
 }
 
 /// Pattern struct for repeated tree structure.
+pub struct ChainDataFeeFeesOutputTxPattern {
+    pub chain_share: PercentPpmRatioPattern2,
+    pub data_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub data_share: PercentPpmRatioPattern2,
+    pub fee_share: _1m1w1y24hPercentPpmRatioPattern,
+    pub fees: AverageBlockCumulativeSumPattern<Sats>,
+    pub output_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub tx_vsize: AverageBlockCumulativeSumPattern<VSize>,
+}
+
+impl ChainDataFeeFeesOutputTxPattern {
+    /// Create a new pattern node with accumulated series name.
+    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
+        Self {
+            chain_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "chain_share")),
+            data_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "data_bytes")),
+            data_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "data_share")),
+            fee_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "fee_share")),
+            fees: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "fees")),
+            output_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "output_count")),
+            tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_count")),
+            tx_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_vsize")),
+        }
+    }
+}
+
+/// Pattern struct for repeated tree structure.
 pub struct _10y2y3y4y5y6y8yPattern {
     pub _10y: PercentPpmRatioPattern,
     pub _2y: PercentPpmRatioPattern,
@@ -2073,30 +2101,6 @@ impl CentsNegativeToUsdPattern2 {
             to_own_gross_pnl: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_gross_pnl")),
             to_own_mcap: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_mcap")),
             usd: SeriesPattern1::new(client.clone(), acc.clone()),
-        }
-    }
-}
-
-/// Pattern struct for repeated tree structure.
-pub struct ChainDataOutputTxPattern {
-    pub chain_share: PercentPpmRatioPattern2,
-    pub data_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
-    pub data_share: PercentPpmRatioPattern2,
-    pub output_count: AverageBlockCumulativeSumPattern<StoredU64>,
-    pub tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
-    pub tx_vsize: AverageBlockCumulativeSumPattern<VSize>,
-}
-
-impl ChainDataOutputTxPattern {
-    /// Create a new pattern node with accumulated series name.
-    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
-        Self {
-            chain_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "chain_share")),
-            data_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "data_bytes")),
-            data_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "data_share")),
-            output_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "output_count")),
-            tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_count")),
-            tx_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_vsize")),
         }
     }
 }
@@ -5589,7 +5593,9 @@ pub struct SeriesTree_OpReturn_Total {
     pub data_bytes: AverageBlockCumulativeSumPattern<StoredU64>,
     pub tx_count: AverageBlockCumulativeSumPattern<StoredU64>,
     pub tx_vsize: AverageBlockCumulativeSumPattern<VSize>,
+    pub fees: AverageBlockCumulativeSumPattern<Sats>,
     pub chain_share: PercentPpmRatioPattern2,
+    pub fee_share: _1m1w1y24hPercentPpmRatioPattern,
 }
 
 impl SeriesTree_OpReturn_Total {
@@ -5598,83 +5604,85 @@ impl SeriesTree_OpReturn_Total {
             data_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_data_bytes".to_string()),
             tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_tx_count".to_string()),
             tx_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_tx_vsize".to_string()),
+            fees: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_fees".to_string()),
             chain_share: PercentPpmRatioPattern2::new(client.clone(), "op_return_chain_share".to_string()),
+            fee_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "op_return_fee_share".to_string()),
         }
     }
 }
 
 /// Series tree node.
 pub struct SeriesTree_OpReturn_ByKind {
-    pub runes: ChainDataOutputTxPattern,
-    pub veri_block: ChainDataOutputTxPattern,
-    pub omni: ChainDataOutputTxPattern,
-    pub stacks: ChainDataOutputTxPattern,
-    pub blockstack: ChainDataOutputTxPattern,
-    pub colu: ChainDataOutputTxPattern,
-    pub open_assets: ChainDataOutputTxPattern,
-    pub komodo: ChainDataOutputTxPattern,
-    pub coin_spark: ChainDataOutputTxPattern,
-    pub poet: ChainDataOutputTxPattern,
-    pub docproof: ChainDataOutputTxPattern,
-    pub open_timestamps: ChainDataOutputTxPattern,
-    pub factom: ChainDataOutputTxPattern,
-    pub eternity_wall: ChainDataOutputTxPattern,
-    pub memo: ChainDataOutputTxPattern,
-    pub bitproof: ChainDataOutputTxPattern,
-    pub ascribe: ChainDataOutputTxPattern,
-    pub stampery: ChainDataOutputTxPattern,
-    pub epobc: ChainDataOutputTxPattern,
-    pub bare_hash: ChainDataOutputTxPattern,
-    pub text: ChainDataOutputTxPattern,
-    pub empty: ChainDataOutputTxPattern,
-    pub unknown: ChainDataOutputTxPattern,
+    pub runes: ChainDataFeeFeesOutputTxPattern,
+    pub veri_block: ChainDataFeeFeesOutputTxPattern,
+    pub omni: ChainDataFeeFeesOutputTxPattern,
+    pub stacks: ChainDataFeeFeesOutputTxPattern,
+    pub blockstack: ChainDataFeeFeesOutputTxPattern,
+    pub colu: ChainDataFeeFeesOutputTxPattern,
+    pub open_assets: ChainDataFeeFeesOutputTxPattern,
+    pub komodo: ChainDataFeeFeesOutputTxPattern,
+    pub coin_spark: ChainDataFeeFeesOutputTxPattern,
+    pub poet: ChainDataFeeFeesOutputTxPattern,
+    pub docproof: ChainDataFeeFeesOutputTxPattern,
+    pub open_timestamps: ChainDataFeeFeesOutputTxPattern,
+    pub factom: ChainDataFeeFeesOutputTxPattern,
+    pub eternity_wall: ChainDataFeeFeesOutputTxPattern,
+    pub memo: ChainDataFeeFeesOutputTxPattern,
+    pub bitproof: ChainDataFeeFeesOutputTxPattern,
+    pub ascribe: ChainDataFeeFeesOutputTxPattern,
+    pub stampery: ChainDataFeeFeesOutputTxPattern,
+    pub epobc: ChainDataFeeFeesOutputTxPattern,
+    pub bare_hash: ChainDataFeeFeesOutputTxPattern,
+    pub text: ChainDataFeeFeesOutputTxPattern,
+    pub empty: ChainDataFeeFeesOutputTxPattern,
+    pub unknown: ChainDataFeeFeesOutputTxPattern,
 }
 
 impl SeriesTree_OpReturn_ByKind {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            runes: ChainDataOutputTxPattern::new(client.clone(), "op_return_runes".to_string()),
-            veri_block: ChainDataOutputTxPattern::new(client.clone(), "op_return_veri_block".to_string()),
-            omni: ChainDataOutputTxPattern::new(client.clone(), "op_return_omni".to_string()),
-            stacks: ChainDataOutputTxPattern::new(client.clone(), "op_return_stacks".to_string()),
-            blockstack: ChainDataOutputTxPattern::new(client.clone(), "op_return_blockstack".to_string()),
-            colu: ChainDataOutputTxPattern::new(client.clone(), "op_return_colu".to_string()),
-            open_assets: ChainDataOutputTxPattern::new(client.clone(), "op_return_open_assets".to_string()),
-            komodo: ChainDataOutputTxPattern::new(client.clone(), "op_return_komodo".to_string()),
-            coin_spark: ChainDataOutputTxPattern::new(client.clone(), "op_return_coin_spark".to_string()),
-            poet: ChainDataOutputTxPattern::new(client.clone(), "op_return_poet".to_string()),
-            docproof: ChainDataOutputTxPattern::new(client.clone(), "op_return_docproof".to_string()),
-            open_timestamps: ChainDataOutputTxPattern::new(client.clone(), "op_return_open_timestamps".to_string()),
-            factom: ChainDataOutputTxPattern::new(client.clone(), "op_return_factom".to_string()),
-            eternity_wall: ChainDataOutputTxPattern::new(client.clone(), "op_return_eternity_wall".to_string()),
-            memo: ChainDataOutputTxPattern::new(client.clone(), "op_return_memo".to_string()),
-            bitproof: ChainDataOutputTxPattern::new(client.clone(), "op_return_bitproof".to_string()),
-            ascribe: ChainDataOutputTxPattern::new(client.clone(), "op_return_ascribe".to_string()),
-            stampery: ChainDataOutputTxPattern::new(client.clone(), "op_return_stampery".to_string()),
-            epobc: ChainDataOutputTxPattern::new(client.clone(), "op_return_epobc".to_string()),
-            bare_hash: ChainDataOutputTxPattern::new(client.clone(), "op_return_bare_hash".to_string()),
-            text: ChainDataOutputTxPattern::new(client.clone(), "op_return_text".to_string()),
-            empty: ChainDataOutputTxPattern::new(client.clone(), "op_return_empty".to_string()),
-            unknown: ChainDataOutputTxPattern::new(client.clone(), "op_return_unknown".to_string()),
+            runes: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_runes".to_string()),
+            veri_block: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_veri_block".to_string()),
+            omni: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_omni".to_string()),
+            stacks: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_stacks".to_string()),
+            blockstack: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_blockstack".to_string()),
+            colu: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_colu".to_string()),
+            open_assets: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_open_assets".to_string()),
+            komodo: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_komodo".to_string()),
+            coin_spark: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_coin_spark".to_string()),
+            poet: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_poet".to_string()),
+            docproof: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_docproof".to_string()),
+            open_timestamps: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_open_timestamps".to_string()),
+            factom: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_factom".to_string()),
+            eternity_wall: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_eternity_wall".to_string()),
+            memo: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_memo".to_string()),
+            bitproof: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_bitproof".to_string()),
+            ascribe: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_ascribe".to_string()),
+            stampery: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_stampery".to_string()),
+            epobc: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_epobc".to_string()),
+            bare_hash: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_bare_hash".to_string()),
+            text: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_text".to_string()),
+            empty: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_empty".to_string()),
+            unknown: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_unknown".to_string()),
         }
     }
 }
 
 /// Series tree node.
 pub struct SeriesTree_OpReturn_Policy {
-    pub pre_v30_standard: ChainDataOutputTxPattern,
-    pub pre_v30_nonstandard: ChainDataOutputTxPattern,
-    pub oversized: ChainDataOutputTxPattern,
-    pub multiple: ChainDataOutputTxPattern,
+    pub pre_v30_standard: ChainDataFeeFeesOutputTxPattern,
+    pub pre_v30_nonstandard: ChainDataFeeFeesOutputTxPattern,
+    pub oversized: ChainDataFeeFeesOutputTxPattern,
+    pub multiple: ChainDataFeeFeesOutputTxPattern,
 }
 
 impl SeriesTree_OpReturn_Policy {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            pre_v30_standard: ChainDataOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_standard".to_string()),
-            pre_v30_nonstandard: ChainDataOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
-            oversized: ChainDataOutputTxPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
-            multiple: ChainDataOutputTxPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
+            pre_v30_standard: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_standard".to_string()),
+            pre_v30_nonstandard: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
+            oversized: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
+            multiple: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
         }
     }
 }
@@ -7890,6 +7898,7 @@ pub struct SeriesTree_Pools_Minor {
     pub braiinssolo: BlocksDominancePattern,
     pub solopool: BlocksDominancePattern,
     pub noderunners: BlocksDominancePattern,
+    pub dmnd: BlocksDominancePattern,
 }
 
 impl SeriesTree_Pools_Minor {
@@ -8038,6 +8047,7 @@ impl SeriesTree_Pools_Minor {
             braiinssolo: BlocksDominancePattern::new(client.clone(), "braiinssolo".to_string()),
             solopool: BlocksDominancePattern::new(client.clone(), "solopool".to_string()),
             noderunners: BlocksDominancePattern::new(client.clone(), "noderunners".to_string()),
+            dmnd: BlocksDominancePattern::new(client.clone(), "dmnd".to_string()),
         }
     }
 }

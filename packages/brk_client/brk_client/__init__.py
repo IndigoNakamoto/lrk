@@ -37,7 +37,7 @@ AnyAddrIndex = TypeIndex
 # Bitcoin amount as floating point (1 BTC = 100,000,000 satoshis)
 Bitcoin = float
 # URL-friendly mining pool identifier
-PoolSlug = Literal["unknown", "blockfills", "ultimuspool", "terrapool", "luxor", "1thash", "btccom", "bitfarms", "huobipool", "wayicn", "canoepool", "btctop", "bitcoincom", "175btc", "gbminers", "axbt", "asicminer", "bitminter", "bitcoinrussia", "btcserv", "simplecoinus", "btcguild", "eligius", "ozcoin", "eclipsemc", "maxbtc", "triplemining", "coinlab", "50btc", "ghashio", "stminingcorp", "bitparking", "mmpool", "polmine", "kncminer", "bitalo", "f2pool", "hhtt", "megabigpower", "mtred", "nmcbit", "yourbtcnet", "givemecoins", "braiinspool", "antpool", "multicoinco", "bcpoolio", "cointerra", "kanopool", "solock", "ckpool", "nicehash", "bitclub", "bitcoinaffiliatenetwork", "btcc", "bwpool", "exxbw", "bitsolo", "bitfury", "21inc", "digitalbtc", "8baochi", "mybtccoinpool", "tbdice", "hashpool", "nexious", "bravomining", "hotpool", "okexpool", "bcmonster", "1hash", "bixin", "tatmaspool", "viabtc", "connectbtc", "batpool", "waterhole", "dcexploration", "dcex", "btpool", "58coin", "bitcoinindia", "shawnp0wers", "phashio", "rigpool", "haozhuzhu", "7pool", "miningkings", "hashbx", "dpool", "rawpool", "haominer", "helix", "bitcoinukraine", "poolin", "secretsuperstar", "tigerpoolnet", "sigmapoolcom", "okpooltop", "hummerpool", "tangpool", "bytepool", "spiderpool", "novablock", "miningcity", "binancepool", "minerium", "lubiancom", "okkong", "aaopool", "emcdpool", "foundryusa", "sbicrypto", "arkpool", "purebtccom", "marapool", "kucoinpool", "entrustcharitypool", "okminer", "titan", "pegapool", "btcnuggets", "cloudhashing", "digitalxmintsy", "telco214", "btcpoolparty", "multipool", "transactioncoinmining", "btcdig", "trickysbtcpool", "btcmp", "eobot", "unomp", "patels", "gogreenlight", "bitcoinindiapool", "ekanembtc", "canoe", "tiger", "1m1x", "zulupool", "secpool", "ocean", "whitepool", "wiz", "wk057", "futurebitapollosolo", "carbonnegative", "portlandhodl", "phoenix", "neopool", "maxipool", "bitfufupool", "gdpool", "miningdutch", "publicpool", "miningsquared", "innopolistech", "btclab", "parasite", "redrockpool", "est3lar", "braiinssolo", "solopoolcom", "noderunners"]
+PoolSlug = Literal["unknown", "blockfills", "ultimuspool", "terrapool", "luxor", "1thash", "btccom", "bitfarms", "huobipool", "wayicn", "canoepool", "btctop", "bitcoincom", "175btc", "gbminers", "axbt", "asicminer", "bitminter", "bitcoinrussia", "btcserv", "simplecoinus", "btcguild", "eligius", "ozcoin", "eclipsemc", "maxbtc", "triplemining", "coinlab", "50btc", "ghashio", "stminingcorp", "bitparking", "mmpool", "polmine", "kncminer", "bitalo", "f2pool", "hhtt", "megabigpower", "mtred", "nmcbit", "yourbtcnet", "givemecoins", "braiinspool", "antpool", "multicoinco", "bcpoolio", "cointerra", "kanopool", "solock", "ckpool", "nicehash", "bitclub", "bitcoinaffiliatenetwork", "btcc", "bwpool", "exxbw", "bitsolo", "bitfury", "21inc", "digitalbtc", "8baochi", "mybtccoinpool", "tbdice", "hashpool", "nexious", "bravomining", "hotpool", "okexpool", "bcmonster", "1hash", "bixin", "tatmaspool", "viabtc", "connectbtc", "batpool", "waterhole", "dcexploration", "dcex", "btpool", "58coin", "bitcoinindia", "shawnp0wers", "phashio", "rigpool", "haozhuzhu", "7pool", "miningkings", "hashbx", "dpool", "rawpool", "haominer", "helix", "bitcoinukraine", "poolin", "secretsuperstar", "tigerpoolnet", "sigmapoolcom", "okpooltop", "hummerpool", "tangpool", "bytepool", "spiderpool", "novablock", "miningcity", "binancepool", "minerium", "lubiancom", "okkong", "aaopool", "emcdpool", "foundryusa", "sbicrypto", "arkpool", "purebtccom", "marapool", "kucoinpool", "entrustcharitypool", "okminer", "titan", "pegapool", "btcnuggets", "cloudhashing", "digitalxmintsy", "telco214", "btcpoolparty", "multipool", "transactioncoinmining", "btcdig", "trickysbtcpool", "btcmp", "eobot", "unomp", "patels", "gogreenlight", "bitcoinindiapool", "ekanembtc", "canoe", "tiger", "1m1x", "zulupool", "secpool", "ocean", "whitepool", "wiz", "wk057", "futurebitapollosolo", "carbonnegative", "portlandhodl", "phoenix", "neopool", "maxipool", "bitfufupool", "gdpool", "miningdutch", "publicpool", "miningsquared", "innopolistech", "btclab", "parasite", "redrockpool", "est3lar", "braiinssolo", "solopoolcom", "noderunners", "dmnd"]
 # Fee rate in sat/vB
 FeeRate = float
 # Weight in weight units (WU). Max block weight is 4,000,000 WU.
@@ -3349,6 +3349,20 @@ class Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern:
         self.pct80: SeriesPattern1[Dollars] = SeriesPattern1(client, _m(acc, 'pct80'))
         self.pct90: SeriesPattern1[Dollars] = SeriesPattern1(client, _m(acc, 'pct90'))
 
+class ChainDataFeeFeesOutputTxPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.chain_share: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'chain_share'))
+        self.data_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes'))
+        self.data_share: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'data_share'))
+        self.fee_share: _1m1w1y24hPercentPpmRatioPattern = _1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'fee_share'))
+        self.fees: AverageBlockCumulativeSumPattern[Sats] = AverageBlockCumulativeSumPattern(client, _m(acc, 'fees'))
+        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
+        self.tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count'))
+        self.tx_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize'))
+
 class _10y2y3y4y5y6y8yPattern:
     """Pattern struct for repeated tree structure."""
     
@@ -3492,18 +3506,6 @@ class CentsNegativeToUsdPattern2:
         self.to_own_gross_pnl: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'to_own_gross_pnl'))
         self.to_own_mcap: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap'))
         self.usd: SeriesPattern1[Dollars] = SeriesPattern1(client, acc)
-
-class ChainDataOutputTxPattern:
-    """Pattern struct for repeated tree structure."""
-    
-    def __init__(self, client: BrkClient, acc: str):
-        """Create pattern node with accumulated series name."""
-        self.chain_share: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'chain_share'))
-        self.data_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes'))
-        self.data_share: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'data_share'))
-        self.output_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'output_count'))
-        self.tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count'))
-        self.tx_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize'))
 
 class DeltaDominanceHalfInTotalPattern2:
     """Pattern struct for repeated tree structure."""
@@ -5185,44 +5187,46 @@ class SeriesTree_OpReturn_Total:
         self.data_bytes: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_data_bytes')
         self.tx_count: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'op_return_tx_count')
         self.tx_vsize: AverageBlockCumulativeSumPattern[VSize] = AverageBlockCumulativeSumPattern(client, 'op_return_tx_vsize')
+        self.fees: AverageBlockCumulativeSumPattern[Sats] = AverageBlockCumulativeSumPattern(client, 'op_return_fees')
         self.chain_share: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, 'op_return_chain_share')
+        self.fee_share: _1m1w1y24hPercentPpmRatioPattern = _1m1w1y24hPercentPpmRatioPattern(client, 'op_return_fee_share')
 
 class SeriesTree_OpReturn_ByKind:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.runes: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_runes')
-        self.veri_block: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_veri_block')
-        self.omni: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_omni')
-        self.stacks: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_stacks')
-        self.blockstack: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_blockstack')
-        self.colu: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_colu')
-        self.open_assets: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_open_assets')
-        self.komodo: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_komodo')
-        self.coin_spark: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_coin_spark')
-        self.poet: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_poet')
-        self.docproof: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_docproof')
-        self.open_timestamps: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_open_timestamps')
-        self.factom: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_factom')
-        self.eternity_wall: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_eternity_wall')
-        self.memo: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_memo')
-        self.bitproof: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_bitproof')
-        self.ascribe: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_ascribe')
-        self.stampery: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_stampery')
-        self.epobc: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_epobc')
-        self.bare_hash: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_bare_hash')
-        self.text: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_text')
-        self.empty: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_empty')
-        self.unknown: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_unknown')
+        self.runes: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_runes')
+        self.veri_block: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_veri_block')
+        self.omni: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_omni')
+        self.stacks: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_stacks')
+        self.blockstack: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_blockstack')
+        self.colu: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_colu')
+        self.open_assets: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_open_assets')
+        self.komodo: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_komodo')
+        self.coin_spark: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_coin_spark')
+        self.poet: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_poet')
+        self.docproof: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_docproof')
+        self.open_timestamps: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_open_timestamps')
+        self.factom: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_factom')
+        self.eternity_wall: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_eternity_wall')
+        self.memo: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_memo')
+        self.bitproof: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_bitproof')
+        self.ascribe: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_ascribe')
+        self.stampery: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_stampery')
+        self.epobc: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_epobc')
+        self.bare_hash: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_bare_hash')
+        self.text: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_text')
+        self.empty: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_empty')
+        self.unknown: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_unknown')
 
 class SeriesTree_OpReturn_Policy:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.pre_v30_standard: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_pre_v30_standard')
-        self.pre_v30_nonstandard: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_pre_v30_nonstandard')
-        self.oversized: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_oversized')
-        self.multiple: ChainDataOutputTxPattern = ChainDataOutputTxPattern(client, 'op_return_policy_multiple')
+        self.pre_v30_standard: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_policy_pre_v30_standard')
+        self.pre_v30_nonstandard: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_policy_pre_v30_nonstandard')
+        self.oversized: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_policy_oversized')
+        self.multiple: ChainDataFeeFeesOutputTxPattern = ChainDataFeeFeesOutputTxPattern(client, 'op_return_policy_multiple')
 
 class SeriesTree_OpReturn:
     """Series tree node."""
@@ -6358,6 +6362,7 @@ class SeriesTree_Pools_Minor:
         self.braiinssolo: BlocksDominancePattern = BlocksDominancePattern(client, 'braiinssolo')
         self.solopool: BlocksDominancePattern = BlocksDominancePattern(client, 'solopool')
         self.noderunners: BlocksDominancePattern = BlocksDominancePattern(client, 'noderunners')
+        self.dmnd: BlocksDominancePattern = BlocksDominancePattern(client, 'dmnd')
 
 class SeriesTree_Pools:
     """Series tree node."""
@@ -7047,6 +7052,7 @@ class BrkClient(BrkClientBase):
       "dcexploration": "DCExploration",
       "digitalbtc": "digitalBTC",
       "digitalxmintsy": "digitalX Mintsy",
+      "dmnd": "DMND",
       "dpool": "DPOOL",
       "eclipsemc": "EclipseMC",
       "eightbaochi": "8baochi",

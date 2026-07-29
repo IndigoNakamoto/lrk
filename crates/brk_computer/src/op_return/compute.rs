@@ -1,12 +1,16 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Height, OpReturnKind, PartsPerMillion32, StoredU64, VSize};
+use brk_types::{Height, OpReturnKind, PartsPerMillion32, Sats, StoredU64, VSize};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
 use super::{Breakdown, Vecs, vecs::Totals};
 use crate::{
     blocks,
-    internal::{PercentPerBlock, RatioU64},
+    internal::{
+        PerBlockCumulativeRolling, PercentCumulativeRolling, PercentPerBlock, RatioSats, RatioU64,
+        ValuePerBlockCumulativeRolling,
+    },
+    transactions,
 };
 
 const KIND_COUNT: usize = OpReturnKind::Unknown as usize + 1;
@@ -29,6 +33,7 @@ struct Carrier {
     oversized_output_count: u64,
     oversized_data_bytes: u64,
     vsize: VSize,
+    fees: Sats,
 }
 
 impl Carrier {
@@ -47,6 +52,7 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
+        fees: &transactions::FeesVecs,
         blocks: &blocks::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -59,7 +65,8 @@ impl Vecs {
             + raw.to_tx_index.version()
             + raw.kind.version()
             + raw.post_op_return_bytes.version()
-            + txs.weight.version();
+            + txs.weight.version()
+            + fees.fee.tx_index.version();
 
         self.validate_and_truncate(version, starting_lengths.height)?;
 
@@ -74,6 +81,7 @@ impl Vecs {
             let mut post_op_return_bytes = raw.post_op_return_bytes.cursor();
             let mut first_index_cursor = raw.first_index.cursor();
             let mut weight_cursor = txs.weight.cursor();
+            let mut fee_cursor = fees.fee.tx_index.cursor();
             first_index_cursor.advance(skip);
             let mut start = first_index_cursor.next().unwrap().to_usize();
 
@@ -108,6 +116,8 @@ impl Vecs {
                         let tx_position = tx_index.to_usize();
                         weight_cursor.advance(tx_position - weight_cursor.position());
                         carrier.vsize = VSize::from(weight_cursor.next().unwrap());
+                        fee_cursor.advance(tx_position - fee_cursor.position());
+                        carrier.fees = fee_cursor.next().unwrap();
                     }
 
                     total.data_bytes += bytes;
@@ -169,6 +179,41 @@ impl Vecs {
             )?;
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn compute_fee_shares(
+        &mut self,
+        chain_fees: &ValuePerBlockCumulativeRolling,
+        max_from: Height,
+        exit: &Exit,
+    ) -> Result<()> {
+        compute_fee_share(
+            max_from,
+            &mut self.total.fee_share,
+            &self.total.metrics.fees,
+            chain_fees,
+            exit,
+        )?;
+        for breakdown in self.by_kind.iter_mut() {
+            compute_fee_share(
+                max_from,
+                &mut breakdown.fee_share,
+                &breakdown.metrics.total.fees,
+                chain_fees,
+                exit,
+            )?;
+        }
+        for policy in self.policy.iter_mut() {
+            compute_fee_share(
+                max_from,
+                &mut policy.fee_share,
+                &policy.metrics.total.fees,
+                chain_fees,
+                exit,
+            )?;
+        }
+
         let exit = exit.clone();
         self.db.run_bg(move |db| {
             let _lock = exit.lock();
@@ -176,6 +221,23 @@ impl Vecs {
         });
         Ok(())
     }
+}
+
+fn compute_fee_share(
+    max_from: Height,
+    target: &mut PercentCumulativeRolling<PartsPerMillion32>,
+    numerator: &PerBlockCumulativeRolling<Sats, Sats>,
+    denominator: &ValuePerBlockCumulativeRolling,
+    exit: &Exit,
+) -> Result<()> {
+    target.compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>, _, _, _, _>(
+        max_from,
+        &numerator.cumulative.height,
+        &denominator.cumulative.sats.height,
+        numerator.sum.as_array().map(|w| &w.height),
+        denominator.sum.as_array().map(|w| &w.sats.height),
+        exit,
+    )
 }
 
 fn compute_breakdown_data_shares(
@@ -212,40 +274,41 @@ fn finalize_transaction(
         return;
     }
 
-    add_carrier(total, carrier.vsize);
+    add_carrier(total, carrier);
     let mut kinds = carrier.kinds;
     while kinds != 0 {
         let kind_index = kinds.trailing_zeros() as usize;
-        add_carrier(&mut by_kind[kind_index], carrier.vsize);
+        add_carrier(&mut by_kind[kind_index], carrier);
         kinds &= kinds - 1;
     }
 
     if carrier.oversized_output_count > 0 {
         policy.oversized.output_count += carrier.oversized_output_count;
         policy.oversized.data_bytes += carrier.oversized_data_bytes;
-        add_carrier(&mut policy.oversized, carrier.vsize);
+        add_carrier(&mut policy.oversized, carrier);
     }
 
     if carrier.output_count > 1 {
         policy.multiple.output_count += carrier.output_count;
         policy.multiple.data_bytes += carrier.data_bytes;
-        add_carrier(&mut policy.multiple, carrier.vsize);
+        add_carrier(&mut policy.multiple, carrier);
     }
 
     if carrier.oversized_output_count > 0 || carrier.output_count > 1 {
         policy.pre_v30_nonstandard.output_count += carrier.output_count;
         policy.pre_v30_nonstandard.data_bytes += carrier.data_bytes;
-        add_carrier(&mut policy.pre_v30_nonstandard, carrier.vsize);
+        add_carrier(&mut policy.pre_v30_nonstandard, carrier);
     } else {
         policy.pre_v30_standard.output_count += carrier.output_count;
         policy.pre_v30_standard.data_bytes += carrier.data_bytes;
-        add_carrier(&mut policy.pre_v30_standard, carrier.vsize);
+        add_carrier(&mut policy.pre_v30_standard, carrier);
     }
 }
 
-fn add_carrier(metrics: &mut Totals, vsize: VSize) {
+fn add_carrier(metrics: &mut Totals, carrier: Carrier) {
     metrics.tx_count += 1;
-    metrics.tx_vsize += vsize;
+    metrics.tx_vsize += carrier.vsize;
+    metrics.fees += carrier.fees;
 }
 
 const fn kind_bit(kind: OpReturnKind) -> u32 {
@@ -263,6 +326,7 @@ mod tests {
         let mut policy = PolicyTotals::default();
         let mut carrier = Carrier {
             vsize: VSize::new(100),
+            fees: Sats::new(500),
             ..Carrier::default()
         };
         carrier.add_output(OpReturnKind::Runes, 15);
@@ -273,6 +337,11 @@ mod tests {
         assert_eq!(total.tx_count, 1);
         assert_eq!(by_kind[OpReturnKind::Runes as usize].tx_count, 1);
         assert_eq!(by_kind[OpReturnKind::Omni as usize].tx_count, 1);
+        assert_eq!(total.fees, Sats::new(500));
+        assert_eq!(by_kind[OpReturnKind::Runes as usize].fees, Sats::new(500));
+        assert_eq!(by_kind[OpReturnKind::Omni as usize].fees, Sats::new(500));
+        assert_eq!(policy.multiple.fees, Sats::new(500));
+        assert_eq!(policy.pre_v30_nonstandard.fees, Sats::new(500));
         assert_eq!(policy.multiple.output_count, 2);
         assert_eq!(policy.pre_v30_nonstandard.tx_count, 1);
         assert_eq!(policy.oversized.tx_count, 0);

@@ -1,13 +1,16 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Height, PartsPerMillion32, StoredU64, VSize, Version};
+use brk_types::{Height, PartsPerMillion32, Sats, StoredU64, VSize, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use super::ByKind;
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, PercentPerBlock, WindowStartVec, Windows},
+    internal::{
+        PerBlockCumulativeRolling, PercentCumulativeRolling, PercentPerBlock, WindowStartVec,
+        Windows,
+    },
 };
 
 pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, T, M>;
@@ -18,6 +21,7 @@ pub(super) struct Totals {
     pub data_bytes: u64,
     pub tx_count: u64,
     pub tx_vsize: VSize,
+    pub fees: Sats,
 }
 
 #[derive(Traversable)]
@@ -25,6 +29,9 @@ pub struct TotalMetrics<M: StorageMode = Rw> {
     pub data_bytes: Series<StoredU64, M>,
     pub tx_count: Series<StoredU64, M>,
     pub tx_vsize: Series<VSize, M>,
+    /// Full fees paid by carrier transactions. A transaction carrying multiple
+    /// kinds contributes its fee to each kind, matching `tx_count` and `tx_vsize`.
+    pub fees: Series<Sats, M>,
 }
 
 impl TotalMetrics {
@@ -57,6 +64,13 @@ impl TotalMetrics {
                 indexes,
                 cached_starts,
             )?,
+            fees: Series::forced_import(
+                db,
+                &format!("{prefix}_fees"),
+                version,
+                indexes,
+                cached_starts,
+            )?,
         })
     }
 
@@ -66,12 +80,14 @@ impl TotalMetrics {
             .len()
             .min(self.tx_count.block.len())
             .min(self.tx_vsize.block.len())
+            .min(self.fees.block.len())
     }
 
     pub(super) fn push(&mut self, block: Totals) {
         self.data_bytes.block.push(block.data_bytes.into());
         self.tx_count.block.push(block.tx_count.into());
         self.tx_vsize.block.push(block.tx_vsize);
+        self.fees.block.push(block.fees);
     }
 
     fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
@@ -80,6 +96,7 @@ impl TotalMetrics {
             .validate_and_truncate(version, height)?;
         self.tx_count.block.validate_and_truncate(version, height)?;
         self.tx_vsize.block.validate_and_truncate(version, height)?;
+        self.fees.block.validate_and_truncate(version, height)?;
         Ok(())
     }
 
@@ -87,6 +104,7 @@ impl TotalMetrics {
         self.data_bytes.block.truncate_if_needed_at(len)?;
         self.tx_count.block.truncate_if_needed_at(len)?;
         self.tx_vsize.block.truncate_if_needed_at(len)?;
+        self.fees.block.truncate_if_needed_at(len)?;
         Ok(())
     }
 
@@ -94,6 +112,7 @@ impl TotalMetrics {
         self.data_bytes.block.write()?;
         self.tx_count.block.write()?;
         self.tx_vsize.block.write()?;
+        self.fees.block.write()?;
         Ok(())
     }
 
@@ -101,6 +120,7 @@ impl TotalMetrics {
         self.data_bytes.compute_rest(max_from, exit)?;
         self.tx_count.compute_rest(max_from, exit)?;
         self.tx_vsize.compute_rest(max_from, exit)?;
+        self.fees.compute_rest(max_from, exit)?;
         Ok(())
     }
 }
@@ -112,6 +132,8 @@ pub struct Total<M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub metrics: TotalMetrics<M>,
     pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
+    /// Share of all transaction fees, based on cumulative and rolling fee sums.
+    pub fee_share: PercentCumulativeRolling<PartsPerMillion32, M>,
 }
 
 impl Total {
@@ -127,6 +149,12 @@ impl Total {
             chain_share: PercentPerBlock::forced_import(
                 db,
                 &format!("{prefix}_chain_share"),
+                version,
+                indexes,
+            )?,
+            fee_share: PercentCumulativeRolling::forced_import(
+                db,
+                &format!("{prefix}_fee_share"),
                 version,
                 indexes,
             )?,
@@ -205,6 +233,8 @@ pub struct Breakdown<M: StorageMode = Rw> {
     pub metrics: Metrics<M>,
     pub data_share: PercentPerBlock<PartsPerMillion32, M>,
     pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
+    /// Share of all transaction fees, based on cumulative and rolling fee sums.
+    pub fee_share: PercentCumulativeRolling<PartsPerMillion32, M>,
 }
 
 impl Breakdown {
@@ -226,6 +256,12 @@ impl Breakdown {
             chain_share: PercentPerBlock::forced_import(
                 db,
                 &format!("{prefix}_chain_share"),
+                version,
+                indexes,
+            )?,
+            fee_share: PercentCumulativeRolling::forced_import(
+                db,
+                &format!("{prefix}_fee_share"),
                 version,
                 indexes,
             )?,
