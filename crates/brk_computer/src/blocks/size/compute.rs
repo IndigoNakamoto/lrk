@@ -1,6 +1,5 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::StoredU64;
 use vecdb::Exit;
 
 use super::Vecs;
@@ -16,15 +15,7 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
         let window_starts = lookback.window_starts();
 
-        self.vbytes
-            .compute(starting_height, &window_starts, exit, |height| {
-                Ok(height.compute_transform(
-                    starting_height,
-                    &indexer.vecs.blocks.weight,
-                    |(h, weight, ..)| (h, StoredU64::from(weight.to_vbytes_floor())),
-                    exit,
-                )?)
-            })?;
+        self.vbytes.compute(starting_height, &window_starts, exit)?;
 
         self.size.compute(
             starting_height,

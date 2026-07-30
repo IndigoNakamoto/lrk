@@ -27,10 +27,13 @@ pub struct RelativeWithExtended<M: StorageMode = Rw> {
 }
 
 impl RelativeWithExtended {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, unrealized: &UnrealizedFull) -> Result<Self> {
         Ok(Self {
             base: RelativeFull::forced_import(cfg)?,
-            extended_own_market_cap: RelativeExtendedOwnMarketCap::forced_import(cfg)?,
+            extended_own_market_cap: RelativeExtendedOwnMarketCap::forced_import(
+                cfg,
+                &unrealized.inner,
+            )?,
             extended_own_pnl: RelativeExtendedOwnPnl::forced_import(cfg)?,
             invested_capital: RelativeInvestedCapital::forced_import(cfg)?,
         })

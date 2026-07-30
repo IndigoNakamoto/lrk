@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use brk_types::{Cents, CentsSigned, Dollars, Sats, StoredF32, StoredU64};
-use vecdb::BinaryTransform;
+use vecdb::{BinaryTransform, unlikely};
 
 use crate::internal::FixedRatio;
 
@@ -36,10 +36,11 @@ pub struct RatioCents<P>(PhantomData<P>);
 impl<P: FixedRatio> BinaryTransform<Cents, Cents, P> for RatioCents<P> {
     #[inline(always)]
     fn apply(numerator: Cents, denominator: Cents) -> P {
-        if denominator == Cents::ZERO {
+        let denominator = f64::from(denominator);
+        if unlikely(denominator == 0.0) {
             P::default()
         } else {
-            P::from(numerator.inner() as f64 / denominator.inner() as f64)
+            P::from(f64::from(numerator) / denominator)
         }
     }
 }
@@ -63,10 +64,11 @@ pub struct RatioCentsSignedCents<P>(PhantomData<P>);
 impl<P: FixedRatio> BinaryTransform<CentsSigned, Cents, P> for RatioCentsSignedCents<P> {
     #[inline(always)]
     fn apply(numerator: CentsSigned, denominator: Cents) -> P {
-        if denominator == Cents::ZERO {
+        let denominator = f64::from(denominator);
+        if unlikely(denominator == 0.0) {
             P::default()
         } else {
-            P::from(numerator.inner() as f64 / denominator.inner() as f64)
+            P::from(numerator.inner() as f64 / denominator)
         }
     }
 }
@@ -81,19 +83,6 @@ impl<P: FixedRatio> BinaryTransform<CentsSigned, Dollars, P> for RatioCentsSigne
             P::from(numerator.inner() as f64 / 100.0 / denominator)
         } else {
             P::default()
-        }
-    }
-}
-
-pub struct RatioU64F32;
-
-impl BinaryTransform<StoredU64, StoredU64, StoredF32> for RatioU64F32 {
-    #[inline(always)]
-    fn apply(numerator: StoredU64, denominator: StoredU64) -> StoredF32 {
-        if *denominator > 0 {
-            StoredF32::from(*numerator as f64 / *denominator as f64)
-        } else {
-            StoredF32::default()
         }
     }
 }
@@ -136,5 +125,22 @@ impl<P: FixedRatio> BinaryTransform<Cents, Cents, P> for RatioDiffCents<P> {
         } else {
             P::from(f64::from(close) / base - 1.0)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use brk_types::PartsPerMillion32;
+
+    use super::*;
+
+    #[test]
+    fn cents_ratios_propagate_nan() {
+        assert!(RatioCents::<PartsPerMillion32>::apply(Cents::NAN, Cents::new(100)).is_nan());
+        assert!(RatioCents::<PartsPerMillion32>::apply(Cents::new(100), Cents::NAN).is_nan());
+        assert!(
+            RatioCentsSignedCents::<PartsPerMillion32>::apply(CentsSigned::new(100), Cents::NAN,)
+                .is_nan()
+        );
     }
 }

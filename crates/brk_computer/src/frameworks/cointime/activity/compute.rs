@@ -28,13 +28,6 @@ pub(crate) fn compute_rest(
         exit,
     )?;
 
-    derived.ratio.height.compute_divide(
-        starting_height,
-        &derived.liveliness.height,
-        &derived.vaultedness.height,
-        exit,
-    )?;
-
     Ok(())
 }
 

@@ -276,8 +276,6 @@ pub trait CohortMetricsBase:
     ) -> Result<()> {
         self.supply_mut()
             .compute(prices, starting_lengths.height, exit)?;
-        self.outputs_mut()
-            .compute_rest(starting_lengths.height, exit)?;
         self.activity_mut()
             .compute_rest_part1(prices, starting_lengths, exit)?;
 

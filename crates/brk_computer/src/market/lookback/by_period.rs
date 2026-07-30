@@ -76,43 +76,30 @@ impl<T> ByLookbackPeriod<T> {
         })
     }
 
-    pub(crate) fn iter_with_days(&self) -> impl Iterator<Item = (&T, u32)> {
+    pub(crate) fn try_from_period<U, F, E>(
+        period: &ByLookbackPeriod<U>,
+        mut create: F,
+    ) -> Result<Self, E>
+    where
+        F: FnMut(&'static str, u32, &U) -> Result<T, E>,
+    {
+        let n = LOOKBACK_PERIOD_NAMES;
         let d = LOOKBACK_PERIOD_DAYS;
-        [
-            (&self._24h, d._24h),
-            (&self._1w, d._1w),
-            (&self._1m, d._1m),
-            (&self._3m, d._3m),
-            (&self._6m, d._6m),
-            (&self._1y, d._1y),
-            (&self._2y, d._2y),
-            (&self._3y, d._3y),
-            (&self._4y, d._4y),
-            (&self._5y, d._5y),
-            (&self._6y, d._6y),
-            (&self._8y, d._8y),
-            (&self._10y, d._10y),
-        ]
-        .into_iter()
+        Ok(Self {
+            _24h: create(n._24h, d._24h, &period._24h)?,
+            _1w: create(n._1w, d._1w, &period._1w)?,
+            _1m: create(n._1m, d._1m, &period._1m)?,
+            _3m: create(n._3m, d._3m, &period._3m)?,
+            _6m: create(n._6m, d._6m, &period._6m)?,
+            _1y: create(n._1y, d._1y, &period._1y)?,
+            _2y: create(n._2y, d._2y, &period._2y)?,
+            _3y: create(n._3y, d._3y, &period._3y)?,
+            _4y: create(n._4y, d._4y, &period._4y)?,
+            _5y: create(n._5y, d._5y, &period._5y)?,
+            _6y: create(n._6y, d._6y, &period._6y)?,
+            _8y: create(n._8y, d._8y, &period._8y)?,
+            _10y: create(n._10y, d._10y, &period._10y)?,
+        })
     }
 
-    pub(crate) fn iter_mut_with_days(&mut self) -> impl Iterator<Item = (&mut T, u32)> {
-        let d = LOOKBACK_PERIOD_DAYS;
-        [
-            (&mut self._24h, d._24h),
-            (&mut self._1w, d._1w),
-            (&mut self._1m, d._1m),
-            (&mut self._3m, d._3m),
-            (&mut self._6m, d._6m),
-            (&mut self._1y, d._1y),
-            (&mut self._2y, d._2y),
-            (&mut self._3y, d._3y),
-            (&mut self._4y, d._4y),
-            (&mut self._5y, d._5y),
-            (&mut self._6y, d._6y),
-            (&mut self._8y, d._8y),
-            (&mut self._10y, d._10y),
-        ]
-        .into_iter()
-    }
 }

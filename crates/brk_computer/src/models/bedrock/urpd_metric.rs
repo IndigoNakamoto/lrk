@@ -112,7 +112,7 @@ impl<T> UrpdViews<T>
 where
     T: NumericValue + JsonSchema,
 {
-    fn new(
+    pub(super) fn new(
         name: &str,
         source: ReadableBoxedVec<Day1, T>,
         version: Version,

@@ -3,7 +3,7 @@ use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
     Bitcoin, Cents, CentsSats, CentsSigned, CentsSquaredSats, Dollars, Height, PartsPerMillion32,
-    PartsPerMillionSigned64, StoredF64, Version,
+    PartsPerMillion64, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
@@ -11,9 +11,9 @@ use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, 
 use crate::{
     distribution::state::{CohortState, CostBasisData, RealizedState, WithCapital},
     internal::{
-        FiatPerBlockCumulativeWithSums, PercentPerBlock, PercentRollingWindows,
-        PriceWithRatioPerBlock, RatioCents, RatioCents64, RatioCentsSignedCents,
-        RatioCentsSignedDollars, RatioDollars, RollingWindows, RollingWindowsFrom1w,
+        FiatPerBlockCumulativeWithSums, LazyPercentPerBlock, PercentPerBlock,
+        PercentRollingWindows, PriceWithRatioPerBlock, RatioCents, RatioCents64,
+        RatioCentsSignedCents, RatioCentsSignedDollars, RollingWindows, RollingWindowsFrom1w,
         ValuePerBlockCumulativeRolling,
     },
     price,
@@ -57,6 +57,8 @@ pub struct RealizedFull<M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub core: RealizedCore<M>,
 
+    #[traversable(wrap = "cap", rename = "to_own_mcap")]
+    pub cap_to_own_mcap: LazyPercentPerBlock<PartsPerMillion32>,
     pub gross_pnl: FiatPerBlockCumulativeWithSums<Cents, M>,
     pub sell_side_risk_ratio: PercentRollingWindows<PartsPerMillion32, M>,
     pub net_pnl: RealizedNetPnl<M>,
@@ -68,8 +70,6 @@ pub struct RealizedFull<M: StorageMode = Rw> {
 
     #[traversable(hidden)]
     pub cap_raw: M::Stored<BytesVec<Height, CentsSats>>,
-    #[traversable(wrap = "cap", rename = "to_own_mcap")]
-    pub cap_to_own_mcap: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl RealizedFull {
@@ -78,6 +78,13 @@ impl RealizedFull {
         let v1 = Version::ONE;
 
         let core = RealizedCore::forced_import(cfg)?;
+        let cap_to_own_mcap = LazyPercentPerBlock::from_indexed_source(
+            &cfg.name("realized_cap_to_own_mcap"),
+            cfg.version + Version::TWO,
+            &core.minimal.price.ppm.height,
+            mvrv_to_realized_cap_ratio,
+            cfg.indexes,
+        );
 
         // Gross PnL
         let gross_pnl: FiatPerBlockCumulativeWithSums<Cents> =
@@ -108,6 +115,7 @@ impl RealizedFull {
 
         Ok(Self {
             core,
+            cap_to_own_mcap,
             gross_pnl,
             sell_side_risk_ratio,
             net_pnl,
@@ -116,7 +124,6 @@ impl RealizedFull {
             capitalized,
             profit_to_loss_ratio: cfg.import("realized_profit_to_loss_ratio", v1)?,
             cap_raw: cfg.import("cap_raw", v0)?,
-            cap_to_own_mcap: cfg.import("realized_cap_to_own_mcap", v1)?,
         })
     }
 
@@ -284,15 +291,6 @@ impl RealizedFull {
             )?;
         }
 
-        // Realized cap relative to own market cap
-        self.cap_to_own_mcap
-            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion32>>(
-                starting_lengths.height,
-                &self.core.minimal.cap.usd.height,
-                height_to_market_cap,
-                exit,
-            )?;
-
         // Realized profit to loss ratios
         for ((ratio, profit), loss) in self
             .profit_to_loss_ratio
@@ -313,6 +311,11 @@ impl RealizedFull {
     }
 }
 
+#[inline(always)]
+fn mvrv_to_realized_cap_ratio(_: Height, mvrv: PartsPerMillion64) -> PartsPerMillion32 {
+    PartsPerMillion32::from(1.0 / f64::from(mvrv))
+}
+
 #[derive(Default)]
 pub struct RealizedFullAccum {
     pub(crate) cap_raw: CentsSats,
@@ -329,5 +332,24 @@ impl RealizedFullAccum {
 
     pub(crate) fn peak_regret(&self) -> Cents {
         self.peak_regret.to_cents()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn realized_cap_ratio_is_inverse_mvrv() {
+        assert_eq!(
+            mvrv_to_realized_cap_ratio(Height::ZERO, PartsPerMillion64::from(2.0)),
+            PartsPerMillion32::from(0.5),
+        );
+        assert_eq!(
+            mvrv_to_realized_cap_ratio(Height::ZERO, PartsPerMillion64::from(1.0)),
+            PartsPerMillion32::from(1.0),
+        );
+        assert!(mvrv_to_realized_cap_ratio(Height::ZERO, PartsPerMillion64::NAN).is_nan());
+        assert!(mvrv_to_realized_cap_ratio(Height::ZERO, PartsPerMillion64::ZERO).is_nan());
     }
 }

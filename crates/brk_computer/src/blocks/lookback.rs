@@ -32,28 +32,28 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub _9w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 63d
     pub _12w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 84d
     pub _89d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _3m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 90d
-    pub _14w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 98d
+    pub _3m: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 90d
+    pub _14w: M::Stored<EagerVec<PcoVec<Height, Height>>>,           // 98d
     pub _111d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
     pub _144d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _6m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 180d
-    pub _26w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 182d
+    pub _6m: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 180d
+    pub _26w: M::Stored<EagerVec<PcoVec<Height, Height>>>,           // 182d
     pub _200d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
     pub _9m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 270d
     pub _350d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
     pub _12m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 360d
     pub _1y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 365d
     pub _14m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 420d
-    pub _2y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 730d
+    pub _2y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 730d
     pub _26m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 780d
-    pub _3y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1095d
+    pub _3y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 1095d
     pub _200w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 1400d
-    pub _4y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1460d
-    pub _5y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1825d
-    pub _6y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 2190d
-    pub _8y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 2920d
+    pub _4y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 1460d
+    pub _5y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 1825d
+    pub _6y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 2190d
+    pub _8y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 2920d
     pub _9y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 3285d
-    pub _10y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 3650d
+    pub _10y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 3650d
     pub _12y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 4380d
     pub _14y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 5110d
     pub _26y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 9490d
@@ -124,11 +124,11 @@ impl Vecs {
             _9w,
             _12w,
             _89d,
-            _3m,
+            _3m: CachedVec::wrap(_3m),
             _14w,
             _111d,
             _144d,
-            _6m,
+            _6m: CachedVec::wrap(_6m),
             _26w,
             _200d,
             _9m,
@@ -136,16 +136,16 @@ impl Vecs {
             _12m,
             _1y: CachedVec::wrap(_1y),
             _14m,
-            _2y,
+            _2y: CachedVec::wrap(_2y),
             _26m,
-            _3y,
+            _3y: CachedVec::wrap(_3y),
             _200w,
-            _4y,
-            _5y,
-            _6y,
-            _8y,
+            _4y: CachedVec::wrap(_4y),
+            _5y: CachedVec::wrap(_5y),
+            _6y: CachedVec::wrap(_6y),
+            _8y: CachedVec::wrap(_8y),
             _9y,
-            _10y,
+            _10y: CachedVec::wrap(_10y),
             _12y,
             _14y,
             _26y,
@@ -189,11 +189,11 @@ impl Vecs {
             63 => &self._9w,
             84 => &self._12w,
             89 => &self._89d,
-            90 => &self._3m,
+            90 => &self._3m.inner,
             98 => &self._14w,
             111 => &self._111d,
             144 => &self._144d,
-            180 => &self._6m,
+            180 => &self._6m.inner,
             182 => &self._26w,
             200 => &self._200d,
             270 => &self._9m,
@@ -201,20 +201,39 @@ impl Vecs {
             360 => &self._12m,
             365 => &self._1y.inner,
             420 => &self._14m,
-            730 => &self._2y,
+            730 => &self._2y.inner,
             780 => &self._26m,
-            1095 => &self._3y,
+            1095 => &self._3y.inner,
             1400 => &self._200w,
-            1460 => &self._4y,
-            1825 => &self._5y,
-            2190 => &self._6y,
-            2920 => &self._8y,
+            1460 => &self._4y.inner,
+            1825 => &self._5y.inner,
+            2190 => &self._6y.inner,
+            2920 => &self._8y.inner,
             3285 => &self._9y,
-            3650 => &self._10y,
+            3650 => &self._10y.inner,
             4380 => &self._12y,
             5110 => &self._14y,
             9490 => &self._26y,
             _ => panic!("No start vec for {days} days"),
+        }
+    }
+
+    pub fn cached_start_vec(&self, days: usize) -> &WindowStartVec {
+        match days {
+            1 => &self._24h,
+            7 => &self._1w,
+            30 => &self._1m,
+            90 => &self._3m,
+            180 => &self._6m,
+            365 => &self._1y,
+            730 => &self._2y,
+            1095 => &self._3y,
+            1460 => &self._4y,
+            1825 => &self._5y,
+            2190 => &self._6y,
+            2920 => &self._8y,
+            3650 => &self._10y,
+            _ => panic!("No cached start vec for {days} days"),
         }
     }
 
@@ -243,11 +262,11 @@ impl Vecs {
         self.compute_rolling_start(indexes, starting_height, exit, 63, |s| &mut s._9w)?;
         self.compute_rolling_start(indexes, starting_height, exit, 84, |s| &mut s._12w)?;
         self.compute_rolling_start(indexes, starting_height, exit, 89, |s| &mut s._89d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 90, |s| &mut s._3m)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 90, |s| &mut s._3m.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 98, |s| &mut s._14w)?;
         self.compute_rolling_start(indexes, starting_height, exit, 111, |s| &mut s._111d)?;
         self.compute_rolling_start(indexes, starting_height, exit, 144, |s| &mut s._144d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 180, |s| &mut s._6m)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 180, |s| &mut s._6m.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 182, |s| &mut s._26w)?;
         self.compute_rolling_start(indexes, starting_height, exit, 200, |s| &mut s._200d)?;
         self.compute_rolling_start(indexes, starting_height, exit, 270, |s| &mut s._9m)?;
@@ -255,16 +274,16 @@ impl Vecs {
         self.compute_rolling_start(indexes, starting_height, exit, 360, |s| &mut s._12m)?;
         self.compute_rolling_start(indexes, starting_height, exit, 365, |s| &mut s._1y.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 420, |s| &mut s._14m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 730, |s| &mut s._2y)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 730, |s| &mut s._2y.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 780, |s| &mut s._26m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1095, |s| &mut s._3y)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 1095, |s| &mut s._3y.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 1400, |s| &mut s._200w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1460, |s| &mut s._4y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1825, |s| &mut s._5y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 2190, |s| &mut s._6y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 2920, |s| &mut s._8y)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 1460, |s| &mut s._4y.inner)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 1825, |s| &mut s._5y.inner)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 2190, |s| &mut s._6y.inner)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 2920, |s| &mut s._8y.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 3285, |s| &mut s._9y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 3650, |s| &mut s._10y)?;
+        self.compute_rolling_start(indexes, starting_height, exit, 3650, |s| &mut s._10y.inner)?;
         self.compute_rolling_start(indexes, starting_height, exit, 4380, |s| &mut s._12y)?;
         self.compute_rolling_start(indexes, starting_height, exit, 5110, |s| &mut s._14y)?;
         self.compute_rolling_start(indexes, starting_height, exit, 9490, |s| &mut s._26y)?;

@@ -2,7 +2,7 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, StoredU64};
+use brk_types::{Height, Sats};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
@@ -28,13 +28,16 @@ pub struct TypeCohortMetrics<M: StorageMode = Rw> {
 
 impl TypeCohortMetrics {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+        let realized = RealizedMinimal::forced_import(cfg)?;
+        let unrealized = UnrealizedBasic::forced_import(cfg, &realized.price.ppm)?;
+
         Ok(Self {
             filter: cfg.filter.clone(),
             supply: Box::new(SupplyCore::forced_import(cfg)?),
             outputs: Box::new(OutputsBase::forced_import(cfg)?),
             activity: Box::new(ActivityMinimal::forced_import(cfg)?),
-            realized: Box::new(RealizedMinimal::forced_import(cfg)?),
-            unrealized: Box::new(UnrealizedBasic::forced_import(cfg)?),
+            realized: Box::new(realized),
+            unrealized: Box::new(unrealized),
         })
     }
 
@@ -64,7 +67,6 @@ impl TypeCohortMetrics {
         exit: &Exit,
     ) -> Result<()> {
         self.supply.compute(prices, starting_lengths.height, exit)?;
-        self.outputs.compute_rest(starting_lengths.height, exit)?;
         self.activity
             .compute_rest_part1(prices, starting_lengths, exit)?;
         Ok(())
@@ -75,7 +77,6 @@ impl TypeCohortMetrics {
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -85,18 +86,8 @@ impl TypeCohortMetrics {
             exit,
         )?;
 
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
-            exit,
-        )?;
-
         self.supply
             .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
-
-        self.outputs
-            .compute_part2(starting_lengths.height, all_utxo_count, exit)?;
 
         Ok(())
     }

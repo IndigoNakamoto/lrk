@@ -9,8 +9,8 @@ use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 use crate::{
     indexes, inputs,
     internal::{
-        PerBlockCumulativeRolling, PerBlockRollingAverage, PercentCumulativeRolling,
-        WindowStartVec, Windows, WithAddrTypes,
+        CountPerBlockRollingAverage, PerBlockCumulativeRolling, PerBlockRollingAverage,
+        PercentCumulativeRolling, WindowStartVec, Windows, WithAddrTypes,
     },
     outputs,
 };
@@ -59,10 +59,10 @@ use super::state::AddrTypeToAddrEventCount;
 /// empty blocks). The denominator (distinct active addrs per block)
 /// lives on `ActivityCountVecs::active` (`addrs.activity.all.active`),
 /// derived from `sending + receiving - bidirectional`. Both fields
-/// use `PerBlockRollingAverage` so their lazy 24h/1w/1m/1y series are
-/// rolling *averages* of the per-block values. Sums and cumulatives of
-/// distinct-address counts would be misleading because the same
-/// address can appear in multiple blocks.
+/// expose lazy 24h/1w/1m/1y rolling *averages* of the per-block values.
+/// Sums and cumulatives of distinct-address counts would be misleading
+/// because the same address can appear in multiple blocks, so the
+/// cumulative count remains an internal source for the lazy views.
 #[derive(Traversable)]
 pub struct AddrEventsVecs<M: StorageMode = Rw> {
     pub output_to_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
@@ -70,7 +70,7 @@ pub struct AddrEventsVecs<M: StorageMode = Rw> {
     pub spendable_output_to_reused_addr_share: PercentCumulativeRolling<PartsPerMillion32, M>,
     pub input_from_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
     pub input_from_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
-    pub active_reused_addr_count: PerBlockRollingAverage<StoredU32, StoredU64, M>,
+    pub active_reused_addr_count: CountPerBlockRollingAverage<M>,
     pub active_reused_addr_share: PerBlockRollingAverage<StoredF32, StoredF32, M>,
 }
 
@@ -118,7 +118,7 @@ impl AddrEventsVecs {
         let input_from_reused_addr_share =
             import_percent(&format!("input_from_{name}_addr_share"))?;
 
-        let active_reused_addr_count = PerBlockRollingAverage::forced_import(
+        let active_reused_addr_count = CountPerBlockRollingAverage::forced_import(
             db,
             &format!("active_{name}_addr_count"),
             version,
@@ -148,7 +148,7 @@ impl AddrEventsVecs {
         self.output_to_reused_addr_count
             .min_stateful_len()
             .min(self.input_from_reused_addr_count.min_stateful_len())
-            .min(self.active_reused_addr_count.block.len())
+            .min(self.active_reused_addr_count.cumulative.len())
             .min(self.active_reused_addr_share.block.len())
     }
 
@@ -159,7 +159,7 @@ impl AddrEventsVecs {
             .par_iter_height_mut()
             .chain(self.input_from_reused_addr_count.par_iter_height_mut())
             .chain([
-                &mut self.active_reused_addr_count.block as &mut dyn AnyStoredVec,
+                self.active_reused_addr_count.stored_mut(),
                 &mut self.active_reused_addr_share.block as &mut dyn AnyStoredVec,
             ])
     }
@@ -167,7 +167,7 @@ impl AddrEventsVecs {
     pub(crate) fn reset_height(&mut self) -> Result<()> {
         self.output_to_reused_addr_count.reset_height()?;
         self.input_from_reused_addr_count.reset_height()?;
-        self.active_reused_addr_count.block.reset()?;
+        self.active_reused_addr_count.reset()?;
         self.active_reused_addr_share.block.reset()?;
         Ok(())
     }
@@ -185,8 +185,7 @@ impl AddrEventsVecs {
         self.input_from_reused_addr_count
             .push_height(spends.sum(), spends.values().copied());
         self.active_reused_addr_count
-            .block
-            .push(StoredU32::from(active_reused_addr_count));
+            .push_block(StoredU32::from(active_reused_addr_count));
         // Stored as a percentage in [0, 100] to match the rest of the
         // codebase (Unit.percentage on the website expects 0..100). The
         // `active_addr_count` denominator lives on `ActivityCountVecs`
@@ -209,8 +208,6 @@ impl AddrEventsVecs {
         inputs_by_type: &inputs::ByTypeVecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.active_reused_addr_count
-            .compute_rest(starting_lengths.height, exit)?;
         self.active_reused_addr_share
             .compute_rest(starting_lengths.height, exit)?;
 

@@ -6,12 +6,12 @@ use brk_types::Version;
 use crate::{
     indexes,
     internal::{
-        WindowStartVec, Windows,
+        LazyPerSecondWindows, WindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
     },
 };
 
-use super::{ByTypeVecs, CountVecs, PerSecVecs, SpentVecs, Vecs};
+use super::{ByTypeVecs, CountVecs, SpentVecs, Vecs};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -25,7 +25,7 @@ impl Vecs {
 
         let spent = SpentVecs::forced_import(&db, version)?;
         let count = CountVecs::forced_import(&db, version, indexes, cached_starts)?;
-        let per_sec = PerSecVecs::forced_import(&db, version, indexes)?;
+        let per_sec = LazyPerSecondWindows::new("inputs_per_sec", version, &count.rolling.sum);
         let by_type = ByTypeVecs::forced_import(&db, version, indexes, cached_starts)?;
 
         let this = Self {

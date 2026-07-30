@@ -1,17 +1,25 @@
 use std::path::Path;
 
-use brk_error::Result;
-use brk_types::Version;
-use vecdb::ImportableVec;
+use brk_error::{Error, Result};
+use brk_types::{
+    Bitcoin, Cents, Date, Day1, Dollars, Height, PartsPerMillionSigned64, Sats, Version,
+};
+use vecdb::{
+    BinaryTransform, CachedBoxedVec, CheckedSub, EagerVec, ImportableVec, PcoVec,
+    ReadableCloneableVec, ReadableVec, TypedVec, VecIndex,
+};
 
-use super::vecs::{ClassVecs, PeriodVecs};
-use super::{ByDcaCagr, ByDcaClass, ByDcaPeriod, Vecs};
+use super::vecs::{ClassVecs, DcaStack, LumpSumStack, PeriodVecs};
+use super::{ByDcaCagr, ByDcaClass, ByDcaPeriod, DCA_AMOUNT, Vecs};
 use crate::{
-    indexes,
+    blocks, indexes,
     internal::{
-        PercentPerBlock, Price, ValuePerBlock,
+        CentsUnsignedToDollars, Identity, LazyIndexedVec, LazyPerBlock, LazyPercentPerBlock,
+        LazyPreviousDeltaVec, LazySinceDayVec, LazyWindowVec, PerBlock, PercentPerBlock, Price,
+        RatioDiffCents, SatsToBitcoin, SatsToCents,
         db_utils::{finalize_db, open_db},
     },
+    price,
 };
 
 impl Vecs {
@@ -19,57 +27,175 @@ impl Vecs {
         parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
+        blocks: &blocks::Vecs,
+        prices: &price::Vecs,
     ) -> Result<Self> {
         let db = open_db(parent_path, super::DB_NAME, 50_000)?;
         let version = parent_version;
-        let stack = ByDcaPeriod::try_new(|name, _days| {
-            ValuePerBlock::forced_import(&db, &format!("dca_stack_{name}"), version, indexes)
+
+        let sats_cumulative: EagerVec<PcoVec<Height, Sats>> =
+            ImportableVec::forced_import(&db, "dca_sats_cumulative", version)?;
+        let sats_per_day = LazyPreviousDeltaVec::new(
+            "dca_sats_per_day",
+            version,
+            sats_cumulative.read_only_boxed_clone(),
+        );
+
+        let cached_starts = ByDcaPeriod::try_new(|_, days| {
+            Ok::<_, Error>(
+                blocks
+                    .lookback
+                    .cached_start_vec(days as usize)
+                    .read_only_cached_boxed_clone(),
+            )
+        })?;
+        let cached_days = indexes.height.day1.read_only_cached_boxed_clone();
+
+        let dca_stack = ByDcaPeriod::try_from_period(&cached_starts, |name, _days, window_starts| {
+            let metric_name = format!("dca_stack_{name}");
+            let source = LazyWindowVec::<Height, Sats, Sats>::new(
+                &format!("{metric_name}_sats_source"),
+                version,
+                sats_cumulative.read_only_boxed_clone(),
+                window_starts.clone(),
+                true,
+                |current, before, _| current.checked_sub(before).unwrap_or_default(),
+            );
+            dca_stack_from_source(&db, &metric_name, version, indexes, source)
         })?;
 
-        let cost_basis = ByDcaPeriod::try_new(|name, _days| {
-            Price::forced_import(&db, &format!("dca_cost_basis_{name}"), version, indexes)
-        })?;
+        let first_price_day = Day1::try_from(Date::new(2010, 7, 12)).unwrap();
+        let dca_cost_basis =
+            ByDcaPeriod::try_from_period(&dca_stack, |name, days, stack| {
+                let metric_name = format!("dca_cost_basis_{name}");
+                let source = LazyIndexedVec::new(
+                    &format!("{metric_name}_cents_source"),
+                    version,
+                    stack.sats.height.read_only_boxed_clone(),
+                    cached_days.clone(),
+                    move |_, stack_sats, day| {
+                        if day <= first_price_day {
+                            return Cents::ZERO;
+                        }
+                        let num_days =
+                            (days as usize).min(day.to_usize() + 1 - first_price_day.to_usize());
+                        Cents::from(DCA_AMOUNT * num_days / Bitcoin::from(stack_sats))
+                    },
+                );
+                Ok::<_, Error>(Price::from_height_source(
+                    &metric_name,
+                    version,
+                    source,
+                    indexes,
+                ))
+            })?;
 
-        let r#return = ByDcaPeriod::try_new(|name, _days| {
-            PercentPerBlock::forced_import(&db, &format!("dca_return_{name}"), version, indexes)
-        })?;
-
-        let cagr = ByDcaCagr::try_new(|name, _days| {
-            PercentPerBlock::forced_import(&db, &format!("dca_cagr_{name}"), version, indexes)
-        })?;
-
-        let lump_sum_stack = ByDcaPeriod::try_new(|name, _days| {
-            ValuePerBlock::forced_import(&db, &format!("lump_sum_stack_{name}"), version, indexes)
-        })?;
-
-        let lump_sum_return = ByDcaPeriod::try_new(|name, _days| {
+        let dca_return = ByDcaPeriod::try_new(|name, _days| {
             PercentPerBlock::forced_import(
                 &db,
-                &format!("lump_sum_return_{name}"),
+                &format!("dca_return_{name}"),
                 version,
                 indexes,
             )
         })?;
 
-        let class_stack = ByDcaClass::try_new(|name, _year, _day1| {
-            ValuePerBlock::forced_import(&db, &format!("dca_stack_{name}"), version, indexes)
+        let dca_cagr =
+            ByDcaCagr::try_new(&dca_return, |name, days, source| {
+                Ok::<_, Error>(LazyPercentPerBlock::from_cagr(
+                    &format!("dca_cagr_{name}"),
+                    version,
+                    (days / 365) as u8,
+                    source,
+                ))
+            })?;
+
+        let lump_sum_stack =
+            ByDcaPeriod::try_from_period(&cached_starts, |name, days, window_starts| {
+            lump_sum_stack(
+                &format!("lump_sum_stack_{name}"),
+                days,
+                version,
+                indexes,
+                window_starts,
+                prices,
+            )
         })?;
 
-        let class_cost_basis = ByDcaClass::try_new(|name, _year, _day1| {
-            Price::forced_import(&db, &format!("dca_cost_basis_{name}"), version, indexes)
+        let lump_sum_return =
+            ByDcaPeriod::try_from_period(&cached_starts, |name, _days, window_starts| {
+            let metric_name = format!("lump_sum_return_{name}");
+            let source = LazyWindowVec::<Height, Cents, PartsPerMillionSigned64>::new(
+                &format!("{metric_name}_ppm_source"),
+                version,
+                prices.spot.cents.height.read_only_boxed_clone(),
+                window_starts.clone(),
+                false,
+                |current, past, _| {
+                    RatioDiffCents::<PartsPerMillionSigned64>::apply(current, past)
+                },
+            );
+            Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
+                &metric_name,
+                version,
+                source,
+                indexes,
+            ))
         })?;
 
-        let class_return = ByDcaClass::try_new(|name, _year, _day1| {
-            PercentPerBlock::forced_import(&db, &format!("dca_return_{name}"), version, indexes)
+        let class_stack = ByDcaClass::try_new(|name, _year, day| {
+            let metric_name = format!("dca_stack_{name}");
+            let source = LazySinceDayVec::new(
+                &format!("{metric_name}_sats_source"),
+                version,
+                sats_cumulative.read_only_boxed_clone(),
+                cached_days.clone(),
+                day,
+                |current, before| current.checked_sub(before).unwrap_or_default(),
+            );
+            dca_stack_from_source(&db, &metric_name, version, indexes, source)
+        })?;
+
+        let class_cost_basis =
+            ByDcaClass::try_from_class(&class_stack, |name, _year, from, stack| {
+                let metric_name = format!("dca_cost_basis_{name}");
+                let source = LazyIndexedVec::new(
+                    &format!("{metric_name}_cents_source"),
+                    version,
+                    stack.sats.height.read_only_boxed_clone(),
+                    cached_days.clone(),
+                    move |_, stack_sats, day| {
+                        if day < from {
+                            return Cents::ZERO;
+                        }
+                        let num_days = day.to_usize() + 1 - from.to_usize();
+                        Cents::from(DCA_AMOUNT * num_days / Bitcoin::from(stack_sats))
+                    },
+                );
+                Ok::<_, Error>(Price::from_height_source(
+                    &metric_name,
+                    version,
+                    source,
+                    indexes,
+                ))
+            })?;
+
+        let class_return = ByDcaClass::try_new(|name, _year, _day| {
+            PercentPerBlock::forced_import(
+                &db,
+                &format!("dca_return_{name}"),
+                version,
+                indexes,
+            )
         })?;
 
         let this = Self {
-            sats_per_day: ImportableVec::forced_import(&db, "dca_sats_per_day", version)?,
+            sats_per_day,
+            sats_cumulative,
             period: PeriodVecs {
-                dca_stack: stack,
-                dca_cost_basis: cost_basis,
-                dca_return: r#return,
-                dca_cagr: cagr,
+                dca_stack,
+                dca_cost_basis,
+                dca_return,
+                dca_cagr,
                 lump_sum_stack,
                 lump_sum_return,
             },
@@ -82,5 +208,99 @@ impl Vecs {
         };
         finalize_db(&this.db, &this)?;
         Ok(this)
+    }
+}
+
+fn dca_stack_from_source<V>(
+    db: &vecdb::Database,
+    name: &str,
+    version: Version,
+    indexes: &indexes::Vecs,
+    source: V,
+) -> Result<DcaStack>
+where
+    V: TypedVec<I = Height, T = Sats> + ReadableVec<Height, Sats> + Clone + 'static,
+{
+    let sats =
+        LazyPerBlock::from_height_source::<Identity<Sats>, _>(&format!("{name}_sats"), version, source, indexes);
+    let btc = LazyPerBlock::from_lazy::<SatsToBitcoin, Sats>(name, version, &sats);
+    let cents = PerBlock::forced_import(db, &format!("{name}_cents"), version, indexes)?;
+    let usd = LazyPerBlock::from_computed::<CentsUnsignedToDollars>(
+        &format!("{name}_usd"),
+        version,
+        cents.height.read_only_boxed_clone(),
+        &cents,
+    );
+    Ok(DcaStack {
+        btc,
+        sats,
+        usd,
+        cents,
+    })
+}
+
+fn lump_sum_stack(
+    name: &str,
+    days: u32,
+    version: Version,
+    indexes: &indexes::Vecs,
+    window_starts: &CachedBoxedVec<Height, Height>,
+    prices: &price::Vecs,
+) -> Result<LumpSumStack> {
+    let total_invested = DCA_AMOUNT * days as usize;
+
+    let sats_source = LazyWindowVec::<Height, Cents, Sats>::new(
+        &format!("{name}_sats_source"),
+        version,
+        prices.spot.cents.height.read_only_boxed_clone(),
+        window_starts.clone(),
+        false,
+        move |_, past, _| lump_sum_sats(total_invested, past),
+    );
+    let sats = LazyPerBlock::from_height_source::<Identity<Sats>, _>(
+        &format!("{name}_sats"),
+        version,
+        sats_source,
+        indexes,
+    );
+    let btc = LazyPerBlock::from_lazy::<SatsToBitcoin, Sats>(name, version, &sats);
+
+    let cents_source = LazyWindowVec::<Height, Cents, Cents>::new(
+        &format!("{name}_cents_source"),
+        version,
+        prices.spot.cents.height.read_only_boxed_clone(),
+        window_starts.clone(),
+        false,
+        move |current, past, _| {
+            SatsToCents::apply(lump_sum_sats(total_invested, past), current)
+        },
+    );
+    let cents = LazyPerBlock::from_height_source::<Identity<Cents>, _>(
+        &format!("{name}_cents"),
+        version,
+        cents_source,
+        indexes,
+    );
+    let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(
+        &format!("{name}_usd"),
+        version,
+        &cents,
+    );
+
+    Ok(LumpSumStack {
+        btc,
+        sats,
+        usd,
+        cents,
+    })
+}
+
+fn lump_sum_sats(total_invested: Dollars, past_price: Cents) -> Sats {
+    if past_price == Cents::ZERO {
+        Sats::ZERO
+    } else {
+        Sats::from(Bitcoin::from(
+            total_invested / Dollars::from(past_price),
+        ))
     }
 }

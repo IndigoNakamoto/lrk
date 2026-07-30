@@ -1,12 +1,12 @@
-//! PerBlockFull - base EagerVec + cumulative PerBlock + RollingComplete.
-//!
-//! For metrics with stored per-block data, cumulative sums, and rolling windows.
+//! Stored cumulative and rolling statistics with a lazy one-source block view.
 
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use schemars::JsonSchema;
-use vecdb::{Database, EagerVec, Exit, ImportableVec, PcoVec, Rw, StorageMode};
+use vecdb::{
+    Database, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode, VecValue,
+};
 
 use crate::{
     indexes,
@@ -14,28 +14,33 @@ use crate::{
 };
 
 #[derive(Traversable)]
-pub struct PerBlockFull<T, M: StorageMode = Rw>
+pub struct PerBlockFull<T, S, M: StorageMode = Rw>
 where
     T: NumericValue + JsonSchema,
+    S: VecValue,
 {
-    pub block: M::Stored<EagerVec<PcoVec<Height, T>>>,
+    pub block: LazyVecFrom1<Height, T, Height, S>,
     pub cumulative: PerBlock<T, M>,
     #[traversable(flatten)]
     pub rolling: RollingComplete<T, M>,
 }
 
-impl<T> PerBlockFull<T>
+impl<T, S> PerBlockFull<T, S>
 where
     T: NumericValue + JsonSchema,
+    S: VecValue,
 {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
+        source: &(impl ReadableCloneableVec<Height, S> + 'static),
+        compute_block: fn(Height, S) -> T,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
-        let block = EagerVec::forced_import(db, name, version)?;
+        let block =
+            LazyVecFrom1::init(name, version, source.read_only_boxed_clone(), compute_block);
         let cumulative =
             PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
         let rolling = RollingComplete::forced_import(
@@ -54,23 +59,42 @@ where
         })
     }
 
-    /// Compute base data via closure, then cumulative + rolling distribution.
     pub(crate) fn compute(
         &mut self,
         max_from: Height,
         windows: &WindowStarts<'_>,
         exit: &Exit,
-        compute_base: impl FnOnce(&mut EagerVec<PcoVec<Height, T>>) -> Result<()>,
     ) -> Result<()>
     where
         T: From<f64> + Default + Copy + Ord,
         f64: From<T>,
     {
-        compute_base(&mut self.block)?;
-        self.cumulative
-            .height
-            .compute_cumulative(max_from, &self.block, exit)?;
-        self.rolling.compute(max_from, windows, &self.block, exit)?;
-        Ok(())
+        compute_rest(
+            &mut self.cumulative,
+            &mut self.rolling,
+            &self.block,
+            max_from,
+            windows,
+            exit,
+        )
     }
+}
+
+fn compute_rest<T>(
+    cumulative: &mut PerBlock<T>,
+    rolling: &mut RollingComplete<T>,
+    source: &impl ReadableVec<Height, T>,
+    max_from: Height,
+    windows: &WindowStarts<'_>,
+    exit: &Exit,
+) -> Result<()>
+where
+    T: NumericValue + JsonSchema + From<f64> + Default + Copy + Ord,
+    f64: From<T>,
+{
+    cumulative
+        .height
+        .compute_cumulative(max_from, source, exit)?;
+    rolling.compute(max_from, windows, source, exit)?;
+    Ok(())
 }

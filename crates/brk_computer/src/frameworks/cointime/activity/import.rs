@@ -6,7 +6,8 @@ use super::{DerivedVecs, Vecs};
 use crate::{
     indexes,
     internal::{
-        LazyPerBlock, OneMinusF64, PerBlock, PerBlockCumulativeRolling, WindowStartVec, Windows,
+        LazyPerBlock, OddsF64, OneMinusF64, PerBlock, PerBlockCumulativeRolling, WindowStartVec,
+        Windows,
     },
 };
 
@@ -32,11 +33,17 @@ impl DerivedVecs {
             liveliness.height.read_only_boxed_clone(),
             &liveliness,
         );
+        let ratio = LazyPerBlock::from_computed::<OddsF64>(
+            &name("activity_to_vaultedness"),
+            version,
+            liveliness.height.read_only_boxed_clone(),
+            &liveliness,
+        );
 
         Ok(Self {
             liveliness,
             vaultedness,
-            ratio: PerBlock::forced_import(db, &name("activity_to_vaultedness"), version, indexes)?,
+            ratio,
         })
     }
 }

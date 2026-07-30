@@ -1,15 +1,16 @@
 use std::path::Path;
 
 use brk_error::Result;
-use brk_types::Version;
+use brk_types::{Height, PartsPerMillionSigned64, Sats, Version};
+use vecdb::ReadableCloneableVec;
 
 use crate::{
     distribution,
     frameworks::cointime,
     indexes,
     internal::{
-        LazyFiatPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock, PercentPerBlock,
-        RollingWindows, WindowStartVec, Windows,
+        LazyFiatPerBlock, LazyPercentPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock,
+        LazyWindowVec, RollingWindows, WindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
     },
     supply::burned,
@@ -38,9 +39,27 @@ impl Vecs {
 
         let burned = burned::Vecs::forced_import(&db, version, indexes)?;
 
-        // Inflation rate
-        let inflation_rate =
-            PercentPerBlock::forced_import(&db, "inflation_rate", version + Version::TWO, indexes)?;
+        let inflation_version = version + Version::TWO;
+        let inflation_source = LazyWindowVec::<Height, Sats, PartsPerMillionSigned64>::new(
+            "inflation_rate_ppm_source",
+            inflation_version,
+            supply_metrics.total.sats.height.read_only_boxed_clone(),
+            cached_starts._1y.read_only_cached_boxed_clone(),
+            false,
+            |current, previous, _| {
+                if previous <= Sats::FIFTY_BTC {
+                    PartsPerMillionSigned64::from(f64::NAN)
+                } else {
+                    PartsPerMillionSigned64::from(f64::from(current) / f64::from(previous) - 1.0)
+                }
+            },
+        );
+        let inflation_rate = LazyPercentPerBlock::from_height_source(
+            "inflation_rate",
+            inflation_version,
+            inflation_source,
+            indexes,
+        );
 
         // Velocity
         let velocity = super::velocity::Vecs::forced_import(&db, version, indexes)?;

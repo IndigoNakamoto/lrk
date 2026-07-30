@@ -198,6 +198,8 @@ impl Computer {
                             &computed_path,
                             VERSION,
                             &indexes,
+                            &blocks,
+                            &price,
                         )?))
                     })?;
 
@@ -214,6 +216,8 @@ impl Computer {
                             &computed_path,
                             VERSION,
                             &indexes,
+                            &blocks,
+                            &price,
                         )?))
                     })?;
 
@@ -422,14 +426,8 @@ impl Computer {
         thread::scope(|scope| -> Result<()> {
             let pools = scope.spawn(|| {
                 timed("Computed pools", || {
-                    self.pools.compute(
-                        indexer,
-                        &self.indexes,
-                        &self.blocks,
-                        &self.price,
-                        &self.mining,
-                        exit,
-                    )
+                    self.pools
+                        .compute(indexer, &self.indexes, &self.price, &self.mining, exit)
                 })
             });
 
@@ -439,8 +437,6 @@ impl Computer {
                         indexer,
                         &self.indexes,
                         &self.price,
-                        &self.blocks,
-                        &self.market.lookback,
                         exit,
                     )
                 })

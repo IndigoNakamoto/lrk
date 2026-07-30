@@ -120,12 +120,42 @@ impl UnaryTransform<StoredU32, StoredF32> for BlocksToDaysF32 {
     }
 }
 
+pub struct StoredU64ToStoredU32;
+
+impl UnaryTransform<StoredU64, StoredU32> for StoredU64ToStoredU32 {
+    #[inline(always)]
+    fn apply(value: StoredU64) -> StoredU32 {
+        StoredU32::new(
+            u32::try_from(u64::from(value))
+                .expect("per-block value reconstructed from StoredU64 must fit StoredU32"),
+        )
+    }
+}
+
+pub struct PerSecond<const SECONDS: u32>;
+
+impl<const SECONDS: u32> UnaryTransform<StoredU64, StoredF32> for PerSecond<SECONDS> {
+    #[inline(always)]
+    fn apply(value: StoredU64) -> StoredF32 {
+        StoredF32::from(u64::from(value) as f64 / SECONDS as f64)
+    }
+}
+
 pub struct OneMinusF64;
 
 impl UnaryTransform<StoredF64, StoredF64> for OneMinusF64 {
     #[inline(always)]
     fn apply(v: StoredF64) -> StoredF64 {
         StoredF64::from(1.0 - *v)
+    }
+}
+
+pub struct OddsF64;
+
+impl UnaryTransform<StoredF64, StoredF64> for OddsF64 {
+    #[inline(always)]
+    fn apply(value: StoredF64) -> StoredF64 {
+        value / StoredF64::from(1.0 - *value)
     }
 }
 
@@ -163,5 +193,18 @@ impl UnaryTransform<Weight, VSize> for WeightToVSize {
     #[inline(always)]
     fn apply(weight: Weight) -> VSize {
         VSize::from(weight)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn odds_are_the_ratio_to_the_complement() {
+        assert_eq!(OddsF64::apply(StoredF64::from(0.0)), StoredF64::from(0.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(0.5)), StoredF64::from(1.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(0.75)), StoredF64::from(3.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(1.0)), StoredF64::NAN);
     }
 }

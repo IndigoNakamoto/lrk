@@ -2,7 +2,7 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, StoredU64};
+use brk_types::{Height, Sats};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
@@ -46,8 +46,8 @@ impl CohortMetricsBase for BasicCohortMetrics {
 impl BasicCohortMetrics {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
         let supply = SupplyCore::forced_import(cfg)?;
-        let unrealized = UnrealizedCore::forced_import(cfg)?;
         let realized = RealizedCore::forced_import(cfg)?;
+        let unrealized = UnrealizedCore::forced_import(cfg, &realized.price.ppm)?;
 
         Ok(Self {
             filter: cfg.filter.clone(),
@@ -64,7 +64,6 @@ impl BasicCohortMetrics {
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -75,18 +74,8 @@ impl BasicCohortMetrics {
             exit,
         )?;
 
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
-            exit,
-        )?;
-
         self.supply
             .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
-
-        self.outputs
-            .compute_part2(starting_lengths.height, all_utxo_count, exit)?;
 
         Ok(())
     }

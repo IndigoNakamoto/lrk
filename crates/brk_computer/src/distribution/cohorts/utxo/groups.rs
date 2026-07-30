@@ -627,15 +627,8 @@ impl UTXOCohorts<Rw> {
             exit,
         )?;
 
-        // Clone all_supply_sats and all_utxo_count for non-all cohorts.
+        // Clone all_supply_sats for non-all cohorts.
         let all_supply_sats = self.all.metrics.supply.total.sats.height.read_only_clone();
-        let all_utxo_count = self
-            .all
-            .metrics
-            .outputs
-            .unspent_count
-            .height
-            .read_only_clone();
 
         // Destructure to allow parallel mutable access to independent fields.
         let Self {
@@ -659,7 +652,6 @@ impl UTXOCohorts<Rw> {
         let vc = &under_1h_value_created;
         let vd = &under_1h_value_destroyed;
         let ss = &all_supply_sats;
-        let au = &all_utxo_count;
 
         let tasks: Vec<Box<dyn FnOnce() -> Result<()> + Send + '_>> = vec![
             Box::new(|| {
@@ -670,7 +662,6 @@ impl UTXOCohorts<Rw> {
                     vc,
                     vd,
                     ss,
-                    au,
                     exit,
                 )
             }),
@@ -680,44 +671,43 @@ impl UTXOCohorts<Rw> {
                     starting_lengths,
                     height_to_market_cap,
                     ss,
-                    au,
                     exit,
                 )
             }),
             Box::new(|| {
                 age_range.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 under_age.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 over_age.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 over_amount.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 epoch.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 class.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
@@ -727,7 +717,6 @@ impl UTXOCohorts<Rw> {
                         starting_lengths,
                         height_to_market_cap,
                         ss,
-                        au,
                         exit,
                     )
                 })
@@ -735,19 +724,19 @@ impl UTXOCohorts<Rw> {
             Box::new(|| {
                 amount_range.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 under_amount.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {
                 type_.par_iter_mut().try_for_each(|v| {
                     v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, au, exit)
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
         ];

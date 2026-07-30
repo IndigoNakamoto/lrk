@@ -412,14 +412,11 @@ export function createMiningSection() {
             tree: ROLLING_WINDOWS.map((w) => ({
               name: w.name,
               title: `${w.title} Fee-to-Subsidy Ratio`,
-              bottom: [
-                line({
-                  series: mining.rewards.fees.toSubsidyRatio[w.key].ratio,
-                  name: "Ratio",
-                  color: colors.mining.fee,
-                  unit: Unit.ratio,
-                }),
-              ],
+              bottom: percentRatio({
+                pattern: mining.rewards.fees.toSubsidy[w.key],
+                name: "Fees / Subsidy",
+                color: colors.mining.fee,
+              }),
             })),
           },
           {

@@ -33,7 +33,13 @@ impl Vecs {
         let patterns = PatternsVecs::forced_import(&db, version)?;
         let policy = PolicyVecs::forced_import(&db, version)?;
         let versions = VersionsVecs::forced_import(&db, version, indexes, cached_starts)?;
-        let volume = VolumeVecs::forced_import(&db, version, indexes, cached_starts)?;
+        let volume = VolumeVecs::forced_import(
+            &db,
+            version,
+            indexes,
+            cached_starts,
+            &count.total.rolling.sum,
+        )?;
 
         let this = Self {
             db,

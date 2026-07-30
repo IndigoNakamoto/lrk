@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::BTreeMap, fs, path::Path};
 use brk_cohort::{AGE_RANGE_NAMES, CohortContext};
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CentsCompact, Date, Day1, Dollars, Sats, StoredF64, UrpdRaw, Version};
+use brk_types::{Cents, CentsCompact, Date, Day1, Sats, StoredF64, UrpdRaw, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecValue, WritableVec};
 
 use super::vecs::{Levels, MODE_COUNT, ModeVecs, Percentiles, Vecs};
@@ -34,8 +34,8 @@ type ModeWeights = [Option<[f64; AGE_COHORT_COUNT]>; MODE_COUNT];
 
 struct DayResult {
     loss_threshold: [[StoredF64; PERCENTILE_COUNT]; MODE_COUNT],
-    floor: [[Dollars; PERCENTILE_COUNT]; MODE_COUNT],
-    level: [[Dollars; LEVEL_COUNT]; MODE_COUNT],
+    floor: [[Cents; PERCENTILE_COUNT]; MODE_COUNT],
+    level: [[Cents; LEVEL_COUNT]; MODE_COUNT],
 }
 
 impl DayResult {
@@ -46,8 +46,8 @@ impl DayResult {
                     .map(|values| values.map(StoredF64::from))
                     .unwrap_or([StoredF64::NAN; PERCENTILE_COUNT])
             }),
-            floor: [[Dollars::NAN; PERCENTILE_COUNT]; MODE_COUNT],
-            level: [[Dollars::NAN; LEVEL_COUNT]; MODE_COUNT],
+            floor: [[Cents::NAN; PERCENTILE_COUNT]; MODE_COUNT],
+            level: [[Cents::NAN; LEVEL_COUNT]; MODE_COUNT],
         }
     }
 }
@@ -138,13 +138,13 @@ impl ModeVecs {
             self.floor
                 .as_mut_array()
                 .into_iter()
-                .map(|vec| &mut vec.day1 as &mut dyn AnyStoredVec),
+                .map(|vec| &mut vec.cents.day1 as &mut dyn AnyStoredVec),
         );
         vecs.extend(
             self.level
                 .as_mut_array()
                 .into_iter()
-                .map(|vec| &mut vec.day1 as &mut dyn AnyStoredVec),
+                .map(|vec| &mut vec.cents.day1 as &mut dyn AnyStoredVec),
         );
         vecs
     }
@@ -152,8 +152,8 @@ impl ModeVecs {
     fn push(
         &mut self,
         loss_threshold: [StoredF64; PERCENTILE_COUNT],
-        floor: [Dollars; PERCENTILE_COUNT],
-        level: [Dollars; LEVEL_COUNT],
+        floor: [Cents; PERCENTILE_COUNT],
+        level: [Cents; LEVEL_COUNT],
     ) {
         for (vec, value) in self
             .loss_threshold
@@ -164,10 +164,10 @@ impl ModeVecs {
             vec.day1.push(value);
         }
         for (vec, value) in self.floor.as_mut_array().into_iter().zip(floor) {
-            vec.day1.push(value);
+            vec.cents.day1.push(value);
         }
         for (vec, value) in self.level.as_mut_array().into_iter().zip(level) {
-            vec.day1.push(value);
+            vec.cents.day1.push(value);
         }
     }
 }
@@ -198,7 +198,7 @@ impl Vecs {
         let coinflow_mobility: Vec<_> = coinflow
             .age_range
             .iter()
-            .map(|cohort| &cohort.mobility.day1)
+            .map(|cohort| &cohort.mobility.day1.0)
             .collect();
         let coinflow_spending_rate: Vec<_> = coinflow
             .age_range
@@ -505,14 +505,14 @@ fn evaluate_day(
         }
 
         let mut remaining_loss = denominator;
-        let mut floors = [Dollars::NAN; PERCENTILE_COUNT];
+        let mut floors = [Cents::NAN; PERCENTILE_COUNT];
         let mut p95_floor = None;
         for (price, buckets) in weighted {
             remaining_loss -= buckets[mode];
             let remaining_share = remaining_loss / denominator;
             for percentile in 0..PERCENTILE_COUNT {
                 if floors[percentile].is_nan() && remaining_share <= thresholds[percentile] {
-                    floors[percentile] = Dollars::from(*price);
+                    floors[percentile] = Cents::from(*price);
                     if percentile == 0 {
                         p95_floor = Some(*price);
                     }
@@ -533,8 +533,8 @@ fn conditional_levels(
     weighted: &BTreeMap<CentsCompact, [f64; MODE_COUNT]>,
     mode: usize,
     lower: CentsCompact,
-) -> [Dollars; LEVEL_COUNT] {
-    let mut levels = [Dollars::NAN; LEVEL_COUNT];
+) -> [Cents; LEVEL_COUNT] {
+    let mut levels = [Cents::NAN; LEVEL_COUNT];
     let total = weighted
         .range(lower..)
         .map(|(_, buckets)| buckets[mode])
@@ -553,7 +553,7 @@ fn conditional_levels(
         }
         cumulative += mass;
         while percentile < LEVEL_COUNT && cumulative >= total * LEVEL_PERCENTILES[percentile] {
-            levels[percentile] = Dollars::from(*price);
+            levels[percentile] = Cents::from(*price);
             percentile += 1;
         }
         if percentile == LEVEL_COUNT {
@@ -632,20 +632,20 @@ mod tests {
         );
         assert_eq!(
             result.floor[COINFLOW_MODE],
-            [Dollars::from(1.0); PERCENTILE_COUNT]
+            [Cents::new(100); PERCENTILE_COUNT]
         );
         assert_eq!(
             result.level[COINFLOW_MODE],
             [
-                Dollars::from(1.0),
-                Dollars::from(1.0),
-                Dollars::from(1.0),
-                Dollars::from(1.0),
-                Dollars::from(1.0),
-                Dollars::from(2.0),
-                Dollars::from(2.0),
-                Dollars::from(2.0),
-                Dollars::from(2.0),
+                Cents::new(100),
+                Cents::new(100),
+                Cents::new(100),
+                Cents::new(100),
+                Cents::new(100),
+                Cents::new(200),
+                Cents::new(200),
+                Cents::new(200),
+                Cents::new(200),
             ]
         );
         assert_eq!(

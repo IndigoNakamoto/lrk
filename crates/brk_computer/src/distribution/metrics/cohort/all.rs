@@ -76,8 +76,8 @@ impl AllCohortMetrics {
         cfg: &ImportConfig,
         supply: SupplyCore,
     ) -> Result<Self> {
-        let unrealized = UnrealizedFull::forced_import(cfg)?;
         let realized = RealizedFull::forced_import(cfg)?;
+        let unrealized = UnrealizedFull::forced_import(cfg, &realized.price.ppm)?;
         let asopr = AdjustedSopr::forced_import(cfg)?;
 
         let relative = RelativeForAll::forced_import(cfg)?;
@@ -114,13 +114,6 @@ impl AllCohortMetrics {
             exit,
         )?;
 
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
-            exit,
-        )?;
-
         self.asopr.compute_rest_part2(
             starting_lengths,
             &self.activity.transfer_volume.inner.cumulative.cents.height,
@@ -129,10 +122,6 @@ impl AllCohortMetrics {
             under_1h_value_destroyed,
             exit,
         )?;
-
-        let all_utxo_count = self.outputs.unspent_count.height.read_only_clone();
-        self.outputs
-            .compute_part2(starting_lengths.height, &all_utxo_count, exit)?;
 
         self.cost_basis.compute_prices(
             starting_lengths,

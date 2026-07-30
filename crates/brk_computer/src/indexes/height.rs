@@ -3,7 +3,7 @@ use brk_types::{
     Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1, Month3,
     Month6, StoredU64, Version, Week1, Year1, Year10,
 };
-use vecdb::{Database, EagerVec, ImportableVec, PcoVec, Rw, StorageMode};
+use vecdb::{CachedVec, Database, EagerVec, ImportableVec, PcoVec, Rw, StorageMode};
 
 use brk_error::Result;
 
@@ -14,7 +14,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub hour1: M::Stored<EagerVec<PcoVec<Height, Hour1>>>,
     pub hour4: M::Stored<EagerVec<PcoVec<Height, Hour4>>>,
     pub hour12: M::Stored<EagerVec<PcoVec<Height, Hour12>>>,
-    pub day1: M::Stored<EagerVec<PcoVec<Height, Day1>>>,
+    pub day1: CachedVec<M::Stored<EagerVec<PcoVec<Height, Day1>>>>,
     pub day3: M::Stored<EagerVec<PcoVec<Height, Day3>>>,
     pub epoch: M::Stored<EagerVec<PcoVec<Height, Epoch>>>,
     pub halving: M::Stored<EagerVec<PcoVec<Height, Halving>>>,
@@ -35,7 +35,7 @@ impl Vecs {
             hour1: EagerVec::forced_import(db, "hour1", version)?,
             hour4: EagerVec::forced_import(db, "hour4", version)?,
             hour12: EagerVec::forced_import(db, "hour12", version)?,
-            day1: EagerVec::forced_import(db, "day1", version)?,
+            day1: CachedVec::wrap(EagerVec::forced_import(db, "day1", version)?),
             day3: EagerVec::forced_import(db, "day3", version)?,
             epoch: EagerVec::forced_import(db, "epoch", version)?,
             halving: EagerVec::forced_import(db, "halving", version)?,

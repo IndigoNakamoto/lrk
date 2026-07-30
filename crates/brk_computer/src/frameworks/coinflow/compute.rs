@@ -231,7 +231,6 @@ impl Vecs {
                         .spending_exposure
                         .height
                         .push(StoredF64::from(exposures[index]));
-                    cohort.mobility.height.push(mobility);
                     cohort.supply.mobile.sats.height.push(cohort_mobile_supply);
                     cohort
                         .supply
@@ -301,7 +300,7 @@ impl Vecs {
     }
 
     fn primary_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
-        let mut vecs = Vec::with_capacity(AGE_COHORT_COUNT * 5 + 5 + HORIZON_COUNT);
+        let mut vecs = Vec::with_capacity(AGE_COHORT_COUNT * 4 + 5 + HORIZON_COUNT);
 
         for cohort in self.age_range.iter_mut() {
             vecs.extend(cohort.primary_vecs_mut());
@@ -324,11 +323,10 @@ impl Vecs {
 }
 
 impl CohortVecs {
-    fn primary_vecs_mut(&mut self) -> [&mut dyn AnyStoredVec; 5] {
+    fn primary_vecs_mut(&mut self) -> [&mut dyn AnyStoredVec; 4] {
         [
             &mut self.spending_rate.height,
             &mut self.spending_exposure.height,
-            &mut self.mobility.height,
             &mut self.supply.mobile.sats.height,
             &mut self.supply.immobile.sats.height,
         ]

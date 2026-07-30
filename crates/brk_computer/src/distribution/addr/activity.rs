@@ -13,14 +13,14 @@
 use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Height, StoredU32, StoredU64, Version};
+use brk_types::Version;
 use derive_more::{Deref, DerefMut};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
+use vecdb::{AnyStoredVec, AnyVec, Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{PerBlockRollingAverage, WindowStartVec, Windows},
+    internal::{CountPerBlockRollingAverage, WindowStartVec, Windows},
 };
 
 /// Per-block activity counts - reset each block.
@@ -66,15 +66,15 @@ impl AddrTypeToActivityCounts {
 /// Activity count vectors for a single category (e.g., one address type or "all").
 #[derive(Traversable)]
 pub struct ActivityCountVecs<M: StorageMode = Rw> {
-    pub reactivated: PerBlockRollingAverage<StoredU32, StoredU64, M>,
-    pub sending: PerBlockRollingAverage<StoredU32, StoredU64, M>,
-    pub receiving: PerBlockRollingAverage<StoredU32, StoredU64, M>,
-    pub bidirectional: PerBlockRollingAverage<StoredU32, StoredU64, M>,
+    pub reactivated: CountPerBlockRollingAverage<M>,
+    pub sending: CountPerBlockRollingAverage<M>,
+    pub receiving: CountPerBlockRollingAverage<M>,
+    pub bidirectional: CountPerBlockRollingAverage<M>,
     /// Distinct addresses involved in this block (sent ∪ received),
     /// computed at push time as `sending + receiving - bidirectional`
     /// via inclusion-exclusion. For per-type instances this is
     /// per-type. For the `all` aggregate it's the cross-type total.
-    pub active: PerBlockRollingAverage<StoredU32, StoredU64, M>,
+    pub active: CountPerBlockRollingAverage<M>,
 }
 
 impl ActivityCountVecs {
@@ -90,35 +90,35 @@ impl ActivityCountVecs {
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
-            reactivated: PerBlockRollingAverage::forced_import(
+            reactivated: CountPerBlockRollingAverage::forced_import(
                 db,
                 &format!("{prefix}reactivated_addrs"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            sending: PerBlockRollingAverage::forced_import(
+            sending: CountPerBlockRollingAverage::forced_import(
                 db,
                 &format!("{prefix}sending_addrs"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            receiving: PerBlockRollingAverage::forced_import(
+            receiving: CountPerBlockRollingAverage::forced_import(
                 db,
                 &format!("{prefix}receiving_addrs"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            bidirectional: PerBlockRollingAverage::forced_import(
+            bidirectional: CountPerBlockRollingAverage::forced_import(
                 db,
                 &format!("{prefix}bidirectional_addrs"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            active: PerBlockRollingAverage::forced_import(
+            active: CountPerBlockRollingAverage::forced_import(
                 db,
                 &format!("{prefix}active_addrs"),
                 version,
@@ -130,53 +130,44 @@ impl ActivityCountVecs {
 
     pub(crate) fn min_stateful_len(&self) -> usize {
         self.reactivated
-            .block
+            .cumulative
             .len()
-            .min(self.sending.block.len())
-            .min(self.receiving.block.len())
-            .min(self.bidirectional.block.len())
-            .min(self.active.block.len())
+            .min(self.sending.cumulative.len())
+            .min(self.receiving.cumulative.len())
+            .min(self.bidirectional.cumulative.len())
+            .min(self.active.cumulative.len())
     }
 
     pub(crate) fn par_iter_height_mut(
         &mut self,
     ) -> impl ParallelIterator<Item = &mut dyn AnyStoredVec> {
         [
-            &mut self.reactivated.block as &mut dyn AnyStoredVec,
-            &mut self.sending.block,
-            &mut self.receiving.block,
-            &mut self.bidirectional.block,
-            &mut self.active.block,
+            self.reactivated.stored_mut(),
+            self.sending.stored_mut(),
+            self.receiving.stored_mut(),
+            self.bidirectional.stored_mut(),
+            self.active.stored_mut(),
         ]
         .into_par_iter()
     }
 
     pub(crate) fn reset_height(&mut self) -> Result<()> {
-        self.reactivated.block.reset()?;
-        self.sending.block.reset()?;
-        self.receiving.block.reset()?;
-        self.bidirectional.block.reset()?;
-        self.active.block.reset()?;
+        self.reactivated.reset()?;
+        self.sending.reset()?;
+        self.receiving.reset()?;
+        self.bidirectional.reset()?;
+        self.active.reset()?;
         Ok(())
     }
 
     #[inline(always)]
     pub(crate) fn push_height(&mut self, counts: &BlockActivityCounts) {
-        self.reactivated.block.push(counts.reactivated.into());
-        self.sending.block.push(counts.sending.into());
-        self.receiving.block.push(counts.receiving.into());
-        self.bidirectional.block.push(counts.bidirectional.into());
+        self.reactivated.push_block(counts.reactivated.into());
+        self.sending.push_block(counts.sending.into());
+        self.receiving.push_block(counts.receiving.into());
+        self.bidirectional.push_block(counts.bidirectional.into());
         let active = counts.sending + counts.receiving - counts.bidirectional;
-        self.active.block.push(active.into());
-    }
-
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.reactivated.compute_rest(max_from, exit)?;
-        self.sending.compute_rest(max_from, exit)?;
-        self.receiving.compute_rest(max_from, exit)?;
-        self.bidirectional.compute_rest(max_from, exit)?;
-        self.active.compute_rest(max_from, exit)?;
-        Ok(())
+        self.active.push_block(active.into());
     }
 }
 
@@ -224,11 +215,11 @@ impl AddrTypeToActivityCountVecs {
     ) -> impl ParallelIterator<Item = &mut dyn AnyStoredVec> {
         let mut vecs: Vec<&mut dyn AnyStoredVec> = Vec::new();
         for type_vecs in self.0.values_mut() {
-            vecs.push(&mut type_vecs.reactivated.block);
-            vecs.push(&mut type_vecs.sending.block);
-            vecs.push(&mut type_vecs.receiving.block);
-            vecs.push(&mut type_vecs.bidirectional.block);
-            vecs.push(&mut type_vecs.active.block);
+            vecs.push(type_vecs.reactivated.stored_mut());
+            vecs.push(type_vecs.sending.stored_mut());
+            vecs.push(type_vecs.receiving.stored_mut());
+            vecs.push(type_vecs.bidirectional.stored_mut());
+            vecs.push(type_vecs.active.stored_mut());
         }
         vecs.into_par_iter()
     }
@@ -236,13 +227,6 @@ impl AddrTypeToActivityCountVecs {
     pub(crate) fn reset_height(&mut self) -> Result<()> {
         for v in self.0.values_mut() {
             v.reset_height()?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        for type_vecs in self.0.values_mut() {
-            type_vecs.compute_rest(max_from, exit)?;
         }
         Ok(())
     }
@@ -298,12 +282,6 @@ impl AddrActivityVecs {
     pub(crate) fn reset_height(&mut self) -> Result<()> {
         self.all.reset_height()?;
         self.by_addr_type.reset_height()?;
-        Ok(())
-    }
-
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()> {
-        self.all.compute_rest(max_from, exit)?;
-        self.by_addr_type.compute_rest(max_from, exit)?;
         Ok(())
     }
 

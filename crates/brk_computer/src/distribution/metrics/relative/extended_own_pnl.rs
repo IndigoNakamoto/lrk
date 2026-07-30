@@ -20,12 +20,11 @@ pub struct RelativeExtendedOwnPnl<M: StorageMode = Rw> {
 
 impl RelativeExtendedOwnPnl {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let v1 = Version::ONE;
-
         Ok(Self {
             unrealized_profit_to_own_gross_pnl: cfg
-                .import("unrealized_profit_to_own_gross_pnl", v1)?,
-            unrealized_loss_to_own_gross_pnl: cfg.import("unrealized_loss_to_own_gross_pnl", v1)?,
+                .import("unrealized_profit_to_own_gross_pnl", Version::ONE)?,
+            unrealized_loss_to_own_gross_pnl: cfg
+                .import("unrealized_loss_to_own_gross_pnl", Version::ONE)?,
             net_unrealized_pnl_to_own_gross_pnl: cfg
                 .import("net_unrealized_pnl_to_own_gross_pnl", Version::new(3))?,
         })

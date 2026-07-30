@@ -1,11 +1,10 @@
 use brk_traversable::Traversable;
 use brk_types::StoredU64;
-use vecdb::{Rw, StorageMode};
 
-use crate::internal::{ConstantVecs, PerBlockCumulativeRolling, Windows};
+use crate::internal::{ConstantVecs, LazyPerBlockCumulativeRolling, Windows};
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
+#[derive(Clone, Traversable)]
+pub struct Vecs {
     pub target: Windows<ConstantVecs<StoredU64>>,
-    pub total: PerBlockCumulativeRolling<StoredU64, M>,
+    pub total: LazyPerBlockCumulativeRolling<StoredU64>,
 }

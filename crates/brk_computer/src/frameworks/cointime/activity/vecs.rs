@@ -9,7 +9,7 @@ use crate::internal::{LazyPerBlock, PerBlock, PerBlockCumulativeRolling};
 pub struct DerivedVecs<M: StorageMode = Rw> {
     pub liveliness: PerBlock<StoredF64, M>,
     pub vaultedness: LazyPerBlock<StoredF64>,
-    pub ratio: PerBlock<StoredF64, M>,
+    pub ratio: LazyPerBlock<StoredF64>,
 }
 
 #[derive(Deref, DerefMut, Traversable)]

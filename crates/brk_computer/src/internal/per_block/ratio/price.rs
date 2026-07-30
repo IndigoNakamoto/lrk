@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{Cents, Dollars, Height, PartsPerMillion64, SatsFract, StoredF32, Version};
-use vecdb::{Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode};
+use vecdb::{Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode, unlikely};
 
 use crate::internal::{LazyPerBlock, PerBlock, Price};
 use crate::{indexes, price};
@@ -26,7 +26,7 @@ impl PriceWithRatioPerBlock {
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         let price = Price::forced_import(db, name, version, indexes)?;
-        let ratio = RatioPerBlock::forced_import(db, name, version, indexes)?;
+        let ratio = RatioPerBlock::forced_import(db, name, version + Version::ONE, indexes)?;
         Ok(Self {
             usd: price.usd,
             cents: price.cents,
@@ -47,16 +47,7 @@ impl PriceWithRatioPerBlock {
             starting_lengths.height,
             close_price,
             &self.cents.height,
-            |(i, close, price, ..)| {
-                if price == Cents::ZERO {
-                    (i, PartsPerMillion64::from(1.0))
-                } else {
-                    (
-                        i,
-                        PartsPerMillion64::from(f64::from(close) / f64::from(price)),
-                    )
-                }
-            },
+            |(i, close, price, ..)| (i, price_ratio(close, price)),
             exit,
         )?;
         Ok(())
@@ -75,5 +66,27 @@ impl PriceWithRatioPerBlock {
     {
         compute_price(&mut self.cents.height)?;
         self.compute_ratio(starting_lengths, &prices.spot.cents.height, exit)
+    }
+}
+
+fn price_ratio(close: Cents, price: Cents) -> PartsPerMillion64 {
+    if unlikely(price == Cents::ZERO) {
+        PartsPerMillion64::NAN
+    } else {
+        PartsPerMillion64::from(f64::from(close) / f64::from(price))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zero_price_has_no_ratio() {
+        assert!(price_ratio(Cents::new(100), Cents::ZERO).is_nan());
+        assert_eq!(
+            price_ratio(Cents::new(100), Cents::new(50)),
+            PartsPerMillion64::from(2.0),
+        );
     }
 }

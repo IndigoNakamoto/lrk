@@ -232,15 +232,9 @@ impl CohortVecs for AddrCohortVecs {
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
-        self.metrics.compute_rest_part2(
-            prices,
-            starting_lengths,
-            all_supply_sats,
-            all_utxo_count,
-            exit,
-        )
+        self.metrics
+            .compute_rest_part2(prices, starting_lengths, all_supply_sats, exit)
     }
 }

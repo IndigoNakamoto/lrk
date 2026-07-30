@@ -254,7 +254,7 @@ impl Vecs {
             .collect_one(prev_height)
             .unwrap_or_default();
 
-        self.height.day1.compute_transform(
+        self.height.day1.inner.compute_transform(
             starting_height,
             &self.timestamp.monotonic,
             |(h, ts, ..)| (h, Day1::try_from(Date::from(ts)).unwrap()),

@@ -25,7 +25,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub(crate) db: Database,
     pub ath: AthVecs<M>,
-    pub lookback: LookbackVecs<M>,
+    pub lookback: LookbackVecs,
     pub returns: ReturnsVecs<M>,
     pub volatility: VolatilityVecs,
     pub range: RangeVecs<M>,

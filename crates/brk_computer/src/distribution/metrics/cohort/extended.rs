@@ -2,7 +2,7 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Dollars, Height, Sats, StoredU64, Version};
+use brk_types::{Dollars, Height, Sats, Version};
 use vecdb::AnyStoredVec;
 use vecdb::{Exit, ReadableVec, Rw, StorageMode};
 
@@ -68,10 +68,10 @@ impl CohortMetricsBase for ExtendedCohortMetrics {
 impl ExtendedCohortMetrics {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
         let supply = SupplyCore::forced_import(cfg)?;
-        let unrealized = UnrealizedFull::forced_import(cfg)?;
         let realized = RealizedFull::forced_import(cfg)?;
+        let unrealized = UnrealizedFull::forced_import(cfg, &realized.price.ppm)?;
 
-        let relative = RelativeWithExtended::forced_import(cfg)?;
+        let relative = RelativeWithExtended::forced_import(cfg, &unrealized)?;
 
         Ok(Self {
             filter: cfg.filter.clone(),
@@ -92,7 +92,6 @@ impl ExtendedCohortMetrics {
         starting_lengths: &Lengths,
         height_to_market_cap: &impl ReadableVec<Height, Dollars>,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -101,13 +100,6 @@ impl ExtendedCohortMetrics {
             &self.supply.total.btc.height,
             height_to_market_cap,
             &self.activity.transfer_volume,
-            exit,
-        )?;
-
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
             exit,
         )?;
 
@@ -138,9 +130,6 @@ impl ExtendedCohortMetrics {
             &self.supply.total.usd.height,
             exit,
         )?;
-
-        self.outputs
-            .compute_part2(starting_lengths.height, all_utxo_count, exit)?;
 
         Ok(())
     }

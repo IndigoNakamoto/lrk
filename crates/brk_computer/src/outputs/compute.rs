@@ -20,7 +20,6 @@ impl Vecs {
         let starting_lengths = indexer.safe_lengths();
 
         self.count.compute(indexer, blocks, exit)?;
-        self.per_sec.compute(&self.count, &starting_lengths, exit)?;
         self.value.compute(indexer, prices, exit)?;
         self.by_type.compute(indexer, exit)?;
         self.unspent.compute(

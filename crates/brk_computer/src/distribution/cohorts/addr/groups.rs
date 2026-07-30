@@ -4,7 +4,7 @@ use brk_cohort::{AddrGroups, AmountRange, Filter, Filtered, OverAmount, UnderAmo
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, StoredU64, Version};
+use brk_types::{Height, Sats, Version};
 use derive_more::{Deref, DerefMut};
 use rayon::prelude::*;
 use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
@@ -111,18 +111,11 @@ impl AddrCohorts {
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
-        self.0.par_iter_mut().try_for_each(|v| {
-            v.compute_rest_part2(
-                prices,
-                starting_lengths,
-                all_supply_sats,
-                all_utxo_count,
-                exit,
-            )
-        })
+        self.0
+            .par_iter_mut()
+            .try_for_each(|v| v.compute_rest_part2(prices, starting_lengths, all_supply_sats, exit))
     }
 
     /// Returns a parallel iterator over all vecs for parallel writing.

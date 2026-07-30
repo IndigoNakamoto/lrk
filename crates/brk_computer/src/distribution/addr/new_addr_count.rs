@@ -1,67 +1,44 @@
-use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Height, StoredU64, Version};
+use brk_types::{StoredU64, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{Database, Exit, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, WindowStartVec, Windows, WithAddrTypes},
+    internal::{LazyPerBlockCumulativeRolling, WindowStartVec, Windows, WithAddrTypes},
 };
 
 use super::TotalAddrCountVecs;
 
 /// New address count per block (global + per-type).
-#[derive(Deref, DerefMut, Traversable)]
-pub struct NewAddrCountVecs<M: StorageMode = Rw>(
-    #[traversable(flatten)] pub WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
+#[derive(Clone, Deref, DerefMut, Traversable)]
+pub struct NewAddrCountVecs(
+    #[traversable(flatten)] pub WithAddrTypes<LazyPerBlockCumulativeRolling<StoredU64>>,
 );
 
 impl NewAddrCountVecs {
-    pub(crate) fn forced_import(
-        db: &Database,
+    pub(crate) fn new(
         version: Version,
+        total: &TotalAddrCountVecs,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        Ok(Self(
-            WithAddrTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import(
-                db,
+    ) -> Self {
+        Self(WithAddrTypes {
+            all: LazyPerBlockCumulativeRolling::from_source(
                 "new_addr_count",
                 version,
-                indexes,
+                &total.all,
                 cached_starts,
-            )?,
-        ))
-    }
-
-    pub(crate) fn compute(
-        &mut self,
-        max_from: Height,
-        total_addr_count: &TotalAddrCountVecs,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.0.all.cumulative.height.compute_transform(
-            max_from,
-            &total_addr_count.all.height,
-            |(height, total, ..)| (height, StoredU64::from(total)),
-            exit,
-        )?;
-
-        for ((_, new), (_, total)) in self
-            .0
-            .by_addr_type
-            .iter_mut()
-            .zip(total_addr_count.by_addr_type.iter())
-        {
-            new.cumulative.height.compute_transform(
-                max_from,
-                &total.height,
-                |(height, total, ..)| (height, StoredU64::from(total)),
-                exit,
-            )?;
-        }
-
-        Ok(())
+                indexes,
+            ),
+            by_addr_type: total.by_addr_type.map_with_name(|name, total| {
+                LazyPerBlockCumulativeRolling::from_source(
+                    &format!("{name}_new_addr_count"),
+                    version,
+                    total,
+                    cached_starts,
+                    indexes,
+                )
+            }),
+        })
     }
 }

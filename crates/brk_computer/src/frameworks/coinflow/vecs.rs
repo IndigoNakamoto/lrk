@@ -3,7 +3,9 @@ use brk_traversable::Traversable;
 use brk_types::{Cents, StoredF64};
 use vecdb::{Database, Rw, StorageMode};
 
-use crate::internal::{FiatPerBlock, PerBlock, PriceWithRatioPerBlock, ValuePerBlock};
+use crate::internal::{
+    FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, ValuePerBlock,
+};
 
 #[derive(Clone, Copy, Traversable)]
 pub struct Horizons<T> {
@@ -110,7 +112,7 @@ pub struct Split<T> {
 pub struct CohortVecs<M: StorageMode = Rw> {
     pub spending_rate: PerBlock<StoredF64, M>,
     pub spending_exposure: PerBlock<StoredF64, M>,
-    pub mobility: PerBlock<StoredF64, M>,
+    pub mobility: LazyPerBlock<StoredF64>,
     pub supply: Split<ValuePerBlock<M>>,
 }
 

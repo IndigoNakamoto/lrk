@@ -1,11 +1,12 @@
 use std::path::Path;
 
 use brk_error::Result;
-use brk_types::{Dollars, StoredF64, Version};
+use brk_types::{StoredF64, Version};
 use vecdb::Database;
 
 use super::{
     DB_NAME,
+    price::Price,
     urpd_metric::{UrpdMappings, UrpdMetric},
     vecs::{Levels, ModeVecs, Modes, Percentiles, Vecs},
 };
@@ -14,7 +15,7 @@ use crate::{
     internal::db_utils::{finalize_db, open_db},
 };
 
-const VERSION: Version = Version::new(3);
+const VERSION: Version = Version::new(4);
 
 fn import_percentiles<T>(mut import: impl FnMut(&str) -> Result<T>) -> Result<Percentiles<T>> {
     Ok(Percentiles {
@@ -54,8 +55,8 @@ fn import_price(
     name: &str,
     version: Version,
     mappings: &UrpdMappings,
-) -> Result<UrpdMetric<Dollars>> {
-    UrpdMetric::forced_import(db, name, version, mappings)
+) -> Result<Price> {
+    Price::forced_import(db, name, version, mappings)
 }
 
 fn import_mode(

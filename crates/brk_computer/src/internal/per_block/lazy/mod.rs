@@ -1,11 +1,21 @@
 mod base;
 mod derived_resolutions;
+mod indexed;
+mod lookback;
 mod map_option;
+mod per_second;
 mod previous_delta;
+mod since_day;
 mod transform_last;
+mod window;
 
 pub use base::*;
 pub use derived_resolutions::*;
+pub use indexed::*;
+pub use lookback::*;
 pub use map_option::*;
+pub use per_second::*;
 pub use previous_delta::*;
+pub use since_day::*;
 pub use transform_last::*;
+pub use window::*;

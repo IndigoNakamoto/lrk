@@ -37,13 +37,13 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub db: Database,
 
-    pub count: CountVecs<M>,
+    pub count: CountVecs,
     pub lookback: LookbackVecs<M>,
     pub interval: IntervalVecs<M>,
     #[traversable(flatten)]
     pub size: SizeVecs<M>,
     #[traversable(flatten)]
-    pub weight: WeightVecs<M>,
-    pub difficulty: DifficultyVecs<M>,
-    pub halving: HalvingVecs<M>,
+    pub weight: WeightVecs,
+    pub difficulty: DifficultyVecs,
+    pub halving: HalvingVecs,
 }

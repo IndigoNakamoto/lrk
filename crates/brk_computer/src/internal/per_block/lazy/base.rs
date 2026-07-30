@@ -4,13 +4,14 @@ use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
     LazyVecFrom1, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, TypedVec,
-    UnaryTransform,
+    UnaryTransform, VecValue,
 };
 
 use crate::{
     indexes,
     internal::{
-        CachedPerBlock, ComputedVecValue, DerivedResolutions, NumericValue, PerBlock, Resolutions,
+        CachedPerBlock, ComputedVecValue, DerivedResolutions, Identity, NumericValue, PerBlock,
+        Resolutions,
     },
 };
 #[derive(Clone, Deref, DerefMut, Traversable)]
@@ -122,6 +123,31 @@ where
                 &source.resolutions,
             )),
         }
+    }
+}
+
+impl<T> LazyPerBlock<T>
+where
+    T: NumericValue + JsonSchema + 'static,
+{
+    /// Derive a per-block metric from one height-indexed source and the height itself.
+    pub(crate) fn from_indexed_source<S>(
+        name: &str,
+        version: Version,
+        source: &(impl ReadableCloneableVec<Height, S> + 'static),
+        compute: fn(Height, S) -> T,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: VecValue,
+    {
+        let indexed = LazyVecFrom1::init(
+            &format!("{name}_source"),
+            version,
+            source.read_only_boxed_clone(),
+            compute,
+        );
+        Self::from_height_source::<Identity<T>, _>(name, version, indexed, indexes)
     }
 }
 

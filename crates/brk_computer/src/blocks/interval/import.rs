@@ -5,7 +5,7 @@ use vecdb::Database;
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlockRollingAverage, WindowStartVec, Windows},
+    internal::{PerBlockCumulativeAverage, WindowStartVec, Windows},
 };
 
 impl Vecs {
@@ -15,7 +15,7 @@ impl Vecs {
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
-        let interval = PerBlockRollingAverage::forced_import(
+        let interval = PerBlockCumulativeAverage::forced_import(
             db,
             "block_interval",
             version,

@@ -48,7 +48,7 @@ pub struct AddrMetricsVecs<M: StorageMode = Rw> {
     pub empty: AddrCountsVecs<M>,
     pub activity: AddrActivityVecs<M>,
     pub total: TotalAddrCountVecs<M>,
-    pub new: NewAddrCountVecs<M>,
+    pub new: NewAddrCountVecs,
     pub reused: ReusedAddrVecs<M>,
     pub respent: ReusedAddrVecs<M>,
     pub exposed: ExposedAddrVecs<M>,
@@ -225,7 +225,8 @@ impl Vecs {
         let total_addr_count = TotalAddrCountVecs::forced_import(&db, version, indexes)?;
 
         // Per-block delta of total (global + per-type)
-        let new_addr_count = NewAddrCountVecs::forced_import(&db, version, indexes, cached_starts)?;
+        let new_addr_count =
+            NewAddrCountVecs::new(version, &total_addr_count, indexes, cached_starts);
 
         // Reused address tracking (counts + per-block uses + percent).
         // `reused_*` uses the receive-side predicate (funded_txo_count > 1,
@@ -642,13 +643,6 @@ impl Vecs {
             exit,
         )?;
 
-        self.addrs
-            .activity
-            .compute_rest(starting_lengths.height, exit)?;
-        self.addrs
-            .new
-            .compute(starting_lengths.height, &self.addrs.total, exit)?;
-
         // 7. Compute rest part2 (relative metrics)
         let height_to_market_cap = self
             .utxo_cohorts
@@ -677,21 +671,8 @@ impl Vecs {
             .sats
             .height
             .read_only_clone();
-        let all_utxo_count = self
-            .utxo_cohorts
-            .all
-            .metrics
-            .outputs
-            .unspent_count
-            .height
-            .read_only_clone();
-        self.addr_cohorts.compute_rest_part2(
-            prices,
-            &starting_lengths,
-            &all_supply_sats,
-            &all_utxo_count,
-            exit,
-        )?;
+        self.addr_cohorts
+            .compute_rest_part2(prices, &starting_lengths, &all_supply_sats, exit)?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

@@ -1,15 +1,15 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, PartsPerMillionSigned64, StoredF32, StoredI64, StoredU64, Version};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
+use brk_types::{PartsPerMillionSigned64, StoredI64, StoredU64, Version};
+use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode, WritableVec};
 
 use crate::{
     distribution::{
         metrics::ImportConfig,
         state::{CohortState, CostBasisOps, RealizedOps},
     },
-    internal::{PerBlock, PerBlockCumulativeRolling, PerBlockWithDeltas, RatioU64F32},
+    internal::{PerBlockCumulativeRolling, PerBlockWithDeltas},
 };
 
 /// Base output metrics: utxo_count + delta.
@@ -17,7 +17,6 @@ use crate::{
 pub struct OutputsBase<M: StorageMode = Rw> {
     pub unspent_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
     pub spent_count: PerBlockCumulativeRolling<StoredU64, M>,
-    pub utxo_turnover_1y: PerBlock<StoredF32, M>,
 }
 
 impl OutputsBase {
@@ -33,7 +32,6 @@ impl OutputsBase {
                 cfg.cached_starts,
             )?,
             spent_count: cfg.import("spent_utxo_count", v1)?,
-            utxo_turnover_1y: cfg.import("utxo_turnover_1y", Version::TWO)?,
         })
     }
 
@@ -58,25 +56,6 @@ impl OutputsBase {
             &mut self.unspent_count.height as &mut dyn AnyStoredVec,
             self.spent_count.stored_mut(),
         ]
-    }
-
-    pub(crate) fn compute_rest(&mut self, _max_from: Height, _exit: &Exit) -> Result<()> {
-        Ok(())
-    }
-
-    pub(crate) fn compute_part2(
-        &mut self,
-        max_from: Height,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.utxo_turnover_1y
-            .compute_binary::<StoredU64, StoredU64, RatioU64F32>(
-                max_from,
-                &self.spent_count.sum.0._1y.height,
-                all_utxo_count,
-                exit,
-            )
     }
 
     pub(crate) fn compute_from_stateful(

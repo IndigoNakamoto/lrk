@@ -14,11 +14,8 @@ impl Vecs {
     ) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
-        let starting_lengths = indexer.safe_lengths();
-
         self.spent.compute(indexer, exit)?;
         self.count.compute(indexer, blocks, exit)?;
-        self.per_sec.compute(&self.count, &starting_lengths, exit)?;
         self.by_type.compute(indexer, exit)?;
 
         let exit = exit.clone();

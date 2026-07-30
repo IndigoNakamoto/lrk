@@ -17,7 +17,7 @@ mod pool_heights;
 pub use pool_heights::PoolHeights;
 
 use crate::{
-    blocks, indexes,
+    indexes,
     internal::{
         WindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
@@ -89,7 +89,6 @@ impl Vecs {
         &mut self,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         mining: &mining::Vecs,
         exit: &Exit,
@@ -98,13 +97,13 @@ impl Vecs {
 
         self.compute_pool(indexer, indexes, exit)?;
 
-        self.major.par_iter_mut().try_for_each(|(_, vecs)| {
-            vecs.compute(indexer, &self.pool, blocks, prices, mining, exit)
-        })?;
+        self.major
+            .par_iter_mut()
+            .try_for_each(|(_, vecs)| vecs.compute(indexer, &self.pool, prices, mining, exit))?;
 
         self.minor
             .par_iter_mut()
-            .try_for_each(|(_, vecs)| vecs.compute(indexer, &self.pool, blocks, exit))?;
+            .try_for_each(|(_, vecs)| vecs.compute(indexer, &self.pool, exit))?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

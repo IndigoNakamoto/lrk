@@ -1,13 +1,13 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, CentsSigned, Version};
+use brk_types::{Cents, CentsSigned, PartsPerMillion64, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::{metrics::ImportConfig, state::UnrealizedState},
-    internal::{CentsSubtractToCentsSigned, FiatPerBlock},
+    internal::{CentsSubtractToCentsSigned, FiatPerBlock, PerBlock},
 };
 
 use super::UnrealizedBasic;
@@ -23,8 +23,11 @@ pub struct UnrealizedCore<M: StorageMode = Rw> {
 }
 
 impl UnrealizedCore {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let basic = UnrealizedBasic::forced_import(cfg)?;
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        mvrv: &PerBlock<PartsPerMillion64>,
+    ) -> Result<Self> {
+        let basic = UnrealizedBasic::forced_import(cfg, mvrv)?;
         let net_unrealized_pnl = cfg.import("net_unrealized_pnl", Version::ZERO)?;
 
         Ok(Self {

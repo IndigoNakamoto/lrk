@@ -1,14 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CheckedSub, Dollars, Halving, PartsPerMillion32, PartsPerMillion64, Sats};
+use brk_types::{CheckedSub, Halving, PartsPerMillion32, PartsPerMillion64, Sats};
 use vecdb::{Exit, ReadableVec, VecIndex};
 
 use super::Vecs;
-use crate::{
-    blocks, indexes,
-    internal::{RatioDollars, RatioSats},
-    price, transactions,
-};
+use crate::{blocks, indexes, internal::RatioSats, price, transactions};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -110,11 +106,11 @@ impl Vecs {
                 exit,
             )?;
 
-        self.fee_to_subsidy_ratio
-            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>, _, _>(
+        self.fee_to_subsidy
+            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion64>, _, _>(
                 starting_height,
-                self.coinbase.sum.as_array().map(|w| &w.usd.height),
-                self.fees.sum.as_array().map(|w| &w.usd.height),
+                self.fees.sum.as_array().map(|w| &w.sats.height),
+                self.subsidy.sum.as_array().map(|w| &w.sats.height),
                 exit,
             )?;
 

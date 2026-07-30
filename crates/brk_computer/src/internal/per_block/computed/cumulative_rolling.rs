@@ -8,10 +8,10 @@ use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use schemars::JsonSchema;
 use vecdb::{
-    AnyStoredVec, AnyVec, Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
-    VecValue, WritableVec,
+    AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, VecValue, WritableVec,
 };
 
+use super::lazy_cumulative_rolling::lazy_parts;
 use crate::{
     indexes,
     internal::{
@@ -46,26 +46,12 @@ where
     ) -> Result<Self> {
         let cumulative =
             PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
+        let (block, sum, average) =
+            lazy_parts(name, version, &cumulative.height, cached_starts, indexes);
         let last_cumulative = cumulative
             .height
             .collect_last()
             .map(|value| (cumulative.height.len(), value));
-        let cumulative_source = cumulative.height.read_only_boxed_clone();
-        let block = LazyPreviousDeltaVec::new(name, version, cumulative_source);
-        let sum = LazyRollingSumsFromHeight::new(
-            &format!("{name}_sum"),
-            version,
-            &cumulative.height,
-            cached_starts,
-            indexes,
-        );
-        let average = LazyRollingAvgsFromHeight::new(
-            &format!("{name}_average"),
-            version,
-            &cumulative.height,
-            cached_starts,
-            indexes,
-        );
 
         Ok(Self {
             block,
@@ -166,13 +152,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use brk_types::{Height, StoredU64, Version};
+    use brk_types::{Height, StoredU32, StoredU64, Version};
     use vecdb::{
         AnyStoredVec, Database, EagerVec, ImportableVec, PcoVec, ReadableCloneableVec, ReadableVec,
         WritableVec,
     };
 
-    use crate::internal::LazyPreviousDeltaVec;
+    use crate::internal::{LazyPreviousDeltaVec, StoredU64ToStoredU32};
 
     #[test]
     fn lazy_block_is_the_delta_of_cumulative() {
@@ -203,7 +189,27 @@ mod tests {
             block.collect_range_at(0, 3),
             [1_u64, 2, 3].map(StoredU64::from)
         );
+        assert_eq!(
+            block.collect_range_at(1, 3),
+            [2_u64, 3].map(StoredU64::from)
+        );
 
+        let transformed =
+            LazyPreviousDeltaVec::<Height, StoredU64, StoredU32, StoredU64ToStoredU32>::transformed(
+                "transformed",
+                Version::ONE,
+                cumulative.read_only_boxed_clone(),
+            );
+        assert_eq!(
+            transformed.collect_range_at(0, 3),
+            [1_u32, 2, 3].map(StoredU32::from)
+        );
+        assert_eq!(
+            transformed.collect_range_at(1, 3),
+            [2_u32, 3].map(StoredU32::from)
+        );
+
+        drop(transformed);
         drop(block);
         drop(cumulative);
         drop(db);

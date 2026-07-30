@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, Dollars, Height, Sats, StoredU64, Version};
+use brk_types::{Cents, Dollars, Height, Sats, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
@@ -66,7 +66,6 @@ impl ExtendedAdjustedCohortMetrics {
         under_1h_value_created: &impl ReadableVec<Height, Cents>,
         under_1h_value_destroyed: &impl ReadableVec<Height, Cents>,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
         self.inner.compute_rest_part2(
@@ -74,7 +73,6 @@ impl ExtendedAdjustedCohortMetrics {
             starting_lengths,
             height_to_market_cap,
             all_supply_sats,
-            all_utxo_count,
             exit,
         )?;
 

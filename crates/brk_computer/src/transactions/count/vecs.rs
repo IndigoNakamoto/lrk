@@ -6,5 +6,5 @@ use crate::internal::PerBlockFull;
 
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    pub total: PerBlockFull<StoredU64, M>,
+    pub total: PerBlockFull<StoredU64, StoredU64, M>,
 }

@@ -1,7 +1,7 @@
 import { brk } from "../../utils/client.js";
 import { colors } from "../../utils/colors.js";
 import { Unit } from "../../utils/units.js";
-import { line } from "../series.js";
+import { line, price } from "../series.js";
 
 const FLOOR_PERCENTILES = /** @type {const} */ ([
   { key: "pct95", name: "P95" },
@@ -28,15 +28,15 @@ const LEVEL_PERCENTILES = /** @type {const} */ ([
  * @property {string} name
  * @property {AnySeriesPattern} inLoss
  * @property {{
- *   floor: Record<string, AnySeriesPattern>,
- *   level: Record<string, AnySeriesPattern>,
+ *   floor: Record<string, AnyPricePattern>,
+ *   level: Record<string, AnyPricePattern>,
  *   lossThreshold: Record<string, AnySeriesPattern>,
  * }} tree
  */
 
 /**
  * @param {BedrockMode} mode
- * @param {AnySeriesPattern} ath
+ * @param {AnyPricePattern} ath
  * @returns {PartialChartOption}
  */
 function modeChart(mode, ath) {
@@ -45,27 +45,24 @@ function modeChart(mode, ath) {
     title: `Bitcoin Bedrock Model: ${mode.name}`,
     top: [
       ...FLOOR_PERCENTILES.map((percentile, index) =>
-        line({
+        price({
           series: mode.tree.floor[percentile.key],
           name: percentile.name,
           color: colors.bedrock.percentiles[index],
-          unit: Unit.usd,
         }),
       ),
       ...LEVEL_PERCENTILES.map((percentile, index) =>
-        line({
+        price({
           series: mode.tree.level[percentile.key],
           name: `L${percentile.name.slice(1)}`,
           color: colors.bedrock.levels[index],
-          unit: Unit.usd,
           style: 1,
         }),
       ),
-      line({
+      price({
         series: ath,
         name: "L100",
         color: colors.bedrock.levels[9],
-        unit: Unit.usd,
         style: 1,
       }),
     ],
@@ -131,6 +128,6 @@ export function createBedrockSection() {
 
   return {
     name: "Bedrock",
-    tree: modes.map((mode) => modeChart(mode, market.ath.high.usd)),
+    tree: modes.map((mode) => modeChart(mode, market.ath.high)),
   };
 }

@@ -2,18 +2,28 @@ use std::path::Path;
 
 use brk_cohort::{AgeRange, CohortContext};
 use brk_error::Result;
-use brk_types::Version;
+use brk_types::{StoredF64, Version};
+use vecdb::{ReadableCloneableVec, UnaryTransform};
 
-use super::{CohortVecs, DB_NAME, HorizonVecs, Horizons, Split, Vecs};
+use super::{CohortVecs, DB_NAME, HorizonVecs, Horizons, Split, Vecs, mobility};
 use crate::{
     indexes,
     internal::{
-        FiatPerBlock, PerBlock, PriceWithRatioPerBlock, ValuePerBlock,
+        FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, ValuePerBlock,
         db_utils::{finalize_db, open_db},
     },
 };
 
 const VERSION: Version = Version::TWO;
+
+struct ExposureToMobility;
+
+impl UnaryTransform<StoredF64, StoredF64> for ExposureToMobility {
+    #[inline(always)]
+    fn apply(exposure: StoredF64) -> StoredF64 {
+        StoredF64::from(mobility(*exposure))
+    }
+}
 
 fn import_split<T>(mut import: impl FnMut(&str) -> Result<T>) -> Result<Split<T>> {
     Ok(Split {
@@ -29,20 +39,21 @@ impl CohortVecs {
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
+        let spending_rate =
+            PerBlock::forced_import(db, &format!("{name}_spending_rate"), version, indexes)?;
+        let spending_exposure =
+            PerBlock::forced_import(db, &format!("{name}_spending_exposure"), version, indexes)?;
+        let mobility = LazyPerBlock::from_computed::<ExposureToMobility>(
+            &format!("{name}_mobility"),
+            version,
+            spending_exposure.height.read_only_boxed_clone(),
+            &spending_exposure,
+        );
+
         Ok(Self {
-            spending_rate: PerBlock::forced_import(
-                db,
-                &format!("{name}_spending_rate"),
-                version,
-                indexes,
-            )?,
-            spending_exposure: PerBlock::forced_import(
-                db,
-                &format!("{name}_spending_exposure"),
-                version,
-                indexes,
-            )?,
-            mobility: PerBlock::forced_import(db, &format!("{name}_mobility"), version, indexes)?,
+            spending_rate,
+            spending_exposure,
+            mobility,
             supply: import_split(|side| {
                 ValuePerBlock::forced_import(db, &format!("{name}_{side}_supply"), version, indexes)
             })?,
