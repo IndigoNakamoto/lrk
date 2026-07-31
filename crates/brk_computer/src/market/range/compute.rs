@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{PartsPerMillion32, StoredF32};
-use vecdb::{Exit, ReadableVec, VecIndex};
+use brk_types::PartsPerMillion32;
+use vecdb::{Exit, VecIndex};
 
 use super::Vecs;
 use crate::{blocks, price};
@@ -42,27 +42,6 @@ impl Vecs {
             min_vec.compute_rolling_min_from_starts(starting_height, starts, price, exit)?;
             max_vec.compute_rolling_max_from_starts(starting_height, starts, price, exit)?;
         }
-
-        // True range at block level: |price[h] - price[h-1]|
-        let mut prev_price = None;
-        self.true_range.height.compute_transform(
-            starting_height,
-            price,
-            |(h, current, ..)| {
-                let prev = prev_price.unwrap_or_else(|| {
-                    if h.to_usize() > 0 {
-                        price.collect_one_at(h.to_usize() - 1).unwrap_or(current)
-                    } else {
-                        current
-                    }
-                });
-                prev_price = Some(current);
-                let (c, p) = (f64::from(current), f64::from(prev));
-                let tr = (c - p).abs();
-                (h, StoredF32::from(tr))
-            },
-            exit,
-        )?;
 
         // 2w rolling sum of true range
         self.true_range_sum_2w.height.compute_rolling_sum(

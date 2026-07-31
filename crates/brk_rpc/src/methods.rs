@@ -13,8 +13,8 @@ use corepc_types::{
         GetBlockHeaderVerbose, GetBlockTemplate, GetBlockVerboseOne, GetBlockVerboseZero,
         GetRawMempool, GetTxOut,
     },
-    v28::GetBlockchainInfo,
     v24::{GetMempoolInfo, MempoolEntry},
+    v28::GetBlockchainInfo,
 };
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -313,9 +313,8 @@ impl Client {
                 self.0.call_batch_per_item("getrawtransaction", args)?;
 
             for (txid, res) in chunk.iter().zip(results) {
-                match res.and_then(|hex| {
-                    Ok(encode::deserialize_hex::<bitcoin::Transaction>(&hex)?)
-                }) {
+                match res.and_then(|hex| Ok(encode::deserialize_hex::<bitcoin::Transaction>(&hex)?))
+                {
                     Ok(tx) => {
                         out.insert(*txid, tx);
                     }
@@ -379,9 +378,10 @@ impl Client {
             .collect::<Result<Vec<_>>>()?;
         let template: GetBlockTemplate = serde_json::from_str(template_raw.get())?;
         let tip_hash = Self::parse_block_hash(&template.previous_block_hash, "previousblockhash")?;
-        let tip_height = Height::from(u64::try_from(template.height - 1).map_err(|_| {
-            Error::Parse(format!("gbt height out of range: {}", template.height))
-        })?);
+        let tip_height =
+            Height::from(u64::try_from(template.height - 1).map_err(|_| {
+                Error::Parse(format!("gbt height out of range: {}", template.height))
+            })?);
         let block_template = build_gbt(template)?;
         let min_fee = build_min_fee(serde_json::from_str(info_raw.get())?);
 

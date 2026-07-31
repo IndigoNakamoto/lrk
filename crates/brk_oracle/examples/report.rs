@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use brk_indexer::Indexer;
 use brk_oracle::{
-    bin_to_cents, cents_to_bin, Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW, bin_to_cents, cents_to_bin,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};
@@ -93,11 +93,7 @@ impl YearStats {
     fn median_pct(&mut self) -> f64 {
         self.errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let n = self.errors.len();
-        if n == 0 {
-            0.0
-        } else {
-            self.errors[n / 2]
-        }
+        if n == 0 { 0.0 } else { self.errors[n / 2] }
     }
 
     fn percentile(&self, p: f64) -> f64 {

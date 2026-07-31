@@ -35,30 +35,49 @@ impl Vecs {
         gini::compute(&mut self.gini, distribution, indexer, exit)?;
 
         // RHODL Ratio: 1d-1w realized cap / 1y-2y realized cap
-        self.rhodl_ratio
-            .ppm
-            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
-                starting_lengths.height,
-                &distribution
-                    .utxo_cohorts
-                    .age_range
-                    ._1d_to_1w
-                    .metrics
-                    .realized
-                    .cap
-                    .usd
-                    .height,
-                &distribution
-                    .utxo_cohorts
-                    .age_range
-                    ._1y_to_2y
-                    .metrics
-                    .realized
-                    .cap
-                    .usd
-                    .height,
-                exit,
-            )?;
+        self.rhodl_ratio.ppm.height.compute_transform3(
+            starting_lengths.height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._1d_to_1w
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._1y_to_18m
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._18m_to_2y
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            |(i, young_cap, year1_cap, month18_cap, ..)| {
+                let denominator = year1_cap + month18_cap;
+                let ratio = f64::from(young_cap) / f64::from(denominator);
+                (
+                    i,
+                    if ratio.is_finite() {
+                        PartsPerMillion64::from(ratio)
+                    } else {
+                        PartsPerMillion64::default()
+                    },
+                )
+            },
+            exit,
+        )?;
 
         // NVT: market_cap / tx_volume_24h
         let market_cap = &distribution

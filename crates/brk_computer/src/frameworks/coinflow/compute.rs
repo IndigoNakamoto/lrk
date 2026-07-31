@@ -28,7 +28,7 @@ impl Vecs {
         &mut self,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        prices: &price::Vecs,
+        _prices: &price::Vecs,
         distribution: &distribution::Vecs,
         cointime: &cointime::Vecs,
         exit: &Exit,
@@ -67,7 +67,7 @@ impl Vecs {
             .map(|cohort| &cohort.coindays_created.cumulative.height)
             .collect();
 
-        let rest_start = self.compute_primary(
+        self.compute_primary(
             &starting_lengths,
             &indexes.timestamp.monotonic,
             &transfer_volumes,
@@ -77,9 +77,6 @@ impl Vecs {
             &realized_caps,
             exit,
         )?;
-        let mut rest_lengths = starting_lengths.clone();
-        rest_lengths.height = rest_start;
-        self.compute_rest(prices, &rest_lengths, exit)?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {
@@ -269,34 +266,6 @@ impl Vecs {
         }
 
         Ok(Height::from(start))
-    }
-
-    fn compute_rest(
-        &mut self,
-        prices: &price::Vecs,
-        starting_lengths: &Lengths,
-        exit: &Exit,
-    ) -> Result<()> {
-        for cohort in self.age_range.iter_mut() {
-            cohort
-                .supply
-                .mobile
-                .compute(prices, starting_lengths.height, exit)?;
-            cohort
-                .supply
-                .immobile
-                .compute(prices, starting_lengths.height, exit)?;
-        }
-
-        self.supply
-            .mobile
-            .compute(prices, starting_lengths.height, exit)?;
-        self.supply
-            .immobile
-            .compute(prices, starting_lengths.height, exit)?;
-        self.price
-            .compute_ratio(starting_lengths, &prices.spot.cents.height, exit)?;
-        Ok(())
     }
 
     fn primary_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {

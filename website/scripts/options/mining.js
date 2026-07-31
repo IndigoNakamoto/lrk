@@ -12,7 +12,7 @@ import {
   ROLLING_WINDOWS,
   percentRatio,
   percentRatioBaseline,
-  chartsFromCount,
+  chartsFromSumCumulative,
 } from "./series.js";
 import {
   satsBtcUsdFrom,
@@ -137,7 +137,7 @@ export function createMiningSection() {
           dominanceTree(title, "Dominance", pool.dominance),
           {
             name: "Blocks Mined",
-            tree: chartsFromCount({
+            tree: chartsFromSumCumulative({
               pattern: pool.blocksMined,
               title,
               metric: "Blocks Mined",
@@ -176,7 +176,7 @@ export function createMiningSection() {
           },
           {
             name: "Blocks Mined",
-            tree: chartsFromCount({
+            tree: chartsFromSumCumulative({
               pattern: pool.blocksMined,
               title,
               metric: "Blocks Mined",

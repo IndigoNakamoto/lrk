@@ -2,6 +2,7 @@ use std::path::Path;
 
 use brk_error::{Error, Result};
 use brk_types::Version;
+use vecdb::ReadOnlyClone;
 
 use crate::{
     blocks, indexes,
@@ -25,7 +26,8 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 250_000)?;
         let version = parent_version;
 
-        let ath = AthVecs::forced_import(&db, version, indexes)?;
+        let spot_price = prices.spot.cents.height.read_only_cached_boxed_clone();
+        let ath = AthVecs::forced_import(&db, version, indexes, &spot_price)?;
         let cached_starts = ByLookbackPeriod::try_new(|_, days| {
             Ok::<_, Error>(
                 blocks
@@ -35,12 +37,13 @@ impl Vecs {
             )
         })?;
         let lookback = LookbackVecs::forced_import(version, indexes, &cached_starts, prices)?;
-        let returns =
-            ReturnsVecs::forced_import(&db, version, indexes, &cached_starts, prices)?;
+        let returns = ReturnsVecs::forced_import(&db, version, indexes, &cached_starts, prices)?;
         let volatility = VolatilityVecs::forced_import(version, &returns)?;
-        let range = RangeVecs::forced_import(&db, version, indexes)?;
-        let moving_average = MovingAverageVecs::forced_import(&db, version, indexes)?;
-        let technical = TechnicalVecs::forced_import(&db, version, indexes)?;
+        let cached_spot_price = prices.spot.cents.height.read_only_clone();
+        let range = RangeVecs::forced_import(&db, version, indexes, &cached_spot_price)?;
+        let moving_average = MovingAverageVecs::forced_import(&db, version, indexes, &spot_price)?;
+        let technical =
+            TechnicalVecs::forced_import(&db, version, indexes, &returns.periods._24h.ratio)?;
 
         let this = Self {
             db,

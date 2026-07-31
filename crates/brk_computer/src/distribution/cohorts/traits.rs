@@ -61,7 +61,6 @@ pub trait CohortVecs: DynCohortVecs {
     /// Second phase of post-processing computations.
     fn compute_rest_part2(
         &mut self,
-        prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,

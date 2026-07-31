@@ -74,7 +74,6 @@ pub(crate) fn process_blocks(
     let tx_index_to_input_count = &indexes.tx_index.input_count;
 
     let height_to_price_vec = cached_prices;
-    let height_to_timestamp_vec = cached_timestamps;
 
     let start_usize = starting_height.to_usize();
     let end_usize = last_height.to_usize() + 1;
@@ -440,13 +439,9 @@ pub(crate) fn process_blocks(
                     &mut vecs.addr_cohorts,
                     &mut lookup,
                     block_price,
-                    ctx.price_range_max,
                     &mut state,
                     &received_addrs,
                     height_to_price_vec,
-                    height_to_timestamp_vec,
-                    height,
-                    timestamp,
                     &mut seen_senders,
                 )
             },

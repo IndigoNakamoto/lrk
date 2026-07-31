@@ -9,8 +9,8 @@ use std::path::PathBuf;
 
 use brk_indexer::Indexer;
 use brk_oracle::{
-    Config, HistogramEma, HistogramRaw, NUM_BINS, START_HEIGHT_FAST, bin_to_cents, cents_to_bin,
-    pre_oracle_price_cents, PaymentFilter,
+    Config, HistogramEma, HistogramRaw, NUM_BINS, PaymentFilter, START_HEIGHT_FAST, bin_to_cents,
+    cents_to_bin, pre_oracle_price_cents,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};

@@ -4,7 +4,7 @@ use brk_types::{Cents, StoredF64};
 use vecdb::{Database, Rw, StorageMode};
 
 use crate::internal::{
-    FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, ValuePerBlock,
+    FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, SpotValuePerBlock,
 };
 
 #[derive(Clone, Copy, Traversable)]
@@ -113,7 +113,7 @@ pub struct CohortVecs<M: StorageMode = Rw> {
     pub spending_rate: PerBlock<StoredF64, M>,
     pub spending_exposure: PerBlock<StoredF64, M>,
     pub mobility: LazyPerBlock<StoredF64>,
-    pub supply: Split<ValuePerBlock<M>>,
+    pub supply: Split<SpotValuePerBlock<M>>,
 }
 
 #[derive(Traversable)]
@@ -122,7 +122,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub(crate) db: Database,
 
     pub age_range: AgeRange<CohortVecs<M>>,
-    pub supply: Split<ValuePerBlock<M>>,
+    pub supply: Split<SpotValuePerBlock<M>>,
     #[traversable(wrap = "supply/mobile/in_loss", rename = "share")]
     pub supply_in_loss_share: PerBlock<StoredF64, M>,
     pub horizon: Horizons<HorizonVecs<M>>,

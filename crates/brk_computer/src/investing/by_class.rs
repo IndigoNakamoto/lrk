@@ -73,10 +73,7 @@ impl<T> ByDcaClass<T> {
         })
     }
 
-    pub(crate) fn try_from_class<U, F, E>(
-        class: &ByDcaClass<U>,
-        mut create: F,
-    ) -> Result<Self, E>
+    pub(crate) fn try_from_class<U, F, E>(class: &ByDcaClass<U>, mut create: F) -> Result<Self, E>
     where
         F: FnMut(&'static str, u16, Day1, &U) -> Result<T, E>,
     {
@@ -161,41 +158,4 @@ impl<T> ByDcaClass<T> {
     pub(crate) fn day1(year: u16) -> Day1 {
         Day1::try_from(Date::new(year, 1, 1)).unwrap()
     }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
-        [
-            &self.from_2015,
-            &self.from_2016,
-            &self.from_2017,
-            &self.from_2018,
-            &self.from_2019,
-            &self.from_2020,
-            &self.from_2021,
-            &self.from_2022,
-            &self.from_2023,
-            &self.from_2024,
-            &self.from_2025,
-            &self.from_2026,
-        ]
-        .into_iter()
-    }
-
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        [
-            &mut self.from_2015,
-            &mut self.from_2016,
-            &mut self.from_2017,
-            &mut self.from_2018,
-            &mut self.from_2019,
-            &mut self.from_2020,
-            &mut self.from_2021,
-            &mut self.from_2022,
-            &mut self.from_2023,
-            &mut self.from_2024,
-            &mut self.from_2025,
-            &mut self.from_2026,
-        ]
-        .into_iter()
-    }
-
 }

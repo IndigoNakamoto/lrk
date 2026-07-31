@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use brk_types::{Cents, CentsSats, CentsSquaredSats, Sats};
+use vecdb::unlikely;
 
 /// Trait for realized state operations, implemented by Minimal, Core, and Full variants.
 pub trait RealizedOps: Default + Clone + Send + Sync + 'static {
@@ -36,14 +37,39 @@ pub trait RealizedOps: Default + Clone + Send + Sync + 'static {
     );
 }
 
-/// Minimal realized state: cap, profit, loss, value_created/destroyed.
-/// Used by MinimalCohortMetrics cohorts (amount_range, type_, address — ~135 separate cohorts).
+/// Minimal realized state: cap, profit, and loss.
+/// Used by MinimalCohortMetrics cohorts (amount_range and type) and address cohorts.
 #[derive(Debug, Default, Clone)]
 pub struct MinimalRealizedState {
     cap_raw: u128,
     profit_raw: u128,
     loss_raw: u128,
-    value_destroyed_raw: u128,
+}
+
+impl MinimalRealizedState {
+    #[inline]
+    pub(crate) fn increment_cap(&mut self, cap: CentsSats) {
+        self.cap_raw += cap.as_u128();
+    }
+
+    #[inline]
+    pub(crate) fn decrement_cap(&mut self, cap: CentsSats) {
+        self.cap_raw -= cap.as_u128();
+    }
+
+    #[inline]
+    pub(crate) fn realize_spend(&mut self, current: CentsSats, previous: CentsSats) {
+        match current.cmp(&previous) {
+            Ordering::Greater => {
+                self.profit_raw += (current - previous).as_u128();
+            }
+            Ordering::Less => {
+                self.loss_raw += (previous - current).as_u128();
+            }
+            Ordering::Equal => {}
+        }
+        self.decrement_cap(previous);
+    }
 }
 
 impl RealizedOps for MinimalRealizedState {
@@ -72,14 +98,6 @@ impl RealizedOps for MinimalRealizedState {
     }
 
     #[inline]
-    fn value_destroyed(&self) -> Cents {
-        if self.value_destroyed_raw == 0 {
-            return Cents::ZERO;
-        }
-        Cents::new((self.value_destroyed_raw / Sats::ONE_BTC_U128) as u64)
-    }
-
-    #[inline]
     fn set_cap_raw(&mut self, cap_raw: CentsSats) {
         self.cap_raw = cap_raw.inner();
     }
@@ -91,7 +109,6 @@ impl RealizedOps for MinimalRealizedState {
     fn reset_single_iteration_values(&mut self) {
         self.profit_raw = 0;
         self.loss_raw = 0;
-        self.value_destroyed_raw = 0;
     }
 
     #[inline]
@@ -99,18 +116,17 @@ impl RealizedOps for MinimalRealizedState {
         if sats.is_zero() {
             return;
         }
-        let price_sats = CentsSats::from_price_sats(price, sats);
-        self.cap_raw += price_sats.as_u128();
+        self.increment_cap(CentsSats::from_price_sats(price, sats));
     }
 
     #[inline]
     fn increment_snapshot(&mut self, price_sats: CentsSats, _capitalized_cap: CentsSquaredSats) {
-        self.cap_raw += price_sats.as_u128();
+        self.increment_cap(price_sats);
     }
 
     #[inline]
     fn decrement_snapshot(&mut self, price_sats: CentsSats, _capitalized_cap: CentsSquaredSats) {
-        self.cap_raw -= price_sats.as_u128();
+        self.decrement_cap(price_sats);
     }
 
     #[inline]
@@ -122,25 +138,16 @@ impl RealizedOps for MinimalRealizedState {
         _ath_ps: CentsSats,
         _prev_capitalized_cap: CentsSquaredSats,
     ) {
-        match current_ps.cmp(&prev_ps) {
-            Ordering::Greater => {
-                self.profit_raw += (current_ps - prev_ps).as_u128();
-            }
-            Ordering::Less => {
-                self.loss_raw += (prev_ps - current_ps).as_u128();
-            }
-            Ordering::Equal => {}
-        }
-        self.cap_raw -= prev_ps.as_u128();
-        self.value_destroyed_raw += prev_ps.as_u128();
+        self.realize_spend(current_ps, prev_ps);
     }
 }
 
-/// Core realized state: extends Minimal with sent_in_profit/loss tracking.
-/// Used by CoreCohortMetrics cohorts (epoch, class, under_age, over_age — ~59 separate cohorts).
+/// Core realized state: extends Minimal with activity tracking.
+/// Used by CoreCohortMetrics cohorts (entry, epoch, class, under_age, over_age).
 #[derive(Debug, Default, Clone)]
 pub struct CoreRealizedState {
     minimal: MinimalRealizedState,
+    value_destroyed_raw: u128,
     sent_in_profit: Sats,
     sent_in_loss: Sats,
 }
@@ -165,7 +172,10 @@ impl RealizedOps for CoreRealizedState {
 
     #[inline]
     fn value_destroyed(&self) -> Cents {
-        self.minimal.value_destroyed()
+        if unlikely(self.value_destroyed_raw == 0) {
+            return Cents::ZERO;
+        }
+        Cents::new((self.value_destroyed_raw / Sats::ONE_BTC_U128) as u64)
     }
 
     #[inline]
@@ -189,6 +199,7 @@ impl RealizedOps for CoreRealizedState {
     #[inline]
     fn reset_single_iteration_values(&mut self) {
         self.minimal.reset_single_iteration_values();
+        self.value_destroyed_raw = 0;
         self.sent_in_profit = Sats::ZERO;
         self.sent_in_loss = Sats::ZERO;
     }
@@ -221,6 +232,7 @@ impl RealizedOps for CoreRealizedState {
     ) {
         self.minimal
             .send(sats, current_ps, prev_ps, ath_ps, prev_capitalized_cap);
+        self.value_destroyed_raw += prev_ps.as_u128();
         match current_ps.cmp(&prev_ps) {
             Ordering::Greater | Ordering::Equal => {
                 self.sent_in_profit += sats;
@@ -240,7 +252,7 @@ impl CoreRealizedState {
 }
 
 /// Full realized state (~160 bytes).
-/// Used by BasicCohortMetrics cohorts (age_range — 21 separate cohorts).
+/// Used by BasicCohortMetrics cohorts (age_range — 23 separate cohorts).
 #[derive(Debug, Default, Clone)]
 pub struct RealizedState {
     core: CoreRealizedState,
@@ -374,5 +386,54 @@ impl RealizedState {
     #[inline]
     pub(crate) fn peak_regret_raw(&self) -> u128 {
         self.peak_regret_raw
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn price_sats(price: u64) -> CentsSats {
+        CentsSats::from_price_sats(Cents::new(price), Sats::ONE_BTC)
+    }
+
+    #[test]
+    fn minimal_tracks_only_cap_profit_and_loss() {
+        let mut state = MinimalRealizedState::default();
+        state.increment(Cents::new(10_000), Sats::ONE_BTC);
+        state.send(
+            Sats::ONE_BTC,
+            price_sats(15_000),
+            price_sats(10_000),
+            CentsSats::ZERO,
+            CentsSquaredSats::ZERO,
+        );
+
+        assert_eq!(state.cap(), Cents::ZERO);
+        assert_eq!(state.profit(), Cents::new(5_000));
+        assert_eq!(state.loss(), Cents::ZERO);
+        assert_eq!(state.value_destroyed(), Cents::ZERO);
+        assert_eq!(state.sent_in_profit(), Sats::ZERO);
+        assert_eq!(state.sent_in_loss(), Sats::ZERO);
+    }
+
+    #[test]
+    fn core_adds_activity_to_minimal_realized_state() {
+        let mut state = CoreRealizedState::default();
+        state.increment(Cents::new(10_000), Sats::ONE_BTC);
+        state.send(
+            Sats::ONE_BTC,
+            price_sats(15_000),
+            price_sats(10_000),
+            CentsSats::ZERO,
+            CentsSquaredSats::ZERO,
+        );
+
+        assert_eq!(state.cap(), Cents::ZERO);
+        assert_eq!(state.profit(), Cents::new(5_000));
+        assert_eq!(state.loss(), Cents::ZERO);
+        assert_eq!(state.value_destroyed(), Cents::new(10_000));
+        assert_eq!(state.sent_in_profit(), Sats::ONE_BTC);
+        assert_eq!(state.sent_in_loss(), Sats::ZERO);
     }
 }

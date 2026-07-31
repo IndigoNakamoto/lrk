@@ -35,7 +35,7 @@ impl Vecs {
         let supply_metrics = &distribution.utxo_cohorts.all.metrics.supply;
 
         let circulating =
-            LazyValuePerBlock::identity("circulating_supply", &supply_metrics.total, version);
+            LazyValuePerBlock::spot_identity("circulating_supply", &supply_metrics.total, version);
 
         let burned = burned::Vecs::forced_import(&db, version, indexes)?;
 
@@ -66,7 +66,7 @@ impl Vecs {
 
         // Market cap - lazy fiat (cents + usd) from distribution supply
         let market_cap =
-            LazyFiatPerBlock::from_computed("market_cap", version, &supply_metrics.total.cents);
+            LazyFiatPerBlock::from_lazy("market_cap", version, &supply_metrics.total.cents);
 
         // Market cap delta (change + rate across 4 windows)
         let market_cap_delta = LazyRollingDeltasFiatFromHeight::new(
@@ -84,8 +84,11 @@ impl Vecs {
             indexes,
         )?;
 
-        let hodled_or_lost =
-            LazyValuePerBlock::identity("hodled_or_lost_supply", &cointime.supply.vaulted, version);
+        let hodled_or_lost = LazyValuePerBlock::spot_identity(
+            "hodled_or_lost_supply",
+            &cointime.supply.vaulted,
+            version,
+        );
 
         let this = Self {
             db,

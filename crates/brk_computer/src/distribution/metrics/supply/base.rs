@@ -4,13 +4,10 @@ use brk_traversable::Traversable;
 use brk_types::{Height, PartsPerMillion32, PartsPerMillionSigned64, Sats, SatsSigned, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
-use crate::{
-    distribution::state::{CohortState, CostBasisOps, RealizedOps},
-    price,
-};
+use crate::distribution::state::{CohortState, CostBasisOps, RealizedOps};
 
 use crate::internal::{
-    LazyRollingDeltasAmountFromHeight, PercentPerBlock, RatioSats, ValuePerBlock,
+    LazyRollingDeltasAmountFromHeight, PercentPerBlock, RatioSats, SpotValuePerBlock,
 };
 
 use crate::distribution::metrics::ImportConfig;
@@ -18,7 +15,7 @@ use crate::distribution::metrics::ImportConfig;
 /// Base supply metrics: total supply + dominance (share of circulating).
 #[derive(Traversable)]
 pub struct SupplyBase<M: StorageMode = Rw> {
-    pub total: ValuePerBlock<M>,
+    pub total: SpotValuePerBlock<M>,
     pub delta: LazyRollingDeltasAmountFromHeight<Sats, SatsSigned, PartsPerMillionSigned64>,
     #[traversable(rename = "dominance")]
     pub dominance: PercentPerBlock<PartsPerMillion32, M>,
@@ -26,7 +23,7 @@ pub struct SupplyBase<M: StorageMode = Rw> {
 
 impl SupplyBase {
     pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let supply: ValuePerBlock = cfg.import("supply", Version::ZERO)?;
+        let supply: SpotValuePerBlock = cfg.import("supply", Version::ZERO)?;
 
         let delta = LazyRollingDeltasAmountFromHeight::new(
             &cfg.name("supply_delta"),
@@ -57,18 +54,8 @@ impl SupplyBase {
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         vec![
             &mut self.total.sats.height as &mut dyn AnyStoredVec,
-            &mut self.total.cents.height,
             &mut self.dominance.ppm.height,
         ]
-    }
-
-    pub(crate) fn compute(
-        &mut self,
-        prices: &price::Vecs,
-        max_from: Height,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.total.compute(prices, max_from, exit)
     }
 
     pub(crate) fn compute_dominance(

@@ -64,7 +64,7 @@ color-eyre = "0.6.5"
 corepc-jsonrpc = { package = "jsonrpc", version = "0.19.0", features = ["simple_http"], default-features = false }
 corepc-types = { version = "0.15.0", features = ["std"], default-features = false }
 derive_more = { version = "2.1.1", features = ["deref", "deref_mut"] }
-fjall = "3.1.8"
+fjall = { path = "../fjall", version = "3.1.8" }
 indexmap = { version = "2.14.0", features = ["serde"] }
 jiff = { version = "0.2.34", features = ["perf-inline", "tz-system"], default-features = false }
 owo-colors = "4.3.0"

@@ -5,14 +5,12 @@ use vecdb::Exit;
 
 use super::super::{activity, value};
 use super::Vecs;
-use crate::{distribution, mining};
+use crate::distribution;
 
 impl Vecs {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        mining: &mining::Vecs,
         distribution: &distribution::Vecs,
         activity: &activity::Vecs,
         value: &value::Vecs,
@@ -22,13 +20,6 @@ impl Vecs {
         let all_metrics = &distribution.utxo_cohorts.all.metrics;
         let realized_cap_cents = &all_metrics.realized.cap.cents.height;
         let circulating_supply = &all_metrics.supply.total.btc.height;
-
-        self.thermo.cents.height.compute_transform(
-            starting_lengths.height,
-            &mining.rewards.subsidy.cumulative.cents.height,
-            |(i, v, ..)| (i, v),
-            exit,
-        )?;
 
         self.investor.cents.height.compute_subtract(
             starting_lengths.height,

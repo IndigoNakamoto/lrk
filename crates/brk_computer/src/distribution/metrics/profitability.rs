@@ -2,13 +2,14 @@ use brk_cohort::{Loss, Profit, ProfitabilityRange};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Bitcoin, Cents, Dollars, PartsPerMillionSigned32, Sats, Version};
-use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
+use brk_types::{Bitcoin, Cents, Dollars, Height, PartsPerMillionSigned32, Sats, Version};
+use vecdb::{AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use crate::{
     indexes,
     internal::{
-        PerBlock, RatioPerBlock, ValuePerBlock, ValuePerBlockWithDeltas, WindowStartVec, Windows,
+        PerBlock, RatioPerBlock, SpotValuePerBlock, SpotValuePerBlockWithDeltas, WindowStartVec,
+        Windows,
     },
     price,
 };
@@ -21,7 +22,7 @@ pub struct WithSth<All, Sth = All> {
 
 #[derive(Traversable)]
 pub struct ProfitabilityBucket<M: StorageMode = Rw> {
-    pub supply: WithSth<ValuePerBlockWithDeltas<M>, ValuePerBlock<M>>,
+    pub supply: WithSth<SpotValuePerBlockWithDeltas<M>, SpotValuePerBlock<M>>,
     pub realized_cap: WithSth<PerBlock<Dollars, M>>,
     pub unrealized_pnl: WithSth<PerBlock<Dollars, M>>,
     pub nupl: RatioPerBlock<PartsPerMillionSigned32, M>,
@@ -45,21 +46,24 @@ impl ProfitabilityBucket {
         version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
             supply: WithSth {
-                all: ValuePerBlockWithDeltas::forced_import(
+                all: SpotValuePerBlockWithDeltas::forced_import(
                     db,
                     &format!("{name}_supply"),
                     version,
                     indexes,
                     cached_starts,
+                    spot_price,
                 )?,
-                sth: ValuePerBlock::forced_import(
+                sth: SpotValuePerBlock::forced_import(
                     db,
                     &format!("{name}_sth_supply"),
                     version,
                     indexes,
+                    spot_price,
                 )?,
             },
             realized_cap: WithSth {
@@ -121,9 +125,6 @@ impl ProfitabilityBucket {
         exit: &Exit,
     ) -> Result<()> {
         let max_from = starting_lengths.height;
-
-        self.supply.all.compute(prices, max_from, exit)?;
-        self.supply.sth.compute(prices, max_from, exit)?;
 
         self.unrealized_pnl.all.height.compute_transform3(
             max_from,
@@ -223,9 +224,7 @@ impl ProfitabilityBucket {
     pub(crate) fn collect_all_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         vec![
             &mut self.supply.all.inner.sats.height as &mut dyn AnyStoredVec,
-            &mut self.supply.all.inner.cents.height,
             &mut self.supply.sth.sats.height,
-            &mut self.supply.sth.cents.height,
             &mut self.realized_cap.all.height,
             &mut self.realized_cap.sth.height,
             &mut self.unrealized_pnl.all.height,
@@ -269,19 +268,41 @@ impl ProfitabilityMetrics {
         version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let range = ProfitabilityRange::try_new(|name| {
-            ProfitabilityBucket::forced_import(db, name, version, indexes, cached_starts)
+            ProfitabilityBucket::forced_import(
+                db,
+                name,
+                version,
+                indexes,
+                cached_starts,
+                spot_price,
+            )
         })?;
 
         let aggregate_version = version + Version::TWO;
 
         let profit = Profit::try_new(|name| {
-            ProfitabilityBucket::forced_import(db, name, aggregate_version, indexes, cached_starts)
+            ProfitabilityBucket::forced_import(
+                db,
+                name,
+                aggregate_version,
+                indexes,
+                cached_starts,
+                spot_price,
+            )
         })?;
 
         let loss = Loss::try_new(|name| {
-            ProfitabilityBucket::forced_import(db, name, aggregate_version, indexes, cached_starts)
+            ProfitabilityBucket::forced_import(
+                db,
+                name,
+                aggregate_version,
+                indexes,
+                cached_starts,
+                spot_price,
+            )
         })?;
 
         Ok(Self {

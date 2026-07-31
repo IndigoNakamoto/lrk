@@ -4,15 +4,14 @@ import {
   buildCohortData,
   createCohortFolderAll,
   createCohortFolderFull,
-  createCohortFolderWithAdjusted,
-  createCohortFolderWithNupl,
+  createCohortFolderCore,
   createCohortFolderLongTerm,
   createCohortFolderAgeRangeWithMatured,
   createCohortFolderBasicWithMarketCap,
   createCohortFolderWithoutRelative,
   createCohortFolderAddress,
   createAddressCohortFolder,
-  createGroupedCohortFolderWithAdjusted,
+  createGroupedCohortFolderCore,
   createGroupedCohortFolderWithNupl,
   createGroupedCohortFolderAgeRangeWithMatured,
   createGroupedCohortFolderBasicWithMarketCap,
@@ -107,13 +106,13 @@ export function createPartialOptions() {
             {
               name: "Entry",
               tree: [
-                createGroupedCohortFolderWithNupl({
+                createGroupedCohortFolderCore({
                   name: "Compare",
                   title: "Veteran vs Rookie",
                   list: entry,
                   all: cohortAll,
                 }),
-                ...entry.map(createCohortFolderWithNupl),
+                ...entry.map(createCohortFolderCore),
               ],
             },
 
@@ -123,25 +122,25 @@ export function createPartialOptions() {
                 {
                   name: "Under",
                   tree: [
-                    createGroupedCohortFolderWithAdjusted({
+                    createGroupedCohortFolderCore({
                       name: "Compare",
                       title: "Under Age",
                       list: underAge,
                       all: cohortAll,
                     }),
-                    ...underAge.map(createCohortFolderWithAdjusted),
+                    ...underAge.map(createCohortFolderCore),
                   ],
                 },
                 {
                   name: "Over",
                   tree: [
-                    createGroupedCohortFolderWithAdjusted({
+                    createGroupedCohortFolderCore({
                       name: "Compare",
                       title: "Over Age",
                       list: overAge,
                       all: cohortAll,
                     }),
-                    ...overAge.map(createCohortFolderWithAdjusted),
+                    ...overAge.map(createCohortFolderCore),
                   ],
                 },
                 {
@@ -290,26 +289,26 @@ export function createPartialOptions() {
             {
               name: "Epoch",
               tree: [
-                createGroupedCohortFolderWithAdjusted({
+                createGroupedCohortFolderCore({
                   name: "Compare",
                   title: "Epoch",
                   list: epoch,
                   all: cohortAll,
                 }),
-                ...epoch.map(createCohortFolderWithAdjusted),
+                ...epoch.map(createCohortFolderCore),
               ],
             },
 
             {
               name: "Class",
               tree: [
-                createGroupedCohortFolderWithAdjusted({
+                createGroupedCohortFolderCore({
                   name: "Compare",
                   title: "Class",
                   list: class_,
                   all: cohortAll,
                 }),
-                ...class_.map(createCohortFolderWithAdjusted),
+                ...class_.map(createCohortFolderCore),
               ],
             },
           ],

@@ -1,16 +1,15 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Bitcoin, Cents, Dollars, Height, Sats, SatsSigned, Version};
+use brk_types::{Bitcoin, Cents, Dollars, Sats, SatsSigned, Version};
 use schemars::JsonSchema;
-use vecdb::{Database, Exit, ReadableCloneableVec, Rw, StorageMode, UnaryTransform};
+use vecdb::{Database, ReadableCloneableVec, Rw, StorageMode, UnaryTransform};
 
 use crate::{
     indexes,
     internal::{
         CentsUnsignedToDollars, LazyPerBlock, NumericValue, PerBlock, SatsSignedToBitcoin,
-        SatsToBitcoin, SatsToCents,
+        SatsToBitcoin,
     },
-    price,
 };
 
 /// Trait that associates a sats type with its transform to Bitcoin.
@@ -65,20 +64,5 @@ impl ValuePerBlock {
             usd,
             cents,
         })
-    }
-
-    pub(crate) fn compute(
-        &mut self,
-        prices: &price::Vecs,
-        max_from: Height,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.cents.compute_binary::<Sats, Cents, SatsToCents>(
-            max_from,
-            &self.sats.height,
-            &prices.spot.cents.height,
-            exit,
-        )?;
-        Ok(())
     }
 }

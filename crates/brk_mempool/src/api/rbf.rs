@@ -140,7 +140,9 @@ mod tests {
                 .map(|next_seed| fake_txid(*next_seed))
                 .unwrap_or(live_txid);
             let rate = FeeRate::from((entry.fee, entry.vsize));
-            state.graveyard.bury(tx, entry, rate, TxRemoval::Replaced { by });
+            state
+                .graveyard
+                .bury(tx, entry, rate, TxRemoval::Replaced { by });
             pred_txids.push(txid);
         }
         state.txs.insert(live_tx, live_entry);
@@ -161,7 +163,10 @@ mod tests {
         let replaced_txids: Vec<Txid> = root.replaces.iter().map(|n| n.txid).collect();
         assert_eq!(replaced_txids, vec![pred]);
         // Convenience list: direct predecessors of the requested tx.
-        assert!(rbf.replaces.is_empty(), "pred has no predecessors of its own");
+        assert!(
+            rbf.replaces.is_empty(),
+            "pred has no predecessors of its own"
+        );
     }
 
     #[test]
@@ -202,7 +207,9 @@ mod tests {
             let extra_txid = extra.txid;
             let entry = TxEntry::new(&fake_entry_info(extra_txid, 999, 100), 100, true);
             let rate = FeeRate::from((entry.fee, entry.vsize));
-            state.graveyard.bury(extra, entry, rate, TxRemoval::Replaced { by: live });
+            state
+                .graveyard
+                .bury(extra, entry, rate, TxRemoval::Replaced { by: live });
         }
         let trees = mempool.recent_rbf_trees(false, 10);
         assert_eq!(trees.len(), 1, "all paths roll up to one root");

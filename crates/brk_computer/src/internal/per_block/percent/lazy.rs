@@ -119,24 +119,6 @@ impl<B: FixedRatio> LazyPercentPerBlock<B> {
 }
 
 impl LazyPercentPerBlock<brk_types::PartsPerMillionSigned64> {
-    pub(crate) fn from_cagr(
-        name: &str,
-        version: Version,
-        years: u8,
-        source: &PercentPerBlock<brk_types::PartsPerMillionSigned64>,
-    ) -> Self {
-        match years {
-            2 => Self::from_percent::<Cagr<2>>(name, version, source),
-            3 => Self::from_percent::<Cagr<3>>(name, version, source),
-            4 => Self::from_percent::<Cagr<4>>(name, version, source),
-            5 => Self::from_percent::<Cagr<5>>(name, version, source),
-            6 => Self::from_percent::<Cagr<6>>(name, version, source),
-            8 => Self::from_percent::<Cagr<8>>(name, version, source),
-            10 => Self::from_percent::<Cagr<10>>(name, version, source),
-            _ => unreachable!("unsupported DCA CAGR period: {years} years"),
-        }
-    }
-
     pub(crate) fn from_lazy_cagr(name: &str, version: Version, years: u8, source: &Self) -> Self {
         match years {
             2 => Self::from_lazy_percent::<Cagr<2>>(name, version, source),

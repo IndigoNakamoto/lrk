@@ -6,7 +6,7 @@ use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::distribution::state::UnrealizedState;
-use crate::internal::{CentsSubtractToCentsSigned, FiatPerBlock, PerBlock};
+use crate::internal::{CentsSubtractToCentsSigned, FiatPerBlock, LazyPerBlock};
 use crate::{distribution::metrics::ImportConfig, price};
 
 use super::UnrealizedCore;
@@ -43,7 +43,7 @@ pub struct UnrealizedFull<M: StorageMode = Rw> {
 impl UnrealizedFull {
     pub(crate) fn forced_import(
         cfg: &ImportConfig,
-        mvrv: &PerBlock<PartsPerMillion64>,
+        mvrv: &LazyPerBlock<PartsPerMillion64>,
     ) -> Result<Self> {
         let v0 = Version::ZERO;
         let inner = UnrealizedCore::forced_import(cfg, mvrv)?;

@@ -6,9 +6,7 @@ use super::super::lookback::ByLookbackPeriod;
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{
-        LazyPercentPerBlock, LazyWindowVec, RatioDiffDollars, StdDevPerBlock, Windows,
-    },
+    internal::{LazyPercentPerBlock, LazyWindowVec, RatioDiffDollars, StdDevPerBlock, Windows},
     investing::{ByDcaCagr, ByDcaPeriod},
     price,
 };
@@ -21,27 +19,26 @@ impl Vecs {
         cached_starts: &ByLookbackPeriod<CachedBoxedVec<Height, Height>>,
         prices: &price::Vecs,
     ) -> Result<Self> {
-        let periods = ByLookbackPeriod::try_from_period(
-            cached_starts,
-            |name, _days, window_starts| {
-            let metric_name = format!("price_return_{name}");
-            let source = LazyWindowVec::<Height, Dollars, PartsPerMillionSigned64>::new(
-                &format!("{metric_name}_ppm_source"),
-                version,
-                prices.spot.usd.height.read_only_boxed_clone(),
-                window_starts.clone(),
-                false,
-                |current, past, _| {
-                    RatioDiffDollars::<PartsPerMillionSigned64>::apply(current, past)
-                },
-            );
-            Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
-                &metric_name,
-                version,
-                source,
-                indexes,
-            ))
-        })?;
+        let periods =
+            ByLookbackPeriod::try_from_period(cached_starts, |name, _days, window_starts| {
+                let metric_name = format!("price_return_{name}");
+                let source = LazyWindowVec::<Height, Dollars, PartsPerMillionSigned64>::new(
+                    &format!("{metric_name}_ppm_source"),
+                    version,
+                    prices.spot.usd.height.read_only_boxed_clone(),
+                    window_starts.clone(),
+                    false,
+                    |current, past, _| {
+                        RatioDiffDollars::<PartsPerMillionSigned64>::apply(current, past)
+                    },
+                );
+                Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
+                    &metric_name,
+                    version,
+                    source,
+                    indexes,
+                ))
+            })?;
 
         let dca_periods = ByDcaPeriod::from_lookback(&periods);
         let cagr = ByDcaCagr::try_new(&dca_periods, |name, days, source| {

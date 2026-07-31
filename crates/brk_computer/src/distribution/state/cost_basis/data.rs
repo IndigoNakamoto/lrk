@@ -24,7 +24,6 @@ const STATE_TO_KEEP: usize = 10;
 /// Implemented by `CostBasisRaw` (scalars only) and `CostBasisData` (full map + scalars).
 pub trait CostBasisOps: Send + Sync + 'static {
     fn create(path: &Path, name: &str) -> Self;
-    fn with_price_rounding(self, digits: i32) -> Self;
     fn import_at_or_before(&mut self, height: Height) -> Result<Height>;
     fn cap_raw(&self) -> CentsSats;
     fn capitalized_cap_raw(&self) -> CentsSquaredSats;
@@ -78,6 +77,16 @@ pub struct CostBasisRaw {
 }
 
 impl CostBasisRaw {
+    #[inline]
+    pub(crate) fn increment_cap(&mut self, value: CentsSats) {
+        self.pending_cap.inc += value;
+    }
+
+    #[inline]
+    pub(crate) fn decrement_cap(&mut self, value: CentsSats) {
+        self.pending_cap.dec += value;
+    }
+
     pub(super) fn path_state(&self, height: Height) -> PathBuf {
         self.pathbuf.join(height.to_string())
     }
@@ -151,10 +160,6 @@ impl CostBasisOps for CostBasisRaw {
         }
     }
 
-    fn with_price_rounding(self, _digits: i32) -> Self {
-        self
-    }
-
     fn import_at_or_before(&mut self, height: Height) -> Result<Height> {
         let files = self.read_dir(None)?;
         let (&height, path) = files.range(..=height).next_back().ok_or(Error::NotFound(
@@ -189,7 +194,7 @@ impl CostBasisOps for CostBasisRaw {
         price_sats: CentsSats,
         _capitalized_cap: CentsSquaredSats,
     ) {
-        self.pending_cap.inc += price_sats;
+        self.increment_cap(price_sats);
     }
 
     #[inline]
@@ -200,7 +205,7 @@ impl CostBasisOps for CostBasisRaw {
         price_sats: CentsSats,
         _capitalized_cap: CentsSquaredSats,
     ) {
-        self.pending_cap.dec += price_sats;
+        self.decrement_cap(price_sats);
     }
 
     fn apply_pending(&mut self) {
@@ -237,26 +242,18 @@ impl CostBasisOps for CostBasisRaw {
 /// Generic over the accumulator `S`:
 /// - `WithCapital`: tracks all fields including invested capital + capitalized cap (128 bytes)
 /// - `WithoutCapital`: tracks only supply + unrealized profit/loss (64 bytes, 1 cache line)
+///   and writes a compact checkpoint without a capitalized-cap slot
 #[derive(Clone, Debug)]
 pub struct CostBasisData<S: Accumulate> {
     raw: CostBasisRaw,
     map: Option<UrpdRaw>,
     pending: FxHashMap<CentsCompact, PendingDelta>,
     cache: Option<CachedUnrealizedState<S>>,
-    rounding_digits: Option<i32>,
     capitalized_cap_raw: CentsSquaredSats,
     pending_capitalized_cap: PendingCapitalizedCapRawDelta,
 }
 
 impl<S: Accumulate> CostBasisData<S> {
-    #[inline]
-    fn round_price(&self, price: Cents) -> Cents {
-        match self.rounding_digits {
-            Some(digits) => price.round_to_dollar(digits),
-            None => price,
-        }
-    }
-
     pub(crate) fn map(&self) -> &CostBasisMap {
         debug_assert!(self.pending.is_empty() && self.raw.pending_cap.is_zero());
         &self.map.as_ref().unwrap().map
@@ -345,15 +342,9 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
             map: None,
             pending: FxHashMap::default(),
             cache: None,
-            rounding_digits: None,
             capitalized_cap_raw: CentsSquaredSats::ZERO,
             pending_capitalized_cap: PendingCapitalizedCapRawDelta::default(),
         }
-    }
-
-    fn with_price_rounding(mut self, digits: i32) -> Self {
-        self.rounding_digits = Some(digits);
-        self
     }
 
     fn import_at_or_before(&mut self, height: Height) -> Result<Height> {
@@ -363,14 +354,18 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
         ))?;
         let data = fs::read(path)?;
         let (base, rest) = UrpdRaw::deserialize_with_rest(&data)?;
-        self.map = Some(base);
-        self.raw.state = Some(RawState::deserialize(rest)?);
         debug_assert!(
-            rest.len() >= 32,
+            rest.len() >= if S::TRACK_CAPITAL { 32 } else { 16 },
             "CostBasisData state too short: {} bytes",
             rest.len()
         );
-        self.capitalized_cap_raw = CentsSquaredSats::from_bytes(&rest[16..32])?;
+        self.map = Some(base);
+        self.raw.state = Some(RawState::deserialize(rest)?);
+        self.capitalized_cap_raw = if S::TRACK_CAPITAL {
+            CentsSquaredSats::from_bytes(&rest[16..32])?
+        } else {
+            CentsSquaredSats::ZERO
+        };
         self.pending.clear();
         self.raw.pending_cap = PendingCapDelta::default();
         self.pending_capitalized_cap = PendingCapitalizedCapRawDelta::default();
@@ -394,10 +389,9 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
         price_sats: CentsSats,
         capitalized_cap: CentsSquaredSats,
     ) {
-        let price = self.round_price(price);
         self.pending.entry(price.into()).or_default().inc += sats;
-        self.raw.pending_cap.inc += price_sats;
-        if capitalized_cap != CentsSquaredSats::ZERO {
+        self.raw.increment_cap(price_sats);
+        if S::TRACK_CAPITAL && capitalized_cap != CentsSquaredSats::ZERO {
             self.pending_capitalized_cap.inc += capitalized_cap;
         }
         if let Some(cache) = self.cache.as_mut() {
@@ -413,10 +407,9 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
         price_sats: CentsSats,
         capitalized_cap: CentsSquaredSats,
     ) {
-        let price = self.round_price(price);
         self.pending.entry(price.into()).or_default().dec += sats;
-        self.raw.pending_cap.dec += price_sats;
-        if capitalized_cap != CentsSquaredSats::ZERO {
+        self.raw.decrement_cap(price_sats);
+        if S::TRACK_CAPITAL && capitalized_cap != CentsSquaredSats::ZERO {
             self.pending_capitalized_cap.dec += capitalized_cap;
         }
         if let Some(cache) = self.cache.as_mut() {
@@ -427,19 +420,21 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
     fn apply_pending(&mut self) {
         self.apply_map_pending();
         self.raw.apply_pending_cap();
-        self.capitalized_cap_raw += self.pending_capitalized_cap.inc;
-        debug_assert!(
-            self.capitalized_cap_raw >= self.pending_capitalized_cap.dec,
-            "CostBasis capitalized_cap_raw underflow!\n\
-            Path: {:?}\n\
-            Current (after increments): {:?}\n\
-            Trying to decrement by: {:?}",
-            self.raw.pathbuf,
-            self.capitalized_cap_raw,
-            self.pending_capitalized_cap.dec
-        );
-        self.capitalized_cap_raw -= self.pending_capitalized_cap.dec;
-        self.pending_capitalized_cap = PendingCapitalizedCapRawDelta::default();
+        if S::TRACK_CAPITAL {
+            self.capitalized_cap_raw += self.pending_capitalized_cap.inc;
+            debug_assert!(
+                self.capitalized_cap_raw >= self.pending_capitalized_cap.dec,
+                "CostBasis capitalized_cap_raw underflow!\n\
+                Path: {:?}\n\
+                Current (after increments): {:?}\n\
+                Trying to decrement by: {:?}",
+                self.raw.pathbuf,
+                self.capitalized_cap_raw,
+                self.pending_capitalized_cap.dec
+            );
+            self.capitalized_cap_raw -= self.pending_capitalized_cap.dec;
+            self.pending_capitalized_cap = PendingCapitalizedCapRawDelta::default();
+        }
     }
 
     fn init(&mut self) {
@@ -464,9 +459,70 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
         let raw_state = self.raw.state.as_ref().unwrap();
         let mut buffer = self.map.as_ref().unwrap().serialize()?;
         buffer.extend(raw_state.cap_raw.to_bytes());
-        buffer.extend(self.capitalized_cap_raw.to_bytes());
+        if S::TRACK_CAPITAL {
+            buffer.extend(self.capitalized_cap_raw.to_bytes());
+        }
         fs::write(self.raw.path_state(height), buffer)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs,
+        sync::atomic::{AtomicU64, Ordering},
+    };
+
+    use super::*;
+    use crate::distribution::state::{WithCapital, WithoutCapital};
+
+    static NEXT_PATH_ID: AtomicU64 = AtomicU64::new(0);
+
+    fn test_path() -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "brk-cost-basis-data-{}-{}",
+            std::process::id(),
+            NEXT_PATH_ID.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
+
+    #[test]
+    fn checkpoint_layout_tracks_capital_capability() {
+        let root = test_path();
+
+        let mut compact = CostBasisData::<WithoutCapital>::create(&root, "compact");
+        compact.clean().unwrap();
+        compact.init();
+        compact.write(Height::ZERO, false).unwrap();
+
+        let mut full = CostBasisData::<WithCapital>::create(&root, "full");
+        full.clean().unwrap();
+        full.init();
+        full.write(Height::ZERO, false).unwrap();
+
+        let compact_len = fs::metadata(compact.raw.path_state(Height::ZERO))
+            .unwrap()
+            .len();
+        let full_len = fs::metadata(full.raw.path_state(Height::ZERO))
+            .unwrap()
+            .len();
+        assert_eq!(full_len, compact_len + 16);
+
+        let mut compact_reader = CostBasisData::<WithoutCapital>::create(&root, "compact");
+        assert_eq!(
+            compact_reader.import_at_or_before(Height::ZERO).unwrap(),
+            Height::ZERO
+        );
+
+        let mut legacy_reader = CostBasisData::<WithoutCapital>::create(&root, "full");
+        assert_eq!(
+            legacy_reader.import_at_or_before(Height::ZERO).unwrap(),
+            Height::ZERO
+        );
+        assert_eq!(legacy_reader.capitalized_cap_raw(), CentsSquaredSats::ZERO);
+
+        fs::remove_dir_all(root).unwrap();
     }
 }

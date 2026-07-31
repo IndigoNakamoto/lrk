@@ -1,3 +1,3 @@
 mod base;
 
-pub use base::OutputsBase;
+pub use base::{OutputsBase, OutputsUnspent};

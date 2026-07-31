@@ -760,10 +760,15 @@ function ratioBands(bands) {
 }
 
 /**
+ * @typedef {{ price: AnyPricePattern, ratio: AnySeriesPattern }} PriceRatioBand
+ * @typedef {Record<"pct001" | "pct05" | "pct1" | "pct2" | "pct5" | "pct10" | "pct20" | "pct30" | "pct40" | "pct50" | "pct60" | "pct70" | "pct80" | "pct90" | "pct95" | "pct98" | "pct99" | "pct995" | "pct999", PriceRatioBand>} PriceRatioPercentiles
+ */
+
+/**
  * Price + Ratio charts with percentile bands
  * @param {Object} args
  * @param {AnyPricePattern & { ratio: AnySeriesPattern }} args.pattern
- * @param {{ pct001: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct05: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct1: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct2: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct5: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct10: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct20: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct30: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct40: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct50: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct60: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct70: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct80: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct90: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct95: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct98: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct99: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct995: { price: AnyPricePattern, ratio: AnySeriesPattern }, pct999: { price: AnyPricePattern, ratio: AnySeriesPattern }} args.percentiles
+ * @param {PriceRatioPercentiles} args.percentiles
  * @param {string} args.title
  * @param {string} args.legend
  * @param {Color} [args.color]

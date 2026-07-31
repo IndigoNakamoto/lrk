@@ -120,44 +120,6 @@ impl<T> ByDcaPeriod<T> {
             _10y: create(n._10y, d._10y, &period._10y)?,
         })
     }
-
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        [
-            &mut self._1w,
-            &mut self._1m,
-            &mut self._3m,
-            &mut self._6m,
-            &mut self._1y,
-            &mut self._2y,
-            &mut self._3y,
-            &mut self._4y,
-            &mut self._5y,
-            &mut self._6y,
-            &mut self._8y,
-            &mut self._10y,
-        ]
-        .into_iter()
-    }
-
-    pub(crate) fn iter_with_days(&self) -> impl Iterator<Item = (&T, u32)> {
-        let d = DCA_PERIOD_DAYS;
-        [
-            (&self._1w, d._1w),
-            (&self._1m, d._1m),
-            (&self._3m, d._3m),
-            (&self._6m, d._6m),
-            (&self._1y, d._1y),
-            (&self._2y, d._2y),
-            (&self._3y, d._3y),
-            (&self._4y, d._4y),
-            (&self._5y, d._5y),
-            (&self._6y, d._6y),
-            (&self._8y, d._8y),
-            (&self._10y, d._10y),
-        ]
-        .into_iter()
-    }
-
 }
 
 impl<T> ByDcaPeriod<&T> {
@@ -193,10 +155,7 @@ pub struct ByDcaCagr<T> {
 }
 
 impl<T> ByDcaCagr<T> {
-    pub(crate) fn try_new<U, F, E>(
-        period: &ByDcaPeriod<U>,
-        mut create: F,
-    ) -> Result<Self, E>
+    pub(crate) fn try_new<U, F, E>(period: &ByDcaPeriod<U>, mut create: F) -> Result<Self, E>
     where
         F: FnMut(&'static str, u32, &U) -> Result<T, E>,
     {
@@ -212,5 +171,4 @@ impl<T> ByDcaCagr<T> {
             _10y: create(n._10y, d._10y, &period._10y)?,
         })
     }
-
 }

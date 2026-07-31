@@ -4,10 +4,10 @@ use brk_cohort::{AddrGroups, AmountRange, Filter, Filtered, OverAmount, UnderAmo
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Cents, Height, Sats, Version};
 use derive_more::{Deref, DerefMut};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
     distribution::DynCohortVecs,
@@ -32,6 +32,7 @@ impl AddrCohorts {
         indexes: &indexes::Vecs,
         states_path: &Path,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -39,7 +40,16 @@ impl AddrCohorts {
         let create =
             |filter: Filter, name: &'static str, has_state: bool| -> Result<AddrCohortVecs> {
                 let sp = if has_state { Some(states_path) } else { None };
-                AddrCohortVecs::forced_import(db, filter, name, v, indexes, sp, cached_starts)
+                AddrCohortVecs::forced_import(
+                    db,
+                    filter,
+                    name,
+                    v,
+                    indexes,
+                    sp,
+                    cached_starts,
+                    spot_price,
+                )
             };
 
         let full = |f: Filter, name: &'static str| create(f, name, true);
@@ -108,14 +118,13 @@ impl AddrCohorts {
     /// Second phase of post-processing: compute relative metrics.
     pub(crate) fn compute_rest_part2(
         &mut self,
-        prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
         self.0
             .par_iter_mut()
-            .try_for_each(|v| v.compute_rest_part2(prices, starting_lengths, all_supply_sats, exit))
+            .try_for_each(|v| v.compute_rest_part2(starting_lengths, all_supply_sats, exit))
     }
 
     /// Returns a parallel iterator over all vecs for parallel writing.

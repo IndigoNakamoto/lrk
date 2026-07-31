@@ -6,27 +6,31 @@ use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{Cents, Height, PartsPerMillionSigned64, Sats, StoredI64, StoredU64, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, WritableVec};
+use vecdb::{
+    AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode, WritableVec,
+};
 
 use crate::{
-    distribution::state::{AddrCohortState, MinimalRealizedState},
+    distribution::state::AddrCohortState,
     indexes,
     internal::{PerBlockWithDeltas, WindowStartVec, Windows},
     price,
 };
 
-use crate::distribution::metrics::{ImportConfig, MinimalCohortMetrics};
+use crate::distribution::metrics::ImportConfig;
 
 use super::super::traits::{CohortVecs, DynCohortVecs};
+use super::metrics::AddrCohortMetrics;
+
 #[derive(Traversable)]
 pub struct AddrCohortVecs<M: StorageMode = Rw> {
     starting_height: Option<Height>,
 
     #[traversable(skip)]
-    pub state: Option<Box<AddrCohortState<MinimalRealizedState>>>,
+    pub state: Option<Box<AddrCohortState>>,
 
     #[traversable(flatten)]
-    pub metrics: MinimalCohortMetrics<M>,
+    pub metrics: AddrCohortMetrics<M>,
 
     pub addr_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
 }
@@ -40,6 +44,7 @@ impl AddrCohortVecs {
         indexes: &indexes::Vecs,
         states_path: Option<&Path>,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let full_name = CohortContext::Addr.full_name(&filter, name);
 
@@ -50,6 +55,7 @@ impl AddrCohortVecs {
             version,
             indexes,
             cached_starts,
+            spot_price,
         };
 
         let addr_count = PerBlockWithDeltas::forced_import(
@@ -64,7 +70,7 @@ impl AddrCohortVecs {
         Ok(Self {
             starting_height: None,
             state: states_path.map(|path| Box::new(AddrCohortState::new(path, &full_name))),
-            metrics: MinimalCohortMetrics::forced_import(&cfg)?,
+            metrics: AddrCohortMetrics::forced_import(&cfg)?,
             addr_count,
         })
     }
@@ -229,12 +235,11 @@ impl CohortVecs for AddrCohortVecs {
 
     fn compute_rest_part2(
         &mut self,
-        prices: &price::Vecs,
         starting_lengths: &Lengths,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
         self.metrics
-            .compute_rest_part2(prices, starting_lengths, all_supply_sats, exit)
+            .compute_rest_part2(starting_lengths, all_supply_sats, exit)
     }
 }

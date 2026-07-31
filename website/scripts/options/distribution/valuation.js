@@ -14,7 +14,7 @@ import { priceLine } from "../constants.js";
 
 /**
  * Single cohort: Change + Growth Rate items (flat)
- * @param {UtxoCohortObject["tree"]} tree
+ * @param {CohortWithRealizedCap["tree"]} tree
  * @param {(name: string) => string} title
  * @returns {PartialOptionsTree}
  */
@@ -26,21 +26,14 @@ function singleDeltaItems(tree, title) {
 }
 
 /**
- * Grouped: Change + Growth Rate + MVRV items (flat)
- * @param {readonly (UtxoCohortObject | CohortWithoutRelative)[]} list
+ * Grouped: Change + Growth Rate items (flat)
+ * @param {readonly CohortWithRealizedCap[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsTree}
  */
-function groupedDeltaAndMvrv(list, all, title) {
+function groupedDeltaItems(list, all, title) {
   return [
-    {
-      name: "MVRV",
-      title: title("MVRV"),
-      bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
-        baseline({ series: tree.realized.mvrv, name, color, unit: Unit.ratio, base: 1 }),
-      ),
-    },
     {
       name: "Change",
       tree: ROLLING_WINDOWS.map((w) => ({
@@ -62,6 +55,42 @@ function groupedDeltaAndMvrv(list, all, title) {
       })),
     },
   ];
+}
+
+/**
+ * Grouped: MVRV + Change + Growth Rate items (flat)
+ * @param {readonly (UtxoCohortObject | CohortWithoutRelative)[]} list
+ * @param {CohortAll} all
+ * @param {(name: string) => string} title
+ * @returns {PartialOptionsTree}
+ */
+function groupedDeltaAndMvrv(list, all, title) {
+  return [
+    {
+      name: "MVRV",
+      title: title("MVRV"),
+      bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
+        baseline({ series: tree.realized.mvrv, name, color, unit: Unit.ratio, base: 1 }),
+      ),
+    },
+    ...groupedDeltaItems(list, all, title),
+  ];
+}
+
+/**
+ * @param {readonly CohortWithRealizedCap[]} list
+ * @param {CohortAll} all
+ * @param {(name: string) => string} title
+ * @returns {PartialChartOption}
+ */
+function groupedRealizedCapTotal(list, all, title) {
+  return {
+    name: "Total",
+    title: title("Realized Cap"),
+    bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
+      line({ series: tree.realized.cap.usd, name, color, unit: Unit.usd }),
+    ),
+  };
 }
 
 // ============================================================================
@@ -111,18 +140,33 @@ export function createValuationSectionFull({ cohort, title }) {
 }
 
 /**
- * Basic capitalization (no invested capital, simple MVRV)
- * @param {{ cohort: CohortWithAdjusted | CohortBasic | CohortAddr | CohortWithoutRelative, title: (name: string) => string }} args
+ * Capitalization without MVRV.
+ * @param {{ cohort: CohortWithRealizedCap, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
-export function createValuationSection({ cohort, title }) {
+export function createValuationSectionBase({ cohort, title }) {
   const { tree } = cohort;
   return {
     name: "Capitalization",
     tree: [
       { name: "Total", title: title("Realized Cap"), bottom: [line({ series: tree.realized.cap.usd, name: "Realized Cap", color: cohort.color, unit: Unit.usd })] },
       ...singleDeltaItems(tree, title),
-      { name: "MVRV", title: title("MVRV"), bottom: [baseline({ series: tree.realized.mvrv, name: "MVRV", unit: Unit.ratio, base: 1 })] },
+    ],
+  };
+}
+
+/**
+ * Basic capitalization (no invested capital, simple MVRV)
+ * @param {{ cohort: CohortCore | CohortBasic | CohortAddr | CohortWithoutRelative, title: (name: string) => string }} args
+ * @returns {PartialOptionsGroup}
+ */
+export function createValuationSection({ cohort, title }) {
+  const base = createValuationSectionBase({ cohort, title });
+  return {
+    ...base,
+    tree: [
+      ...base.tree,
+      { name: "MVRV", title: title("MVRV"), bottom: [baseline({ series: cohort.tree.realized.mvrv, name: "MVRV", unit: Unit.ratio, base: 1 })] },
     ],
   };
 }
@@ -132,6 +176,20 @@ export function createValuationSection({ cohort, title }) {
 // ============================================================================
 
 /**
+ * @param {{ list: readonly CohortWithRealizedCap[], all: CohortAll, title: (name: string) => string }} args
+ * @returns {PartialOptionsGroup}
+ */
+export function createGroupedValuationSectionBase({ list, all, title }) {
+  return {
+    name: "Capitalization",
+    tree: [
+      groupedRealizedCapTotal(list, all, title),
+      ...groupedDeltaItems(list, all, title),
+    ],
+  };
+}
+
+/**
  * @param {{ list: readonly (UtxoCohortObject | CohortWithoutRelative)[], all: CohortAll, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
@@ -139,13 +197,7 @@ export function createGroupedValuationSection({ list, all, title }) {
   return {
     name: "Capitalization",
     tree: [
-      {
-        name: "Total",
-        title: title("Realized Cap"),
-        bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
-          line({ series: tree.realized.cap.usd, name, color, unit: Unit.usd }),
-        ),
-      },
+      groupedRealizedCapTotal(list, all, title),
       ...groupedDeltaAndMvrv(list, all, title),
     ],
   };

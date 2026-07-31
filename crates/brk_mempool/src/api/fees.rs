@@ -1,6 +1,6 @@
 //! Fee reads: tier recommendations, projected-block stats, per-tx rates.
 
-use brk_types::{FeeRate, RecommendedFees, TxidPrefix, Txid};
+use brk_types::{FeeRate, RecommendedFees, Txid, TxidPrefix};
 
 use crate::{Mempool, snapshot::BlockStats};
 

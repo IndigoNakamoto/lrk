@@ -27,7 +27,13 @@ impl Applier {
     ) {
         let TxsPulled { added, removed } = pulled;
         let mut state = lock.write();
-        Self::bury_removals(&mut state, prev_snapshot, &mut diff.addrs, &mut diff.removed, removed);
+        Self::bury_removals(
+            &mut state,
+            prev_snapshot,
+            &mut diff.addrs,
+            &mut diff.removed,
+            removed,
+        );
         Self::publish_additions(&mut state, &mut diff.addrs, &mut diff.added, added);
         state.graveyard.evict_old();
     }
@@ -65,7 +71,11 @@ impl Applier {
         state
             .graveyard
             .bury(record.tx, record.entry, chunk_rate, reason);
-        Some(TxRemoved { txid, reason, chunk_rate })
+        Some(TxRemoved {
+            txid,
+            reason,
+            chunk_rate,
+        })
     }
 
     fn publish_additions(

@@ -6,16 +6,16 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Cents, Height, Sats, Version};
 use rayon::prelude::*;
 use schemars::JsonSchema;
-use vecdb::{AnyStoredVec, AnyVec, Database, EagerVec, Exit, PcoVec, WritableVec};
+use vecdb::{AnyStoredVec, AnyVec, CachedBoxedVec, Database, EagerVec, Exit, PcoVec, WritableVec};
 
-use crate::{indexes, price};
+use crate::indexes;
 
 use super::{
-    FixedRatio, NumericValue, PerBlock, PerBlockCumulativeRolling, PercentPerBlock, ValuePerBlock,
-    WindowStartVec, Windows,
+    FixedRatio, NumericValue, PerBlock, PerBlockCumulativeRolling, PercentPerBlock,
+    SpotValuePerBlock, WindowStartVec, Windows,
 };
 
 use crate::distribution::metrics::AvgAmountMetrics;
@@ -158,16 +158,23 @@ where
     }
 }
 
-impl WithAddrTypes<ValuePerBlock> {
+impl WithAddrTypes<SpotValuePerBlock> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
-        let all = ValuePerBlock::forced_import(db, name, version, indexes)?;
+        let all = SpotValuePerBlock::forced_import(db, name, version, indexes, spot_price)?;
         let by_addr_type = ByAddrType::new_with_name(|type_name| {
-            ValuePerBlock::forced_import(db, &format!("{type_name}_{name}"), version, indexes)
+            SpotValuePerBlock::forced_import(
+                db,
+                &format!("{type_name}_{name}"),
+                version,
+                indexes,
+                spot_price,
+            )
         })?;
         Ok(Self { all, by_addr_type })
     }
@@ -193,16 +200,13 @@ impl WithAddrTypes<ValuePerBlock> {
 
     pub(crate) fn reset_height(&mut self) -> Result<()> {
         self.all.sats.height.reset()?;
-        self.all.cents.height.reset()?;
         for v in self.by_addr_type.values_mut() {
             v.sats.height.reset()?;
-            v.cents.height.reset()?;
         }
         Ok(())
     }
 
-    /// Push the stateful sats value for `all` and each per-type. Cents are
-    /// derived post-hoc from sats × price in [`Self::compute_rest`].
+    /// Push the stateful sats value for `all` and each per-type.
     #[inline(always)]
     pub(crate) fn push_height<U>(&mut self, total: U, per_type: impl IntoIterator<Item = U>)
     where
@@ -213,21 +217,6 @@ impl WithAddrTypes<ValuePerBlock> {
             v.sats.height.push(value.into());
         }
     }
-
-    /// Derive cents (and thus lazy btc/usd) for `all` and every per-type vec
-    /// from the stateful sats values × spot price.
-    pub(crate) fn compute_rest(
-        &mut self,
-        max_from: Height,
-        prices: &price::Vecs,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.all.compute(prices, max_from, exit)?;
-        for v in self.by_addr_type.values_mut() {
-            v.compute(prices, max_from, exit)?;
-        }
-        Ok(())
-    }
 }
 
 impl WithAddrTypes<AvgAmountMetrics> {
@@ -235,10 +224,11 @@ impl WithAddrTypes<AvgAmountMetrics> {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
-        let all = AvgAmountMetrics::forced_import(db, "", version, indexes)?;
+        let all = AvgAmountMetrics::forced_import(db, "", version, indexes, spot_price)?;
         let by_addr_type = ByAddrType::new_with_name(|type_name| {
-            AvgAmountMetrics::forced_import(db, type_name, version, indexes)
+            AvgAmountMetrics::forced_import(db, type_name, version, indexes, spot_price)
         })?;
         Ok(Self { all, by_addr_type })
     }

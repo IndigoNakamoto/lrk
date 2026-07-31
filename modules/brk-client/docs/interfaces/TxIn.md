@@ -6,7 +6,7 @@
 
 # Interface: TxIn
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1250](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1250)
+Defined in: [Developer/brk/modules/brk-client/index.js:1256](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1256)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1250](https://github.com/
 
 > **innerRedeemscriptAsm**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1259](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1259)
+Defined in: [Developer/brk/modules/brk-client/index.js:1265](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1265)
 
 Inner redeemscript in assembly (for P2SH-wrapped SegWit: scriptsig + witness both present)
 
@@ -24,7 +24,7 @@ Inner redeemscript in assembly (for P2SH-wrapped SegWit: scriptsig + witness bot
 
 > **innerWitnessscriptAsm**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1260](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1260)
+Defined in: [Developer/brk/modules/brk-client/index.js:1266](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1266)
 
 Inner witnessscript in assembly (for P2WSH: last witness item decoded as script)
 
@@ -34,7 +34,7 @@ Inner witnessscript in assembly (for P2WSH: last witness item decoded as script)
 
 > **isCoinbase**: `boolean`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1257](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1257)
+Defined in: [Developer/brk/modules/brk-client/index.js:1263](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1263)
 
 Whether this input is a coinbase (block reward) input
 
@@ -44,7 +44,7 @@ Whether this input is a coinbase (block reward) input
 
 > `optional` **prevout?**: [`TxOut`](TxOut.md) \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1253](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1253)
+Defined in: [Developer/brk/modules/brk-client/index.js:1259](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1259)
 
 Information about the previous output being spent
 
@@ -54,7 +54,7 @@ Information about the previous output being spent
 
 > **scriptsig**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1254](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1254)
+Defined in: [Developer/brk/modules/brk-client/index.js:1260](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1260)
 
 Signature script (hex, for non-SegWit inputs)
 
@@ -64,7 +64,7 @@ Signature script (hex, for non-SegWit inputs)
 
 > **scriptsigAsm**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1255](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1255)
+Defined in: [Developer/brk/modules/brk-client/index.js:1261](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1261)
 
 Signature script in assembly format
 
@@ -74,7 +74,7 @@ Signature script in assembly format
 
 > **sequence**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1258](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1258)
+Defined in: [Developer/brk/modules/brk-client/index.js:1264](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1264)
 
 Input sequence number
 
@@ -84,7 +84,7 @@ Input sequence number
 
 > **txid**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1251](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1251)
+Defined in: [Developer/brk/modules/brk-client/index.js:1257](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1257)
 
 Transaction ID of the output being spent
 
@@ -94,7 +94,7 @@ Transaction ID of the output being spent
 
 > **vout**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1252](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1252)
+Defined in: [Developer/brk/modules/brk-client/index.js:1258](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1258)
 
 Output index being spent (u16: coinbase is 65535, mempool.space uses u32: 4294967295)
 
@@ -104,6 +104,6 @@ Output index being spent (u16: coinbase is 65535, mempool.space uses u32: 429496
 
 > **witness**: [`Witness`](../type-aliases/Witness.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1256](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1256)
+Defined in: [Developer/brk/modules/brk-client/index.js:1262](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L1262)
 
 Witness data (stack items, present for SegWit inputs; hex-encoded on the wire)

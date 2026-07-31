@@ -8,9 +8,7 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Cents, Dollars, SatsFract, Version};
 use schemars::JsonSchema;
-use vecdb::{
-    Database, ReadableCloneableVec, ReadableVec, TypedVec, UnaryTransform,
-};
+use vecdb::{Database, ReadableCloneableVec, ReadableVec, TypedVec, UnaryTransform};
 
 use super::{LazyPerBlock, PerBlock};
 use crate::{
@@ -95,8 +93,7 @@ impl Price<LazyPerBlock<Cents>> {
             source,
             indexes,
         );
-        let usd =
-            LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(name, version, &cents);
+        let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(name, version, &cents);
         let sats = LazyPerBlock::from_lazy::<DollarsToSatsFract, Cents>(
             &format!("{name}_sats"),
             version,

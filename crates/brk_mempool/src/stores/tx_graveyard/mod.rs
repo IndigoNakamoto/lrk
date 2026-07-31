@@ -48,8 +48,7 @@ impl TxGraveyard {
     /// tombstone: live, `Vanished`, or unknown (chain broken because an
     /// intermediate `by` aged out of the graveyard).
     pub fn replacement_root_of(&self, mut txid: Txid) -> Txid {
-        while let Some(TxRemoval::Replaced { by }) =
-            self.tombstones.get(&txid).map(|t| &t.removal)
+        while let Some(TxRemoval::Replaced { by }) = self.tombstones.get(&txid).map(|t| &t.removal)
         {
             txid = *by;
         }
@@ -250,7 +249,12 @@ mod tests {
         let (tx_b, entry_b, _) = tomb_inputs(11);
         let replacer = entry_b.txid;
         let pred = entry_a.txid;
-        g.bury(tx_a.clone(), entry_a.clone(), rate, TxRemoval::Replaced { by: replacer });
+        g.bury(
+            tx_a.clone(),
+            entry_a.clone(),
+            rate,
+            TxRemoval::Replaced { by: replacer },
+        );
         g.bury(tx_b, entry_b, rate, TxRemoval::Vanished);
 
         // Re-bury the predecessor: its `order` entry is now stale.

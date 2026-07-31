@@ -6,28 +6,36 @@
 
 # Interface: SeriesTree\_Indicators\_RarityMeter
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6302](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6302)
+Defined in: [Developer/brk/modules/brk-client/index.js:7044](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L7044)
 
 ## Properties
 
+### components
+
+> **components**: [`SeriesTree_Indicators_RarityMeter_Components`](SeriesTree_Indicators_RarityMeter_Components.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:7045](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L7045)
+
+***
+
 ### cycle
 
-> **cycle**: [`IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern.md)
+> **cycle**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6305](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6305)
+Defined in: [Developer/brk/modules/brk-client/index.js:7048](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L7048)
 
 ***
 
 ### full
 
-> **full**: [`IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern.md)
+> **full**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6303](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6303)
+Defined in: [Developer/brk/modules/brk-client/index.js:7046](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L7046)
 
 ***
 
 ### local
 
-> **local**: [`IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern.md)
+> **local**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6304](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6304)
+Defined in: [Developer/brk/modules/brk-client/index.js:7047](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L7047)

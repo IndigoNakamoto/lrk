@@ -127,10 +127,11 @@ pub use cohort::{
 };
 pub use config::ImportConfig;
 pub use cost_basis::CostBasis;
-pub use outputs::OutputsBase;
+pub use outputs::{OutputsBase, OutputsUnspent};
 pub use profitability::ProfitabilityMetrics;
 pub use realized::{
-    AdjustedSopr, RealizedCore, RealizedFull, RealizedFullAccum, RealizedLike, RealizedMinimal,
+    AdjustedSopr, RealizedBase, RealizedCore, RealizedFull, RealizedFullAccum, RealizedLike,
+    RealizedMinimal,
 };
 pub use relative::{RelativeForAll, RelativeWithExtended};
 pub use supply::{AvgAmountMetrics, SupplyBase, SupplyCore};
@@ -274,8 +275,6 @@ pub trait CohortMetricsBase:
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.supply_mut()
-            .compute(prices, starting_lengths.height, exit)?;
         self.activity_mut()
             .compute_rest_part1(prices, starting_lengths, exit)?;
 

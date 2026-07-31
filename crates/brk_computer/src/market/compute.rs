@@ -34,15 +34,9 @@ impl Vecs {
         // Phase 2: Stored volatility inputs derived from lazy 24h returns.
         self.returns.compute(indexer, blocks, exit)?;
 
-        // Phase 3: Depends on returns, moving_average
-        self.technical.compute(
-            indexer,
-            &self.returns,
-            prices,
-            blocks,
-            &self.moving_average,
-            exit,
-        )?;
+        // Phase 3: Depends on moving_average
+        self.technical
+            .compute(indexer, prices, blocks, &self.moving_average, exit)?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

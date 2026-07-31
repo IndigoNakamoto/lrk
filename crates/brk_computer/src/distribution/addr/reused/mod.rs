@@ -24,9 +24,9 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Cents, Height, Sats, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode};
 
 use super::{
     count::AddrCountFundedTotalVecs,
@@ -35,7 +35,7 @@ use super::{
 use crate::{
     indexes, inputs,
     internal::{WindowStartVec, Windows},
-    outputs, price,
+    outputs,
 };
 
 mod state;
@@ -61,11 +61,12 @@ impl ReusedAddrVecs {
         version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
             count: AddrCountFundedTotalVecs::forced_import(db, name, version, indexes)?,
             events: AddrEventsVecs::forced_import(db, name, version, indexes, cached_starts)?,
-            supply: AddrSupplyVecs::forced_import(db, name, version, indexes)?,
+            supply: AddrSupplyVecs::forced_import(db, name, version, indexes, spot_price)?,
             supply_share: AddrSupplyShareVecs::forced_import(db, name, version, indexes)?,
         })
     }
@@ -112,7 +113,6 @@ impl ReusedAddrVecs {
         starting_lengths: &Lengths,
         outputs_by_type: &outputs::ByTypeVecs,
         inputs_by_type: &inputs::ByTypeVecs,
-        prices: &price::Vecs,
         all_supply_sats: &impl ReadableVec<Height, Sats>,
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
@@ -120,8 +120,6 @@ impl ReusedAddrVecs {
         self.count.compute_rest(starting_lengths, exit)?;
         self.events
             .compute_rest(starting_lengths, outputs_by_type, inputs_by_type, exit)?;
-        self.supply
-            .compute_rest(starting_lengths.height, prices, exit)?;
         self.supply_share.compute_rest(
             starting_lengths.height,
             &self.supply,

@@ -2,7 +2,7 @@ use brk_traversable::Traversable;
 use brk_types::{PartsPerMillion64, PartsPerMillionSigned32, Version};
 use vecdb::UnaryTransform;
 
-use crate::internal::{LazyRatioPerBlock, PerBlock};
+use crate::internal::{LazyPerBlock, LazyRatioPerBlock};
 
 use crate::distribution::metrics::ImportConfig;
 
@@ -14,9 +14,9 @@ pub struct UnrealizedMinimal {
 }
 
 impl UnrealizedMinimal {
-    pub(crate) fn new(cfg: &ImportConfig, mvrv: &PerBlock<PartsPerMillion64>) -> Self {
+    pub(crate) fn new(cfg: &ImportConfig, mvrv: &LazyPerBlock<PartsPerMillion64>) -> Self {
         Self {
-            nupl: LazyRatioPerBlock::from_source::<MvrvToNupl>(
+            nupl: LazyRatioPerBlock::from_lazy_source::<MvrvToNupl, PartsPerMillion64>(
                 &cfg.name("nupl"),
                 cfg.version + VERSION,
                 mvrv,

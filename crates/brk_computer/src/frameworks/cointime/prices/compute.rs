@@ -12,7 +12,7 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        prices: &price::Vecs,
+        _prices: &price::Vecs,
         distribution: &distribution::Vecs,
         activity: &activity::Vecs,
         supply: &supply::Vecs,
@@ -24,57 +24,43 @@ impl Vecs {
         let circulating_supply = &all_metrics.supply.total.btc.height;
         let realized_price = &all_metrics.realized.price.cents.height;
 
-        self.vaulted
-            .compute_all(prices, &starting_lengths, exit, |v| {
-                Ok(v.compute_transform2(
-                    starting_lengths.height,
-                    realized_price,
-                    &activity.vaultedness.height,
-                    |(i, price, vaultedness, ..)| {
-                        (i, Cents::from(f64::from(price) / f64::from(vaultedness)))
-                    },
-                    exit,
-                )?)
-            })?;
+        self.vaulted.cents.height.compute_transform2(
+            starting_lengths.height,
+            realized_price,
+            &activity.vaultedness.height,
+            |(i, price, vaultedness, ..)| {
+                (i, Cents::from(f64::from(price) / f64::from(vaultedness)))
+            },
+            exit,
+        )?;
 
-        self.active
-            .compute_all(prices, &starting_lengths, exit, |v| {
-                Ok(v.compute_transform2(
-                    starting_lengths.height,
-                    realized_price,
-                    &activity.liveliness.height,
-                    |(i, price, liveliness, ..)| {
-                        (i, Cents::from(f64::from(price) / f64::from(liveliness)))
-                    },
-                    exit,
-                )?)
-            })?;
+        self.active.cents.height.compute_transform2(
+            starting_lengths.height,
+            realized_price,
+            &activity.liveliness.height,
+            |(i, price, liveliness, ..)| (i, Cents::from(f64::from(price) / f64::from(liveliness))),
+            exit,
+        )?;
 
-        self.true_market_mean
-            .compute_all(prices, &starting_lengths, exit, |v| {
-                Ok(v.compute_transform2(
-                    starting_lengths.height,
-                    &cap.investor.cents.height,
-                    &supply.active.btc.height,
-                    |(i, cap_cents, supply_btc, ..)| {
-                        (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
-                    },
-                    exit,
-                )?)
-            })?;
+        self.true_market_mean.cents.height.compute_transform2(
+            starting_lengths.height,
+            &cap.investor.cents.height,
+            &supply.active.btc.height,
+            |(i, cap_cents, supply_btc, ..)| {
+                (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
+            },
+            exit,
+        )?;
 
-        self.cointime
-            .compute_all(prices, &starting_lengths, exit, |v| {
-                Ok(v.compute_transform2(
-                    starting_lengths.height,
-                    &cap.cointime.cents.height,
-                    circulating_supply,
-                    |(i, cap_cents, supply_btc, ..)| {
-                        (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
-                    },
-                    exit,
-                )?)
-            })?;
+        self.cointime.cents.height.compute_transform2(
+            starting_lengths.height,
+            &cap.cointime.cents.height,
+            circulating_supply,
+            |(i, cap_cents, supply_btc, ..)| {
+                (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
+            },
+            exit,
+        )?;
 
         Ok(())
     }

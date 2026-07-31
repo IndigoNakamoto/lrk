@@ -121,7 +121,12 @@ impl Event {
     }
 
     pub fn block(t: f64, hash: NextBlockHash, added: Vec<Txid>, removed: Vec<Txid>) -> Self {
-        Self::Block { t, hash, added, removed }
+        Self::Block {
+            t,
+            hash,
+            added,
+            removed,
+        }
     }
 
     pub fn fees(t: f64, fees: &RecommendedFees) -> Self {

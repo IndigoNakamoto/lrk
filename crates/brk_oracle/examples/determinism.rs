@@ -13,8 +13,8 @@ use std::path::PathBuf;
 
 use brk_indexer::Indexer;
 use brk_oracle::{
-    bin_to_cents, cents_to_bin, Config, HistogramRaw, Oracle, PaymentFilter, START_HEIGHT_FAST,
-    START_HEIGHT_SLOW,
+    Config, HistogramRaw, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    bin_to_cents, cents_to_bin,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};

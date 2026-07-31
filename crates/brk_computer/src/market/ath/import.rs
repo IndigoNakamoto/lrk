@@ -1,11 +1,14 @@
 use brk_error::Result;
-use brk_types::Version;
-use vecdb::{Database, ReadableCloneableVec};
+use brk_types::{Cents, Height, PartsPerMillionSigned32, Version};
+use vecdb::{BinaryTransform, CachedBoxedVec, Database, ReadableCloneableVec};
 
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{DaysToYears, LazyPerBlock, PerBlock, PercentPerBlock, Price},
+    internal::{
+        DaysToYears, LazyIndexedVec, LazyPerBlock, LazyPercentPerBlock, PerBlock, Price,
+        RatioDiffCents,
+    },
 };
 
 const VERSION: Version = Version::ONE;
@@ -15,6 +18,7 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -39,7 +43,15 @@ impl Vecs {
             &days_since,
         );
 
-        let drawdown = PercentPerBlock::forced_import(db, "price_drawdown", v, indexes)?;
+        let drawdown_source = LazyIndexedVec::new(
+            "price_drawdown_ppm_source",
+            v,
+            high.cents.height.read_only_boxed_clone(),
+            spot_price.clone(),
+            |_, high, spot| RatioDiffCents::<PartsPerMillionSigned32>::apply(spot, high),
+        );
+        let drawdown =
+            LazyPercentPerBlock::from_height_source("price_drawdown", v, drawdown_source, indexes);
 
         Ok(Self {
             high,

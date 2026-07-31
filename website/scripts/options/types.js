@@ -161,9 +161,9 @@
  * The "All" pattern is special - has adjustedSopr + percentiles but NO RelToMarketCap
  * @typedef {AllUtxoPattern} PatternAll
  *
- * Patterns with adjustedSopr only (RealizedPattern4, CostBasisPattern):
- *   - MaxAgePattern (maxAge.*)
- * @typedef {MaxAgePattern} PatternWithAdjusted
+ * Core UTXO cohort shape:
+ *   - Entry, under/over age, epoch, and class cohorts
+ * @typedef {BasicUtxoPattern} PatternCore
  *
  * Patterns with percentiles only (RealizedPattern2, CostBasisPattern2):
  *   - LongTermPattern (term.long)
@@ -171,7 +171,7 @@
  * @typedef {LongTermPattern | AgeRangePattern} PatternWithPercentiles
  *
  * Patterns with RelToMarketCap in relative (geAmount.*, ltAmount.*):
- * @typedef {UtxoAmountPattern | AddrAmountPattern} PatternBasicWithMarketCap
+ * @typedef {UtxoAmountPattern} PatternBasicWithMarketCap
  *
  * Patterns without RelToMarketCap in relative:
  *   - EpochPattern (epoch.*, year.*)
@@ -206,12 +206,12 @@
  * @property {Color} color
  * @property {PatternFull} tree
  *
- * Cohort with adjustedSopr only (maxAge.*)
- * @typedef {Object} CohortWithAdjusted
+ * Core UTXO cohort.
+ * @typedef {Object} CohortCore
  * @property {string} name
  * @property {string} title
  * @property {Color} color
- * @property {PatternWithAdjusted} tree
+ * @property {PatternCore} tree
  *
  * Cohort with percentiles only (term.long, ageRange.*)
  * @typedef {Object} CohortWithPercentiles
@@ -278,10 +278,10 @@
  * @property {readonly CohortFull[]} list
  * @property {CohortAll} all
  *
- * @typedef {Object} CohortGroupWithAdjusted
+ * @typedef {Object} CohortGroupCore
  * @property {string} name
  * @property {string} title
- * @property {readonly CohortWithAdjusted[]} list
+ * @property {readonly CohortCore[]} list
  * @property {CohortAll} all
  *
  * @typedef {Object} CohortGroupWithPercentiles

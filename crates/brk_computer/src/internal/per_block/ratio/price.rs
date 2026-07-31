@@ -1,20 +1,19 @@
 use brk_error::Result;
-use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{Cents, Dollars, Height, PartsPerMillion64, SatsFract, StoredF32, Version};
-use vecdb::{Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode, unlikely};
+use vecdb::{CachedBoxedVec, Database, ReadableCloneableVec, Rw, StorageMode, unlikely};
 
-use crate::internal::{LazyPerBlock, PerBlock, Price};
-use crate::{indexes, price};
-
-use super::RatioPerBlock;
+use crate::{
+    indexes,
+    internal::{LazyIndexedVec, LazyPerBlock, LazyRatioPerBlock, PerBlock, Price},
+};
 
 #[derive(Traversable)]
 pub struct PriceWithRatioPerBlock<M: StorageMode = Rw> {
     pub usd: LazyPerBlock<Dollars, Cents>,
     pub cents: PerBlock<Cents, M>,
     pub sats: LazyPerBlock<SatsFract, Dollars>,
-    pub ppm: PerBlock<PartsPerMillion64, M>,
+    pub ppm: LazyPerBlock<PartsPerMillion64>,
     pub ratio: LazyPerBlock<StoredF32, PartsPerMillion64>,
 }
 
@@ -24,9 +23,23 @@ impl PriceWithRatioPerBlock {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let price = Price::forced_import(db, name, version, indexes)?;
-        let ratio = RatioPerBlock::forced_import(db, name, version + Version::ONE, indexes)?;
+        let ratio_version = version + Version::new(4);
+        let ppm_source = LazyIndexedVec::new(
+            &format!("{name}_ratio_ppm_source"),
+            ratio_version,
+            price.cents.height.read_only_boxed_clone(),
+            spot_price.clone(),
+            |_, price, spot| price_ratio(spot, price),
+        );
+        let ratio = LazyRatioPerBlock::from_height_source(
+            &format!("{name}_ratio"),
+            ratio_version,
+            ppm_source,
+            indexes,
+        );
         Ok(Self {
             usd: price.usd,
             cents: price.cents,
@@ -34,38 +47,6 @@ impl PriceWithRatioPerBlock {
             ppm: ratio.ppm,
             ratio: ratio.ratio,
         })
-    }
-
-    /// Compute ratio from close price and this metric's price.
-    pub(crate) fn compute_ratio(
-        &mut self,
-        starting_lengths: &Lengths,
-        close_price: &impl ReadableVec<Height, Cents>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.ppm.height.compute_transform2(
-            starting_lengths.height,
-            close_price,
-            &self.cents.height,
-            |(i, close, price, ..)| (i, price_ratio(close, price)),
-            exit,
-        )?;
-        Ok(())
-    }
-
-    /// Compute price via closure (in cents), then compute ratio.
-    pub(crate) fn compute_all<F>(
-        &mut self,
-        prices: &price::Vecs,
-        starting_lengths: &Lengths,
-        exit: &Exit,
-        mut compute_price: F,
-    ) -> Result<()>
-    where
-        F: FnMut(&mut EagerVec<PcoVec<Height, Cents>>) -> Result<()>,
-    {
-        compute_price(&mut self.cents.height)?;
-        self.compute_ratio(starting_lengths, &prices.spot.cents.height, exit)
     }
 }
 

@@ -271,11 +271,6 @@ impl RealizedFull {
                 exit,
             )?;
 
-        // Capitalized price ratio
-        self.capitalized
-            .price
-            .compute_ratio(starting_lengths, &prices.spot.cents.height, exit)?;
-
         // Sell-side risk ratios
         for (ssrr, rv) in self
             .sell_side_risk_ratio

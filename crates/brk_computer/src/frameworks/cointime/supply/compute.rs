@@ -5,7 +5,7 @@ use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, WritableVec};
 
 use super::super::{activity, age_range};
 use super::{BaseVecs, Vecs};
-use crate::{distribution, frameworks::WeightedRatio, price};
+use crate::{distribution, frameworks::WeightedRatio};
 
 const WRITE_INTERVAL: usize = 10_000;
 
@@ -14,7 +14,6 @@ impl BaseVecs {
     pub(crate) fn compute_from(
         &mut self,
         starting_height: Height,
-        prices: &price::Vecs,
         total_supply: &impl ReadableVec<Height, Sats>,
         liveliness: &impl ReadableVec<Height, StoredF64>,
         vaultedness: &impl ReadableVec<Height, StoredF64>,
@@ -34,9 +33,6 @@ impl BaseVecs {
             exit,
         )?;
 
-        self.vaulted.compute(prices, starting_height, exit)?;
-        self.active.compute(prices, starting_height, exit)?;
-
         Ok(())
     }
 }
@@ -45,7 +41,6 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        prices: &price::Vecs,
         distribution: &distribution::Vecs,
         activity: &activity::Vecs,
         age_range: &age_range::Vecs,
@@ -63,7 +58,6 @@ impl Vecs {
 
         self.base.compute_from(
             starting_height,
-            prices,
             circulating_supply,
             &activity.liveliness.height,
             &activity.vaultedness.height,

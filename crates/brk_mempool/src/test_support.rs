@@ -86,10 +86,7 @@ pub fn fake_entry_info(txid: Txid, fee: u64, vsize: u64) -> MempoolEntryInfo {
 /// Bitcoin-protocol `Transaction` matching `fake_tx`. Round-trippable
 /// against a brk `Transaction`, lets the Preparer's `Fresh` path decode
 /// it without a real RPC payload.
-pub fn fake_bitcoin_tx(
-    prev_txid_seed: u8,
-    outputs: &[(ScriptBuf, u64)],
-) -> bitcoin::Transaction {
+pub fn fake_bitcoin_tx(prev_txid_seed: u8, outputs: &[(ScriptBuf, u64)]) -> bitcoin::Transaction {
     let input = vec![bitcoin::TxIn {
         previous_output: bitcoin::OutPoint {
             txid: bitcoin::Txid::from_byte_array({

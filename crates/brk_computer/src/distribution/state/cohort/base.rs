@@ -7,7 +7,10 @@ use brk_types::{
 };
 
 use super::super::{
-    cost_basis::{Accumulate, CostBasisData, CostBasisOps, RealizedOps, UnrealizedState},
+    cost_basis::{
+        Accumulate, CostBasisData, CostBasisOps, CostBasisRaw, MinimalRealizedState, RealizedOps,
+        UnrealizedState,
+    },
     pending::PendingDelta,
 };
 
@@ -74,12 +77,6 @@ impl<R: RealizedOps, C: CostBasisOps> CohortState<R, C> {
             satdays_destroyed: Sats::ZERO,
             cost_basis: C::create(path, name),
         }
-    }
-
-    /// Enable price rounding for cost basis data.
-    pub(crate) fn with_price_rounding(mut self, digits: i32) -> Self {
-        self.cost_basis = self.cost_basis.with_price_rounding(digits);
-        self
     }
 
     pub(crate) fn import_at_or_before(&mut self, height: Height) -> Result<Height> {
@@ -167,38 +164,6 @@ impl<R: RealizedOps, C: CostBasisOps> CohortState<R, C> {
         }
     }
 
-    pub(crate) fn receive_addr(
-        &mut self,
-        supply: &SupplyState,
-        price: Cents,
-        current: &CostBasisSnapshot,
-        prev: &CostBasisSnapshot,
-    ) {
-        self.supply += supply;
-
-        if supply.value > Sats::ZERO {
-            self.realized.receive(price, supply.value);
-
-            if current.supply_state.value.is_not_zero() {
-                self.cost_basis.increment(
-                    current.realized_price,
-                    current.supply_state.value,
-                    current.price_sats,
-                    current.capitalized_cap_raw,
-                );
-            }
-
-            if prev.supply_state.value.is_not_zero() {
-                self.cost_basis.decrement(
-                    prev.realized_price,
-                    prev.supply_state.value,
-                    prev.price_sats,
-                    prev.capitalized_cap_raw,
-                );
-            }
-        }
-    }
-
     pub(crate) fn send_utxo_precomputed(&mut self, supply: &SupplyState, pre: &SendPrecomputed) {
         self.supply -= supply;
         self.sent += pre.sats;
@@ -239,63 +204,52 @@ impl<R: RealizedOps, C: CostBasisOps> CohortState<R, C> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn write(&mut self, height: Height, cleanup: bool) -> Result<()> {
+        self.cost_basis.write(height, cleanup)
+    }
+}
+
+impl CohortState<MinimalRealizedState, CostBasisRaw> {
+    pub(crate) fn increment_addr(&mut self, supply: &SupplyState, cap: CentsSats) {
+        self.supply += supply;
+
+        if supply.value.is_not_zero() {
+            self.realized.increment_cap(cap);
+            self.cost_basis.increment_cap(cap);
+        }
+    }
+
+    pub(crate) fn decrement_addr(&mut self, supply: &SupplyState, cap: CentsSats) {
+        self.supply -= supply;
+
+        if supply.value.is_not_zero() {
+            self.realized.decrement_cap(cap);
+            self.cost_basis.decrement_cap(cap);
+        }
+    }
+
     pub(crate) fn send_addr(
         &mut self,
         supply: &SupplyState,
         current_price: Cents,
-        prev_price: Cents,
-        ath: Cents,
-        age: Age,
-        current: &CostBasisSnapshot,
-        prev: &CostBasisSnapshot,
+        prev_ps: CentsSats,
     ) {
         if supply.utxo_count == 0 {
             return;
         }
 
         self.supply -= supply;
-        self.spent_utxo_count += supply.utxo_count;
 
-        if supply.value > Sats::ZERO {
-            self.sent += supply.value;
-            if R::TRACK_ACTIVITY {
-                self.satdays_destroyed += age.satdays_destroyed(supply.value);
-            }
-
-            let sats = supply.value;
-
-            // Compute once for realized.send using typed values
-            let current_ps = CentsSats::from_price_sats(current_price, sats);
-            let prev_ps = CentsSats::from_price_sats(prev_price, sats);
-            let ath_ps = CentsSats::from_price_sats(ath, sats);
-            let prev_capitalized_cap = prev_ps.to_capitalized_cap(prev_price);
-
-            self.realized
-                .send(sats, current_ps, prev_ps, ath_ps, prev_capitalized_cap);
-
-            if current.supply_state.value.is_not_zero() {
-                self.cost_basis.increment(
-                    current.realized_price,
-                    current.supply_state.value,
-                    current.price_sats,
-                    current.capitalized_cap_raw,
-                );
-            }
-
-            if prev.supply_state.value.is_not_zero() {
-                self.cost_basis.decrement(
-                    prev.realized_price,
-                    prev.supply_state.value,
-                    prev.price_sats,
-                    prev.capitalized_cap_raw,
-                );
-            }
+        if supply.value == Sats::ZERO {
+            return;
         }
-    }
 
-    pub(crate) fn write(&mut self, height: Height, cleanup: bool) -> Result<()> {
-        self.cost_basis.write(height, cleanup)
+        self.sent += supply.value;
+
+        let sats = supply.value;
+        let current_ps = CentsSats::from_price_sats(current_price, sats);
+        self.realized.realize_spend(current_ps, prev_ps);
+        self.cost_basis.decrement_cap(prev_ps);
     }
 }
 

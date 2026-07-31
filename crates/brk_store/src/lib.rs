@@ -153,6 +153,7 @@ where
             }
             Kind::Vec => {
                 options = options
+                    .data_block_restart_interval_policy(RestartIntervalPolicy::all(8))
                     .max_memtable_size(8 * 1024 * 1024)
                     .filter_policy(FilterPolicy::disabled())
                     .filter_block_pinning_policy(PinningPolicy::all(false))

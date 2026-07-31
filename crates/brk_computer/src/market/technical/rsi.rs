@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Height, PartsPerMillion32, StoredF32};
-use vecdb::{Exit, ReadableVec};
+use brk_types::PartsPerMillion32;
+use vecdb::Exit;
 
 use super::RsiChain;
 use crate::blocks;
@@ -10,7 +10,6 @@ pub(super) fn compute(
     chain: &mut RsiChain,
     indexer: &Indexer,
     blocks: &blocks::Vecs,
-    returns_source: &impl ReadableVec<Height, StoredF32>,
     rma_days: usize,
     stoch_sma_days: usize,
     exit: &Exit,
@@ -18,20 +17,6 @@ pub(super) fn compute(
     let starting_height = indexer.safe_lengths().height;
     let ws_rma = blocks.lookback.start_vec(rma_days);
     let ws_sma = blocks.lookback.start_vec(stoch_sma_days);
-
-    chain.gains.height.compute_transform(
-        starting_height,
-        returns_source,
-        |(h, r, ..)| (h, StoredF32::from((*r).max(0.0))),
-        exit,
-    )?;
-
-    chain.losses.height.compute_transform(
-        starting_height,
-        returns_source,
-        |(h, r, ..)| (h, StoredF32::from((-*r).max(0.0))),
-        exit,
-    )?;
 
     chain.average_gain.height.compute_rolling_rma(
         starting_height,

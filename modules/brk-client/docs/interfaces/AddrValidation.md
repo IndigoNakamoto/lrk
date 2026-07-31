@@ -6,7 +6,7 @@
 
 # Interface: AddrValidation
 
-Defined in: [Developer/brk/modules/brk-client/index.js:74](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L74)
+Defined in: [Developer/brk/modules/brk-client/index.js:77](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L77)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:74](https://github.com/bi
 
 > `optional` **address?**: `string` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:76](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L76)
+Defined in: [Developer/brk/modules/brk-client/index.js:79](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L79)
 
 The validated address
 
@@ -24,7 +24,7 @@ The validated address
 
 > `optional` **error?**: `string` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:83](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L83)
+Defined in: [Developer/brk/modules/brk-client/index.js:86](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L86)
 
 Error message for invalid addresses
 
@@ -34,7 +34,7 @@ Error message for invalid addresses
 
 > `optional` **errorLocations?**: `number`[] \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:82](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L82)
+Defined in: [Developer/brk/modules/brk-client/index.js:85](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L85)
 
 Error locations (empty array for most errors)
 
@@ -44,7 +44,7 @@ Error locations (empty array for most errors)
 
 > `optional` **isscript?**: `boolean` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:78](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L78)
+Defined in: [Developer/brk/modules/brk-client/index.js:81](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L81)
 
 Whether this is a script address (P2SH)
 
@@ -54,7 +54,7 @@ Whether this is a script address (P2SH)
 
 > **isvalid**: `boolean`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:75](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L75)
+Defined in: [Developer/brk/modules/brk-client/index.js:78](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L78)
 
 Whether the address is valid
 
@@ -64,7 +64,7 @@ Whether the address is valid
 
 > `optional` **iswitness?**: `boolean` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:79](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L79)
+Defined in: [Developer/brk/modules/brk-client/index.js:82](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L82)
 
 Whether this is a witness address
 
@@ -74,7 +74,7 @@ Whether this is a witness address
 
 > `optional` **scriptPubKey?**: `string` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:77](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L77)
+Defined in: [Developer/brk/modules/brk-client/index.js:80](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L80)
 
 The scriptPubKey in hex
 
@@ -84,7 +84,7 @@ The scriptPubKey in hex
 
 > `optional` **witnessProgram?**: `string` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:81](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L81)
+Defined in: [Developer/brk/modules/brk-client/index.js:84](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L84)
 
 Witness program in hex
 
@@ -94,6 +94,6 @@ Witness program in hex
 
 > `optional` **witnessVersion?**: `number` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:80](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L80)
+Defined in: [Developer/brk/modules/brk-client/index.js:83](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L83)
 
 Witness version (0 for P2WPKH/P2WSH, 1 for P2TR)

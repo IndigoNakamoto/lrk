@@ -1,4 +1,4 @@
-use brk_cohort::AGE_RANGE_BOUNDS;
+use brk_cohort::{AGE_RANGE_BOUNDS, AGE_RANGE_COUNT};
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_types::{Bitcoin, Height, ONE_DAY_IN_SEC_F64, Sats, StoredF64, Timestamp, Version};
@@ -6,9 +6,8 @@ use vecdb::{AnyVec, Exit, ReadableVec};
 
 use super::super::activity;
 use super::{CohortVecs, Vecs};
-use crate::{distribution, indexes, price};
+use crate::{distribution, indexes};
 
-const AGE_COHORT_COUNT: usize = 21;
 const HOURS_PER_DAY: f64 = 24.0;
 const WRITE_INTERVAL: usize = 10_000;
 
@@ -17,7 +16,6 @@ impl Vecs {
         &mut self,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        prices: &price::Vecs,
         distribution: &distribution::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -48,7 +46,7 @@ impl Vecs {
             &coindays_destroyed,
             exit,
         )?;
-        self.compute_rest(starting_height, prices, &supplies, exit)
+        self.compute_rest(starting_height, &supplies, exit)
     }
 
     fn compute_created<T, S>(
@@ -62,7 +60,7 @@ impl Vecs {
         T: ReadableVec<Height, Timestamp>,
         S: ReadableVec<Height, Sats>,
     {
-        debug_assert_eq!(supplies.len(), AGE_COHORT_COUNT);
+        debug_assert_eq!(supplies.len(), AGE_RANGE_COUNT);
 
         let created_version: Version = std::iter::once(timestamps.version())
             .chain(supplies.iter().map(|vec| vec.version()))
@@ -138,8 +136,8 @@ impl Vecs {
         V: ReadableVec<Height, Sats>,
         D: ReadableVec<Height, StoredF64>,
     {
-        debug_assert_eq!(transfer_volumes.len(), AGE_COHORT_COUNT);
-        debug_assert_eq!(source_coindays_destroyed.len(), AGE_COHORT_COUNT);
+        debug_assert_eq!(transfer_volumes.len(), AGE_RANGE_COUNT);
+        debug_assert_eq!(source_coindays_destroyed.len(), AGE_RANGE_COUNT);
 
         let destroyed_version: Version = transfer_volumes
             .iter()
@@ -186,10 +184,10 @@ impl Vecs {
                 .collect();
 
             for offset in 0..(chunk_end - chunk_start) {
-                let volumes_btc: [f64; AGE_COHORT_COUNT] = std::array::from_fn(|index| {
+                let volumes_btc: [f64; AGE_RANGE_COUNT] = std::array::from_fn(|index| {
                     f64::from(Bitcoin::from(transfer_batches[index][offset]))
                 });
-                let cdd: [f64; AGE_COHORT_COUNT] =
+                let cdd: [f64; AGE_RANGE_COUNT] =
                     std::array::from_fn(|index| f64::from(destroyed_batches[index][offset]));
                 let consumed = allocate_consumed_coindays(volumes_btc, cdd, &bounds);
 
@@ -215,14 +213,13 @@ impl Vecs {
     fn compute_rest<S>(
         &mut self,
         starting_height: Height,
-        prices: &price::Vecs,
         supplies: &[&S],
         exit: &Exit,
     ) -> Result<()>
     where
         S: ReadableVec<Height, Sats>,
     {
-        debug_assert_eq!(supplies.len(), AGE_COHORT_COUNT);
+        debug_assert_eq!(supplies.len(), AGE_RANGE_COUNT);
 
         for (cohort, &total_supply) in self.iter_mut().zip(supplies) {
             let CohortVecs {
@@ -244,7 +241,6 @@ impl Vecs {
 
             supply.compute_from(
                 starting_height,
-                prices,
                 total_supply,
                 &activity_vecs.liveliness.height,
                 &activity_vecs.vaultedness.height,
@@ -275,12 +271,12 @@ fn coindays_created(supply: Sats, interval_seconds: u32) -> StoredF64 {
     StoredF64::from(f64::from(Bitcoin::from(supply)) * interval_seconds as f64 / ONE_DAY_IN_SEC_F64)
 }
 
-fn age_bounds_days() -> [(f64, f64); AGE_COHORT_COUNT] {
+fn age_bounds_days() -> [(f64, f64); AGE_RANGE_COUNT] {
     let mut bounds = AGE_RANGE_BOUNDS.iter();
     std::array::from_fn(|index| {
         let bound = bounds.next().unwrap();
         let lower = bound.start as f64 / HOURS_PER_DAY;
-        let width = if index + 1 < AGE_COHORT_COUNT {
+        let width = if index + 1 < AGE_RANGE_COUNT {
             (bound.end - bound.start) as f64 / HOURS_PER_DAY
         } else {
             0.0
@@ -290,14 +286,14 @@ fn age_bounds_days() -> [(f64, f64); AGE_COHORT_COUNT] {
 }
 
 fn allocate_consumed_coindays(
-    transfer_volume_btc: [f64; AGE_COHORT_COUNT],
-    coindays_destroyed: [f64; AGE_COHORT_COUNT],
-    bounds: &[(f64, f64); AGE_COHORT_COUNT],
-) -> [f64; AGE_COHORT_COUNT] {
-    let mut result = [0.0; AGE_COHORT_COUNT];
+    transfer_volume_btc: [f64; AGE_RANGE_COUNT],
+    coindays_destroyed: [f64; AGE_RANGE_COUNT],
+    bounds: &[(f64, f64); AGE_RANGE_COUNT],
+) -> [f64; AGE_RANGE_COUNT] {
+    let mut result = [0.0; AGE_RANGE_COUNT];
     let mut older_transfer_volume = 0.0;
 
-    for index in (0..AGE_COHORT_COUNT).rev() {
+    for index in (0..AGE_RANGE_COUNT).rev() {
         let (lower_days, width_days) = bounds[index];
         let within_cohort =
             (coindays_destroyed[index] - transfer_volume_btc[index] * lower_days).max(0.0);
@@ -335,8 +331,8 @@ mod tests {
 
     #[test]
     fn destruction_at_a_boundary_stays_in_the_ranges_already_traversed() {
-        let mut volumes = [0.0; AGE_COHORT_COUNT];
-        let mut cdd = [0.0; AGE_COHORT_COUNT];
+        let mut volumes = [0.0; AGE_RANGE_COUNT];
+        let mut cdd = [0.0; AGE_RANGE_COUNT];
         volumes[2] = 1.0;
         cdd[2] = 1.0;
 
@@ -350,8 +346,8 @@ mod tests {
 
     #[test]
     fn consumed_coindays_cover_every_traversed_cohort() {
-        let mut volumes = [0.0; AGE_COHORT_COUNT];
-        let mut cdd = [0.0; AGE_COHORT_COUNT];
+        let mut volumes = [0.0; AGE_RANGE_COUNT];
+        let mut cdd = [0.0; AGE_RANGE_COUNT];
         volumes[2] = 2.0;
         cdd[2] = 20.0;
 
@@ -366,10 +362,10 @@ mod tests {
     #[test]
     fn allocated_coindays_conserve_mixed_cohort_destruction() {
         let bounds = age_bounds_days();
-        let mut volumes = [0.0; AGE_COHORT_COUNT];
-        let mut cdd = [0.0; AGE_COHORT_COUNT];
+        let mut volumes = [0.0; AGE_RANGE_COUNT];
+        let mut cdd = [0.0; AGE_RANGE_COUNT];
 
-        for index in [0, 1, 2, 10, 20] {
+        for index in [0, 1, 2, 10, 20, AGE_RANGE_COUNT - 2, AGE_RANGE_COUNT - 1] {
             let (lower, width) = bounds[index];
             let volume = index as f64 + 1.0;
             let age = lower + if width > 0.0 { width / 2.0 } else { 30.0 };
@@ -379,6 +375,23 @@ mod tests {
 
         let allocated = allocate_consumed_coindays(volumes, cdd, &bounds);
 
+        assert!((allocated.iter().sum::<f64>() - cdd.iter().sum::<f64>()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn bounds_and_allocation_cover_every_canonical_age_range() {
+        let bounds = age_bounds_days();
+        let mut volumes = [0.0; AGE_RANGE_COUNT];
+        let mut cdd = [0.0; AGE_RANGE_COUNT];
+        let last = AGE_RANGE_COUNT - 1;
+
+        volumes[last] = 1.0;
+        cdd[last] = bounds[last].0 + 30.0;
+
+        let allocated = allocate_consumed_coindays(volumes, cdd, &bounds);
+
+        assert_eq!(bounds.len(), AGE_RANGE_BOUNDS.iter().count());
+        assert!(allocated[last] > 0.0);
         assert!((allocated.iter().sum::<f64>() - cdd.iter().sum::<f64>()).abs() < 1e-9);
     }
 }

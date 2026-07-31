@@ -118,12 +118,21 @@ impl Computer {
                     })?;
 
                     let mining_handle = big_thread().spawn_scoped(s, || -> Result<_> {
-                        Ok(Box::new(mining::Vecs::forced_import(
+                        let mining = Box::new(mining::Vecs::forced_import(
                             &computed_path,
                             VERSION,
                             &indexes,
                             &cached_starts,
-                        )?))
+                        )?);
+                        let cointime = Box::new(cointime::Vecs::forced_import(
+                            &computed_path,
+                            VERSION,
+                            &indexes,
+                            &cached_starts,
+                            &price,
+                            &mining.rewards.subsidy.cumulative.cents,
+                        )?);
+                        Ok((mining, cointime))
                     })?;
 
                     let transactions_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -145,17 +154,11 @@ impl Computer {
                         )?))
                     })?;
 
-                    let cointime = Box::new(cointime::Vecs::forced_import(
-                        &computed_path,
-                        VERSION,
-                        &indexes,
-                        &cached_starts,
-                    )?);
-
                     let coinflow = Box::new(coinflow::Vecs::forced_import(
                         &computed_path,
                         VERSION,
                         &indexes,
+                        &price,
                     )?);
 
                     let op_return_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -169,7 +172,7 @@ impl Computer {
 
                     let inputs = inputs_handle.join().unwrap()?;
                     let outputs = outputs_handle.join().unwrap()?;
-                    let mining = mining_handle.join().unwrap()?;
+                    let (mining, cointime) = mining_handle.join().unwrap()?;
                     let transactions = transactions_handle.join().unwrap()?;
                     let pools = pools_handle.join().unwrap()?;
                     let op_return = op_return_handle.join().unwrap()?;
@@ -226,6 +229,7 @@ impl Computer {
                         VERSION,
                         &indexes,
                         &cached_starts,
+                        &price,
                     )?);
 
                     let market = market_handle.join().unwrap()?;
@@ -433,12 +437,8 @@ impl Computer {
 
             let investing = scope.spawn(|| {
                 timed("Computed investing", || {
-                    self.investing.compute(
-                        indexer,
-                        &self.indexes,
-                        &self.price,
-                        exit,
-                    )
+                    self.investing
+                        .compute(indexer, &self.indexes, &self.price, exit)
                 })
             });
 
@@ -494,7 +494,6 @@ impl Computer {
                     &self.indexes,
                     &self.price,
                     &self.blocks,
-                    &self.mining,
                     &self.supply,
                     &self.distribution,
                     exit,

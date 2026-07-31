@@ -79,11 +79,7 @@ impl Rebuilder {
         self.rebuild_count.load(Ordering::Relaxed)
     }
 
-    fn build_snapshot(
-        lock: &RwLock<State>,
-        gbt_txids: &[Txid],
-        min_fee: FeeRate,
-    ) -> Snapshot {
+    fn build_snapshot(lock: &RwLock<State>, gbt_txids: &[Txid], min_fee: FeeRate) -> Snapshot {
         let (txs, prefix_to_idx) = {
             let state = lock.read();
             Snapshot::build_txs(&state.txs)

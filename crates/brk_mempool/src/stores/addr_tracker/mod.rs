@@ -67,24 +67,14 @@ impl AddrTracker {
     /// previously `None` has been filled, and by `add_tx` for each
     /// resolved input. Inputs whose prevout doesn't resolve to an addr
     /// are no-ops.
-    pub fn add_input(
-        &mut self,
-        transitions: &mut AddrTransitions,
-        txid: &Txid,
-        prevout: &TxOut,
-    ) {
+    pub fn add_input(&mut self, transitions: &mut AddrTransitions, txid: &Txid, prevout: &TxOut) {
         let Some(bytes) = prevout.addr_bytes() else {
             return;
         };
         self.apply_add(transitions, bytes, txid, |stats| stats.sending(prevout));
     }
 
-    fn remove_input(
-        &mut self,
-        transitions: &mut AddrTransitions,
-        txid: &Txid,
-        prevout: &TxOut,
-    ) {
+    fn remove_input(&mut self, transitions: &mut AddrTransitions, txid: &Txid, prevout: &TxOut) {
         let Some(bytes) = prevout.addr_bytes() else {
             return;
         };
@@ -180,7 +170,10 @@ mod tests {
         let prev_script = p2wpkh_script(3);
         let tx = fake_tx(
             2,
-            &[Some(TxOut::from((prev_script.clone(), Sats::from(4_000u64))))],
+            &[Some(TxOut::from((
+                prev_script.clone(),
+                Sats::from(4_000u64),
+            )))],
             &[(out_script.clone(), 3_500)],
         );
         let recv = addr_of(&out_script);
@@ -188,11 +181,19 @@ mod tests {
 
         tracker.add_tx(&mut transitions, &tx);
         assert_eq!(
-            tracker.get(&recv).expect("receiving addr indexed").stats.balance_delta,
+            tracker
+                .get(&recv)
+                .expect("receiving addr indexed")
+                .stats
+                .balance_delta,
             SatsSigned::from(3_500i64),
         );
         assert_eq!(
-            tracker.get(&spend).expect("spending addr indexed").stats.balance_delta,
+            tracker
+                .get(&spend)
+                .expect("spending addr indexed")
+                .stats
+                .balance_delta,
             SatsSigned::from(-4_000i64),
         );
         tracker.remove_tx(&mut transitions, &tx);
@@ -260,7 +261,9 @@ mod tests {
 
         let tx_b = fake_tx(7, &[], &[(script, 2_222)]);
         tracker.add_tx(&mut transitions, &tx_b);
-        let after = tracker.stats_hash(&bytes).expect("tracked after second add");
+        let after = tracker
+            .stats_hash(&bytes)
+            .expect("tracked after second add");
         assert_ne!(before, after, "second funding tx must shift the hash");
     }
 }

@@ -4,7 +4,7 @@ use brk_types::{
     Cents, Height, PartsPerMillion32, PartsPerMillionSigned32, PartsPerMillionSigned64, Version,
 };
 use schemars::JsonSchema;
-use vecdb::{BytesVec, BytesVecValue, Database, ImportableVec};
+use vecdb::{BytesVec, BytesVecValue, CachedBoxedVec, Database, ImportableVec};
 
 use crate::{
     indexes,
@@ -12,7 +12,7 @@ use crate::{
         FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue, PerBlock,
         PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
         PriceWithRatioPerBlock, RatioPerBlock, RollingWindow24hPerBlock, RollingWindows,
-        RollingWindowsFrom1w, ValuePerBlock, ValuePerBlockCumulative,
+        RollingWindowsFrom1w, SpotValuePerBlock, ValuePerBlock, ValuePerBlockCumulative,
         ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
     },
 };
@@ -39,7 +39,6 @@ macro_rules! impl_config_import {
 impl_config_import!(
     ValuePerBlock,
     ValuePerBlockCumulative,
-    PriceWithRatioPerBlock,
     RatioPerBlock<PartsPerMillionSigned32>,
     PercentPerBlock<PartsPerMillion32>,
     PercentPerBlock<PartsPerMillionSigned32>,
@@ -47,6 +46,30 @@ impl_config_import!(
     PercentRollingWindows<PartsPerMillion32>,
     Price<PerBlock<Cents>>,
 );
+
+impl ConfigImport for PriceWithRatioPerBlock {
+    fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
+        Self::forced_import(
+            cfg.db,
+            &cfg.name(suffix),
+            cfg.version + offset,
+            cfg.indexes,
+            cfg.spot_price,
+        )
+    }
+}
+
+impl ConfigImport for SpotValuePerBlock {
+    fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
+        Self::forced_import(
+            cfg.db,
+            &cfg.name(suffix),
+            cfg.version + offset,
+            cfg.indexes,
+            cfg.spot_price,
+        )
+    }
+}
 
 // Generic types (macro_rules can't parse generic bounds, so written out)
 impl<T: NumericValue + JsonSchema> ConfigImport for PerBlock<T> {
@@ -128,6 +151,7 @@ pub struct ImportConfig<'a> {
     pub version: Version,
     pub indexes: &'a indexes::Vecs,
     pub cached_starts: &'a Windows<&'a WindowStartVec>,
+    pub spot_price: &'a CachedBoxedVec<Height, Cents>,
 }
 
 impl<'a> ImportConfig<'a> {

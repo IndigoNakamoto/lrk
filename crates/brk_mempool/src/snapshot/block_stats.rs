@@ -40,7 +40,11 @@ impl BlockStats {
             .iter()
             .enumerate()
             .map(|(i, block)| {
-                let pct = if i == 0 { CORE_PERCENTILES } else { PROJECTED_PERCENTILES };
+                let pct = if i == 0 {
+                    CORE_PERCENTILES
+                } else {
+                    PROJECTED_PERCENTILES
+                };
                 Self::compute(block, txs, pct)
             })
             .collect()
@@ -86,6 +90,12 @@ impl BlockStats {
 
 impl From<&BlockStats> for MempoolBlock {
     fn from(s: &BlockStats) -> Self {
-        Self::new(s.tx_count, s.total_size, s.total_vsize, s.total_fee, s.fee_range)
+        Self::new(
+            s.tx_count,
+            s.total_size,
+            s.total_vsize,
+            s.total_fee,
+            s.fee_range,
+        )
     }
 }

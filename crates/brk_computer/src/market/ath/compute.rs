@@ -69,13 +69,6 @@ impl Vecs {
             exit,
         )?;
 
-        self.drawdown.compute_drawdown(
-            starting_height,
-            &prices.spot.cents.height,
-            &self.high.cents.height,
-            exit,
-        )?;
-
         Ok(())
     }
 }

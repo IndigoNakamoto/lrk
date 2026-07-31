@@ -210,6 +210,9 @@ mod tests {
     fn empty_blocks_hash_is_zero() {
         let txs = vec![snap_tx(1)];
         let blocks: Vec<Vec<TxIndex>> = vec![];
-        assert_eq!(Snapshot::hash_next_block(&blocks, &txs), NextBlockHash::ZERO);
+        assert_eq!(
+            Snapshot::hash_next_block(&blocks, &txs),
+            NextBlockHash::ZERO
+        );
     }
 }

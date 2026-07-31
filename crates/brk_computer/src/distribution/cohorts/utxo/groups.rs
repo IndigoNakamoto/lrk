@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use brk_cohort::{
-    AgeRange, AmountRange, ByEntry, ByEpoch, Class, CohortContext, Filter, Filtered, OverAge,
-    OverAmount, SpendableType, Term, UnderAge, UnderAmount,
+    AGE_RANGE_COUNT, AgeRange, AmountRange, ByEntry, ByEpoch, Class, CohortContext, Filter,
+    Filtered, OverAge, OverAmount, SpendableType, Term, UnderAge, UnderAmount,
 };
 use brk_error::Result;
 use brk_indexer::Lengths;
@@ -10,7 +10,8 @@ use brk_traversable::Traversable;
 use brk_types::{Cents, CentsSquaredSats, Dollars, Height, Sats, Version};
 use rayon::prelude::*;
 use vecdb::{
-    AnyStoredVec, AnyVec, Database, Exit, ReadOnlyClone, ReadableVec, Rw, StorageMode, WritableVec,
+    AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, ReadOnlyClone, ReadableVec, Rw,
+    StorageMode, WritableVec,
 };
 
 use crate::{
@@ -44,7 +45,7 @@ pub struct UTXOCohorts<M: StorageMode = Rw> {
     pub over_age: OverAge<UTXOCohortVecs<CoreCohortMetrics<M>>>,
     pub epoch: ByEpoch<UTXOCohortVecs<CoreCohortMetrics<M>>>,
     pub class: Class<UTXOCohortVecs<CoreCohortMetrics<M>>>,
-    pub entry: ByEntry<UTXOCohortVecs<ExtendedCohortMetrics<M>>>,
+    pub entry: ByEntry<UTXOCohortVecs<CoreCohortMetrics<M>>>,
     pub over_amount: OverAmount<UTXOCohortVecs<MinimalCohortMetrics<M>>>,
     pub amount_range: AmountRange<UTXOCohortVecs<MinimalCohortMetrics<M>>>,
     pub under_amount: UnderAmount<UTXOCohortVecs<MinimalCohortMetrics<M>>>,
@@ -63,14 +64,14 @@ pub(crate) struct UTXOCohortsTransientState {
     /// Cached partition_point positions for tick_tock boundary searches.
     /// Avoids O(log n) binary search per boundary per block; scans forward
     /// from last known position (typically O(1) per boundary).
-    pub(super) tick_tock_cached_positions: [usize; 20],
+    pub(super) tick_tock_cached_positions: [usize; AGE_RANGE_COUNT - 1],
 }
 
 impl UTXOCohorts<Rw> {
-    /// Separate cohorts currently total 72:
-    /// 21 age + 5 epoch + 18 class + 2 entry + 15 amount + 11 spendable type.
+    /// Separate cohorts currently total 74:
+    /// 23 age + 5 epoch + 18 class + 2 entry + 15 amount + 11 spendable type.
     /// Keep small headroom because this is only Vec allocation capacity.
-    const SEPARATE_COHORT_CAPACITY: usize = 82;
+    const SEPARATE_COHORT_CAPACITY: usize = 84;
 
     /// Import all UTXO cohorts from database.
     pub(crate) fn forced_import(
@@ -79,6 +80,7 @@ impl UTXOCohorts<Rw> {
         indexes: &indexes::Vecs,
         states_path: &Path,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -91,6 +93,7 @@ impl UTXOCohorts<Rw> {
             version: v + Version::ONE,
             indexes,
             cached_starts,
+            spot_price,
         };
         let all_supply = SupplyCore::forced_import(&all_cfg)?;
 
@@ -107,6 +110,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -127,6 +131,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -138,25 +143,7 @@ impl UTXOCohorts<Rw> {
         let epoch = ByEpoch::try_new(&core_separate)?;
         let class = Class::try_new(&core_separate)?;
 
-        let extended_separate =
-            |f: Filter, name: &'static str| -> Result<UTXOCohortVecs<ExtendedCohortMetrics>> {
-                let full_name = CohortContext::Utxo.full_name(&f, name);
-                let cfg = ImportConfig {
-                    db,
-                    filter: &f,
-                    full_name: &full_name,
-                    version: v,
-                    indexes,
-                    cached_starts,
-                };
-                let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
-                Ok(UTXOCohortVecs::new(
-                    state,
-                    ExtendedCohortMetrics::forced_import(&cfg)?,
-                ))
-            };
-
-        let entry = ByEntry::try_new(&extended_separate)?;
+        let entry = ByEntry::try_new(&core_separate)?;
 
         // Helper for separate cohorts with MinimalCohortMetrics + MinimalRealizedState
         let minimal_separate =
@@ -169,6 +156,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -189,6 +177,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
@@ -206,7 +195,8 @@ impl UTXOCohorts<Rw> {
         );
 
         // Phase 3b: Import profitability metrics (derived from "all" during k-way merge).
-        let profitability = ProfitabilityMetrics::forced_import(db, v, indexes, cached_starts)?;
+        let profitability =
+            ProfitabilityMetrics::forced_import(db, v, indexes, cached_starts, spot_price)?;
 
         // Phase 4: Import aggregate cohorts.
 
@@ -221,6 +211,7 @@ impl UTXOCohorts<Rw> {
                 version: v,
                 indexes,
                 cached_starts,
+                spot_price,
             };
             UTXOCohortVecs::new(None, ExtendedAdjustedCohortMetrics::forced_import(&cfg)?)
         };
@@ -236,6 +227,7 @@ impl UTXOCohorts<Rw> {
                 version: v,
                 indexes,
                 cached_starts,
+                spot_price,
             };
             UTXOCohortVecs::new(None, ExtendedCohortMetrics::forced_import(&cfg)?)
         };
@@ -251,6 +243,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 Ok(UTXOCohortVecs::new(
                     None,
@@ -274,6 +267,7 @@ impl UTXOCohorts<Rw> {
                     version: v,
                     indexes,
                     cached_starts,
+                    spot_price,
                 };
                 Ok(UTXOCohortVecs::new(
                     None,
@@ -332,7 +326,6 @@ impl UTXOCohorts<Rw> {
             sth,
             caches,
             age_range,
-            entry,
             ..
         } = self;
         caches
@@ -351,15 +344,7 @@ impl UTXOCohorts<Rw> {
                 Some((map, caches.fenwick.is_sth_at(i)))
             })
             .collect();
-        let discount_maps = entry
-            .discount
-            .state
-            .as_ref()
-            .map(|state| state.cost_basis_map())
-            .into_iter();
-        caches
-            .fenwick
-            .bulk_init_with_discount(maps.into_iter(), discount_maps);
+        caches.fenwick.bulk_init(maps.into_iter());
     }
 
     /// Apply pending deltas from all age-range cohorts to the Fenwick tree.
@@ -370,10 +355,7 @@ impl UTXOCohorts<Rw> {
         }
         // Destructure to get separate borrows on caches and age_range
         let Self {
-            caches,
-            age_range,
-            entry,
-            ..
+            caches, age_range, ..
         } = self;
         for (i, sub) in age_range.iter().enumerate() {
             if let Some(state) = sub.state.as_ref() {
@@ -382,11 +364,6 @@ impl UTXOCohorts<Rw> {
                     caches.fenwick.apply_delta(price, delta, is_sth);
                 });
             }
-        }
-        if let Some(state) = entry.discount.state.as_ref() {
-            state.for_each_cost_basis_pending(|&price, delta| {
-                caches.fenwick.apply_discount_delta(price, delta);
-            });
         }
     }
 
@@ -712,13 +689,8 @@ impl UTXOCohorts<Rw> {
             }),
             Box::new(|| {
                 entry.par_iter_mut().try_for_each(|v| {
-                    v.metrics.compute_rest_part2(
-                        prices,
-                        starting_lengths,
-                        height_to_market_cap,
-                        ss,
-                        exit,
-                    )
+                    v.metrics
+                        .compute_rest_part2(prices, starting_lengths, ss, exit)
                 })
             }),
             Box::new(|| {

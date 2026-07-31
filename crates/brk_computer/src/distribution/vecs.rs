@@ -40,7 +40,7 @@ use super::{
     metrics::AvgAmountMetrics,
 };
 
-const VERSION: Version = Version::new(24 + brk_oracle::VERSION);
+const VERSION: Version = Version::new(30 + brk_oracle::VERSION);
 
 #[derive(Traversable)]
 pub struct AddrMetricsVecs<M: StorageMode = Rw> {
@@ -170,6 +170,8 @@ struct DistributionTransientState {
 }
 
 const SAVED_STAMPED_CHANGES: u16 = 10;
+/// Version of the fixed-width `FundedAddrData` record layout.
+const FUNDED_ADDR_DATA_VERSION: Version = Version::ONE;
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -177,6 +179,7 @@ impl Vecs {
         parent_version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        prices: &price::Vecs,
     ) -> Result<Self> {
         let db_path = parent.join(super::DB_NAME);
         let states_path = db_path.join("states");
@@ -185,16 +188,30 @@ impl Vecs {
         db.set_min_regions(50_000)?;
 
         let version = parent_version + VERSION;
+        let spot_price = prices.spot.cents.height.read_only_cached_boxed_clone();
 
-        let utxo_cohorts =
-            UTXOCohorts::forced_import(&db, version, indexes, &states_path, cached_starts)?;
+        let utxo_cohorts = UTXOCohorts::forced_import(
+            &db,
+            version,
+            indexes,
+            &states_path,
+            cached_starts,
+            &spot_price,
+        )?;
 
-        let addr_cohorts =
-            AddrCohorts::forced_import(&db, version, indexes, &states_path, cached_starts)?;
+        let addr_cohorts = AddrCohorts::forced_import(
+            &db,
+            version,
+            indexes,
+            &states_path,
+            cached_starts,
+            &spot_price,
+        )?;
 
         // Create address data BytesVecs first so we can also use them for identity mappings
+        let funded_addr_data_version = version + FUNDED_ADDR_DATA_VERSION;
         let funded_addr_index_to_funded_addr_data = BytesVec::forced_import_with(
-            vecdb::ImportOptions::new(&db, "funded_addr_data", version)
+            vecdb::ImportOptions::new(&db, "funded_addr_data", funded_addr_data_version)
                 .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
         )?;
         let empty_addr_index_to_empty_addr_data = BytesVec::forced_import_with(
@@ -205,7 +222,7 @@ impl Vecs {
         // Identity mappings for traversable
         let funded_addr_index = LazyVecFrom1::init(
             "funded_addr_index",
-            version,
+            funded_addr_data_version,
             funded_addr_index_to_funded_addr_data.read_only_boxed_clone(),
             |index, _| index,
         );
@@ -232,19 +249,32 @@ impl Vecs {
         // `reused_*` uses the receive-side predicate (funded_txo_count > 1,
         // industry standard). `respent_*` uses the spend-side counterpart
         // (spent_txo_count > 1, strictly more restrictive).
-        let reused_addr_count =
-            ReusedAddrVecs::forced_import(&db, "reused", version, indexes, cached_starts)?;
-        let respent_addr_count =
-            ReusedAddrVecs::forced_import(&db, "respent", version, indexes, cached_starts)?;
+        let reused_addr_count = ReusedAddrVecs::forced_import(
+            &db,
+            "reused",
+            version,
+            indexes,
+            cached_starts,
+            &spot_price,
+        )?;
+        let respent_addr_count = ReusedAddrVecs::forced_import(
+            &db,
+            "respent",
+            version,
+            indexes,
+            cached_starts,
+            &spot_price,
+        )?;
 
         // Exposed address tracking (counts + supply) - quantum / pubkey-exposure sense
-        let exposed_addr_vecs = ExposedAddrVecs::forced_import(&db, version, indexes)?;
+        let exposed_addr_vecs = ExposedAddrVecs::forced_import(&db, version, indexes, &spot_price)?;
 
         // Growth rate: delta change + rate (global + per-type)
         let delta = DeltaVecs::new(version, &addr_count, cached_starts, indexes);
 
         // Average amount (supply / utxo_count, supply / funded_addr_count) for `all` and per addr type.
-        let avg_amount = WithAddrTypes::<AvgAmountMetrics>::forced_import(&db, version, indexes)?;
+        let avg_amount =
+            WithAddrTypes::<AvgAmountMetrics>::forced_import(&db, version, indexes, &spot_price)?;
 
         let this = Self {
             supply_state: BytesVec::forced_import_with(
@@ -585,7 +615,6 @@ impl Vecs {
             &starting_lengths,
             &outputs.by_type,
             &inputs.by_type,
-            prices,
             all_supply_sats,
             &type_supply_sats,
             exit,
@@ -594,14 +623,12 @@ impl Vecs {
             &starting_lengths,
             &outputs.by_type,
             &inputs.by_type,
-            prices,
             all_supply_sats,
             &type_supply_sats,
             exit,
         )?;
         self.addrs.exposed.compute_rest(
             &starting_lengths,
-            prices,
             all_supply_sats,
             &type_supply_sats,
             exit,
@@ -610,7 +637,6 @@ impl Vecs {
         // Average amount (supply / utxo_count, supply / funded_addr_count) for `all` and per addr type.
         let all_m = &self.utxo_cohorts.all.metrics;
         self.addrs.avg_amount.all.compute(
-            prices,
             &all_m.supply.total.sats.height,
             &all_m.outputs.unspent_count.height,
             &self.addrs.funded.all.height,
@@ -626,7 +652,6 @@ impl Vecs {
         {
             let type_m = &t.get(ot).metrics;
             avg.compute(
-                prices,
                 &type_m.supply.total.sats.height,
                 &type_m.outputs.unspent_count.height,
                 &funded.height,
@@ -672,7 +697,7 @@ impl Vecs {
             .height
             .read_only_clone();
         self.addr_cohorts
-            .compute_rest_part2(prices, &starting_lengths, &all_supply_sats, exit)?;
+            .compute_rest_part2(&starting_lengths, &all_supply_sats, exit)?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

@@ -1,7 +1,7 @@
 use brk_error::{Error, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Bytes, Formattable};
+use vecdb::{Bytes, Formattable, unlikely};
 
 use crate::{Cents, CentsSats, CentsSquaredSats, EmptyAddrData, OutputType, Sats, SupplyState};
 
@@ -31,7 +31,9 @@ impl CostBasisSnapshot {
     }
 }
 
-/// Data for a funded (non-empty) address with current balance
+/// Data for a funded (non-empty) address with current balance.
+///
+/// Kept compact because one value is stored for every funded address.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
 #[repr(C)]
 pub struct FundedAddrData {
@@ -49,8 +51,6 @@ pub struct FundedAddrData {
     pub sent: Sats,
     /// The realized capitalization: Σ(price × sats)
     pub realized_cap_raw: CentsSats,
-    /// The capitalized cap: Σ(price² × sats)
-    pub capitalized_cap_raw: CentsSquaredSats,
 }
 
 impl FundedAddrData {
@@ -60,20 +60,6 @@ impl FundedAddrData {
 
     pub fn realized_price(&self) -> Cents {
         self.realized_cap_raw.realized_price(self.balance())
-    }
-
-    pub fn cost_basis_snapshot(&self) -> CostBasisSnapshot {
-        let realized_price = self.realized_price();
-        CostBasisSnapshot {
-            realized_price,
-            supply_state: SupplyState {
-                utxo_count: self.utxo_count() as u64,
-                value: self.balance(),
-            },
-            // Use exact value to avoid rounding errors from realized_price × balance
-            price_sats: CentsSats::new(self.realized_cap_raw.inner()),
-            capitalized_cap_raw: self.capitalized_cap_raw,
-        }
     }
 
     #[inline]
@@ -182,24 +168,25 @@ impl FundedAddrData {
         self.receive_outputs(amount, price, 1);
     }
 
-    pub fn receive_outputs(&mut self, amount: Sats, price: Cents, output_count: u32) {
+    /// Applies received outputs and returns their exact realized-cap delta.
+    pub fn receive_outputs(&mut self, amount: Sats, price: Cents, output_count: u32) -> CentsSats {
         self.received += amount;
         self.funded_txo_count += output_count;
         let ps = CentsSats::from_price_sats(price, amount);
         self.realized_cap_raw += ps;
-        self.capitalized_cap_raw += ps.to_capitalized_cap(price);
+        ps
     }
 
-    pub fn send(&mut self, amount: Sats, previous_price: Cents) -> Result<()> {
-        if self.balance() < amount {
+    /// Applies a spent output and returns its exact realized-cap delta.
+    pub fn send(&mut self, amount: Sats, previous_price: Cents) -> Result<CentsSats> {
+        if unlikely(self.balance() < amount) {
             return Err(Error::Internal("Previous amount smaller than sent amount"));
         }
         self.sent += amount;
         self.spent_txo_count += 1;
         let ps = CentsSats::from_price_sats(previous_price, amount);
         self.realized_cap_raw -= ps;
-        self.capitalized_cap_raw -= ps.to_capitalized_cap(previous_price);
-        Ok(())
+        Ok(ps)
     }
 }
 
@@ -221,7 +208,6 @@ impl From<&EmptyAddrData> for FundedAddrData {
             received: value.transfered,
             sent: value.transfered,
             realized_cap_raw: CentsSats::ZERO,
-            capitalized_cap_raw: CentsSquaredSats::ZERO,
         }
     }
 }
@@ -230,14 +216,13 @@ impl std::fmt::Display for FundedAddrData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "tx_count: {}, funded_txo_count: {}, spent_txo_count: {}, received: {}, sent: {}, realized_cap_raw: {}, capitalized_cap_raw: {}",
+            "tx_count: {}, funded_txo_count: {}, spent_txo_count: {}, received: {}, sent: {}, realized_cap_raw: {}",
             self.tx_count,
             self.funded_txo_count,
             self.spent_txo_count,
             self.received,
             self.sent,
             self.realized_cap_raw,
-            self.capitalized_cap_raw,
         )
     }
 }
@@ -279,7 +264,6 @@ impl Bytes for FundedAddrData {
         arr[16..24].copy_from_slice(self.received.to_bytes().as_ref());
         arr[24..32].copy_from_slice(self.sent.to_bytes().as_ref());
         arr[32..48].copy_from_slice(self.realized_cap_raw.to_bytes().as_ref());
-        arr[48..64].copy_from_slice(self.capitalized_cap_raw.to_bytes().as_ref());
         arr
     }
 
@@ -292,7 +276,37 @@ impl Bytes for FundedAddrData {
             received: Sats::from_bytes(&bytes[16..24])?,
             sent: Sats::from_bytes(&bytes[24..32])?,
             realized_cap_raw: CentsSats::from_bytes(&bytes[32..48])?,
-            capitalized_cap_raw: CentsSquaredSats::from_bytes(&bytes[48..64])?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn funded_addr_data_stays_compact_and_roundtrips() {
+        assert_eq!(size_of::<FundedAddrData>(), 48);
+
+        let mut data = FundedAddrData::default();
+        data.receive_outputs(Sats::ONE_BTC, Cents::new(10_000), 2);
+        data.send(Sats::new(25_000_000), Cents::new(10_000))
+            .unwrap();
+
+        let decoded = FundedAddrData::from_bytes(&data.to_bytes()).unwrap();
+        assert_eq!(decoded.tx_count, data.tx_count);
+        assert_eq!(decoded.funded_txo_count, data.funded_txo_count);
+        assert_eq!(decoded.spent_txo_count, data.spent_txo_count);
+        assert_eq!(decoded.received, data.received);
+        assert_eq!(decoded.sent, data.sent);
+        assert_eq!(decoded.realized_cap_raw, data.realized_cap_raw);
+        assert_eq!(
+            SupplyState::from(&decoded).utxo_count,
+            SupplyState::from(&data).utxo_count
+        );
+        assert_eq!(
+            SupplyState::from(&decoded).value,
+            SupplyState::from(&data).value
+        );
     }
 }

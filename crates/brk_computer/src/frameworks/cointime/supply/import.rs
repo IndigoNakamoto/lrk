@@ -1,11 +1,11 @@
 use brk_error::Result;
-use brk_types::Version;
-use vecdb::Database;
+use brk_types::{Cents, Height, Version};
+use vecdb::{CachedBoxedVec, Database};
 
 use super::{BaseVecs, Vecs};
 use crate::{
     indexes,
-    internal::{PerBlock, ValuePerBlock},
+    internal::{PerBlock, SpotValuePerBlock},
 };
 
 impl BaseVecs {
@@ -14,6 +14,7 @@ impl BaseVecs {
         prefix: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let name = |metric: &str| {
             if prefix.is_empty() {
@@ -24,8 +25,20 @@ impl BaseVecs {
         };
 
         Ok(Self {
-            vaulted: ValuePerBlock::forced_import(db, &name("vaulted_supply"), version, indexes)?,
-            active: ValuePerBlock::forced_import(db, &name("active_supply"), version, indexes)?,
+            vaulted: SpotValuePerBlock::forced_import(
+                db,
+                &name("vaulted_supply"),
+                version,
+                indexes,
+                spot_price,
+            )?,
+            active: SpotValuePerBlock::forced_import(
+                db,
+                &name("active_supply"),
+                version,
+                indexes,
+                spot_price,
+            )?,
         })
     }
 }
@@ -35,9 +48,10 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
-            base: BaseVecs::forced_import_with_prefix(db, "", version, indexes)?,
+            base: BaseVecs::forced_import_with_prefix(db, "", version, indexes, spot_price)?,
             active_supply_in_loss_share: PerBlock::forced_import(
                 db,
                 "cointime_supply_in_loss_share",

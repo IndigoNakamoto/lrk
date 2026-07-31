@@ -17,7 +17,10 @@ pub const HOURS_3M: usize = 24 * 3 * 30;
 pub const HOURS_4M: usize = 24 * 4 * 30;
 pub const HOURS_5M: usize = 24 * 5 * 30; // STH/LTH threshold
 pub const HOURS_6M: usize = 24 * 6 * 30;
+pub const HOURS_9M: usize = HOURS_6M + HOURS_3M;
 pub const HOURS_1Y: usize = 24 * 365;
+// Keep year-based ranges anchored to the existing 365-day year convention.
+pub const HOURS_18M: usize = HOURS_1Y + HOURS_6M;
 pub const HOURS_2Y: usize = 24 * 2 * 365;
 pub const HOURS_3Y: usize = 24 * 3 * 365;
 pub const HOURS_4Y: usize = 24 * 4 * 365;
@@ -29,12 +32,14 @@ pub const HOURS_10Y: usize = 24 * 10 * 365;
 pub const HOURS_12Y: usize = 24 * 12 * 365;
 pub const HOURS_15Y: usize = 24 * 15 * 365;
 
+pub const AGE_RANGE_COUNT: usize = 23;
+
 /// Age boundaries in hours. Defines the cohort ranges:
 /// [0, 1h), [1h, 1d), [1d, 1w), [1w, 1m), ..., [15y, ∞)
-pub const AGE_BOUNDARIES: [usize; 20] = [
+pub const AGE_BOUNDARIES: [usize; AGE_RANGE_COUNT - 1] = [
     HOURS_1H, HOURS_1D, HOURS_1W, HOURS_1M, HOURS_2M, HOURS_3M, HOURS_4M, HOURS_5M, HOURS_6M,
-    HOURS_1Y, HOURS_2Y, HOURS_3Y, HOURS_4Y, HOURS_5Y, HOURS_6Y, HOURS_7Y, HOURS_8Y, HOURS_10Y,
-    HOURS_12Y, HOURS_15Y,
+    HOURS_9M, HOURS_1Y, HOURS_18M, HOURS_2Y, HOURS_3Y, HOURS_4Y, HOURS_5Y, HOURS_6Y, HOURS_7Y,
+    HOURS_8Y, HOURS_10Y, HOURS_12Y, HOURS_15Y,
 ];
 
 /// Age range bounds (end = usize::MAX means unbounded)
@@ -48,8 +53,10 @@ pub const AGE_RANGE_BOUNDS: AgeRange<Range<usize>> = AgeRange {
     _3m_to_4m: HOURS_3M..HOURS_4M,
     _4m_to_5m: HOURS_4M..HOURS_5M,
     _5m_to_6m: HOURS_5M..HOURS_6M,
-    _6m_to_1y: HOURS_6M..HOURS_1Y,
-    _1y_to_2y: HOURS_1Y..HOURS_2Y,
+    _6m_to_9m: HOURS_6M..HOURS_9M,
+    _9m_to_1y: HOURS_9M..HOURS_1Y,
+    _1y_to_18m: HOURS_1Y..HOURS_18M,
+    _18m_to_2y: HOURS_18M..HOURS_2Y,
     _2y_to_3y: HOURS_2Y..HOURS_3Y,
     _3y_to_4y: HOURS_3Y..HOURS_4Y,
     _4y_to_5y: HOURS_4Y..HOURS_5Y,
@@ -73,8 +80,10 @@ pub const AGE_RANGE_FILTERS: AgeRange<Filter> = AgeRange {
     _3m_to_4m: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._3m_to_4m)),
     _4m_to_5m: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._4m_to_5m)),
     _5m_to_6m: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._5m_to_6m)),
-    _6m_to_1y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._6m_to_1y)),
-    _1y_to_2y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._1y_to_2y)),
+    _6m_to_9m: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._6m_to_9m)),
+    _9m_to_1y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._9m_to_1y)),
+    _1y_to_18m: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._1y_to_18m)),
+    _18m_to_2y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._18m_to_2y)),
     _2y_to_3y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._2y_to_3y)),
     _3y_to_4y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._3y_to_4y)),
     _4y_to_5y: Filter::Time(TimeFilter::Range(AGE_RANGE_BOUNDS._4y_to_5y)),
@@ -98,8 +107,10 @@ pub const AGE_RANGE_NAMES: AgeRange<CohortName> = AgeRange {
     _3m_to_4m: CohortName::new("3m_to_4m_old", "3m-4m", "3 to 4 Months Old"),
     _4m_to_5m: CohortName::new("4m_to_5m_old", "4m-5m", "4 to 5 Months Old"),
     _5m_to_6m: CohortName::new("5m_to_6m_old", "5m-6m", "5 to 6 Months Old"),
-    _6m_to_1y: CohortName::new("6m_to_1y_old", "6m-1y", "6 Months to 1 Year Old"),
-    _1y_to_2y: CohortName::new("1y_to_2y_old", "1y-2y", "1 to 2 Years Old"),
+    _6m_to_9m: CohortName::new("6m_to_9m_old", "6m-9m", "6 to 9 Months Old"),
+    _9m_to_1y: CohortName::new("9m_to_1y_old", "9m-1y", "9 Months to 1 Year Old"),
+    _1y_to_18m: CohortName::new("1y_to_18m_old", "1y-18m", "1 Year to 18 Months Old"),
+    _18m_to_2y: CohortName::new("18m_to_2y_old", "18m-2y", "18 Months to 2 Years Old"),
     _2y_to_3y: CohortName::new("2y_to_3y_old", "2y-3y", "2 to 3 Years Old"),
     _3y_to_4y: CohortName::new("3y_to_4y_old", "3y-4y", "3 to 4 Years Old"),
     _4y_to_5y: CohortName::new("4y_to_5y_old", "4y-5y", "4 to 5 Years Old"),
@@ -129,8 +140,10 @@ pub struct AgeRange<T> {
     pub _3m_to_4m: T,
     pub _4m_to_5m: T,
     pub _5m_to_6m: T,
-    pub _6m_to_1y: T,
-    pub _1y_to_2y: T,
+    pub _6m_to_9m: T,
+    pub _9m_to_1y: T,
+    pub _1y_to_18m: T,
+    pub _18m_to_2y: T,
     pub _2y_to_3y: T,
     pub _3y_to_4y: T,
     pub _4y_to_5y: T,
@@ -157,8 +170,10 @@ impl<T> AgeRange<T> {
             HOURS_3M..HOURS_4M => &mut self._3m_to_4m,
             HOURS_4M..HOURS_5M => &mut self._4m_to_5m,
             HOURS_5M..HOURS_6M => &mut self._5m_to_6m,
-            HOURS_6M..HOURS_1Y => &mut self._6m_to_1y,
-            HOURS_1Y..HOURS_2Y => &mut self._1y_to_2y,
+            HOURS_6M..HOURS_9M => &mut self._6m_to_9m,
+            HOURS_9M..HOURS_1Y => &mut self._9m_to_1y,
+            HOURS_1Y..HOURS_18M => &mut self._1y_to_18m,
+            HOURS_18M..HOURS_2Y => &mut self._18m_to_2y,
             HOURS_2Y..HOURS_3Y => &mut self._2y_to_3y,
             HOURS_3Y..HOURS_4Y => &mut self._3y_to_4y,
             HOURS_4Y..HOURS_5Y => &mut self._4y_to_5y,
@@ -185,8 +200,10 @@ impl<T> AgeRange<T> {
             HOURS_3M..HOURS_4M => &self._3m_to_4m,
             HOURS_4M..HOURS_5M => &self._4m_to_5m,
             HOURS_5M..HOURS_6M => &self._5m_to_6m,
-            HOURS_6M..HOURS_1Y => &self._6m_to_1y,
-            HOURS_1Y..HOURS_2Y => &self._1y_to_2y,
+            HOURS_6M..HOURS_9M => &self._6m_to_9m,
+            HOURS_9M..HOURS_1Y => &self._9m_to_1y,
+            HOURS_1Y..HOURS_18M => &self._1y_to_18m,
+            HOURS_18M..HOURS_2Y => &self._18m_to_2y,
             HOURS_2Y..HOURS_3Y => &self._2y_to_3y,
             HOURS_3Y..HOURS_4Y => &self._3y_to_4y,
             HOURS_4Y..HOURS_5Y => &self._4y_to_5y,
@@ -200,7 +217,7 @@ impl<T> AgeRange<T> {
         }
     }
 
-    pub fn from_array(arr: [T; 21]) -> Self {
+    pub fn from_array(arr: [T; AGE_RANGE_COUNT]) -> Self {
         let [
             a0,
             a1,
@@ -223,6 +240,8 @@ impl<T> AgeRange<T> {
             a18,
             a19,
             a20,
+            a21,
+            a22,
         ] = arr;
         Self {
             under_1h: a0,
@@ -234,18 +253,20 @@ impl<T> AgeRange<T> {
             _3m_to_4m: a6,
             _4m_to_5m: a7,
             _5m_to_6m: a8,
-            _6m_to_1y: a9,
-            _1y_to_2y: a10,
-            _2y_to_3y: a11,
-            _3y_to_4y: a12,
-            _4y_to_5y: a13,
-            _5y_to_6y: a14,
-            _6y_to_7y: a15,
-            _7y_to_8y: a16,
-            _8y_to_10y: a17,
-            _10y_to_12y: a18,
-            _12y_to_15y: a19,
-            over_15y: a20,
+            _6m_to_9m: a9,
+            _9m_to_1y: a10,
+            _1y_to_18m: a11,
+            _18m_to_2y: a12,
+            _2y_to_3y: a13,
+            _3y_to_4y: a14,
+            _4y_to_5y: a15,
+            _5y_to_6y: a16,
+            _6y_to_7y: a17,
+            _7y_to_8y: a18,
+            _8y_to_10y: a19,
+            _10y_to_12y: a20,
+            _12y_to_15y: a21,
+            over_15y: a22,
         }
     }
 
@@ -265,8 +286,10 @@ impl<T> AgeRange<T> {
             _3m_to_4m: create(f._3m_to_4m.clone(), n._3m_to_4m.id),
             _4m_to_5m: create(f._4m_to_5m.clone(), n._4m_to_5m.id),
             _5m_to_6m: create(f._5m_to_6m.clone(), n._5m_to_6m.id),
-            _6m_to_1y: create(f._6m_to_1y.clone(), n._6m_to_1y.id),
-            _1y_to_2y: create(f._1y_to_2y.clone(), n._1y_to_2y.id),
+            _6m_to_9m: create(f._6m_to_9m.clone(), n._6m_to_9m.id),
+            _9m_to_1y: create(f._9m_to_1y.clone(), n._9m_to_1y.id),
+            _1y_to_18m: create(f._1y_to_18m.clone(), n._1y_to_18m.id),
+            _18m_to_2y: create(f._18m_to_2y.clone(), n._18m_to_2y.id),
             _2y_to_3y: create(f._2y_to_3y.clone(), n._2y_to_3y.id),
             _3y_to_4y: create(f._3y_to_4y.clone(), n._3y_to_4y.id),
             _4y_to_5y: create(f._4y_to_5y.clone(), n._4y_to_5y.id),
@@ -296,8 +319,10 @@ impl<T> AgeRange<T> {
             _3m_to_4m: create(f._3m_to_4m.clone(), n._3m_to_4m.id)?,
             _4m_to_5m: create(f._4m_to_5m.clone(), n._4m_to_5m.id)?,
             _5m_to_6m: create(f._5m_to_6m.clone(), n._5m_to_6m.id)?,
-            _6m_to_1y: create(f._6m_to_1y.clone(), n._6m_to_1y.id)?,
-            _1y_to_2y: create(f._1y_to_2y.clone(), n._1y_to_2y.id)?,
+            _6m_to_9m: create(f._6m_to_9m.clone(), n._6m_to_9m.id)?,
+            _9m_to_1y: create(f._9m_to_1y.clone(), n._9m_to_1y.id)?,
+            _1y_to_18m: create(f._1y_to_18m.clone(), n._1y_to_18m.id)?,
+            _18m_to_2y: create(f._18m_to_2y.clone(), n._18m_to_2y.id)?,
             _2y_to_3y: create(f._2y_to_3y.clone(), n._2y_to_3y.id)?,
             _3y_to_4y: create(f._3y_to_4y.clone(), n._3y_to_4y.id)?,
             _4y_to_5y: create(f._4y_to_5y.clone(), n._4y_to_5y.id)?,
@@ -322,8 +347,10 @@ impl<T> AgeRange<T> {
             &self._3m_to_4m,
             &self._4m_to_5m,
             &self._5m_to_6m,
-            &self._6m_to_1y,
-            &self._1y_to_2y,
+            &self._6m_to_9m,
+            &self._9m_to_1y,
+            &self._1y_to_18m,
+            &self._18m_to_2y,
             &self._2y_to_3y,
             &self._3y_to_4y,
             &self._4y_to_5y,
@@ -349,8 +376,10 @@ impl<T> AgeRange<T> {
             &mut self._3m_to_4m,
             &mut self._4m_to_5m,
             &mut self._5m_to_6m,
-            &mut self._6m_to_1y,
-            &mut self._1y_to_2y,
+            &mut self._6m_to_9m,
+            &mut self._9m_to_1y,
+            &mut self._1y_to_18m,
+            &mut self._18m_to_2y,
             &mut self._2y_to_3y,
             &mut self._3y_to_4y,
             &mut self._4y_to_5y,
@@ -379,8 +408,10 @@ impl<T> AgeRange<T> {
             &mut self._3m_to_4m,
             &mut self._4m_to_5m,
             &mut self._5m_to_6m,
-            &mut self._6m_to_1y,
-            &mut self._1y_to_2y,
+            &mut self._6m_to_9m,
+            &mut self._9m_to_1y,
+            &mut self._1y_to_18m,
+            &mut self._18m_to_2y,
             &mut self._2y_to_3y,
             &mut self._3y_to_4y,
             &mut self._4y_to_5y,
@@ -393,5 +424,48 @@ impl<T> AgeRange<T> {
             &mut self.over_15y,
         ]
         .into_par_iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ranges_are_contiguous_and_match_the_declared_count() {
+        let ranges: Vec<_> = AGE_RANGE_BOUNDS.iter().collect();
+
+        assert_eq!(ranges.len(), AGE_RANGE_COUNT);
+        assert_eq!(ranges.first().unwrap().start, 0);
+        assert_eq!(ranges.last().unwrap().end, usize::MAX);
+
+        for adjacent in ranges.windows(2) {
+            assert_eq!(adjacent[0].end, adjacent[1].start);
+        }
+    }
+
+    #[test]
+    fn split_range_names_and_boundaries_match() {
+        assert_eq!(HOURS_9M, HOURS_6M + HOURS_3M);
+        assert_eq!(HOURS_18M, HOURS_1Y + HOURS_6M);
+        assert_eq!(AGE_RANGE_NAMES._6m_to_9m.id, "6m_to_9m_old");
+        assert_eq!(AGE_RANGE_NAMES._9m_to_1y.id, "9m_to_1y_old");
+        assert_eq!(AGE_RANGE_NAMES._1y_to_18m.id, "1y_to_18m_old");
+        assert_eq!(AGE_RANGE_NAMES._18m_to_2y.id, "18m_to_2y_old");
+    }
+
+    #[test]
+    fn eighteen_month_classifier_stays_anchored_to_one_year_plus_six_months() {
+        let age_at_540_days = Age::new(
+            brk_types::Timestamp::new((HOURS_6M * 3 * 60 * 60) as u32),
+            brk_types::Timestamp::ZERO,
+        );
+        let age_at_18m = Age::new(
+            brk_types::Timestamp::new((HOURS_18M * 60 * 60) as u32),
+            brk_types::Timestamp::ZERO,
+        );
+
+        assert_eq!(AGE_RANGE_NAMES.get(age_at_540_days).id, "1y_to_18m_old");
+        assert_eq!(AGE_RANGE_NAMES.get(age_at_18m).id, "18m_to_2y_old");
     }
 }

@@ -81,8 +81,8 @@ export function createPricesSectionFull({ cohort, title }) {
 
 /**
  * Create prices section for cohorts with basic ratio patterns only
- * (CohortWithAdjusted, CohortBasic, CohortAddr, CohortWithoutRelative)
- * @param {{ cohort: CohortWithAdjusted | CohortBasic | CohortAddr | CohortWithoutRelative | CohortAgeRange, title: (name: string) => string }} args
+ * (CohortCore, CohortBasic, CohortAddr, CohortWithoutRelative)
+ * @param {{ cohort: CohortCore | CohortBasic | CohortAddr | CohortWithoutRelative | CohortAgeRange, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createPricesSectionBasic({ cohort, title }) {
@@ -119,7 +119,7 @@ export function createPricesSectionBasic({ cohort, title }) {
  * @returns {PartialOptionsGroup}
  */
 /**
- * @param {readonly CohortObject[]} list
+ * @param {readonly CohortWithRealizedPrice[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsTree}
@@ -148,7 +148,7 @@ function groupedRealizedPriceItems(list, all, title) {
   ];
 }
 
-/** @param {{ list: readonly CohortObject[], all: CohortAll, title: (name: string) => string }} args */
+/** @param {{ list: readonly CohortWithRealizedPrice[], all: CohortAll, title: (name: string) => string }} args */
 export function createGroupedPricesSection({ list, all, title }) {
   return {
     name: "Prices",

@@ -3,12 +3,12 @@ use brk_types::StoredF64;
 use derive_more::{Deref, DerefMut};
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::{PerBlock, ValuePerBlock};
+use crate::internal::{PerBlock, SpotValuePerBlock};
 
 #[derive(Traversable)]
 pub struct BaseVecs<M: StorageMode = Rw> {
-    pub vaulted: ValuePerBlock<M>,
-    pub active: ValuePerBlock<M>,
+    pub vaulted: SpotValuePerBlock<M>,
+    pub active: SpotValuePerBlock<M>,
 }
 
 #[derive(Deref, DerefMut, Traversable)]

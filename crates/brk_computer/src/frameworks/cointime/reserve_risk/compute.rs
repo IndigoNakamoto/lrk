@@ -32,13 +32,6 @@ impl Vecs {
             exit,
         )?;
 
-        self.value.height.compute_divide(
-            starting_height,
-            &prices.spot.usd.height,
-            &self.hodl_bank,
-            exit,
-        )?;
-
         Ok(())
     }
 }

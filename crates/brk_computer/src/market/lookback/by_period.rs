@@ -101,5 +101,4 @@ impl<T> ByLookbackPeriod<T> {
             _10y: create(n._10y, d._10y, &period._10y)?,
         })
     }
-
 }

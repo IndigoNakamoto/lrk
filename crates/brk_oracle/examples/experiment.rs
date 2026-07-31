@@ -11,8 +11,8 @@ use std::{cmp::Ordering, env, path::PathBuf};
 
 use brk_indexer::Indexer;
 use brk_oracle::{
-    bin_to_cents, cents_to_bin, seed_bin as oracle_seed_bin, Config, PaymentFilter,
-    BINS_PER_DECADE, NUM_BINS, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    BINS_PER_DECADE, Config, NUM_BINS, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    bin_to_cents, cents_to_bin, seed_bin as oracle_seed_bin,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};

@@ -373,7 +373,7 @@ prior template's transactions or a full transaction body.
  * schemars enum value set; the type therefore proves "this is a valid
  * cohort name" wherever a `Cohort` is held.
  *
- * @typedef {("all"|"sth"|"lth"|"utxos_under_1h_old"|"utxos_1h_to_1d_old"|"utxos_1d_to_1w_old"|"utxos_1w_to_1m_old"|"utxos_1m_to_2m_old"|"utxos_2m_to_3m_old"|"utxos_3m_to_4m_old"|"utxos_4m_to_5m_old"|"utxos_5m_to_6m_old"|"utxos_6m_to_1y_old"|"utxos_1y_to_2y_old"|"utxos_2y_to_3y_old"|"utxos_3y_to_4y_old"|"utxos_4y_to_5y_old"|"utxos_5y_to_6y_old"|"utxos_6y_to_7y_old"|"utxos_7y_to_8y_old"|"utxos_8y_to_10y_old"|"utxos_10y_to_12y_old"|"utxos_12y_to_15y_old"|"utxos_over_15y_old")} Cohort
+ * @typedef {("all"|"sth"|"lth"|"utxos_under_1h_old"|"utxos_1h_to_1d_old"|"utxos_1d_to_1w_old"|"utxos_1w_to_1m_old"|"utxos_1m_to_2m_old"|"utxos_2m_to_3m_old"|"utxos_3m_to_4m_old"|"utxos_4m_to_5m_old"|"utxos_5m_to_6m_old"|"utxos_6m_to_9m_old"|"utxos_9m_to_1y_old"|"utxos_1y_to_18m_old"|"utxos_18m_to_2y_old"|"utxos_2y_to_3y_old"|"utxos_3y_to_4y_old"|"utxos_4y_to_5y_old"|"utxos_5y_to_6y_old"|"utxos_6y_to_7y_old"|"utxos_7y_to_8y_old"|"utxos_8y_to_10y_old"|"utxos_10y_to_12y_old"|"utxos_12y_to_15y_old"|"utxos_over_15y_old")} Cohort
  */
 /**
  * Coinbase scriptSig tag for pool identification.
@@ -580,7 +580,9 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {("json"|"csv")} Format
  */
 /**
- * Data for a funded (non-empty) address with current balance
+ * Data for a funded (non-empty) address with current balance.
+ *
+ * Kept compact because one value is stored for every funded address.
  *
  * @typedef {Object} FundedAddrData
  * @property {number} txCount - Total transaction count
@@ -589,7 +591,6 @@ ancestors and no descendants (matches mempool.space).
  * @property {Sats} received - Satoshis received by this address
  * @property {Sats} sent - Satoshis sent by this address
  * @property {CentsSats} realizedCapRaw - The realized capitalization: Σ(price × sats)
- * @property {CentsSquaredSats} capitalizedCapRaw - The capitalized cap: Σ(price² × sats)
  */
 /** @typedef {TypeIndex} FundedAddrIndex */
 /** @typedef {number} Halving */
@@ -2819,45 +2820,6 @@ function createCapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern(clie
 }
 
 /**
- * @typedef {Object} CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2
- * @property {CentsDeltaToUsdPattern} cap
- * @property {PricePattern} capitalized
- * @property {BlockCumulativeSumPattern} grossPnl
- * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {BlockCumulativeSumPattern} peakRegret
- * @property {CentsPpmRatioSatsUsdPattern} price
- * @property {BlockCumulativeSumPattern} profit
- * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- * @property {_1m1w1y24hPattern8} sellSideRiskRatio
- * @property {RatioValuePattern2} sopr
- */
-
-/**
- * Create a CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2}
- */
-function createCapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2(client, acc) {
-  return {
-    cap: createCentsDeltaToUsdPattern(client, _m(acc, 'realized_cap')),
-    capitalized: createPricePattern(client, _m(acc, 'capitalized_price')),
-    grossPnl: createBlockCumulativeSumPattern(client, _m(acc, 'realized_gross_pnl')),
-    loss: createBlockCumulativeNegativeSumPattern(client, _m(acc, 'realized_loss')),
-    mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
-    netPnl: createBlockChangeCumulativeDeltaSumPattern(client, _m(acc, 'net')),
-    peakRegret: createBlockCumulativeSumPattern(client, _m(acc, 'realized_peak_regret')),
-    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
-    profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
-    profitToLossRatio: create_1m1w1y24hPattern(client, _m(acc, 'realized_profit_to_loss_ratio')),
-    sellSideRiskRatio: create_1m1w1y24hPattern8(client, _m(acc, 'sell_side_risk_ratio')),
-    sopr: createRatioValuePattern2(client, acc),
-  };
-}
-
-/**
  * @typedef {Object} EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2
  * @property {_1m1w1y24hPercentPpmRatioPattern} empty
  * @property {_1m1w1y24hPercentPpmRatioPattern} opReturn
@@ -3355,35 +3317,6 @@ function create_1m1w1y24hPercentPpmRatioPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2
- * @property {CoindaysCoinyearsDormancyTransferPattern} activity
- * @property {InMaxMinPerSupplyPattern} costBasis
- * @property {InPattern} investedCapital
- * @property {SpentUnspentPattern} outputs
- * @property {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2} realized
- * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
- */
-
-/**
- * Create a ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2}
- */
-function createActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2(client, acc) {
-  return {
-    activity: createCoindaysCoinyearsDormancyTransferPattern(client, acc),
-    costBasis: createInMaxMinPerSupplyPattern(client, acc),
-    investedCapital: createInPattern(client, _m(acc, 'invested_capital_in')),
-    outputs: createSpentUnspentPattern(client, acc),
-    realized: createCapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2(client, acc),
-    supply: createDeltaDominanceHalfInTotalPattern2(client, _m(acc, 'supply')),
-    unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(client, acc),
-  };
-}
-
-/**
  * @typedef {Object} CapLossMvrvNetPriceProfitSoprPattern
  * @property {CentsDeltaUsdPattern} cap
  * @property {BlockCumulativeNegativeSumPattern} loss
@@ -3527,33 +3460,6 @@ function createMaxMedianMinPct10Pct25Pct75Pct90Pattern(client, acc) {
     pct25: createSeriesPattern1(client, _m(acc, 'pct25')),
     pct75: createSeriesPattern1(client, _m(acc, 'pct75')),
     pct90: createSeriesPattern1(client, _m(acc, 'pct90')),
-  };
-}
-
-/**
- * @typedef {Object} ActivityAddrOutputsRealizedSupplyUnrealizedPattern
- * @property {TransferPattern} activity
- * @property {BaseDeltaPattern} addrCount
- * @property {SpentUnspentPattern} outputs
- * @property {CapLossMvrvPriceProfitPattern} realized
- * @property {DeltaDominanceTotalPattern} supply
- * @property {NuplPattern} unrealized
- */
-
-/**
- * Create a ActivityAddrOutputsRealizedSupplyUnrealizedPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {ActivityAddrOutputsRealizedSupplyUnrealizedPattern}
- */
-function createActivityAddrOutputsRealizedSupplyUnrealizedPattern(client, acc) {
-  return {
-    activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
-    addrCount: createBaseDeltaPattern(client, _m(acc, 'addr_count')),
-    outputs: createSpentUnspentPattern(client, acc),
-    realized: createCapLossMvrvPriceProfitPattern(client, acc),
-    supply: createDeltaDominanceTotalPattern(client, _m(acc, 'supply')),
-    unrealized: createNuplPattern(client, _m(acc, 'nupl')),
   };
 }
 
@@ -3762,6 +3668,31 @@ function createActivityOutputsRealizedSupplyUnrealizedPattern(client, acc) {
     realized: createCapLossMvrvNetPriceProfitSoprPattern(client, acc),
     supply: createDeltaDominanceHalfInTotalPattern(client, _m(acc, 'supply')),
     unrealized: createLossNetNuplProfitPattern(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} ActivityAddrOutputsRealizedSupplyPattern
+ * @property {TransferPattern} activity
+ * @property {BaseDeltaPattern} addrCount
+ * @property {UnspentPattern} outputs
+ * @property {CapLossProfitPattern} realized
+ * @property {DeltaDominanceTotalPattern} supply
+ */
+
+/**
+ * Create a ActivityAddrOutputsRealizedSupplyPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ActivityAddrOutputsRealizedSupplyPattern}
+ */
+function createActivityAddrOutputsRealizedSupplyPattern(client, acc) {
+  return {
+    activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
+    addrCount: createBaseDeltaPattern(client, _m(acc, 'addr_count')),
+    outputs: createUnspentPattern(client, _m(acc, 'utxo_count')),
+    realized: createCapLossProfitPattern(client, _m(acc, 'realized')),
+    supply: createDeltaDominanceTotalPattern(client, _m(acc, 'supply')),
   };
 }
 
@@ -4653,6 +4584,27 @@ function createBlocksDominanceRewardsPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} CapLossProfitPattern
+ * @property {CentsDeltaUsdPattern} cap
+ * @property {BlockCumulativeSumPattern} loss
+ * @property {BlockCumulativeSumPattern} profit
+ */
+
+/**
+ * Create a CapLossProfitPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CapLossProfitPattern}
+ */
+function createCapLossProfitPattern(client, acc) {
+  return {
+    cap: createCentsDeltaUsdPattern(client, _m(acc, 'cap')),
+    loss: createBlockCumulativeSumPattern(client, _m(acc, 'loss')),
+    profit: createBlockCumulativeSumPattern(client, _m(acc, 'profit')),
+  };
+}
+
+/**
  * @typedef {Object} CentsSatsUsdPattern3
  * @property {SeriesPattern2<Cents>} cents
  * @property {SeriesPattern2<Sats>} sats
@@ -5497,25 +5449,6 @@ function createPpmRatioPattern(client, acc) {
 }
 
 /**
- * @typedef {Object} RatioValuePattern2
- * @property {_1m1w1y24hPattern<StoredF64>} ratio
- * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
- */
-
-/**
- * Create a RatioValuePattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {RatioValuePattern2}
- */
-function createRatioValuePattern2(client, acc) {
-  return {
-    ratio: create_1m1w1y24hPattern(client, _m(acc, 'sopr')),
-    valueDestroyed: createAverageBlockCumulativeSumPattern(client, _m(acc, 'value_destroyed')),
-  };
-}
-
-/**
  * @typedef {Object} RatioValuePattern
  * @property {_24hPattern} ratio
  * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
@@ -5711,6 +5644,23 @@ function createSupplyPattern(client, acc) {
 function createTransferPattern(client, acc) {
   return {
     transferVolume: createAverageBlockCumulativeSumPattern2(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} UnspentPattern
+ * @property {BaseDeltaPattern} unspentCount
+ */
+
+/**
+ * Create a UnspentPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {UnspentPattern}
+ */
+function createUnspentPattern(client, acc) {
+  return {
+    unspentCount: createBaseDeltaPattern(client, acc),
   };
 }
 
@@ -6615,8 +6565,10 @@ function createTransferPattern(client, acc) {
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _3mTo4m
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _4mTo5m
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _5mTo6m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _6mTo1y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1yTo2y
+ * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _6mTo9m
+ * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _9mTo1y
+ * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1yTo18m
+ * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _18mTo2y
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _2yTo3y
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _3yTo4y
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _4yTo5y
@@ -6704,8 +6656,10 @@ function createTransferPattern(client, acc) {
  * @property {MobilitySpendingSupplyPattern} _3mTo4m
  * @property {MobilitySpendingSupplyPattern} _4mTo5m
  * @property {MobilitySpendingSupplyPattern} _5mTo6m
- * @property {MobilitySpendingSupplyPattern} _6mTo1y
- * @property {MobilitySpendingSupplyPattern} _1yTo2y
+ * @property {MobilitySpendingSupplyPattern} _6mTo9m
+ * @property {MobilitySpendingSupplyPattern} _9mTo1y
+ * @property {MobilitySpendingSupplyPattern} _1yTo18m
+ * @property {MobilitySpendingSupplyPattern} _18mTo2y
  * @property {MobilitySpendingSupplyPattern} _2yTo3y
  * @property {MobilitySpendingSupplyPattern} _3yTo4y
  * @property {MobilitySpendingSupplyPattern} _4yTo5y
@@ -7607,7 +7561,7 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Cohorts_Utxo
  * @property {SeriesTree_Cohorts_Utxo_All} all
  * @property {SeriesTree_Cohorts_Utxo_Sth} sth
- * @property {ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2} lth
+ * @property {SeriesTree_Cohorts_Utxo_Lth} lth
  * @property {SeriesTree_Cohorts_Utxo_AgeRange} ageRange
  * @property {SeriesTree_Cohorts_Utxo_UnderAge} underAge
  * @property {SeriesTree_Cohorts_Utxo_OverAge} overAge
@@ -7744,6 +7698,39 @@ function createTransferPattern(client, acc) {
  */
 
 /**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth
+ * @property {DeltaDominanceHalfInTotalPattern2} supply
+ * @property {SpentUnspentPattern} outputs
+ * @property {CoindaysCoinyearsDormancyTransferPattern} activity
+ * @property {SeriesTree_Cohorts_Utxo_Lth_Realized} realized
+ * @property {InMaxMinPerSupplyPattern} costBasis
+ * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
+ * @property {InPattern} investedCapital
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized
+ * @property {CentsDeltaToUsdPattern} cap
+ * @property {BlockCumulativeSumPattern} profit
+ * @property {BlockCumulativeNegativeSumPattern} loss
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {SeriesPattern1<StoredF32>} mvrv
+ * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
+ * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr} sopr
+ * @property {BlockCumulativeSumPattern} grossPnl
+ * @property {_1m1w1y24hPattern8} sellSideRiskRatio
+ * @property {BlockCumulativeSumPattern} peakRegret
+ * @property {PricePattern} capitalized
+ * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr
+ * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
+ * @property {_1m1w1y24hPattern<StoredF64>} ratio
+ */
+
+/**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_AgeRange
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} under1h
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1hTo1d
@@ -7754,8 +7741,10 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3mTo4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4mTo5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5mTo6m
- * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6mTo1y
- * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1yTo2y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6mTo9m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9mTo1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1yTo18m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18mTo2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2yTo3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3yTo4y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4yTo5y
@@ -7777,7 +7766,9 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4y
@@ -7800,7 +7791,9 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4y
@@ -7845,8 +7838,8 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry
- * @property {ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2} discount
- * @property {ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2} premium
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} discount
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} premium
  */
 
 /**
@@ -7995,8 +7988,10 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern2} _3mTo4m
  * @property {AverageBlockCumulativeSumPattern2} _4mTo5m
  * @property {AverageBlockCumulativeSumPattern2} _5mTo6m
- * @property {AverageBlockCumulativeSumPattern2} _6mTo1y
- * @property {AverageBlockCumulativeSumPattern2} _1yTo2y
+ * @property {AverageBlockCumulativeSumPattern2} _6mTo9m
+ * @property {AverageBlockCumulativeSumPattern2} _9mTo1y
+ * @property {AverageBlockCumulativeSumPattern2} _1yTo18m
+ * @property {AverageBlockCumulativeSumPattern2} _18mTo2y
  * @property {AverageBlockCumulativeSumPattern2} _2yTo3y
  * @property {AverageBlockCumulativeSumPattern2} _3yTo4y
  * @property {AverageBlockCumulativeSumPattern2} _4yTo5y
@@ -8018,55 +8013,55 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_OverAmount
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1sat
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1sat
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtc
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_AmountRange
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _0sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1satTo10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10satsTo100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100satsTo1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSatsTo10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSatsTo100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSatsTo1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSatsTo10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSatsTo1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btcTo10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btcTo100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btcTo1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtcTo10kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtcTo100kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} over100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _0sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1satTo10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10satsTo100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100satsTo1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSatsTo10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSatsTo100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSatsTo1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSatsTo10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSatsTo1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btcTo10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btcTo100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btcTo1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtcTo10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtcTo100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} over100kBtc
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_UnderAmount
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kBtc
  */
 
 /**
@@ -8532,15 +8527,25 @@ class BrkClient extends BrkClientBase {
       "short": "5m-6m",
       "long": "5 to 6 Months Old"
     },
-    "_6mTo1y": {
-      "id": "6m_to_1y_old",
-      "short": "6m-1y",
-      "long": "6 Months to 1 Year Old"
+    "_6mTo9m": {
+      "id": "6m_to_9m_old",
+      "short": "6m-9m",
+      "long": "6 to 9 Months Old"
     },
-    "_1yTo2y": {
-      "id": "1y_to_2y_old",
-      "short": "1y-2y",
-      "long": "1 to 2 Years Old"
+    "_9mTo1y": {
+      "id": "9m_to_1y_old",
+      "short": "9m-1y",
+      "long": "9 Months to 1 Year Old"
+    },
+    "_1yTo18m": {
+      "id": "1y_to_18m_old",
+      "short": "1y-18m",
+      "long": "1 Year to 18 Months Old"
+    },
+    "_18mTo2y": {
+      "id": "18m_to_2y_old",
+      "short": "18m-2y",
+      "long": "18 Months to 2 Years Old"
     },
     "_2yTo3y": {
       "id": "2y_to_3y_old",
@@ -8630,10 +8635,20 @@ class BrkClient extends BrkClientBase {
       "short": "<6m",
       "long": "Under 6 Months Old"
     },
+    "_9m": {
+      "id": "under_9m_old",
+      "short": "<9m",
+      "long": "Under 9 Months Old"
+    },
     "_1y": {
       "id": "under_1y_old",
       "short": "<1y",
       "long": "Under 1 Year Old"
+    },
+    "_18m": {
+      "id": "under_18m_old",
+      "short": "<18m",
+      "long": "Under 18 Months Old"
     },
     "_2y": {
       "id": "under_2y_old",
@@ -8728,10 +8743,20 @@ class BrkClient extends BrkClientBase {
       "short": "6m+",
       "long": "Over 6 Months Old"
     },
+    "_9m": {
+      "id": "over_9m_old",
+      "short": "9m+",
+      "long": "Over 9 Months Old"
+    },
     "_1y": {
       "id": "over_1y_old",
       "short": "1y+",
       "long": "Over 1 Year Old"
+    },
+    "_18m": {
+      "id": "over_18m_old",
+      "short": "18m+",
+      "long": "Over 18 Months Old"
     },
     "_2y": {
       "id": "over_2y_old",
@@ -9926,8 +9951,10 @@ class BrkClient extends BrkClientBase {
           _3mTo4m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3m_to_4m_old'),
           _4mTo5m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4m_to_5m_old'),
           _5mTo6m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5m_to_6m_old'),
-          _6mTo1y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6m_to_1y_old'),
-          _1yTo2y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1y_to_2y_old'),
+          _6mTo9m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6m_to_9m_old'),
+          _9mTo1y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_9m_to_1y_old'),
+          _1yTo18m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1y_to_18m_old'),
+          _18mTo2y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_18m_to_2y_old'),
           _2yTo3y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2y_to_3y_old'),
           _3yTo4y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3y_to_4y_old'),
           _4yTo5y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4y_to_5y_old'),
@@ -9991,8 +10018,10 @@ class BrkClient extends BrkClientBase {
           _3mTo4m: createMobilitySpendingSupplyPattern(this, 'utxos_3m_to_4m_old'),
           _4mTo5m: createMobilitySpendingSupplyPattern(this, 'utxos_4m_to_5m_old'),
           _5mTo6m: createMobilitySpendingSupplyPattern(this, 'utxos_5m_to_6m_old'),
-          _6mTo1y: createMobilitySpendingSupplyPattern(this, 'utxos_6m_to_1y_old'),
-          _1yTo2y: createMobilitySpendingSupplyPattern(this, 'utxos_1y_to_2y_old'),
+          _6mTo9m: createMobilitySpendingSupplyPattern(this, 'utxos_6m_to_9m_old'),
+          _9mTo1y: createMobilitySpendingSupplyPattern(this, 'utxos_9m_to_1y_old'),
+          _1yTo18m: createMobilitySpendingSupplyPattern(this, 'utxos_1y_to_18m_old'),
+          _18mTo2y: createMobilitySpendingSupplyPattern(this, 'utxos_18m_to_2y_old'),
           _2yTo3y: createMobilitySpendingSupplyPattern(this, 'utxos_2y_to_3y_old'),
           _3yTo4y: createMobilitySpendingSupplyPattern(this, 'utxos_3y_to_4y_old'),
           _4yTo5y: createMobilitySpendingSupplyPattern(this, 'utxos_4y_to_5y_old'),
@@ -10740,7 +10769,31 @@ class BrkClient extends BrkClientBase {
             unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'sth'),
             investedCapital: createInPattern(this, 'sth_invested_capital_in'),
           },
-          lth: createActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2(this, 'lth'),
+          lth: {
+            supply: createDeltaDominanceHalfInTotalPattern2(this, 'lth_supply'),
+            outputs: createSpentUnspentPattern(this, 'lth'),
+            activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'lth'),
+            realized: {
+              cap: createCentsDeltaToUsdPattern(this, 'lth_realized_cap'),
+              profit: createBlockCumulativeSumPattern(this, 'lth_realized_profit'),
+              loss: createBlockCumulativeNegativeSumPattern(this, 'lth_realized_loss'),
+              price: createCentsPpmRatioSatsUsdPattern(this, 'lth_realized_price'),
+              mvrv: createSeriesPattern1(this, 'lth_mvrv'),
+              netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'lth_net'),
+              sopr: {
+                valueDestroyed: createAverageBlockCumulativeSumPattern(this, 'lth_value_destroyed'),
+                ratio: create_1m1w1y24hPattern(this, 'lth_sopr'),
+              },
+              grossPnl: createBlockCumulativeSumPattern(this, 'lth_realized_gross_pnl'),
+              sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'lth_sell_side_risk_ratio'),
+              peakRegret: createBlockCumulativeSumPattern(this, 'lth_realized_peak_regret'),
+              capitalized: createPricePattern(this, 'lth_capitalized_price'),
+              profitToLossRatio: create_1m1w1y24hPattern(this, 'lth_realized_profit_to_loss_ratio'),
+            },
+            costBasis: createInMaxMinPerSupplyPattern(this, 'lth'),
+            unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'lth'),
+            investedCapital: createInPattern(this, 'lth_invested_capital_in'),
+          },
           ageRange: {
             under1h: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_1h_old'),
             _1hTo1d: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_1h_to_1d_old'),
@@ -10751,8 +10804,10 @@ class BrkClient extends BrkClientBase {
             _3mTo4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_3m_to_4m_old'),
             _4mTo5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_4m_to_5m_old'),
             _5mTo6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_5m_to_6m_old'),
-            _6mTo1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_6m_to_1y_old'),
-            _1yTo2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_1y_to_2y_old'),
+            _6mTo9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_18m_to_2y_old'),
             _2yTo3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_2y_to_3y_old'),
             _3yTo4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_3y_to_4y_old'),
             _4yTo5y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_4y_to_5y_old'),
@@ -10772,7 +10827,9 @@ class BrkClient extends BrkClientBase {
             _4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_4m_old'),
             _5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_5m_old'),
             _6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_6m_old'),
+            _9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_9m_old'),
             _1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_1y_old'),
+            _18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_18m_old'),
             _2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_2y_old'),
             _3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_3y_old'),
             _4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_4y_old'),
@@ -10793,7 +10850,9 @@ class BrkClient extends BrkClientBase {
             _4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_4m_old'),
             _5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_5m_old'),
             _6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_6m_old'),
+            _9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_9m_old'),
             _1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_1y_old'),
+            _18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_18m_old'),
             _2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_2y_old'),
             _3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_3y_old'),
             _4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_4y_old'),
@@ -10832,8 +10891,8 @@ class BrkClient extends BrkClientBase {
             _2026: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'class_2026'),
           },
           entry: {
-            discount: createActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2(this, 'veteran'),
-            premium: createActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2(this, 'rookie'),
+            discount: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'veteran'),
+            premium: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'rookie'),
           },
           overAmount: {
             _1sat: createActivityOutputsRealizedSupplyUnrealizedPattern2(this, 'utxos_over_1sat'),
@@ -10961,8 +11020,10 @@ class BrkClient extends BrkClientBase {
             _3mTo4m: createAverageBlockCumulativeSumPattern2(this, 'utxos_3m_to_4m_old_matured_supply'),
             _4mTo5m: createAverageBlockCumulativeSumPattern2(this, 'utxos_4m_to_5m_old_matured_supply'),
             _5mTo6m: createAverageBlockCumulativeSumPattern2(this, 'utxos_5m_to_6m_old_matured_supply'),
-            _6mTo1y: createAverageBlockCumulativeSumPattern2(this, 'utxos_6m_to_1y_old_matured_supply'),
-            _1yTo2y: createAverageBlockCumulativeSumPattern2(this, 'utxos_1y_to_2y_old_matured_supply'),
+            _6mTo9m: createAverageBlockCumulativeSumPattern2(this, 'utxos_6m_to_9m_old_matured_supply'),
+            _9mTo1y: createAverageBlockCumulativeSumPattern2(this, 'utxos_9m_to_1y_old_matured_supply'),
+            _1yTo18m: createAverageBlockCumulativeSumPattern2(this, 'utxos_1y_to_18m_old_matured_supply'),
+            _18mTo2y: createAverageBlockCumulativeSumPattern2(this, 'utxos_18m_to_2y_old_matured_supply'),
             _2yTo3y: createAverageBlockCumulativeSumPattern2(this, 'utxos_2y_to_3y_old_matured_supply'),
             _3yTo4y: createAverageBlockCumulativeSumPattern2(this, 'utxos_3y_to_4y_old_matured_supply'),
             _4yTo5y: createAverageBlockCumulativeSumPattern2(this, 'utxos_4y_to_5y_old_matured_supply'),
@@ -10977,51 +11038,51 @@ class BrkClient extends BrkClientBase {
         },
         addr: {
           overAmount: {
-            _1sat: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1sat'),
-            _10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10sats'),
-            _100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100sats'),
-            _1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1k_sats'),
-            _10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10k_sats'),
-            _100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100k_sats'),
-            _1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1m_sats'),
-            _10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10m_sats'),
-            _1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1btc'),
-            _10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10btc'),
-            _100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100btc'),
-            _1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1k_btc'),
-            _10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10k_btc'),
+            _1sat: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1sat'),
+            _10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10sats'),
+            _100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100sats'),
+            _1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1k_sats'),
+            _10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10k_sats'),
+            _100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100k_sats'),
+            _1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1m_sats'),
+            _10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10m_sats'),
+            _1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1btc'),
+            _10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10btc'),
+            _100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100btc'),
+            _1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1k_btc'),
+            _10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10k_btc'),
           },
           amountRange: {
-            _0sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_0sats'),
-            _1satTo10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1sat_to_10sats'),
-            _10satsTo100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10sats_to_100sats'),
-            _100satsTo1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100sats_to_1k_sats'),
-            _1kSatsTo10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1k_sats_to_10k_sats'),
-            _10kSatsTo100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10k_sats_to_100k_sats'),
-            _100kSatsTo1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100k_sats_to_1m_sats'),
-            _1mSatsTo10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1m_sats_to_10m_sats'),
-            _10mSatsTo1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10m_sats_to_1btc'),
-            _1btcTo10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1btc_to_10btc'),
-            _10btcTo100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10btc_to_100btc'),
-            _100btcTo1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100btc_to_1k_btc'),
-            _1kBtcTo10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1k_btc_to_10k_btc'),
-            _10kBtcTo100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10k_btc_to_100k_btc'),
-            over100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100k_btc'),
+            _0sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_0sats'),
+            _1satTo10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1sat_to_10sats'),
+            _10satsTo100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10sats_to_100sats'),
+            _100satsTo1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100sats_to_1k_sats'),
+            _1kSatsTo10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1k_sats_to_10k_sats'),
+            _10kSatsTo100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10k_sats_to_100k_sats'),
+            _100kSatsTo1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100k_sats_to_1m_sats'),
+            _1mSatsTo10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1m_sats_to_10m_sats'),
+            _10mSatsTo1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10m_sats_to_1btc'),
+            _1btcTo10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1btc_to_10btc'),
+            _10btcTo100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10btc_to_100btc'),
+            _100btcTo1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100btc_to_1k_btc'),
+            _1kBtcTo10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1k_btc_to_10k_btc'),
+            _10kBtcTo100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10k_btc_to_100k_btc'),
+            over100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100k_btc'),
           },
           underAmount: {
-            _10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10sats'),
-            _100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100sats'),
-            _1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1k_sats'),
-            _10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10k_sats'),
-            _100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100k_sats'),
-            _1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1m_sats'),
-            _10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10m_sats'),
-            _1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1btc'),
-            _10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10btc'),
-            _100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100btc'),
-            _1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1k_btc'),
-            _10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10k_btc'),
-            _100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100k_btc'),
+            _10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10sats'),
+            _100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100sats'),
+            _1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1k_sats'),
+            _10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10k_sats'),
+            _100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100k_sats'),
+            _1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1m_sats'),
+            _10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10m_sats'),
+            _1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1btc'),
+            _10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10btc'),
+            _100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100btc'),
+            _1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1k_btc'),
+            _10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10k_btc'),
+            _100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100k_btc'),
           },
         },
       },

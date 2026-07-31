@@ -3,7 +3,7 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{blocks, distribution, indexes, mining, price, supply};
+use crate::{blocks, distribution, indexes, price, supply};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -13,7 +13,6 @@ impl Vecs {
         indexes: &indexes::Vecs,
         prices: &price::Vecs,
         blocks: &blocks::Vecs,
-        mining: &mining::Vecs,
         supply_vecs: &supply::Vecs,
         distribution: &distribution::Vecs,
         exit: &Exit,
@@ -23,19 +22,13 @@ impl Vecs {
         // Activity computes first (liveliness, vaultedness, etc.)
         self.activity.compute(indexer, distribution, exit)?;
         self.age_range
-            .compute(indexer, indexes, prices, distribution, exit)?;
+            .compute(indexer, indexes, distribution, exit)?;
 
         // Phase 2: supply, adjusted, and value are independent.
         let (r1, r2) = rayon::join(
             || {
-                self.supply.compute(
-                    indexer,
-                    prices,
-                    distribution,
-                    &self.activity,
-                    &self.age_range,
-                    exit,
-                )
+                self.supply
+                    .compute(indexer, distribution, &self.activity, &self.age_range, exit)
             },
             || {
                 rayon::join(
@@ -55,14 +48,8 @@ impl Vecs {
         r2.1?;
 
         // Cap depends on activity + value
-        self.cap.compute(
-            indexer,
-            mining,
-            distribution,
-            &self.activity,
-            &self.value,
-            exit,
-        )?;
+        self.cap
+            .compute(indexer, distribution, &self.activity, &self.value, exit)?;
 
         // Phase 4: pricing and reserve_risk are independent
         let (r3, r4) = rayon::join(

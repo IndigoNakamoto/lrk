@@ -1,7 +1,7 @@
 use brk_cohort::{AgeRange, CohortContext};
 use brk_error::Result;
-use brk_types::Version;
-use vecdb::Database;
+use brk_types::{Cents, Height, Version};
+use vecdb::{CachedBoxedVec, Database};
 
 use super::{CohortVecs, Vecs};
 use crate::{
@@ -20,6 +20,7 @@ impl CohortVecs {
         version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
             coindays_created: PerBlockCumulativeRolling::forced_import(
@@ -44,7 +45,9 @@ impl CohortVecs {
                 cached_starts,
             )?,
             activity: ActivityDerivedVecs::forced_import_with_prefix(db, name, version, indexes)?,
-            supply: SupplyBaseVecs::forced_import_with_prefix(db, name, version, indexes)?,
+            supply: SupplyBaseVecs::forced_import_with_prefix(
+                db, name, version, indexes, spot_price,
+            )?,
         })
     }
 }
@@ -55,12 +58,13 @@ impl Vecs {
         parent_version: Version,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let version = parent_version + VERSION;
 
         Ok(Self(AgeRange::try_new(|_, name| {
             let name = CohortContext::Utxo.prefixed(name);
-            CohortVecs::forced_import(db, &name, version, indexes, cached_starts)
+            CohortVecs::forced_import(db, &name, version, indexes, cached_starts, spot_price)
         })?))
     }
 }

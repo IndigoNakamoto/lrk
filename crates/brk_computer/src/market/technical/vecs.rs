@@ -2,14 +2,14 @@ use brk_traversable::Traversable;
 use brk_types::{PartsPerMillion32, StoredF32};
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::{PerBlock, PercentPerBlock, RatioPerBlock, WindowsTo1m};
+use crate::internal::{LazyPerBlock, PerBlock, PercentPerBlock, RatioPerBlock, WindowsTo1m};
 
 #[derive(Traversable)]
 pub struct RsiChain<M: StorageMode = Rw> {
     #[traversable(hidden)]
-    pub gains: PerBlock<StoredF32, M>,
+    pub gains: LazyPerBlock<StoredF32>,
     #[traversable(hidden)]
-    pub losses: PerBlock<StoredF32, M>,
+    pub losses: LazyPerBlock<StoredF32>,
     #[traversable(hidden)]
     pub average_gain: PerBlock<StoredF32, M>,
     #[traversable(hidden)]

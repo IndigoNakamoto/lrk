@@ -7,7 +7,7 @@ use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::{metrics::ImportConfig, state::UnrealizedState},
-    internal::{CentsSubtractToCentsSigned, FiatPerBlock, PerBlock},
+    internal::{CentsSubtractToCentsSigned, FiatPerBlock, LazyPerBlock},
 };
 
 use super::UnrealizedBasic;
@@ -25,7 +25,7 @@ pub struct UnrealizedCore<M: StorageMode = Rw> {
 impl UnrealizedCore {
     pub(crate) fn forced_import(
         cfg: &ImportConfig,
-        mvrv: &PerBlock<PartsPerMillion64>,
+        mvrv: &LazyPerBlock<PartsPerMillion64>,
     ) -> Result<Self> {
         let basic = UnrealizedBasic::forced_import(cfg, mvrv)?;
         let net_unrealized_pnl = cfg.import("net_unrealized_pnl", Version::ZERO)?;

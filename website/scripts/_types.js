@@ -14,7 +14,7 @@
  *
  * @import { HeatmapAxis, HeatmapAxisChoice, HeatmapDefaults, HeatmapGrid, HeatmapGridFactory, HeatmapPoints, HeatmapRange, HeatmapPointSource, HeatmapColorFn, HeatmapTooltipFn } from "../src/heatmap/types.js"
  *
- * @import { Option, PartialChartOption, ChartOption, AnyPartialOption, ProcessedOptionAddons, OptionsTree, AnySeriesBlueprint, SeriesType, AnyFetchedSeriesBlueprint, ExplorerOption, UrlOption, PartialOptionsGroup, OptionsGroup, PartialOptionsTree, UtxoCohortObject, AddrCohortObject, CohortObject, CohortGroupObject, FetchedLineSeriesBlueprint, FetchedBaselineSeriesBlueprint, FetchedHistogramSeriesBlueprint, FetchedDotsBaselineSeriesBlueprint, PatternAll, PatternFull, PatternWithAdjusted, PatternWithPercentiles, PatternBasic, PatternBasicWithMarketCap, PatternBasicWithoutMarketCap, PatternWithoutRelative, CohortAll, CohortFull, CohortWithAdjusted, CohortWithPercentiles, CohortBasic, CohortBasicWithMarketCap, CohortBasicWithoutMarketCap, CohortWithoutRelative, CohortAddr, CohortLongTerm, CohortAgeRange, CohortAgeRangeWithMatured, CohortGroupFull, CohortGroupWithAdjusted, CohortGroupWithPercentiles, CohortGroupLongTerm, CohortGroupAgeRange, CohortGroupBasic, CohortGroupBasicWithMarketCap, CohortGroupBasicWithoutMarketCap, CohortGroupWithoutRelative, CohortGroupAddr, UtxoCohortGroupObject, AddrCohortGroupObject, FetchedDotsSeriesBlueprint, PartialHeatmapOption, HeatmapOption, FetchedCandlestickSeriesBlueprint, FetchedPriceSeriesBlueprint, AnyPricePattern, AnyValuePattern } from "./options/partial.js"
+ * @import { Option, PartialChartOption, ChartOption, AnyPartialOption, ProcessedOptionAddons, OptionsTree, AnySeriesBlueprint, SeriesType, AnyFetchedSeriesBlueprint, ExplorerOption, UrlOption, PartialOptionsGroup, OptionsGroup, PartialOptionsTree, UtxoCohortObject, AddrCohortObject, CohortObject, CohortGroupObject, FetchedLineSeriesBlueprint, FetchedBaselineSeriesBlueprint, FetchedHistogramSeriesBlueprint, FetchedDotsBaselineSeriesBlueprint, PatternAll, PatternFull, PatternCore, PatternWithPercentiles, PatternBasic, PatternBasicWithMarketCap, PatternBasicWithoutMarketCap, PatternWithoutRelative, CohortAll, CohortFull, CohortCore, CohortWithPercentiles, CohortBasic, CohortBasicWithMarketCap, CohortBasicWithoutMarketCap, CohortWithoutRelative, CohortAddr, CohortLongTerm, CohortAgeRange, CohortAgeRangeWithMatured, CohortGroupFull, CohortGroupCore, CohortGroupWithPercentiles, CohortGroupLongTerm, CohortGroupAgeRange, CohortGroupBasic, CohortGroupBasicWithMarketCap, CohortGroupBasicWithoutMarketCap, CohortGroupWithoutRelative, CohortGroupAddr, UtxoCohortGroupObject, AddrCohortGroupObject, FetchedDotsSeriesBlueprint, PartialHeatmapOption, HeatmapOption, FetchedCandlestickSeriesBlueprint, FetchedPriceSeriesBlueprint, AnyPricePattern, AnyValuePattern } from "./options/partial.js"
  *
  *
  * @import { UnitObject as Unit } from "./utils/units.js"
@@ -36,20 +36,20 @@
  * @typedef {Brk.SeriesTree_Cohorts_Addr} AddrCohortTree
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_All} AllUtxoPattern
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_Sth} ShortTermPattern
- * @typedef {Brk.ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2} LongTermPattern
+ * @typedef {Brk.SeriesTree_Cohorts_Utxo_Lth} LongTermPattern
  * @typedef {Brk.SeriesTree_Cohorts_Utxo_All_Unrealized} AllRelativePattern
  * @typedef {keyof Brk.BtcCentsSatsUsdPattern} BtcSatsUsdKey
  * @typedef {Brk.BtcCentsSatsUsdPattern} SupplyPattern
  * @typedef {Brk.AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern} BlockSizePattern
  * @typedef {keyof Brk.SeriesTree_Cohorts_Utxo_Type} SpendableType
- * @typedef {Brk.SpentUnspentUtxoPattern} OutputsPattern
+ * @typedef {Brk.SpentUnspentPattern} OutputsPattern
  * @typedef {keyof Brk.SeriesTree_Addrs_Raw} AddressableType
  *
  * Brk pattern types (using new pattern names)
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} MaxAgePattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} AgeRangePattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern2} UtxoAmountPattern
- * @typedef {Brk.ActivityAddrOutputsRealizedSupplyUnrealizedPattern} AddrAmountPattern
+ * @typedef {Brk.ActivityAddrOutputsRealizedSupplyPattern} AddrAmountPattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} BasicUtxoPattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern} EpochPattern
  * @typedef {Brk.ActivityOutputsRealizedSupplyUnrealizedPattern3} EmptyPattern
@@ -70,7 +70,7 @@
  * AnyRatioPattern: price pattern with a ratio
  * @typedef {AnyPricePattern & { ratio: AnySeriesPattern }} AnyRatioPattern
  * FullValuePattern: block + cumulative + sum + average rolling windows (sats/btc/cents/usd)
- * @typedef {Brk.AverageBlockCumulativeSumPattern3} FullValuePattern
+ * @typedef {Brk.AverageBlockCumulativeSumPattern2} FullValuePattern
  * RollingWindowSlot: a single rolling window with stats (pct10, pct25, median, pct75, pct90, max, min) per unit
  * @typedef {Brk.MaxMedianMinPct10Pct25Pct75Pct90Pattern<number>} RollingWindowSlot
  * @typedef {Brk.AnySeriesPattern} AnySeriesPattern
@@ -119,6 +119,7 @@
  *
  * Basic realized pattern (cap + loss + MVRV + price + profit, no net/sopr)
  * @typedef {Brk.CapLossMvrvPriceProfitPattern} BasicRealizedPattern
+ * @typedef {Pick<Brk.CapLossProfitPattern, "profit" | "loss">} BasicRealizedProfitabilityPattern
  *
  * Moving average price ratio pattern (ppm + cents + ratio + sats + usd)
  * @typedef {Brk.CentsPpmRatioSatsUsdPattern} MaPriceRatioPattern
@@ -220,7 +221,7 @@
  * @typedef {RealizedPattern} AnyRealizedPattern
  *
  * Capability-based pattern groupings (patterns that have specific properties)
- * @typedef {AllUtxoPattern | AgeRangePattern | UtxoAmountPattern} PatternWithRealizedPrice
+ * @typedef {AllUtxoPattern | ShortTermPattern | LongTermPattern | AgeRangePattern | UtxoAmountPattern | BasicUtxoPattern | EmptyPattern} PatternWithRealizedPrice
  * @typedef {AllUtxoPattern} PatternWithFullRealized
  * @typedef {ShortTermPattern | LongTermPattern | MaxAgePattern | BasicUtxoPattern} PatternWithNupl
  * @typedef {AllUtxoPattern | AgeRangePattern | UtxoAmountPattern} PatternWithCostBasis
@@ -235,6 +236,8 @@
  * @typedef {{ name: string, title: string, color: Color, tree: PatternWithCostBasis }} CohortWithCostBasis
  * @typedef {{ name: string, title: string, color: Color, tree: PatternWithActivity }} CohortWithActivity
  * @typedef {{ name: string, title: string, color: Color, tree: PatternWithCostBasisPercentiles }} CohortWithCostBasisPercentiles
+ * @typedef {{ name: string, title: string, color: Color, tree: { realized: BasicRealizedProfitabilityPattern } }} CohortWithRealizedProfitLoss
+ * @typedef {{ name: string, title: string, color: Color, tree: { realized: { cap: { usd: AnySeriesPattern, delta: FiatDeltaPattern } } } }} CohortWithRealizedCap
  *
  * Cohorts with full NUPL and cost-basis percentiles.
  * @typedef {CohortFull | CohortLongTerm} CohortWithNuplPercentiles
@@ -245,9 +248,6 @@
  * @typedef {Brk.AbsoluteRatePattern2} FiatDeltaPattern
  * @typedef {Brk.AbsoluteRatePattern3} AmountDeltaPattern
  * @typedef {Brk.BtcSatsPattern} AmountPattern
- *
- * Capitalized price percentiles (pct1/2/5/95/98/99)
- * @typedef {Brk.Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} CapitalizedPercentilesPattern
  *
  * Generic tree node type for walking
  * @typedef {AnySeriesPattern | Record<string, unknown>} TreeNode

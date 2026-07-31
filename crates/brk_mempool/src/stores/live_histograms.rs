@@ -1,4 +1,4 @@
-use brk_oracle::{sats_to_bin, HistogramRaw, PaymentFilter};
+use brk_oracle::{HistogramRaw, PaymentFilter, sats_to_bin};
 use brk_types::Transaction;
 
 use crate::stores::tx_store::TxRecord;

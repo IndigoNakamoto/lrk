@@ -104,7 +104,6 @@ impl MinimalCohortMetrics {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.supply.compute(prices, starting_lengths.height, exit)?;
         self.activity
             .compute_rest_part1(prices, starting_lengths, exit)?;
         Ok(())

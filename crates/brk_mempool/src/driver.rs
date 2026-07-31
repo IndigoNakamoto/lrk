@@ -189,6 +189,9 @@ mod tests {
         // Payload that isn't &str or String: the helper labels it
         // explicitly instead of dropping it on the floor.
         let payload = catch_unwind(|| std::panic::panic_any(42u32)).unwrap_err();
-        assert_eq!(Mempool::panic_msg(payload.as_ref()), "<non-string panic payload>");
+        assert_eq!(
+            Mempool::panic_msg(payload.as_ref()),
+            "<non-string panic payload>"
+        );
     }
 }

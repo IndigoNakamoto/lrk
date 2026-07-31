@@ -175,7 +175,10 @@ mod tests {
 
         let info = fake_entry_info(known_txid, 100, 100);
         let mut new_txs: FxHashMap<Txid, bitcoin::Transaction> = FxHashMap::default();
-        new_txs.insert(known_txid, fake_bitcoin_tx(0x11, &[(p2wpkh_script(7), 1_234)]));
+        new_txs.insert(
+            known_txid,
+            fake_bitcoin_tx(0x11, &[(p2wpkh_script(7), 1_234)]),
+        );
 
         let pulled = Preparer::prepare(&[known_txid], vec![info], new_txs, &state);
         assert!(pulled.added.is_empty(), "known tx must be filtered out");
@@ -324,12 +327,7 @@ mod tests {
         let mut new_txs: FxHashMap<Txid, bitcoin::Transaction> = FxHashMap::default();
         new_txs.insert(child_txid, raw);
 
-        let pulled = Preparer::prepare(
-            &[parent_txid, child_txid],
-            vec![info],
-            new_txs,
-            &state,
-        );
+        let pulled = Preparer::prepare(&[parent_txid, child_txid], vec![info], new_txs, &state);
         let TxAddition::Fresh { tx, .. } = &pulled.added[0] else {
             panic!("expected Fresh classification");
         };
