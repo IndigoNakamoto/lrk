@@ -1,6 +1,5 @@
 use brk_error::{Error, OptionData, Result};
 use brk_types::{Addr, AddrIndexOutPoint, Height, TxIndex, TxStatus, Unit, Utxo, Vout};
-use vecdb::VecIndex;
 
 use crate::Query;
 
@@ -36,9 +35,9 @@ impl Query {
         let mut utxos = Vec::with_capacity(outpoints.len());
 
         for (tx_index, vout) in outpoints {
-            let txid = txid_reader.get(tx_index.to_usize());
-            let first_txout_index = first_txout_index_reader.get(tx_index.to_usize());
-            let value = value_reader.get(usize::from(first_txout_index + vout));
+            let txid = txid_reader.get(tx_index);
+            let first_txout_index = first_txout_index_reader.get(tx_index);
+            let value = value_reader.get(first_txout_index + vout);
 
             let height = self.confirmed_status_height(tx_index)?;
             let status = if let Some((h, ref s)) = cached_status

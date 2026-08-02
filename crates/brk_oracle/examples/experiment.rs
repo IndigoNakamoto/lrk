@@ -534,7 +534,12 @@ fn main() {
     let total_outputs = indexer.vecs.outputs.value.len();
     let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
     let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
-    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+    let mut txout_cursor = indexer
+        .vecs
+        .transactions
+        .first_txout_index
+        .reader()
+        .cursor();
     let mut tx_starts: Vec<usize> = Vec::new();
     let mut values: Vec<Sats> = Vec::new();
     let mut output_types: Vec<OutputType> = Vec::new();

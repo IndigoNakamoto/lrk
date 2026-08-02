@@ -5,7 +5,7 @@ use brk_types::{
     Bitcoin, Cents, Date, Day1, Dollars, Height, PartsPerMillionSigned64, Sats, Version,
 };
 use vecdb::{
-    BinaryTransform, CachedBoxedVec, CheckedSub, EagerVec, ImportableVec, PcoVec,
+    AnyVec, BinaryTransform, CachedBoxedVec, CheckedSub, EagerVec, ImportableVec, PcoVec,
     ReadableCloneableVec, ReadableVec, TypedVec, VecIndex,
 };
 
@@ -33,8 +33,9 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 50_000)?;
         let version = parent_version;
 
+        let sats_cumulative_version = version + prices.split.close.usd.day1.version();
         let sats_cumulative: EagerVec<PcoVec<Height, Sats>> =
-            ImportableVec::forced_import(&db, "dca_sats_cumulative", version)?;
+            ImportableVec::forced_import(&db, "dca_sats_cumulative", sats_cumulative_version)?;
         let sats_per_day = LazyPreviousDeltaVec::new(
             "dca_sats_per_day",
             version,

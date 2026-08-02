@@ -88,8 +88,7 @@ impl Query {
             .vecs
             .transactions
             .txid
-            .reader()
-            .try_get(first + index)
+            .collect_one_at(first + index)
             .ok_or(Error::Internal(
                 "block_txid_at_index_by_height: txid index past data",
             ))
@@ -125,7 +124,7 @@ impl Query {
 
         // ── Phase 1: Decode all transactions, collect outpoints ─────────
 
-        let mut txid_cursor = indexer.vecs.transactions.txid.cursor();
+        let txid_cursor = indexer.vecs.transactions.txid.reader().cursor();
         let mut total_size_cursor = indexer.vecs.transactions.total_size.cursor();
         let mut sigops_cursor = indexer.vecs.transactions.total_sigop_cost.cursor();
         let mut first_txin_cursor = indexer.vecs.transactions.first_txin_index.cursor();

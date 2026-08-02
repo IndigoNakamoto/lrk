@@ -12,13 +12,15 @@ use vecdb::unlikely;
 use super::InputSource;
 use crate::processor::{BlockProcessor, transaction::ComputedTx};
 
+const PARALLEL_PARENT_READ_THRESHOLD: usize = 1_000;
+
 #[derive(Default)]
 pub(crate) struct InputResolver {
-    same_block_transactions: FxHashMap<TxidPrefix, TxIndex>,
-    previous_parent_indexes: FxHashMap<TxidPrefix, usize>,
-    previous_parents: Vec<PreviousParent>,
+    parent_locations: FxHashMap<TxidPrefix, ParentLocation>,
+    previous_parent_prefixes: Vec<TxidPrefix>,
     inputs: Vec<UnresolvedInput>,
     reads: ReadBatch,
+    resolved: Vec<InputSource>,
 }
 
 impl InputResolver {
@@ -26,65 +28,78 @@ impl InputResolver {
         &mut self,
         processor: &BlockProcessor<'_>,
         txs: &[ComputedTx<'_>],
-    ) -> Result<Vec<InputSource>> {
+    ) -> Result<&[InputSource]> {
         self.prepare(txs, processor.lengths.tx_index);
         self.reads.resolve(
             processor,
-            &self.previous_parents,
+            &self.previous_parent_prefixes,
             &self.inputs,
             processor.lengths.tx_index,
         )?;
 
         let tracks_executed_legacy_sigops = processor.tracks_executed_legacy_sigops();
         let reads = &self.reads;
+        let inputs = &self.inputs;
 
-        self.inputs
-            .par_iter()
-            .enumerate()
-            .map(|(input_index, input)| match *input {
-                UnresolvedInput::Coinbase => Ok(InputSource::Coinbase),
-                UnresolvedInput::SameBlock {
-                    outpoint,
-                    txout_offset,
-                } => Ok(InputSource::SameBlock {
-                    outpoint,
-                    txout_offset,
-                }),
-                UnresolvedInput::PreviousBlock { parent_index, vout } => {
-                    let parent = reads.parent(parent_index);
-                    let outpoint = OutPoint::new(parent.tx_index, vout);
-                    let (output_type, type_index) = reads.output(input_index);
-
-                    let legacy_sigops = if tracks_executed_legacy_sigops {
-                        processor
-                            .vecs
-                            .scripts
-                            .legacy_sigops(output_type, type_index, &processor.readers.scripts)
-                            .ok_or(Error::Internal("Missing legacy_sigops"))?
-                    } else {
-                        SigOps::ZERO
-                    };
-
-                    Ok(InputSource::PreviousBlock {
+        self.resolved.clear();
+        self.resolved.resize(inputs.len(), InputSource::Coinbase);
+        self.resolved.par_iter_mut().enumerate().try_for_each(
+            |(input_index, resolved)| -> Result<()> {
+                match inputs[input_index] {
+                    UnresolvedInput::Coinbase => {
+                        *resolved = InputSource::Coinbase;
+                        Ok(())
+                    }
+                    UnresolvedInput::SameBlock {
                         outpoint,
-                        output_type,
-                        legacy_sigops,
-                        type_index,
-                    })
+                        txout_offset,
+                    } => {
+                        *resolved = InputSource::SameBlock {
+                            outpoint,
+                            txout_offset,
+                        };
+                        Ok(())
+                    }
+                    UnresolvedInput::PreviousBlock { parent_index, vout } => {
+                        let parent = reads.parent(parent_index);
+                        let outpoint = OutPoint::new(parent.tx_index, vout);
+                        let (output_type, type_index) = reads.output(input_index);
+
+                        let legacy_sigops = if tracks_executed_legacy_sigops {
+                            processor
+                                .vecs
+                                .scripts
+                                .legacy_sigops(output_type, type_index, &processor.readers.scripts)
+                                .ok_or(Error::Internal("Missing legacy_sigops"))?
+                        } else {
+                            SigOps::ZERO
+                        };
+
+                        *resolved = InputSource::PreviousBlock {
+                            outpoint,
+                            output_type,
+                            legacy_sigops,
+                            type_index,
+                        };
+                        Ok(())
+                    }
                 }
-            })
-            .collect()
+            },
+        )?;
+
+        Ok(&self.resolved)
     }
 
     fn prepare(&mut self, txs: &[ComputedTx<'_>], block_first_tx_index: TxIndex) {
-        self.same_block_transactions.clear();
-        self.previous_parent_indexes.clear();
-        self.previous_parents.clear();
+        self.parent_locations.clear();
+        self.previous_parent_prefixes.clear();
         self.inputs.clear();
 
-        self.same_block_transactions.reserve(txs.len());
-        self.same_block_transactions
-            .extend(txs.iter().map(|tx| (tx.txid_prefix(), tx.tx_index)));
+        self.parent_locations.reserve(txs.len());
+        self.parent_locations.extend(
+            txs.iter()
+                .map(|tx| (tx.txid_prefix(), ParentLocation::SameBlock(tx.tx_index))),
+        );
 
         let total_inputs = txs.iter().map(|tx| tx.tx.input.len()).sum();
         self.inputs.reserve(total_inputs);
@@ -101,22 +116,25 @@ impl InputResolver {
                 let txid_prefix = TxidPrefix::from(&txid);
                 let vout = Vout::from(previous_output.vout);
 
-                if let Some(&tx_index) = self.same_block_transactions.get(&txid_prefix) {
-                    let block_tx_index = usize::from(tx_index) - usize::from(block_first_tx_index);
-                    self.inputs.push(UnresolvedInput::SameBlock {
-                        outpoint: OutPoint::new(tx_index, vout),
-                        txout_offset: txs[block_tx_index].txout_offset(vout),
-                    });
-                    continue;
-                }
-
-                let parent_index = match self.previous_parent_indexes.entry(txid_prefix) {
-                    Entry::Occupied(entry) => *entry.get(),
+                let parent_index = match self.parent_locations.entry(txid_prefix) {
+                    Entry::Occupied(entry) => match *entry.get() {
+                        ParentLocation::SameBlock(tx_index) => {
+                            let block_tx_index =
+                                usize::from(tx_index) - usize::from(block_first_tx_index);
+                            self.inputs.push(UnresolvedInput::SameBlock {
+                                outpoint: OutPoint::new(tx_index, vout),
+                                txout_offset: txs[block_tx_index].txout_offset(vout),
+                            });
+                            continue;
+                        }
+                        ParentLocation::Previous(parent_index) => parent_index.to_usize(),
+                    },
                     Entry::Vacant(entry) => {
-                        let parent_index = self.previous_parents.len();
-                        entry.insert(parent_index);
-                        self.previous_parents
-                            .push(PreviousParent { txid, txid_prefix });
+                        let parent_index = self.previous_parent_prefixes.len();
+                        entry.insert(ParentLocation::Previous(PreviousParentIndex::new(
+                            parent_index,
+                        )));
+                        self.previous_parent_prefixes.push(txid_prefix);
                         parent_index
                     }
                 };
@@ -129,14 +147,32 @@ impl InputResolver {
 }
 
 #[derive(Clone, Copy)]
-struct PreviousParent {
-    txid: Txid,
-    txid_prefix: TxidPrefix,
+enum ParentLocation {
+    SameBlock(TxIndex),
+    Previous(PreviousParentIndex),
 }
 
 #[derive(Clone, Copy)]
+struct PreviousParentIndex(u32);
+
+impl PreviousParentIndex {
+    fn new(index: usize) -> Self {
+        Self(
+            u32::try_from(index)
+                .expect("number of unique previous parents in a block must fit in u32"),
+        )
+    }
+
+    #[inline]
+    fn to_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
+const _: () = assert!(size_of::<ParentLocation>() == 8);
+
+#[derive(Clone, Copy)]
 struct ParentRead {
-    original_index: usize,
     tx_index: TxIndex,
     first_txout_index: TxOutIndex,
 }
@@ -150,9 +186,7 @@ struct OutputRead {
 #[derive(Default)]
 struct ReadBatch {
     parents: Vec<ParentRead>,
-    parent_positions: Vec<usize>,
     outputs: Vec<OutputRead>,
-    output_positions: Vec<usize>,
     output_types: Vec<OutputType>,
     type_indices: Vec<TypeIndex>,
 }
@@ -161,11 +195,11 @@ impl ReadBatch {
     fn resolve(
         &mut self,
         processor: &BlockProcessor<'_>,
-        previous_parents: &[PreviousParent],
+        previous_parent_prefixes: &[TxidPrefix],
         inputs: &[UnresolvedInput],
         current_tx_index: TxIndex,
     ) -> Result<()> {
-        self.resolve_parents(processor, previous_parents, current_tx_index)?;
+        self.resolve_parents(processor, previous_parent_prefixes, current_tx_index)?;
         self.prepare_outputs(inputs);
         self.read_outputs(processor)
     }
@@ -173,61 +207,66 @@ impl ReadBatch {
     fn resolve_parents(
         &mut self,
         processor: &BlockProcessor<'_>,
-        previous_parents: &[PreviousParent],
+        previous_parent_prefixes: &[TxidPrefix],
         current_tx_index: TxIndex,
     ) -> Result<()> {
+        let parallel_raw_reads = previous_parent_prefixes.len() >= PARALLEL_PARENT_READ_THRESHOLD;
+
         self.parents.clear();
-        self.parents.extend(
-            (0..previous_parents.len()).map(|original_index| ParentRead {
-                original_index,
+        self.parents.resize(
+            previous_parent_prefixes.len(),
+            ParentRead {
                 tx_index: TxIndex::default(),
                 first_txout_index: TxOutIndex::default(),
-            }),
+            },
         );
 
         self.parents
             .par_iter_mut()
+            .zip(previous_parent_prefixes.par_iter())
             .try_for_each(|read| {
-                let parent = &previous_parents[read.original_index];
+                let (read, txid_prefix) = read;
                 let store_result = processor
                     .stores
                     .txid_prefix_to_tx_index
-                    .get(&parent.txid_prefix)?
+                    .get(txid_prefix)?
                     .map(|value| *value);
 
                 let tx_index = match store_result {
                     Some(tx_index) if tx_index < current_tx_index => tx_index,
                     _ => {
                         error!(
-                            "UnknownTxid: txid={}, prefix={:?}, store_result={:?}, current_tx_index={:?}",
-                            parent.txid,
-                            parent.txid_prefix,
-                            store_result,
-                            current_tx_index
+                            "UnknownTxid: prefix={:?}, store_result={:?}, current_tx_index={:?}",
+                            txid_prefix, store_result, current_tx_index
                         );
                         return Err(Error::UnknownTxid);
                     }
                 };
 
                 read.tx_index = tx_index;
+                if parallel_raw_reads {
+                    read.first_txout_index = processor
+                        .vecs
+                        .transactions
+                        .first_txout_index
+                        .get_append_only(tx_index, &processor.readers.tx_index_to_first_txout_index)
+                        .ok_or(Error::Internal("Missing txout_index"))?;
+                }
                 Ok(())
             })?;
 
-        self.parents.sort_unstable_by_key(|read| read.tx_index);
-        self.parent_positions.clear();
-        self.parent_positions.resize(self.parents.len(), 0);
-
-        for (position, read) in self.parents.iter_mut().enumerate() {
-            self.parent_positions[read.original_index] = position;
-            read.first_txout_index = processor
-                .vecs
-                .transactions
-                .first_txout_index
-                .get_pushed_or_read(
-                    read.tx_index,
-                    &processor.readers.tx_index_to_first_txout_index,
-                )
-                .ok_or(Error::Internal("Missing txout_index"))?;
+        if !parallel_raw_reads {
+            for read in &mut self.parents {
+                read.first_txout_index = processor
+                    .vecs
+                    .transactions
+                    .first_txout_index
+                    .get_append_only(
+                        read.tx_index,
+                        &processor.readers.tx_index_to_first_txout_index,
+                    )
+                    .ok_or(Error::Internal("Missing txout_index"))?;
+            }
         }
 
         Ok(())
@@ -247,55 +286,47 @@ impl ReadBatch {
             }
         }
 
-        self.outputs.sort_unstable_by_key(|read| read.txout_index);
-        self.output_positions.clear();
-        self.output_positions.resize(inputs.len(), 0);
-
-        for (position, read) in self.outputs.iter().enumerate() {
-            self.output_positions[read.input_index] = position;
-        }
+        self.output_types.clear();
+        self.output_types.resize(inputs.len(), OutputType::Unknown);
+        self.type_indices.clear();
+        self.type_indices.resize(inputs.len(), TypeIndex::default());
     }
 
     fn read_outputs(&mut self, processor: &BlockProcessor<'_>) -> Result<()> {
-        self.output_types.clear();
-        self.output_types.reserve(self.outputs.len());
-        self.type_indices.clear();
-        self.type_indices.reserve(self.outputs.len());
-
         let outputs = &self.outputs;
+        if outputs.is_empty() {
+            return Ok(());
+        }
+
         let output_types = &mut self.output_types;
         let type_indices = &mut self.type_indices;
 
         let (output_types_result, type_indices_result) = rayon::join(
             || -> Result<()> {
                 for read in outputs {
-                    output_types.push(
-                        processor
-                            .vecs
-                            .outputs
-                            .output_type
-                            .get_pushed_or_read(
-                                read.txout_index,
-                                &processor.readers.txout_index_to_output_type,
-                            )
-                            .ok_or(Error::Internal("Missing output_type"))?,
-                    );
+                    output_types[read.input_index] = processor
+                        .vecs
+                        .outputs
+                        .output_type
+                        .get_append_only(
+                            read.txout_index,
+                            &processor.readers.txout_index_to_output_type,
+                        )
+                        .ok_or(Error::Internal("Missing output_type"))?;
                 }
                 Ok(())
             },
             || -> Result<()> {
                 for read in outputs {
-                    type_indices.push(
-                        processor
-                            .vecs
-                            .outputs
-                            .type_index
-                            .get_pushed_or_read(
-                                read.txout_index,
-                                &processor.readers.txout_index_to_type_index,
-                            )
-                            .ok_or(Error::Internal("Missing type_index"))?,
-                    );
+                    type_indices[read.input_index] = processor
+                        .vecs
+                        .outputs
+                        .type_index
+                        .get_append_only(
+                            read.txout_index,
+                            &processor.readers.txout_index_to_type_index,
+                        )
+                        .ok_or(Error::Internal("Missing type_index"))?;
                 }
                 Ok(())
             },
@@ -306,12 +337,14 @@ impl ReadBatch {
     }
 
     fn parent(&self, original_index: usize) -> ParentRead {
-        self.parents[self.parent_positions[original_index]]
+        self.parents[original_index]
     }
 
     fn output(&self, input_index: usize) -> (OutputType, TypeIndex) {
-        let position = self.output_positions[input_index];
-        (self.output_types[position], self.type_indices[position])
+        (
+            self.output_types[input_index],
+            self.type_indices[input_index],
+        )
     }
 }
 

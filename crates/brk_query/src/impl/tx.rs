@@ -205,8 +205,8 @@ impl Query {
             .outputs
             .spent
             .txin_index
-            .reader()
-            .get(usize::from(txout_index));
+            .collect_one(txout_index)
+            .data()?;
 
         if txin_index == TxInIndex::UNSPENT {
             return Ok(TxOutspend::UNSPENT);
@@ -235,7 +235,7 @@ impl Query {
         let mut cached_status: Option<(Height, BlockHash, Timestamp)> = None;
         let mut outspends = Vec::with_capacity(output_count);
         for i in 0..output_count {
-            let txin_index = txin_index_reader.get(usize::from(first_txout + Vout::from(i)));
+            let txin_index = txin_index_reader.get(first_txout + Vout::from(i));
 
             if txin_index == TxInIndex::UNSPENT {
                 outspends.push(TxOutspend::UNSPENT);
@@ -249,7 +249,7 @@ impl Query {
             }
             let spending_first_txin = first_txin_cursor.get(spending_tx_index.to_usize()).data()?;
             let vin = Vin::from(usize::from(txin_index) - usize::from(spending_first_txin));
-            let spending_txid = txid_reader.get(spending_tx_index.to_usize());
+            let spending_txid = txid_reader.get(spending_tx_index);
             let spending_height: Height = tx_heights.get_shared(spending_tx_index).data()?;
 
             let (block_hash, block_time) = if let Some((h, ref bh, bt)) = cached_status
@@ -318,10 +318,15 @@ impl Query {
             return Err(Error::UnknownTxid);
         }
         let first_txout_vec = &self.indexer().vecs.transactions.first_txout_index;
-        let first = first_txout_vec.read_once(tx_index)?;
+        let first_txout_reader = first_txout_vec.reader();
+        let first = first_txout_reader.try_get(tx_index).ok_or(Error::Internal(
+            "resolve_tx_outputs: first txout index past data",
+        ))?;
         let next_tx = tx_index.incremented();
         let next = if next_tx < safe.tx_index {
-            first_txout_vec.read_once(next_tx)?
+            first_txout_reader.try_get(next_tx).ok_or(Error::Internal(
+                "resolve_tx_outputs: next first txout index past data",
+            ))?
         } else {
             safe.txout_index
         };

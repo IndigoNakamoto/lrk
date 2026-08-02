@@ -11,8 +11,8 @@ use brk_types::{
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use vecdb::{
-    AnyStoredVec, AnyVec, BytesVec, Database, ImportOptions, ImportableVec, ReadableVec, Reader,
-    Rw, Stamp, StorageMode, WritableVec,
+    AnyStoredVec, AnyVec, BytesVec, Database, ImportOptions, ImportableVec, ReadableVec, Rw, Stamp,
+    StorageMode, WritableVec,
 };
 
 use super::super::AddrTypeToTypeIndexMap;
@@ -55,15 +55,6 @@ macro_rules! define_any_addr_indexes_vecs {
             pub(crate) fn reset(&mut self) -> Result<()> {
                 $(self.$field.reset()?;)*
                 Ok(())
-            }
-
-            /// Get address index for a given type and type_index.
-            /// Uses get_any_or_read_at to check updated layer (needed after rollback).
-            pub(crate) fn get(&self, addr_type: OutputType, type_index: TypeIndex, reader: &Reader) -> Result<AnyAddrIndex> {
-                match addr_type {
-                    $(OutputType::$variant => Ok(self.$field.get_any_or_read_at(type_index.into(), reader)?.unwrap()),)*
-                    _ => unreachable!("Invalid addr type: {:?}", addr_type),
-                }
             }
 
             /// Returns a parallel iterator over all vecs for parallel writing.

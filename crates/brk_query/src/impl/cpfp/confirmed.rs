@@ -66,7 +66,7 @@ impl Query {
                 let position = index.to_usize();
                 let weight = weight.get(position).data()?;
                 Ok(Member {
-                    txid: txid.get(position),
+                    txid: txid.get(*index),
                     fee: fee.get(position).data()?,
                     weight,
                     vsize: VSize::from(weight),
@@ -88,7 +88,7 @@ impl Query {
             .map(|index| {
                 let position = index.to_usize();
                 Ok(CpfpEntry {
-                    txid: txid.get(position),
+                    txid: txid.get(*index),
                     fee: fee.get(position).data()?,
                     weight: weight.get(position).data()?,
                 })
@@ -112,9 +112,14 @@ impl Query {
         let mut first_txin = indexer.vecs.transactions.first_txin_index.cursor();
         let mut input_count = computer.indexes.tx_index.input_count.cursor();
         let mut outpoint = indexer.vecs.inputs.outpoint.cursor();
-        let mut first_txout = indexer.vecs.transactions.first_txout_index.cursor();
+        let first_txout = indexer
+            .vecs
+            .transactions
+            .first_txout_index
+            .reader()
+            .cursor();
         let mut output_count = computer.indexes.tx_index.output_count.cursor();
-        let mut spent = computer.outputs.spent.txin_index.cursor();
+        let spent = computer.outputs.spent.txin_index.reader().cursor();
         let mut spending_tx = indexer.vecs.inputs.tx_index.cursor();
 
         let mut parents_of = |tx: TxIndex| -> Result<SmallVec<[TxIndex; 2]>> {

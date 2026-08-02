@@ -350,6 +350,44 @@ impl Vecs {
     ) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
+        let base_version = VERSION
+            + [
+                prices.spot.cents.height.version(),
+                indexes.timestamp.monotonic.version(),
+                indexer.vecs.transactions.first_tx_index.version(),
+                indexer.vecs.outputs.first_txout_index.version(),
+                indexer.vecs.inputs.first_txin_index.version(),
+                transactions.count.total.block.version(),
+                outputs.count.total.sum.version(),
+                inputs.count.sum.version(),
+                indexes.tx_index.output_count.version(),
+                indexes.tx_index.input_count.version(),
+                indexer.vecs.outputs.value.version(),
+                indexer.vecs.outputs.output_type.version(),
+                indexer.vecs.outputs.type_index.version(),
+                inputs.spent.value.version(),
+                indexer.vecs.inputs.outpoint.version(),
+                indexer.vecs.inputs.output_type.version(),
+                indexer.vecs.inputs.type_index.version(),
+                indexer.vecs.addrs.p2pk65.first_index.version(),
+                indexer.vecs.addrs.p2pk33.first_index.version(),
+                indexer.vecs.addrs.p2pkh.first_index.version(),
+                indexer.vecs.addrs.p2sh.first_index.version(),
+                indexer.vecs.addrs.p2wpkh.first_index.version(),
+                indexer.vecs.addrs.p2wsh.first_index.version(),
+                indexer.vecs.addrs.p2tr.first_index.version(),
+                indexer.vecs.addrs.p2a.first_index.version(),
+            ]
+            .into_iter()
+            .sum::<Version>();
+
+        debug!("validating computed versions");
+        self.supply_state
+            .validate_computed_version_or_reset(base_version)?;
+        self.utxo_cohorts.validate_computed_versions(base_version)?;
+        self.addr_cohorts.validate_computed_versions(base_version)?;
+        debug!("computed versions validated");
+
         let starting_lengths = indexer.safe_lengths();
 
         // 1. Find minimum height we have data for across stateful vecs
@@ -502,13 +540,6 @@ impl Vecs {
 
             recovered_height
         };
-
-        // 2c. Validate computed versions
-        debug!("validating computed versions");
-        let base_version = VERSION;
-        self.utxo_cohorts.validate_computed_versions(base_version)?;
-        self.addr_cohorts.validate_computed_versions(base_version)?;
-        debug!("computed versions validated");
 
         // 3. Get last height from indexer
         let last_height = Height::from(indexer.vecs.blocks.blockhash.len().saturating_sub(1));

@@ -842,7 +842,12 @@ fn main() {
     // large, so the tx-indexed first_txout_index is read through a forward cursor.
     let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
     let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
-    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+    let mut txout_cursor = indexer
+        .vecs
+        .transactions
+        .first_txout_index
+        .reader()
+        .cursor();
     let mut tx_starts: Vec<usize> = Vec::new();
 
     let mut year_stats: Vec<YearStats> = Vec::new();

@@ -121,6 +121,7 @@ impl Computer {
                         let mining = Box::new(mining::Vecs::forced_import(
                             &computed_path,
                             VERSION,
+                            indexer,
                             &indexes,
                             &cached_starts,
                         )?);

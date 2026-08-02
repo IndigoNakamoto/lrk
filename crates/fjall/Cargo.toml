@@ -1,0 +1,42 @@
+[package]
+name = "fjall"
+description = "Log-structured, embeddable key-value storage engine"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+include = ["src/**/*", "LICENSE-APACHE", "LICENSE-MIT", "README.md"]
+repository.workspace = true
+homepage.workspace = true
+keywords = ["database", "key-value", "lsm", "rocksdb", "leveldb"]
+categories = ["data-structures", "database-implementations", "algorithms"]
+
+[lib]
+name = "fjall"
+path = "src/lib.rs"
+
+[features]
+default = ["lz4"]
+lz4 = ["lsm-tree/lz4", "dep:lz4_flex"]
+bytes_1 = ["lsm-tree/bytes_1"]
+metrics = ["lsm-tree/metrics"]
+__internal_whitebox = []
+
+[dependencies]
+byteorder = { package = "byteorder-lite", version = "0.1.0" }
+byteview = { workspace = true }
+lsm-tree = { workspace = true, default-features = false, features = [] }
+log = { workspace = true }
+tempfile = { workspace = true }
+dashmap = "6.1.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
+lz4_flex = { workspace = true, features = ["checked-decode"], optional = true }
+flume = { version = "0.12.0", default-features = false }
+
+[dev-dependencies]
+nanoid = "0.4.0"
+test-log = "0.2.18"
+rand = "0.10.0"
+
+[package.metadata.cargo-all-features]
+denylist = ["__internal_whitebox"]

@@ -79,7 +79,12 @@ fn main() {
     let total_outputs = indexer.vecs.outputs.value.len();
     let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
     let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
-    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+    let mut txout_cursor = indexer
+        .vecs
+        .transactions
+        .first_txout_index
+        .reader()
+        .cursor();
 
     let mut blocks: Vec<Block> = Vec::with_capacity(end_height - load_start);
     for h in load_start..end_height {

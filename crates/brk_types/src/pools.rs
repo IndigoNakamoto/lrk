@@ -2,9 +2,12 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use crate::PoolSlug;
+use crate::{PoolSlug, Version};
 
 use super::Pool;
+
+/// Increment when pool IDs, payout addresses, or coinbase tags change.
+pub const POOL_ATTRIBUTION_VERSION: Version = Version::ONE;
 
 const JSON_DATA: &str = include_str!("../pools-v2.json");
 const TESTNET_IDS: &[u16] = &[145, 146, 149, 150, 156, 163];

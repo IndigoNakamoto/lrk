@@ -70,8 +70,7 @@ impl Vecs {
                 if entry.tx_index.is_coinbase() {
                     break;
                 }
-                entry.txout_index =
-                    first_txout_index_reader.get(entry.tx_index.to_usize()) + entry.vout;
+                entry.txout_index = first_txout_index_reader.get(entry.tx_index) + entry.vout;
             }
 
             // Sort 2: by txout_index (sequential value reads)
@@ -80,7 +79,7 @@ impl Vecs {
                 if entry.txout_index.is_coinbase() {
                     break;
                 }
-                entry.value = value_reader.get(entry.txout_index.to_usize());
+                entry.value = value_reader.get(entry.txout_index);
             }
 
             // Scatter-write to output buffers using original_idx (avoids Sort 3)

@@ -41,8 +41,13 @@ impl Vecs {
             let txid_len = indexer.vecs.transactions.txid.len();
             let total_txout_len = indexer.vecs.outputs.output_type.len();
 
-            let mut otype_cursor = indexer.vecs.outputs.output_type.cursor();
-            let mut fo_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+            let mut otype_cursor = indexer.vecs.outputs.output_type.reader().cursor();
+            let fo_cursor = indexer
+                .vecs
+                .transactions
+                .first_txout_index
+                .reader()
+                .cursor();
             let mut height = skip;
 
             walk_blocks(

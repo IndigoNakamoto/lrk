@@ -24,14 +24,14 @@ impl AddrReaders {
     pub fn script_pubkey(&self, output_type: OutputType, type_index: TypeIndex) -> ScriptBuf {
         let idx = usize::from(type_index);
         let bytes: Option<AddrBytes> = match output_type {
-            OutputType::P2PK65 => self.p2pk65.try_get(idx).map(Into::into),
-            OutputType::P2PK33 => self.p2pk33.try_get(idx).map(Into::into),
-            OutputType::P2PKH => self.p2pkh.try_get(idx).map(Into::into),
-            OutputType::P2SH => self.p2sh.try_get(idx).map(Into::into),
-            OutputType::P2WPKH => self.p2wpkh.try_get(idx).map(Into::into),
-            OutputType::P2WSH => self.p2wsh.try_get(idx).map(Into::into),
-            OutputType::P2TR => self.p2tr.try_get(idx).map(Into::into),
-            OutputType::P2A => self.p2a.try_get(idx).map(Into::into),
+            OutputType::P2PK65 => self.p2pk65.try_get_at(idx).map(Into::into),
+            OutputType::P2PK33 => self.p2pk33.try_get_at(idx).map(Into::into),
+            OutputType::P2PKH => self.p2pkh.try_get_at(idx).map(Into::into),
+            OutputType::P2SH => self.p2sh.try_get_at(idx).map(Into::into),
+            OutputType::P2WPKH => self.p2wpkh.try_get_at(idx).map(Into::into),
+            OutputType::P2WSH => self.p2wsh.try_get_at(idx).map(Into::into),
+            OutputType::P2TR => self.p2tr.try_get_at(idx).map(Into::into),
+            OutputType::P2A => self.p2a.try_get_at(idx).map(Into::into),
             _ => None,
         };
         bytes.map(|b| b.to_script_pubkey()).unwrap_or_default()

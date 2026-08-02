@@ -1,5 +1,4 @@
 use brk_cohort::ByAddrType;
-use brk_error::Result;
 use brk_types::{
     AnyAddrDataIndexEnum, EmptyAddrData, FundedAddrData, OutputType, TxIndex, TypeIndex,
 };
@@ -99,38 +98,29 @@ pub(crate) fn load_uncached_addr_data(
     vr: &VecsReaders,
     any_addr_indexes: &AnyAddrIndexesVecs,
     addrs_data: &AddrsDataVecs,
-) -> Result<Option<WithAddrDataSource<FundedAddrData>>> {
+) -> Option<WithAddrDataSource<FundedAddrData>> {
     // Check if this is a new address (type_index >= first for this height)
     let first = *first_addr_indexes.get(addr_type).unwrap();
     if first <= type_index {
-        return Ok(Some(WithAddrDataSource::New(FundedAddrData::default())));
+        return Some(WithAddrDataSource::New(FundedAddrData::default()));
     }
 
     // Skip if already in cache
     if cache.contains(addr_type, type_index) {
-        return Ok(None);
+        return None;
     }
 
     // Read from storage
-    let reader = vr.addr_reader(addr_type);
-    let any_addr_index = any_addr_indexes.get(addr_type, type_index, reader)?;
+    let any_addr_index = vr.any_addr_index(any_addr_indexes, addr_type, type_index);
 
-    Ok(Some(match any_addr_index.to_enum() {
+    Some(match any_addr_index.to_enum() {
         AnyAddrDataIndexEnum::Funded(funded_index) => {
-            let reader = &vr.any_addr_index_to_any_addr_data.funded;
-            let funded_data = addrs_data
-                .funded
-                .get_any_or_read_at(funded_index.into(), reader)?
-                .unwrap();
+            let funded_data = vr.funded_data(addrs_data, funded_index);
             WithAddrDataSource::FromFunded(funded_index, funded_data)
         }
         AnyAddrDataIndexEnum::Empty(empty_index) => {
-            let reader = &vr.any_addr_index_to_any_addr_data.empty;
-            let empty_data = addrs_data
-                .empty
-                .get_any_or_read_at(empty_index.into(), reader)?
-                .unwrap();
+            let empty_data = vr.empty_data(addrs_data, empty_index);
             WithAddrDataSource::FromEmpty(empty_index, empty_data.into())
         }
-    }))
+    })
 }

@@ -18,11 +18,11 @@ use super::{BlockProcessor, transaction::ComputedTx, txout::ProcessedOutput};
 use crate::InputsVecs;
 
 impl<'a> BlockProcessor<'a> {
-    pub(crate) fn process_inputs(
+    pub(crate) fn process_inputs<'b>(
         &self,
         txs: &[ComputedTx],
-        resolver: &mut InputResolver,
-    ) -> Result<Vec<InputSource>> {
+        resolver: &'b mut InputResolver,
+    ) -> Result<&'b [InputSource]> {
         resolver.resolve(self, txs)
     }
 }
@@ -36,7 +36,7 @@ pub(super) fn finalize_inputs(
     inputs: &mut InputsVecs,
     addr_tx_index_stores: &mut ByAddrType<Store<AddrIndexTxIndex, Unit>>,
     addr_outpoint_stores: &mut ByAddrType<Store<AddrIndexOutPoint, Unit>>,
-    txins: Vec<InputSource>,
+    txins: &[InputSource],
     txouts: &[ProcessedOutput],
 ) -> Result<()> {
     let mut input_offset = 0;

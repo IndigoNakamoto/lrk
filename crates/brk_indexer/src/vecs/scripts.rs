@@ -153,11 +153,11 @@ impl ScriptsVecs {
             OutputType::P2MS => self
                 .p2ms
                 .legacy_sigops
-                .get_pushed_or_read(type_index.into(), &readers.p2ms_legacy_sigops),
+                .get_append_only(type_index.into(), &readers.p2ms_legacy_sigops),
             OutputType::Unknown => self
                 .unknown
                 .legacy_sigops
-                .get_pushed_or_read(type_index.into(), &readers.unknown_legacy_sigops),
+                .get_append_only(type_index.into(), &readers.unknown_legacy_sigops),
             _ => Some(SigOps::ZERO),
         }
     }

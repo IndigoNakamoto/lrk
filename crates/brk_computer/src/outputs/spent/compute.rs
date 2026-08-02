@@ -18,6 +18,13 @@ impl Vecs {
     ) -> Result<ExitGuard> {
         let starting_lengths = indexer.safe_lengths();
 
+        let dep_version = inputs.spent.txout_index.version()
+            + indexer.vecs.outputs.first_txout_index.version()
+            + indexer.vecs.inputs.first_txin_index.version()
+            + indexer.vecs.outputs.value.version();
+        self.txin_index
+            .validate_computed_version_or_reset(dep_version)?;
+
         let target_height = indexer.vecs.blocks.blockhash.len();
         if target_height == 0 {
             return Ok(exit.lock());

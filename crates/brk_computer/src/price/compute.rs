@@ -63,8 +63,16 @@ impl Vecs {
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        let source_version =
-            indexer.vecs.outputs.value.version() + indexer.vecs.outputs.output_type.version();
+        let source_version = [
+            indexer.vecs.transactions.txid.version(),
+            indexer.vecs.transactions.first_tx_index.version(),
+            indexer.vecs.outputs.first_txout_index.version(),
+            indexer.vecs.transactions.first_txout_index.version(),
+            indexer.vecs.outputs.value.version(),
+            indexer.vecs.outputs.output_type.version(),
+        ]
+        .into_iter()
+        .sum();
         self.spot
             .cents
             .height

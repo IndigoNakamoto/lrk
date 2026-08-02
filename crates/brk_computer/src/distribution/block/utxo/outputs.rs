@@ -1,5 +1,4 @@
 use brk_cohort::ByAddrType;
-use brk_error::Result;
 use brk_types::{FundedAddrData, Sats, TxIndex, TypeIndex};
 use rayon::prelude::*;
 use smallvec::SmallVec;
@@ -43,17 +42,17 @@ pub(crate) fn process_outputs(
     vr: &VecsReaders,
     any_addr_indexes: &AnyAddrIndexesVecs,
     addrs_data: &AddrsDataVecs,
-) -> Result<OutputsResult> {
+) -> OutputsResult {
     let output_count = txout_data_vec.len();
 
     // Phase 1: Addr lookups (mmap reads) — parallel for large blocks, sequential for small
-    let map_fn = |local_idx: usize| -> Result<_> {
+    let map_fn = |local_idx: usize| {
         let txout_data = &txout_data_vec[local_idx];
         let value = txout_data.value;
         let output_type = txout_data.output_type;
 
         if output_type.is_not_addr() {
-            return Ok((value, output_type, None));
+            return (value, output_type, None);
         }
 
         let type_index = txout_data.type_index;
@@ -67,22 +66,19 @@ pub(crate) fn process_outputs(
             vr,
             any_addr_indexes,
             addrs_data,
-        )?;
+        );
 
-        Ok((
+        (
             value,
             output_type,
             Some((type_index, tx_index, value, addr_data_opt)),
-        ))
+        )
     };
 
     let items: Vec<_> = if output_count < 128 {
-        (0..output_count).map(map_fn).collect::<Result<Vec<_>>>()?
+        (0..output_count).map(map_fn).collect()
     } else {
-        (0..output_count)
-            .into_par_iter()
-            .map(map_fn)
-            .collect::<Result<Vec<_>>>()?
+        (0..output_count).into_par_iter().map(map_fn).collect()
     };
 
     // Phase 2: Sequential accumulation
@@ -117,10 +113,10 @@ pub(crate) fn process_outputs(
         }
     }
 
-    Ok(OutputsResult {
+    OutputsResult {
         transacted,
         received_data,
         addr_data,
         tx_index_vecs,
-    })
+    }
 }

@@ -1,5 +1,4 @@
 use brk_cohort::ByAddrType;
-use brk_error::Result;
 use brk_types::{FundedAddrData, Height, OutputType, Sats, TxIndex, TypeIndex};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -56,8 +55,8 @@ pub(crate) fn process_inputs(
     vr: &VecsReaders,
     any_addr_indexes: &AnyAddrIndexesVecs,
     addrs_data: &AddrsDataVecs,
-) -> Result<InputsResult> {
-    let map_fn = |local_idx: usize| -> Result<_> {
+) -> InputsResult {
+    let map_fn = |local_idx: usize| {
         let tx_index = txin_index_to_tx_index[local_idx];
 
         let prev_height = txin_index_to_prev_height[local_idx];
@@ -65,7 +64,7 @@ pub(crate) fn process_inputs(
         let input_type = txin_index_to_output_type[local_idx];
 
         if input_type.is_not_addr() {
-            return Ok((prev_height, value, input_type, None));
+            return (prev_height, value, input_type, None);
         }
 
         let type_index = txin_index_to_type_index[local_idx];
@@ -79,23 +78,20 @@ pub(crate) fn process_inputs(
             vr,
             any_addr_indexes,
             addrs_data,
-        )?;
+        );
 
-        Ok((
+        (
             prev_height,
             value,
             input_type,
             Some((type_index, tx_index, value, addr_data_opt)),
-        ))
+        )
     };
 
     let items: Vec<_> = if input_count < 128 {
-        (0..input_count).map(map_fn).collect::<Result<Vec<_>>>()?
+        (0..input_count).map(map_fn).collect()
     } else {
-        (0..input_count)
-            .into_par_iter()
-            .map(map_fn)
-            .collect::<Result<Vec<_>>>()?
+        (0..input_count).into_par_iter().map(map_fn).collect()
     };
 
     // Phase 2: Sequential accumulation - no merge overhead
@@ -140,10 +136,10 @@ pub(crate) fn process_inputs(
         }
     }
 
-    Ok(InputsResult {
+    InputsResult {
         height_to_sent,
         sent_data,
         addr_data,
         tx_index_vecs,
-    })
+    }
 }

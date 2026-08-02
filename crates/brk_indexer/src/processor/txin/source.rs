@@ -1,6 +1,6 @@
 use brk_types::{OutPoint, OutputType, SigOps, TypeIndex};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum InputSource {
     Coinbase,
     PreviousBlock {

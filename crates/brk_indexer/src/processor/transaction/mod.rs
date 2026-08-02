@@ -78,7 +78,7 @@ impl<'a> BlockProcessor<'a> {
             .vecs
             .transactions
             .txid
-            .get_pushed_or_read(prev_tx_index, &self.readers.txid)
+            .get_append_only(prev_tx_index, &self.readers.txid)
             .ok_or(Error::Internal("Missing txid for tx_index"))
             .inspect_err(|_| {
                 error!(?tx_index, len, "Missing txid for tx_index");
@@ -104,10 +104,10 @@ impl<'a> BlockProcessor<'a> {
         &mut self,
         txs: Vec<ComputedTx>,
         mut txouts: Vec<ProcessedOutput>,
-        txins: Vec<InputSource>,
+        txins: &[InputSource],
         addresses: &mut BlockAddresses,
     ) -> Result<()> {
-        let transaction_analyses = self.analyze_transactions(&txs, &txins, &txouts);
+        let transaction_analyses = self.analyze_transactions(&txs, txins, &txouts);
         let lengths = &mut *self.lengths;
         let base_tx_index = lengths.tx_index;
         let base_txin_index = lengths.txin_index;

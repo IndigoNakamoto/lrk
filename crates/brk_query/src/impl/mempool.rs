@@ -67,16 +67,14 @@ impl Query {
                     if prev_tx_index >= safe.tx_index {
                         return None;
                     }
-                    let first_txout: TxOutIndex =
-                        first_txout_reader.try_get(usize::from(prev_tx_index))?;
+                    let first_txout: TxOutIndex = first_txout_reader.try_get(prev_tx_index)?;
                     let txout = first_txout + *vout;
                     if txout >= safe.txout_index {
                         return None;
                     }
-                    let txout_idx = usize::from(txout);
-                    let output_type: OutputType = output_type_reader.try_get(txout_idx)?;
-                    let type_index: TypeIndex = type_index_reader.try_get(txout_idx)?;
-                    let value: Sats = value_reader.try_get(txout_idx)?;
+                    let output_type: OutputType = output_type_reader.try_get(txout)?;
+                    let type_index: TypeIndex = type_index_reader.try_get(txout)?;
+                    let value: Sats = value_reader.try_get(txout)?;
                     let script_pubkey = addr_readers.script_pubkey(output_type, type_index);
                     Some(((*prev_txid, *vout), TxOut::from((script_pubkey, value))))
                 })

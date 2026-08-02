@@ -8,13 +8,12 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::unnecessary_to_owned)]
 
-use std::str::FromStr;
-use std::sync::Arc;
-use std::ops::{Bound, RangeBounds};
-use serde::de::DeserializeOwned;
 pub use brk_cohort::*;
 pub use brk_types::*;
-
+use serde::de::DeserializeOwned;
+use std::ops::{Bound, RangeBounds};
+use std::str::FromStr;
+use std::sync::Arc;
 
 /// Error type for BRK client operations.
 #[derive(Debug)]
@@ -50,13 +49,19 @@ pub struct AddressHashPrefix {
 /// Compute the RapidHash v3 hash-prefix used by `/api/address/hash-prefix/{addr_type}/{prefix}`.
 pub fn address_payload_hash_prefix(payload: &[u8], nibbles: usize) -> Result<String> {
     if payload.is_empty() {
-        return Err(BrkError { message: "Expected a non-empty address payload".to_string() });
+        return Err(BrkError {
+            message: "Expected a non-empty address payload".to_string(),
+        });
     }
     if payload.len() > 65 {
-        return Err(BrkError { message: "Expected at most 65 address payload bytes".to_string() });
+        return Err(BrkError {
+            message: "Expected at most 65 address payload bytes".to_string(),
+        });
     }
     if !(1..=16).contains(&nibbles) {
-        return Err(BrkError { message: "Expected hash-prefix length from 1 to 16 hex nibbles".to_string() });
+        return Err(BrkError {
+            message: "Expected hash-prefix length from 1 to 16 hex nibbles".to_string(),
+        });
     }
     Ok(format!("{:016x}", rapidhash::v3::rapidhash_v3(payload))[..nibbles].to_string())
 }
@@ -69,8 +74,12 @@ fn validate_address_payload_for_type(addr_type: OutputType, payload: &[u8]) -> R
         OutputType::P2PKH | OutputType::P2SH | OutputType::P2WPKH => &[20],
         OutputType::P2WSH | OutputType::P2TR => &[32],
         OutputType::P2MS | OutputType::OpReturn | OutputType::Empty | OutputType::Unknown => {
-            return Err(BrkError { message: format!("Unsupported address type for address payload hash-prefix: {addr_type:?}") });
-        },
+            return Err(BrkError {
+                message: format!(
+                    "Unsupported address type for address payload hash-prefix: {addr_type:?}"
+                ),
+            });
+        }
     };
     let addr_type = address_payload_type_path(addr_type)?;
 
@@ -80,7 +89,9 @@ fn validate_address_payload_for_type(addr_type: OutputType, payload: &[u8]) -> R
             .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join(" or ");
-        return Err(BrkError { message: format!("Expected {addr_type} address payload length {joined} bytes") });
+        return Err(BrkError {
+            message: format!("Expected {addr_type} address payload length {joined} bytes"),
+        });
     }
 
     Ok(())
@@ -96,17 +107,25 @@ fn address_payload_type_path(addr_type: OutputType) -> Result<&'static str> {
         OutputType::P2WSH => Ok("v0_p2wsh"),
         OutputType::P2TR => Ok("v1_p2tr"),
         OutputType::P2MS | OutputType::OpReturn | OutputType::Empty | OutputType::Unknown => {
-            Err(BrkError { message: format!("Unsupported address type for address payload hash-prefix: {addr_type:?}") })
-        },
+            Err(BrkError {
+                message: format!(
+                    "Unsupported address type for address payload hash-prefix: {addr_type:?}"
+                ),
+            })
+        }
     }
 }
 
 /// Decode a mainnet Bitcoin address into the BRK address type and raw payload bytes.
 pub fn decode_address_payload(address: &str) -> Result<AddressPayload> {
     if address.is_empty() {
-        return Err(BrkError { message: "Expected an address string".to_string() });
+        return Err(BrkError {
+            message: "Expected an address string".to_string(),
+        });
     }
-    let addr_bytes = AddrBytes::from_str(address).map_err(|e| BrkError { message: e.to_string() })?;
+    let addr_bytes = AddrBytes::from_str(address).map_err(|e| BrkError {
+        message: e.to_string(),
+    })?;
     let addr_type = OutputType::from(&addr_bytes);
 
     Ok(AddressPayload {
@@ -150,7 +169,10 @@ pub struct BrkClientBase {
 impl BrkClientBase {
     /// Create a new client with the given base URL.
     pub fn new(base_url: impl Into<String>) -> Self {
-        Self::with_options(BrkClientOptions { base_url: base_url.into(), ..Default::default() })
+        Self::with_options(BrkClientOptions {
+            base_url: base_url.into(),
+            ..Default::default()
+        })
     }
 
     /// Create a new client with options.
@@ -171,67 +193,92 @@ impl BrkClientBase {
 
     /// Make a GET request and deserialize JSON response.
     pub fn get_json<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
-        self.agent.get(&self.url(path))
+        self.agent
+            .get(&self.url(path))
             .call()
             .and_then(|mut r| r.body_mut().read_json())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 
     /// Make a GET request and return raw text response.
     pub fn get_text(&self, path: &str) -> Result<String> {
-        self.agent.get(&self.url(path))
+        self.agent
+            .get(&self.url(path))
             .call()
             .and_then(|mut r| r.body_mut().read_to_string())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 
     /// Make a GET request and return raw bytes response.
     pub fn get_bytes(&self, path: &str) -> Result<Vec<u8>> {
-        self.agent.get(&self.url(path))
+        self.agent
+            .get(&self.url(path))
             .call()
             .and_then(|mut r| r.body_mut().read_to_vec())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 
     /// Make a POST request and deserialize JSON response.
     pub fn post_json<T: DeserializeOwned>(&self, path: &str, body: &str) -> Result<T> {
-        self.agent.post(&self.url(path))
+        self.agent
+            .post(&self.url(path))
             .send(body)
             .and_then(|mut r| r.body_mut().read_json())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 
     /// Make a POST request and return raw text response.
     pub fn post_text(&self, path: &str, body: &str) -> Result<String> {
-        self.agent.post(&self.url(path))
+        self.agent
+            .post(&self.url(path))
             .send(body)
             .and_then(|mut r| r.body_mut().read_to_string())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 
     /// Make a POST request and return raw bytes response.
     pub fn post_bytes(&self, path: &str, body: &str) -> Result<Vec<u8>> {
-        self.agent.post(&self.url(path))
+        self.agent
+            .post(&self.url(path))
             .send(body)
             .and_then(|mut r| r.body_mut().read_to_vec())
-            .map_err(|e| BrkError { message: e.to_string() })
+            .map_err(|e| BrkError {
+                message: e.to_string(),
+            })
     }
 }
 
 /// Build series name with suffix.
 #[inline]
 fn _m(acc: &str, s: &str) -> String {
-    if s.is_empty() { acc.to_string() }
-    else if acc.is_empty() { s.to_string() }
-    else { format!("{acc}_{s}") }
+    if s.is_empty() {
+        acc.to_string()
+    } else if acc.is_empty() {
+        s.to_string()
+    } else {
+        format!("{acc}_{s}")
+    }
 }
 
 /// Build series name with prefix.
 #[inline]
 fn _p(prefix: &str, acc: &str) -> String {
-    if acc.is_empty() { prefix.to_string() } else { format!("{prefix}_{acc}") }
+    if acc.is_empty() {
+        prefix.to_string()
+    } else {
+        format!("{prefix}_{acc}")
+    }
 }
-
 
 /// Non-generic trait for series patterns (usable in collections).
 pub trait AnySeriesPattern {
@@ -248,7 +295,6 @@ pub trait SeriesPattern<T>: AnySeriesPattern {
     fn get(&self, index: Index) -> Option<SeriesEndpoint<T>>;
 }
 
-
 /// Shared endpoint configuration.
 #[derive(Clone)]
 struct EndpointConfig {
@@ -261,7 +307,13 @@ struct EndpointConfig {
 
 impl EndpointConfig {
     fn new(client: Arc<BrkClientBase>, name: Arc<str>, index: Index) -> Self {
-        Self { client, name, index, start: None, end: None }
+        Self {
+            client,
+            name,
+            index,
+            start: None,
+            end: None,
+        }
     }
 
     fn path(&self) -> String {
@@ -270,11 +322,21 @@ impl EndpointConfig {
 
     fn build_path(&self, format: Option<&str>) -> String {
         let mut params = Vec::new();
-        if let Some(s) = self.start { params.push(format!("start={}", s)); }
-        if let Some(e) = self.end { params.push(format!("end={}", e)); }
-        if let Some(fmt) = format { params.push(format!("format={}", fmt)); }
+        if let Some(s) = self.start {
+            params.push(format!("start={}", s));
+        }
+        if let Some(e) = self.end {
+            params.push(format!("end={}", e));
+        }
+        if let Some(fmt) = format {
+            params.push(format!("format={}", fmt));
+        }
         let p = self.path();
-        if params.is_empty() { p } else { format!("{}?{}", p, params.join("&")) }
+        if params.is_empty() {
+            p
+        } else {
+            format!("{}?{}", p, params.join("&"))
+        }
     }
 
     fn get_json<T: DeserializeOwned>(&self, format: Option<&str>) -> Result<T> {
@@ -286,11 +348,19 @@ impl EndpointConfig {
     }
 
     fn get_len(&self) -> Result<i64> {
-        self.client.get_json(&format!("/api/series/{}/{}/len", self.name, self.index.name()))
+        self.client.get_json(&format!(
+            "/api/series/{}/{}/len",
+            self.name,
+            self.index.name()
+        ))
     }
 
     fn get_version(&self) -> Result<Version> {
-        self.client.get_json(&format!("/api/series/{}/{}/version", self.name, self.index.name()))
+        self.client.get_json(&format!(
+            "/api/series/{}/{}/version",
+            self.name,
+            self.index.name()
+        ))
     }
 }
 
@@ -322,14 +392,20 @@ pub type DateSeriesEndpoint<T> = SeriesEndpoint<T, DateSeriesData<T>>;
 
 impl<T: DeserializeOwned, D: DeserializeOwned> SeriesEndpoint<T, D> {
     pub fn new(client: Arc<BrkClientBase>, name: Arc<str>, index: Index) -> Self {
-        Self { config: EndpointConfig::new(client, name, index), _marker: std::marker::PhantomData }
+        Self {
+            config: EndpointConfig::new(client, name, index),
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Select a specific index position.
     pub fn get(mut self, index: usize) -> SingleItemBuilder<T, D> {
         self.config.start = Some(index as i64);
         self.config.end = Some(index as i64 + 1);
-        SingleItemBuilder { config: self.config, _marker: std::marker::PhantomData }
+        SingleItemBuilder {
+            config: self.config,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Select a range using Rust range syntax.
@@ -351,7 +427,10 @@ impl<T: DeserializeOwned, D: DeserializeOwned> SeriesEndpoint<T, D> {
             Bound::Excluded(&n) => Some(n as i64),
             Bound::Unbounded => None,
         };
-        RangeBuilder { config: self.config, _marker: std::marker::PhantomData }
+        RangeBuilder {
+            config: self.config,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Take the first n items.
@@ -366,13 +445,19 @@ impl<T: DeserializeOwned, D: DeserializeOwned> SeriesEndpoint<T, D> {
         } else {
             self.config.start = Some(-(n as i64));
         }
-        RangeBuilder { config: self.config, _marker: std::marker::PhantomData }
+        RangeBuilder {
+            config: self.config,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Skip the first n items. Chain with `take(n)` to get a range.
     pub fn skip(mut self, n: usize) -> SkippedBuilder<T, D> {
         self.config.start = Some(n as i64);
-        SkippedBuilder { config: self.config, _marker: std::marker::PhantomData }
+        SkippedBuilder {
+            config: self.config,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Fetch all data as parsed JSON.
@@ -424,7 +509,11 @@ impl<T: DeserializeOwned> SeriesEndpoint<T, DateSeriesData<T>> {
     }
 
     /// Select a timestamp range (works for all date-based indexes including sub-daily).
-    pub fn timestamp_range(self, start: Timestamp, end: Timestamp) -> RangeBuilder<T, DateSeriesData<T>> {
+    pub fn timestamp_range(
+        self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> RangeBuilder<T, DateSeriesData<T>> {
         let s = self.config.index.timestamp_to_index(start).unwrap_or(0);
         let e = self.config.index.timestamp_to_index(end).unwrap_or(0);
         self.range(s..e)
@@ -466,7 +555,10 @@ impl<T: DeserializeOwned, D: DeserializeOwned> SkippedBuilder<T, D> {
     pub fn take(mut self, n: usize) -> RangeBuilder<T, D> {
         let start = self.config.start.unwrap_or(0);
         self.config.end = Some(start + n as i64);
-        RangeBuilder { config: self.config, _marker: std::marker::PhantomData }
+        RangeBuilder {
+            config: self.config,
+            _marker: std::marker::PhantomData,
+        }
     }
 
     /// Fetch from the skipped position to the end.
@@ -501,10 +593,42 @@ impl<T: DeserializeOwned, D: DeserializeOwned> RangeBuilder<T, D> {
     }
 }
 
-
 // Static index arrays
-const _I1: &[Index] = &[Index::Minute10, Index::Minute30, Index::Hour1, Index::Hour4, Index::Hour12, Index::Day1, Index::Day3, Index::Week1, Index::Month1, Index::Month3, Index::Month6, Index::Year1, Index::Year10, Index::Halving, Index::Epoch, Index::Height];
-const _I2: &[Index] = &[Index::Minute10, Index::Minute30, Index::Hour1, Index::Hour4, Index::Hour12, Index::Day1, Index::Day3, Index::Week1, Index::Month1, Index::Month3, Index::Month6, Index::Year1, Index::Year10, Index::Halving, Index::Epoch];
+const _I1: &[Index] = &[
+    Index::Minute10,
+    Index::Minute30,
+    Index::Hour1,
+    Index::Hour4,
+    Index::Hour12,
+    Index::Day1,
+    Index::Day3,
+    Index::Week1,
+    Index::Month1,
+    Index::Month3,
+    Index::Month6,
+    Index::Year1,
+    Index::Year10,
+    Index::Halving,
+    Index::Epoch,
+    Index::Height,
+];
+const _I2: &[Index] = &[
+    Index::Minute10,
+    Index::Minute30,
+    Index::Hour1,
+    Index::Hour4,
+    Index::Hour12,
+    Index::Day1,
+    Index::Day3,
+    Index::Week1,
+    Index::Month1,
+    Index::Month3,
+    Index::Month6,
+    Index::Year1,
+    Index::Year10,
+    Index::Halving,
+    Index::Epoch,
+];
 const _I3: &[Index] = &[Index::Minute10];
 const _I4: &[Index] = &[Index::Minute30];
 const _I5: &[Index] = &[Index::Hour1];
@@ -545,535 +669,1753 @@ fn _ep<T: DeserializeOwned>(c: &Arc<BrkClientBase>, n: &Arc<str>, i: Index) -> S
 }
 
 #[inline]
-fn _dep<T: DeserializeOwned>(c: &Arc<BrkClientBase>, n: &Arc<str>, i: Index) -> DateSeriesEndpoint<T> {
+fn _dep<T: DeserializeOwned>(
+    c: &Arc<BrkClientBase>,
+    n: &Arc<str>,
+    i: Index,
+) -> DateSeriesEndpoint<T> {
     DateSeriesEndpoint::new(c.clone(), n.clone(), i)
 }
 
 // Index accessor structs
 
-pub struct SeriesPattern1By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern1By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern1By<T> {
-    pub fn minute10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute10) }
-    pub fn minute30(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute30) }
-    pub fn hour1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour1) }
-    pub fn hour4(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour4) }
-    pub fn hour12(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour12) }
-    pub fn day1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day1) }
-    pub fn day3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day3) }
-    pub fn week1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Week1) }
-    pub fn month1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month1) }
-    pub fn month3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month3) }
-    pub fn month6(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month6) }
-    pub fn year1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year1) }
-    pub fn year10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year10) }
-    pub fn halving(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Halving) }
-    pub fn epoch(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Epoch) }
-    pub fn height(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Height) }
+    pub fn minute10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute10)
+    }
+    pub fn minute30(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute30)
+    }
+    pub fn hour1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour1)
+    }
+    pub fn hour4(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour4)
+    }
+    pub fn hour12(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour12)
+    }
+    pub fn day1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day1)
+    }
+    pub fn day3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day3)
+    }
+    pub fn week1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Week1)
+    }
+    pub fn month1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month1)
+    }
+    pub fn month3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month3)
+    }
+    pub fn month6(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month6)
+    }
+    pub fn year1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year1)
+    }
+    pub fn year10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year10)
+    }
+    pub fn halving(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Halving)
+    }
+    pub fn epoch(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Epoch)
+    }
+    pub fn height(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Height)
+    }
 }
 
-pub struct SeriesPattern1<T> { name: Arc<str>, pub by: SeriesPattern1By<T> }
+pub struct SeriesPattern1<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern1By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern1<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern1By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern1By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern1<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I1 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern1<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I1.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern1<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I1
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern1<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I1.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern2By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern2By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern2By<T> {
-    pub fn minute10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute10) }
-    pub fn minute30(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute30) }
-    pub fn hour1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour1) }
-    pub fn hour4(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour4) }
-    pub fn hour12(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour12) }
-    pub fn day1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day1) }
-    pub fn day3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day3) }
-    pub fn week1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Week1) }
-    pub fn month1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month1) }
-    pub fn month3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month3) }
-    pub fn month6(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month6) }
-    pub fn year1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year1) }
-    pub fn year10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year10) }
-    pub fn halving(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Halving) }
-    pub fn epoch(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Epoch) }
+    pub fn minute10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute10)
+    }
+    pub fn minute30(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute30)
+    }
+    pub fn hour1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour1)
+    }
+    pub fn hour4(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour4)
+    }
+    pub fn hour12(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour12)
+    }
+    pub fn day1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day1)
+    }
+    pub fn day3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day3)
+    }
+    pub fn week1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Week1)
+    }
+    pub fn month1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month1)
+    }
+    pub fn month3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month3)
+    }
+    pub fn month6(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month6)
+    }
+    pub fn year1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year1)
+    }
+    pub fn year10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year10)
+    }
+    pub fn halving(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Halving)
+    }
+    pub fn epoch(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Epoch)
+    }
 }
 
-pub struct SeriesPattern2<T> { name: Arc<str>, pub by: SeriesPattern2By<T> }
+pub struct SeriesPattern2<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern2By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern2<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern2By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern2By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern2<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I2 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern2<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I2.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern2<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I2
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern2<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I2.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern3By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern3By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern3By<T> {
-    pub fn minute10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute10) }
+    pub fn minute10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute10)
+    }
 }
 
-pub struct SeriesPattern3<T> { name: Arc<str>, pub by: SeriesPattern3By<T> }
+pub struct SeriesPattern3<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern3By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern3<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern3By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern3By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern3<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I3 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern3<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I3.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern3<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I3
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern3<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I3.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern4By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern4By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern4By<T> {
-    pub fn minute30(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Minute30) }
+    pub fn minute30(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Minute30)
+    }
 }
 
-pub struct SeriesPattern4<T> { name: Arc<str>, pub by: SeriesPattern4By<T> }
+pub struct SeriesPattern4<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern4By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern4<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern4By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern4By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern4<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I4 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern4<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I4.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern4<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I4
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern4<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I4.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern5By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern5By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern5By<T> {
-    pub fn hour1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour1) }
+    pub fn hour1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour1)
+    }
 }
 
-pub struct SeriesPattern5<T> { name: Arc<str>, pub by: SeriesPattern5By<T> }
+pub struct SeriesPattern5<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern5By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern5<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern5By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern5By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern5<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I5 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern5<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I5.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern5<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I5
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern5<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I5.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern6By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern6By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern6By<T> {
-    pub fn hour4(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour4) }
+    pub fn hour4(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour4)
+    }
 }
 
-pub struct SeriesPattern6<T> { name: Arc<str>, pub by: SeriesPattern6By<T> }
+pub struct SeriesPattern6<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern6By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern6<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern6By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern6By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern6<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I6 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern6<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I6.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern6<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I6
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern6<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I6.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern7By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern7By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern7By<T> {
-    pub fn hour12(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Hour12) }
+    pub fn hour12(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Hour12)
+    }
 }
 
-pub struct SeriesPattern7<T> { name: Arc<str>, pub by: SeriesPattern7By<T> }
+pub struct SeriesPattern7<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern7By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern7<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern7By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern7By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern7<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I7 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern7<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I7.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern7<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I7
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern7<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I7.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern8By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern8By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern8By<T> {
-    pub fn day1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day1) }
+    pub fn day1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day1)
+    }
 }
 
-pub struct SeriesPattern8<T> { name: Arc<str>, pub by: SeriesPattern8By<T> }
+pub struct SeriesPattern8<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern8By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern8<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern8By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern8By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern8<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I8 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern8<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I8.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern8<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I8
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern8<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I8.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern9By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern9By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern9By<T> {
-    pub fn day3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Day3) }
+    pub fn day3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Day3)
+    }
 }
 
-pub struct SeriesPattern9<T> { name: Arc<str>, pub by: SeriesPattern9By<T> }
+pub struct SeriesPattern9<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern9By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern9<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern9By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern9By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern9<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I9 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern9<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I9.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern9<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I9
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern9<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I9.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern10By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern10By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern10By<T> {
-    pub fn week1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Week1) }
+    pub fn week1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Week1)
+    }
 }
 
-pub struct SeriesPattern10<T> { name: Arc<str>, pub by: SeriesPattern10By<T> }
+pub struct SeriesPattern10<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern10By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern10<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern10By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern10By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern10<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I10 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern10<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I10.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern10<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I10
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern10<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I10.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern11By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern11By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern11By<T> {
-    pub fn month1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month1) }
+    pub fn month1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month1)
+    }
 }
 
-pub struct SeriesPattern11<T> { name: Arc<str>, pub by: SeriesPattern11By<T> }
+pub struct SeriesPattern11<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern11By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern11<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern11By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern11By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern11<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I11 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern11<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I11.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern11<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I11
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern11<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I11.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern12By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern12By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern12By<T> {
-    pub fn month3(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month3) }
+    pub fn month3(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month3)
+    }
 }
 
-pub struct SeriesPattern12<T> { name: Arc<str>, pub by: SeriesPattern12By<T> }
+pub struct SeriesPattern12<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern12By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern12<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern12By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern12By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern12<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I12 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern12<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I12.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern12<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I12
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern12<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I12.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern13By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern13By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern13By<T> {
-    pub fn month6(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Month6) }
+    pub fn month6(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Month6)
+    }
 }
 
-pub struct SeriesPattern13<T> { name: Arc<str>, pub by: SeriesPattern13By<T> }
+pub struct SeriesPattern13<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern13By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern13<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern13By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern13By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern13<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I13 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern13<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I13.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern13<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I13
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern13<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I13.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern14By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern14By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern14By<T> {
-    pub fn year1(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year1) }
+    pub fn year1(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year1)
+    }
 }
 
-pub struct SeriesPattern14<T> { name: Arc<str>, pub by: SeriesPattern14By<T> }
+pub struct SeriesPattern14<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern14By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern14<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern14By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern14By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern14<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I14 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern14<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I14.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern14<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I14
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern14<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I14.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern15By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern15By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern15By<T> {
-    pub fn year10(&self) -> DateSeriesEndpoint<T> { _dep(&self.client, &self.name, Index::Year10) }
+    pub fn year10(&self) -> DateSeriesEndpoint<T> {
+        _dep(&self.client, &self.name, Index::Year10)
+    }
 }
 
-pub struct SeriesPattern15<T> { name: Arc<str>, pub by: SeriesPattern15By<T> }
+pub struct SeriesPattern15<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern15By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern15<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern15By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern15By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern15<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I15 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern15<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I15.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern15<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I15
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern15<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I15.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern16By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern16By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern16By<T> {
-    pub fn halving(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Halving) }
+    pub fn halving(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Halving)
+    }
 }
 
-pub struct SeriesPattern16<T> { name: Arc<str>, pub by: SeriesPattern16By<T> }
+pub struct SeriesPattern16<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern16By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern16<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern16By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern16By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern16<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I16 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern16<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I16.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern16<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I16
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern16<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I16.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern17By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern17By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern17By<T> {
-    pub fn epoch(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Epoch) }
+    pub fn epoch(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Epoch)
+    }
 }
 
-pub struct SeriesPattern17<T> { name: Arc<str>, pub by: SeriesPattern17By<T> }
+pub struct SeriesPattern17<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern17By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern17<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern17By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern17By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern17<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I17 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern17<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I17.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern17<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I17
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern17<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I17.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern18By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern18By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern18By<T> {
-    pub fn height(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::Height) }
+    pub fn height(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::Height)
+    }
 }
 
-pub struct SeriesPattern18<T> { name: Arc<str>, pub by: SeriesPattern18By<T> }
+pub struct SeriesPattern18<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern18By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern18<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern18By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern18By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern18<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I18 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern18<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I18.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern18<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I18
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern18<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I18.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern19By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern19By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern19By<T> {
-    pub fn tx_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::TxIndex) }
+    pub fn tx_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::TxIndex)
+    }
 }
 
-pub struct SeriesPattern19<T> { name: Arc<str>, pub by: SeriesPattern19By<T> }
+pub struct SeriesPattern19<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern19By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern19<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern19By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern19By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern19<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I19 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern19<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I19.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern19<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I19
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern19<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I19.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern20By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern20By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern20By<T> {
-    pub fn txin_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::TxInIndex) }
+    pub fn txin_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::TxInIndex)
+    }
 }
 
-pub struct SeriesPattern20<T> { name: Arc<str>, pub by: SeriesPattern20By<T> }
+pub struct SeriesPattern20<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern20By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern20<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern20By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern20By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern20<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I20 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern20<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I20.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern20<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I20
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern20<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I20.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern21By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern21By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern21By<T> {
-    pub fn txout_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::TxOutIndex) }
+    pub fn txout_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::TxOutIndex)
+    }
 }
 
-pub struct SeriesPattern21<T> { name: Arc<str>, pub by: SeriesPattern21By<T> }
+pub struct SeriesPattern21<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern21By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern21<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern21By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern21By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern21<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I21 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern21<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I21.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern21<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I21
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern21<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I21.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern22By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern22By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern22By<T> {
-    pub fn empty_output_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::EmptyOutputIndex) }
+    pub fn empty_output_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::EmptyOutputIndex)
+    }
 }
 
-pub struct SeriesPattern22<T> { name: Arc<str>, pub by: SeriesPattern22By<T> }
+pub struct SeriesPattern22<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern22By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern22<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern22By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern22By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern22<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I22 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern22<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I22.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern22<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I22
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern22<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I22.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern23By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern23By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern23By<T> {
-    pub fn op_return_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::OpReturnIndex) }
+    pub fn op_return_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::OpReturnIndex)
+    }
 }
 
-pub struct SeriesPattern23<T> { name: Arc<str>, pub by: SeriesPattern23By<T> }
+pub struct SeriesPattern23<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern23By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern23<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern23By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern23By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern23<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I23 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern23<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I23.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern23<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I23
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern23<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I23.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern24By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern24By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern24By<T> {
-    pub fn p2a_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2AAddrIndex) }
+    pub fn p2a_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2AAddrIndex)
+    }
 }
 
-pub struct SeriesPattern24<T> { name: Arc<str>, pub by: SeriesPattern24By<T> }
+pub struct SeriesPattern24<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern24By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern24<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern24By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern24By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern24<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I24 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern24<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I24.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern24<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I24
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern24<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I24.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern25By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern25By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern25By<T> {
-    pub fn p2ms_output_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2MSOutputIndex) }
+    pub fn p2ms_output_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2MSOutputIndex)
+    }
 }
 
-pub struct SeriesPattern25<T> { name: Arc<str>, pub by: SeriesPattern25By<T> }
+pub struct SeriesPattern25<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern25By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern25<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern25By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern25By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern25<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I25 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern25<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I25.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern25<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I25
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern25<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I25.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern26By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern26By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern26By<T> {
-    pub fn p2pk33_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2PK33AddrIndex) }
+    pub fn p2pk33_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2PK33AddrIndex)
+    }
 }
 
-pub struct SeriesPattern26<T> { name: Arc<str>, pub by: SeriesPattern26By<T> }
+pub struct SeriesPattern26<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern26By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern26<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern26By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern26By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern26<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I26 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern26<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I26.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern26<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I26
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern26<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I26.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern27By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern27By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern27By<T> {
-    pub fn p2pk65_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2PK65AddrIndex) }
+    pub fn p2pk65_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2PK65AddrIndex)
+    }
 }
 
-pub struct SeriesPattern27<T> { name: Arc<str>, pub by: SeriesPattern27By<T> }
+pub struct SeriesPattern27<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern27By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern27<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern27By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern27By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern27<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I27 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern27<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I27.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern27<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I27
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern27<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I27.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern28By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern28By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern28By<T> {
-    pub fn p2pkh_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2PKHAddrIndex) }
+    pub fn p2pkh_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2PKHAddrIndex)
+    }
 }
 
-pub struct SeriesPattern28<T> { name: Arc<str>, pub by: SeriesPattern28By<T> }
+pub struct SeriesPattern28<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern28By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern28<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern28By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern28By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern28<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I28 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern28<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I28.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern28<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I28
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern28<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I28.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern29By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern29By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern29By<T> {
-    pub fn p2sh_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2SHAddrIndex) }
+    pub fn p2sh_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2SHAddrIndex)
+    }
 }
 
-pub struct SeriesPattern29<T> { name: Arc<str>, pub by: SeriesPattern29By<T> }
+pub struct SeriesPattern29<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern29By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern29<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern29By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern29By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern29<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I29 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern29<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I29.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern29<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I29
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern29<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I29.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern30By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern30By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern30By<T> {
-    pub fn p2tr_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2TRAddrIndex) }
+    pub fn p2tr_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2TRAddrIndex)
+    }
 }
 
-pub struct SeriesPattern30<T> { name: Arc<str>, pub by: SeriesPattern30By<T> }
+pub struct SeriesPattern30<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern30By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern30<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern30By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern30By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern30<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I30 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern30<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I30.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern30<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I30
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern30<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I30.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern31By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern31By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern31By<T> {
-    pub fn p2wpkh_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2WPKHAddrIndex) }
+    pub fn p2wpkh_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2WPKHAddrIndex)
+    }
 }
 
-pub struct SeriesPattern31<T> { name: Arc<str>, pub by: SeriesPattern31By<T> }
+pub struct SeriesPattern31<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern31By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern31<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern31By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern31By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern31<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I31 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern31<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I31.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern31<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I31
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern31<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I31.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern32By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern32By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern32By<T> {
-    pub fn p2wsh_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::P2WSHAddrIndex) }
+    pub fn p2wsh_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::P2WSHAddrIndex)
+    }
 }
 
-pub struct SeriesPattern32<T> { name: Arc<str>, pub by: SeriesPattern32By<T> }
+pub struct SeriesPattern32<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern32By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern32<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern32By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern32By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern32<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I32 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern32<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I32.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern32<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I32
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern32<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I32.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern33By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern33By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern33By<T> {
-    pub fn unknown_output_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::UnknownOutputIndex) }
+    pub fn unknown_output_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::UnknownOutputIndex)
+    }
 }
 
-pub struct SeriesPattern33<T> { name: Arc<str>, pub by: SeriesPattern33By<T> }
+pub struct SeriesPattern33<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern33By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern33<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern33By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern33By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern33<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I33 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern33<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I33.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern33<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I33
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern33<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I33.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern34By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern34By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern34By<T> {
-    pub fn funded_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::FundedAddrIndex) }
+    pub fn funded_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::FundedAddrIndex)
+    }
 }
 
-pub struct SeriesPattern34<T> { name: Arc<str>, pub by: SeriesPattern34By<T> }
+pub struct SeriesPattern34<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern34By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern34<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern34By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern34By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern34<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I34 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern34<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I34.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern34<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I34
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern34<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I34.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
-pub struct SeriesPattern35By<T> { client: Arc<BrkClientBase>, name: Arc<str>, _marker: std::marker::PhantomData<T> }
+pub struct SeriesPattern35By<T> {
+    client: Arc<BrkClientBase>,
+    name: Arc<str>,
+    _marker: std::marker::PhantomData<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern35By<T> {
-    pub fn empty_addr_index(&self) -> SeriesEndpoint<T> { _ep(&self.client, &self.name, Index::EmptyAddrIndex) }
+    pub fn empty_addr_index(&self) -> SeriesEndpoint<T> {
+        _ep(&self.client, &self.name, Index::EmptyAddrIndex)
+    }
 }
 
-pub struct SeriesPattern35<T> { name: Arc<str>, pub by: SeriesPattern35By<T> }
+pub struct SeriesPattern35<T> {
+    name: Arc<str>,
+    pub by: SeriesPattern35By<T>,
+}
 impl<T: DeserializeOwned> SeriesPattern35<T> {
-    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self { let name: Arc<str> = name.into(); Self { name: name.clone(), by: SeriesPattern35By { client, name, _marker: std::marker::PhantomData } } }
-    pub fn name(&self) -> &str { &self.name }
+    pub fn new(client: Arc<BrkClientBase>, name: String) -> Self {
+        let name: Arc<str> = name.into();
+        Self {
+            name: name.clone(),
+            by: SeriesPattern35By {
+                client,
+                name,
+                _marker: std::marker::PhantomData,
+            },
+        }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
-impl<T> AnySeriesPattern for SeriesPattern35<T> { fn name(&self) -> &str { &self.name } fn indexes(&self) -> &'static [Index] { _I35 } }
-impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern35<T> { fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> { _I35.contains(&index).then(|| _ep(&self.by.client, &self.by.name, index)) } }
+impl<T> AnySeriesPattern for SeriesPattern35<T> {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn indexes(&self) -> &'static [Index] {
+        _I35
+    }
+}
+impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern35<T> {
+    fn get(&self, index: Index) -> Option<SeriesEndpoint<T>> {
+        _I35.contains(&index)
+            .then(|| _ep(&self.by.client, &self.by.name, index))
+    }
+}
 
 // Reusable pattern structs
 
 /// Pattern struct for repeated tree structure.
-pub struct IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern {
+pub struct IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern
+{
     pub index: SeriesPattern1<StoredI8>,
     pub pct0_01: CentsSatsUsdPattern,
     pub pct0_5: CentsSatsUsdPattern,
@@ -1127,7 +2469,8 @@ impl IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct9
 }
 
 /// Pattern struct for repeated tree structure.
-pub struct Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern {
+pub struct Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern
+{
     pub pct05: CentsSatsUsdPattern,
     pub pct10: CentsSatsUsdPattern,
     pub pct15: CentsSatsUsdPattern,
@@ -1248,18 +2591,51 @@ impl AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             all: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "bis")),
-            empty: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_empty_outputs_output")),
-            op_return: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_op_return_output")),
+            empty: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_empty_outputs_output"),
+            ),
+            op_return: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_op_return_output"),
+            ),
             p2a: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2a_output")),
-            p2ms: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2ms_output")),
-            p2pk33: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2pk33_output")),
-            p2pk65: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2pk65_output")),
-            p2pkh: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2pkh_output")),
-            p2sh: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2sh_output")),
-            p2tr: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2tr_output")),
-            p2wpkh: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2wpkh_output")),
-            p2wsh: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_p2wsh_output")),
-            unknown: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "with_unknown_outputs_output")),
+            p2ms: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2ms_output"),
+            ),
+            p2pk33: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2pk33_output"),
+            ),
+            p2pk65: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2pk65_output"),
+            ),
+            p2pkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2pkh_output"),
+            ),
+            p2sh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2sh_output"),
+            ),
+            p2tr: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2tr_output"),
+            ),
+            p2wpkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2wpkh_output"),
+            ),
+            p2wsh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_p2wsh_output"),
+            ),
+            unknown: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "with_unknown_outputs_output"),
+            ),
         }
     }
 }
@@ -1374,15 +2750,27 @@ impl CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern {
         Self {
             cap: CentsDeltaToUsdPattern::new(client.clone(), _m(&acc, "realized_cap")),
             capitalized: PricePattern::new(client.clone(), _m(&acc, "capitalized_price")),
-            gross_pnl: BlockCumulativeSumPattern::new(client.clone(), _m(&acc, "realized_gross_pnl")),
+            gross_pnl: BlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "realized_gross_pnl"),
+            ),
             loss: BlockCumulativeNegativeSumPattern::new(client.clone(), _m(&acc, "realized_loss")),
             mvrv: SeriesPattern1::new(client.clone(), _m(&acc, "mvrv")),
             net_pnl: BlockChangeCumulativeDeltaSumPattern::new(client.clone(), _m(&acc, "net")),
-            peak_regret: BlockCumulativeSumPattern::new(client.clone(), _m(&acc, "realized_peak_regret")),
+            peak_regret: BlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "realized_peak_regret"),
+            ),
             price: CentsPpmRatioSatsUsdPattern::new(client.clone(), _m(&acc, "realized_price")),
             profit: BlockCumulativeSumPattern::new(client.clone(), _m(&acc, "realized_profit")),
-            profit_to_loss_ratio: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "realized_profit_to_loss_ratio")),
-            sell_side_risk_ratio: _1m1w1y24hPattern8::new(client.clone(), _m(&acc, "sell_side_risk_ratio")),
+            profit_to_loss_ratio: _1m1w1y24hPattern::new(
+                client.clone(),
+                _m(&acc, "realized_profit_to_loss_ratio"),
+            ),
+            sell_side_risk_ratio: _1m1w1y24hPattern8::new(
+                client.clone(),
+                _m(&acc, "sell_side_risk_ratio"),
+            ),
             sopr: AdjustedRatioValuePattern::new(client.clone(), acc.clone()),
         }
     }
@@ -1408,18 +2796,36 @@ impl EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2 {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            empty: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "empty_outputs_output")),
-            op_return: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "op_return_output")),
+            empty: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "empty_outputs_output"),
+            ),
+            op_return: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "op_return_output"),
+            ),
             p2a: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2a_output")),
             p2ms: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2ms_output")),
-            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pk33_output")),
-            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pk65_output")),
+            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2pk33_output"),
+            ),
+            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2pk65_output"),
+            ),
             p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pkh_output")),
             p2sh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2sh_output")),
             p2tr: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2tr_output")),
-            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2wpkh_output")),
+            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2wpkh_output"),
+            ),
             p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2wsh_output")),
-            unknown: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "unknown_outputs_output")),
+            unknown: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "unknown_outputs_output"),
+            ),
         }
     }
 }
@@ -1477,17 +2883,32 @@ impl EmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2 {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            empty: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "empty_outputs_prevout")),
+            empty: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "empty_outputs_prevout"),
+            ),
             p2a: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2a_prevout")),
             p2ms: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2ms_prevout")),
-            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pk33_prevout")),
-            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pk65_prevout")),
+            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2pk33_prevout"),
+            ),
+            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2pk65_prevout"),
+            ),
             p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2pkh_prevout")),
             p2sh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2sh_prevout")),
             p2tr: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2tr_prevout")),
-            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2wpkh_prevout")),
+            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "p2wpkh_prevout"),
+            ),
             p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "p2wsh_prevout")),
-            unknown: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "unknown_outputs_prevout")),
+            unknown: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                _m(&acc, "unknown_outputs_prevout"),
+            ),
         }
     }
 }
@@ -1707,8 +3128,14 @@ impl CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2 {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            capitalized_cap_in_loss_raw: SeriesPattern18::new(client.clone(), _m(&acc, "capitalized_cap_in_loss_raw")),
-            capitalized_cap_in_profit_raw: SeriesPattern18::new(client.clone(), _m(&acc, "capitalized_cap_in_profit_raw")),
+            capitalized_cap_in_loss_raw: SeriesPattern18::new(
+                client.clone(),
+                _m(&acc, "capitalized_cap_in_loss_raw"),
+            ),
+            capitalized_cap_in_profit_raw: SeriesPattern18::new(
+                client.clone(),
+                _m(&acc, "capitalized_cap_in_profit_raw"),
+            ),
             gross_pnl: CentsUsdPattern3::new(client.clone(), _m(&acc, "unrealized_gross_pnl")),
             invested_capital: InPattern2::new(client.clone(), _m(&acc, "invested_capital_in")),
             loss: CentsNegativeToUsdPattern2::new(client.clone(), _m(&acc, "unrealized_loss")),
@@ -1767,11 +3194,17 @@ impl ChainDataFeeFeesOutputTxPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             chain_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "chain_share")),
-            data_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "data_bytes")),
+            data_bytes: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "data_bytes"),
+            ),
             data_share: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "data_share")),
             fee_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), _m(&acc, "fee_share")),
             fees: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "fees")),
-            output_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "output_count")),
+            output_count: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "output_count"),
+            ),
             tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_count")),
             tx_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "tx_vsize")),
         }
@@ -1859,7 +3292,10 @@ impl CapLossMvrvNetPriceProfitSoprPattern {
             cap: CentsDeltaUsdPattern::new(client.clone(), _m(&acc, "realized_cap")),
             loss: BlockCumulativeNegativeSumPattern::new(client.clone(), _m(&acc, "realized_loss")),
             mvrv: SeriesPattern1::new(client.clone(), _m(&acc, "mvrv")),
-            net_pnl: BlockCumulativeDeltaSumPattern::new(client.clone(), _m(&acc, "net_realized_pnl")),
+            net_pnl: BlockCumulativeDeltaSumPattern::new(
+                client.clone(),
+                _m(&acc, "net_realized_pnl"),
+            ),
             price: CentsPpmRatioSatsUsdPattern::new(client.clone(), _m(&acc, "realized_price")),
             profit: BlockCumulativeSumPattern::new(client.clone(), _m(&acc, "realized_profit")),
             sopr: RatioValuePattern::new(client.clone(), acc.clone()),
@@ -1882,9 +3318,18 @@ impl CoindaysLivelinessRatioSupplyVaultednessPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            coindays_consumed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "coindays_consumed")),
-            coindays_created: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "coindays_created")),
-            coindays_stored: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "coindays_stored")),
+            coindays_consumed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "coindays_consumed"),
+            ),
+            coindays_created: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "coindays_created"),
+            ),
+            coindays_stored: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "coindays_stored"),
+            ),
             liveliness: SeriesPattern1::new(client.clone(), _m(&acc, "liveliness")),
             ratio: SeriesPattern1::new(client.clone(), _m(&acc, "activity_to_vaultedness")),
             supply: ActiveVaultedPattern::new(client.clone(), acc.clone()),
@@ -1989,7 +3434,10 @@ impl AverageBlockCumulativeInSumPattern {
             block: BtcCentsSatsUsdPattern3::new(client.clone(), acc.clone()),
             cumulative: BtcCentsSatsUsdPattern::new(client.clone(), _m(&acc, "cumulative")),
             in_loss: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "in_loss")),
-            in_profit: AverageBlockCumulativeSumPattern2::new(client.clone(), _m(&acc, "in_profit")),
+            in_profit: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                _m(&acc, "in_profit"),
+            ),
             sum: _1m1w1y24hPattern4::new(client.clone(), _m(&acc, "sum")),
         }
     }
@@ -2012,7 +3460,10 @@ impl CentsNegativeToUsdPattern2 {
             cents: SeriesPattern1::new(client.clone(), _m(&acc, "cents")),
             negative: SeriesPattern1::new(client.clone(), _m(&acc, "neg")),
             to_mcap: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_mcap")),
-            to_own_gross_pnl: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_gross_pnl")),
+            to_own_gross_pnl: PercentPpmRatioPattern2::new(
+                client.clone(),
+                _m(&acc, "to_own_gross_pnl"),
+            ),
             to_own_mcap: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_mcap")),
             usd: SeriesPattern1::new(client.clone(), acc.clone()),
         }
@@ -2125,7 +3576,10 @@ impl ActiveBidirectionalReactivatedReceivingSendingPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             active: _1m1w1y24hBlockPattern::new(client.clone(), _m(&acc, "active_addrs")),
-            bidirectional: _1m1w1y24hBlockPattern::new(client.clone(), _m(&acc, "bidirectional_addrs")),
+            bidirectional: _1m1w1y24hBlockPattern::new(
+                client.clone(),
+                _m(&acc, "bidirectional_addrs"),
+            ),
             reactivated: _1m1w1y24hBlockPattern::new(client.clone(), _m(&acc, "reactivated_addrs")),
             receiving: _1m1w1y24hBlockPattern::new(client.clone(), _m(&acc, "receiving_addrs")),
             sending: _1m1w1y24hBlockPattern::new(client.clone(), _m(&acc, "sending_addrs")),
@@ -2355,7 +3809,10 @@ impl CentsToUsdPattern4 {
         Self {
             cents: SeriesPattern1::new(client.clone(), _m(&acc, "cents")),
             to_mcap: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_mcap")),
-            to_own_gross_pnl: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_gross_pnl")),
+            to_own_gross_pnl: PercentPpmRatioPattern2::new(
+                client.clone(),
+                _m(&acc, "to_own_gross_pnl"),
+            ),
             to_own_mcap: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "to_own_mcap")),
             usd: SeriesPattern1::new(client.clone(), acc.clone()),
         }
@@ -2750,7 +4207,10 @@ impl CentsToUsdPattern3 {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             cents: SeriesPattern1::new(client.clone(), _m(&acc, "cents")),
-            to_own_gross_pnl: PercentPpmRatioPattern3::new(client.clone(), _m(&acc, "to_own_gross_pnl")),
+            to_own_gross_pnl: PercentPpmRatioPattern3::new(
+                client.clone(),
+                _m(&acc, "to_own_gross_pnl"),
+            ),
             to_own_mcap: PercentPpmRatioPattern3::new(client.clone(), _m(&acc, "to_own_mcap")),
             usd: SeriesPattern1::new(client.clone(), acc.clone()),
         }
@@ -2769,10 +4229,19 @@ impl CoindaysCoinyearsDormancyTransferPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            coindays_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "coindays_destroyed")),
-            coinyears_destroyed: SeriesPattern1::new(client.clone(), _m(&acc, "coinyears_destroyed")),
+            coindays_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "coindays_destroyed"),
+            ),
+            coinyears_destroyed: SeriesPattern1::new(
+                client.clone(),
+                _m(&acc, "coinyears_destroyed"),
+            ),
             dormancy: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "dormancy")),
-            transfer_volume: AverageBlockCumulativeInSumPattern::new(client.clone(), _m(&acc, "transfer_volume")),
+            transfer_volume: AverageBlockCumulativeInSumPattern::new(
+                client.clone(),
+                _m(&acc, "transfer_volume"),
+            ),
         }
     }
 }
@@ -2830,9 +4299,17 @@ impl NuplRealizedSupplyUnrealizedPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             nupl: PpmRatioPattern::new(client.clone(), _m(&acc, "nupl")),
-            realized_cap: AllSthPattern::new(client.clone(), acc.clone(), "realized_cap".to_string()),
+            realized_cap: AllSthPattern::new(
+                client.clone(),
+                acc.clone(),
+                "realized_cap".to_string(),
+            ),
             supply: AllSthPattern2::new(client.clone(), acc.clone()),
-            unrealized_pnl: AllSthPattern::new(client.clone(), acc.clone(), "unrealized_pnl".to_string()),
+            unrealized_pnl: AllSthPattern::new(
+                client.clone(),
+                acc.clone(),
+                "unrealized_pnl".to_string(),
+            ),
         }
     }
 }
@@ -2890,7 +4367,10 @@ impl AdjustedRatioValuePattern {
         Self {
             adjusted: RatioTransferValuePattern::new(client.clone(), acc.clone()),
             ratio: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "sopr")),
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "value_destroyed")),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "value_destroyed"),
+            ),
         }
     }
 }
@@ -3058,7 +4538,10 @@ impl CumulativeRollingSumPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             cumulative: SeriesPattern1::new(client.clone(), _m(&acc, "cumulative")),
-            rolling: AverageMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(client.clone(), acc.clone()),
+            rolling: AverageMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(
+                client.clone(),
+                acc.clone(),
+            ),
             sum: SeriesPattern18::new(client.clone(), _m(&acc, "sum")),
         }
     }
@@ -3094,8 +4577,14 @@ impl FloorLevelLossPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             floor: Pct95Pct98Pct99Pattern::new(client.clone(), _m(&acc, "floor")),
-            level: Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern::new(client.clone(), _m(&acc, "level")),
-            loss_threshold: Pct95Pct98Pct99Pattern2::new(client.clone(), _m(&acc, "loss_threshold")),
+            level: Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern::new(
+                client.clone(),
+                _m(&acc, "level"),
+            ),
+            loss_threshold: Pct95Pct98Pct99Pattern2::new(
+                client.clone(),
+                _m(&acc, "loss_threshold"),
+            ),
         }
     }
 }
@@ -3219,9 +4708,15 @@ impl PpmPriceRatioPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String, disc: String) -> Self {
         Self {
-            ppm: SeriesPattern1::new(client.clone(), _m(&acc, &format!("ratio_{disc}_ppm", disc=disc))),
+            ppm: SeriesPattern1::new(
+                client.clone(),
+                _m(&acc, &format!("ratio_{disc}_ppm", disc = disc)),
+            ),
             price: CentsSatsUsdPattern::new(client.clone(), _m(&acc, &disc)),
-            ratio: SeriesPattern1::new(client.clone(), _m(&acc, &format!("ratio_{disc}", disc=disc))),
+            ratio: SeriesPattern1::new(
+                client.clone(),
+                _m(&acc, &format!("ratio_{disc}", disc = disc)),
+            ),
         }
     }
 }
@@ -3238,8 +4733,14 @@ impl RatioTransferValuePattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             ratio: _1m1w1y24hPattern::new(client.clone(), _m(&acc, "asopr")),
-            transfer_volume: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "adj_value_created")),
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "adj_value_destroyed")),
+            transfer_volume: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "adj_value_created"),
+            ),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "adj_value_destroyed"),
+            ),
         }
     }
 }
@@ -3256,8 +4757,14 @@ impl RsiStochPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String, disc: String) -> Self {
         Self {
             rsi: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, &disc)),
-            stoch_rsi_d: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, &format!("stoch_d_{disc}", disc=disc))),
-            stoch_rsi_k: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, &format!("stoch_k_{disc}", disc=disc))),
+            stoch_rsi_d: PercentPpmRatioPattern2::new(
+                client.clone(),
+                _m(&acc, &format!("stoch_d_{disc}", disc = disc)),
+            ),
+            stoch_rsi_k: PercentPpmRatioPattern2::new(
+                client.clone(),
+                _m(&acc, &format!("stoch_k_{disc}", disc = disc)),
+            ),
         }
     }
 }
@@ -3387,7 +4894,10 @@ impl AllSthPattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String, disc: String) -> Self {
         Self {
             all: SeriesPattern1::new(client.clone(), _m(&acc, &disc)),
-            sth: SeriesPattern1::new(client.clone(), _m(&acc, &format!("sth_{disc}", disc=disc))),
+            sth: SeriesPattern1::new(
+                client.clone(),
+                _m(&acc, &format!("sth_{disc}", disc = disc)),
+            ),
         }
     }
 }
@@ -3546,8 +5056,14 @@ impl CoindaysTransferPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            coindays_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "coindays_destroyed")),
-            transfer_volume: AverageBlockCumulativeInSumPattern::new(client.clone(), _m(&acc, "transfer_volume")),
+            coindays_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "coindays_destroyed"),
+            ),
+            transfer_volume: AverageBlockCumulativeInSumPattern::new(
+                client.clone(),
+                _m(&acc, "transfer_volume"),
+            ),
         }
     }
 }
@@ -3562,8 +5078,14 @@ impl FundedTotalPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            funded: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(client.clone(), acc.clone()),
-            total: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(client.clone(), _p("total", &acc)),
+            funded: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(
+                client.clone(),
+                acc.clone(),
+            ),
+            total: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(
+                client.clone(),
+                _p("total", &acc),
+            ),
         }
     }
 }
@@ -3691,7 +5213,10 @@ impl RatioValuePattern {
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             ratio: _24hPattern::new(client.clone(), _m(&acc, "sopr_24h")),
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "value_destroyed")),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "value_destroyed"),
+            ),
         }
     }
 }
@@ -3712,7 +5237,10 @@ impl SpentUnspentPattern {
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            spent_count: AverageBlockCumulativeSumPattern::new(client.clone(), _m(&acc, "spent_utxo_count")),
+            spent_count: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                _m(&acc, "spent_utxo_count"),
+            ),
             unspent_count: BaseDeltaPattern::new(client.clone(), _m(&acc, "utxo_count")),
         }
     }
@@ -3890,7 +5418,10 @@ impl SeriesTree {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             blocks: SeriesTree_Blocks::new(client.clone(), format!("{base_path}_blocks")),
-            transactions: SeriesTree_Transactions::new(client.clone(), format!("{base_path}_transactions")),
+            transactions: SeriesTree_Transactions::new(
+                client.clone(),
+                format!("{base_path}_transactions"),
+            ),
             inputs: SeriesTree_Inputs::new(client.clone(), format!("{base_path}_inputs")),
             outputs: SeriesTree_Outputs::new(client.clone(), format!("{base_path}_outputs")),
             addrs: SeriesTree_Addrs::new(client.clone(), format!("{base_path}_addrs")),
@@ -3902,7 +5433,10 @@ impl SeriesTree {
             bedrock: SeriesTree_Bedrock::new(client.clone(), format!("{base_path}_bedrock")),
             constants: SeriesTree_Constants::new(client.clone(), format!("{base_path}_constants")),
             indexes: SeriesTree_Indexes::new(client.clone(), format!("{base_path}_indexes")),
-            indicators: SeriesTree_Indicators::new(client.clone(), format!("{base_path}_indicators")),
+            indicators: SeriesTree_Indicators::new(
+                client.clone(),
+                format!("{base_path}_indicators"),
+            ),
             investing: SeriesTree_Investing::new(client.clone(), format!("{base_path}_investing")),
             market: SeriesTree_Market::new(client.clone(), format!("{base_path}_market")),
             pools: SeriesTree_Pools::new(client.clone(), format!("{base_path}_pools")),
@@ -3937,18 +5471,36 @@ impl SeriesTree_Blocks {
         Self {
             blockhash: SeriesPattern18::new(client.clone(), "blockhash".to_string()),
             coinbase_tag: SeriesPattern18::new(client.clone(), "coinbase_tag".to_string()),
-            difficulty: SeriesTree_Blocks_Difficulty::new(client.clone(), format!("{base_path}_difficulty")),
+            difficulty: SeriesTree_Blocks_Difficulty::new(
+                client.clone(),
+                format!("{base_path}_difficulty"),
+            ),
             time: SeriesTree_Blocks_Time::new(client.clone(), format!("{base_path}_time")),
             size: SeriesTree_Blocks_Size::new(client.clone(), format!("{base_path}_size")),
-            weight: AverageBaseCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(client.clone(), "block_weight".to_string()),
+            weight: AverageBaseCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(
+                client.clone(),
+                "block_weight".to_string(),
+            ),
             segwit_txs: SeriesPattern18::new(client.clone(), "segwit_txs".to_string()),
             segwit_size: SeriesPattern18::new(client.clone(), "segwit_size".to_string()),
             segwit_weight: SeriesPattern18::new(client.clone(), "segwit_weight".to_string()),
             count: SeriesTree_Blocks_Count::new(client.clone(), format!("{base_path}_count")),
-            lookback: SeriesTree_Blocks_Lookback::new(client.clone(), format!("{base_path}_lookback")),
-            interval: SeriesTree_Blocks_Interval::new(client.clone(), format!("{base_path}_interval")),
-            vbytes: AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(client.clone(), "block_vbytes".to_string()),
-            fullness: SeriesTree_Blocks_Fullness::new(client.clone(), format!("{base_path}_fullness")),
+            lookback: SeriesTree_Blocks_Lookback::new(
+                client.clone(),
+                format!("{base_path}_lookback"),
+            ),
+            interval: SeriesTree_Blocks_Interval::new(
+                client.clone(),
+                format!("{base_path}_interval"),
+            ),
+            vbytes: AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(
+                client.clone(),
+                "block_vbytes".to_string(),
+            ),
+            fullness: SeriesTree_Blocks_Fullness::new(
+                client.clone(),
+                format!("{base_path}_fullness"),
+            ),
             halving: SeriesTree_Blocks_Halving::new(client.clone(), format!("{base_path}_halving")),
         }
     }
@@ -3969,9 +5521,15 @@ impl SeriesTree_Blocks_Difficulty {
         Self {
             value: SeriesPattern1::new(client.clone(), "difficulty".to_string()),
             hashrate: SeriesPattern1::new(client.clone(), "difficulty_hashrate".to_string()),
-            adjustment: PercentPpmRatioPattern3::new(client.clone(), "difficulty_adjustment".to_string()),
+            adjustment: PercentPpmRatioPattern3::new(
+                client.clone(),
+                "difficulty_adjustment".to_string(),
+            ),
             epoch: SeriesPattern1::new(client.clone(), "difficulty_epoch".to_string()),
-            blocks_to_retarget: SeriesPattern1::new(client.clone(), "blocks_to_retarget".to_string()),
+            blocks_to_retarget: SeriesPattern1::new(
+                client.clone(),
+                "blocks_to_retarget".to_string(),
+            ),
             days_to_retarget: SeriesPattern1::new(client.clone(), "days_to_retarget".to_string()),
         }
     }
@@ -4207,14 +5765,29 @@ impl SeriesTree_Transactions {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             raw: SeriesTree_Transactions_Raw::new(client.clone(), format!("{base_path}_raw")),
-            features: SeriesTree_Transactions_Features::new(client.clone(), format!("{base_path}_features")),
+            features: SeriesTree_Transactions_Features::new(
+                client.clone(),
+                format!("{base_path}_features"),
+            ),
             count: SeriesTree_Transactions_Count::new(client.clone(), format!("{base_path}_count")),
             size: SeriesTree_Transactions_Size::new(client.clone(), format!("{base_path}_size")),
             fees: SeriesTree_Transactions_Fees::new(client.clone(), format!("{base_path}_fees")),
-            patterns: SeriesTree_Transactions_Patterns::new(client.clone(), format!("{base_path}_patterns")),
-            policy: SeriesTree_Transactions_Policy::new(client.clone(), format!("{base_path}_policy")),
-            versions: SeriesTree_Transactions_Versions::new(client.clone(), format!("{base_path}_versions")),
-            volume: SeriesTree_Transactions_Volume::new(client.clone(), format!("{base_path}_volume")),
+            patterns: SeriesTree_Transactions_Patterns::new(
+                client.clone(),
+                format!("{base_path}_patterns"),
+            ),
+            policy: SeriesTree_Transactions_Policy::new(
+                client.clone(),
+                format!("{base_path}_policy"),
+            ),
+            versions: SeriesTree_Transactions_Versions::new(
+                client.clone(),
+                format!("{base_path}_versions"),
+            ),
+            volume: SeriesTree_Transactions_Volume::new(
+                client.clone(),
+                format!("{base_path}_volume"),
+            ),
         }
     }
 }
@@ -4243,9 +5816,15 @@ impl SeriesTree_Transactions_Raw {
             weight: SeriesPattern19::new(client.clone(), "tx_weight".to_string()),
             total_size: SeriesPattern19::new(client.clone(), "total_size".to_string()),
             total_sigop_cost: SeriesPattern19::new(client.clone(), "total_sigop_cost".to_string()),
-            is_explicitly_rbf: SeriesPattern19::new(client.clone(), "is_explicitly_rbf".to_string()),
+            is_explicitly_rbf: SeriesPattern19::new(
+                client.clone(),
+                "is_explicitly_rbf".to_string(),
+            ),
             first_txin_index: SeriesPattern19::new(client.clone(), "first_txin_index".to_string()),
-            first_txout_index: SeriesPattern19::new(client.clone(), "first_txout_index".to_string()),
+            first_txout_index: SeriesPattern19::new(
+                client.clone(),
+                "first_txout_index".to_string(),
+            ),
         }
     }
 }
@@ -4279,7 +5858,10 @@ pub struct SeriesTree_Transactions_Features {
 impl SeriesTree_Transactions_Features {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            count: SeriesTree_Transactions_Features_Count::new(client.clone(), format!("{base_path}_count")),
+            count: SeriesTree_Transactions_Features_Count::new(
+                client.clone(),
+                format!("{base_path}_count"),
+            ),
             has_p2pk: SeriesPattern19::new(client.clone(), "has_p2pk".to_string()),
             has_p2ms: SeriesPattern19::new(client.clone(), "has_p2ms".to_string()),
             has_p2pkh: SeriesPattern19::new(client.clone(), "has_p2pkh".to_string()),
@@ -4292,14 +5874,26 @@ impl SeriesTree_Transactions_Features {
             has_empty: SeriesPattern19::new(client.clone(), "has_empty".to_string()),
             has_unknown: SeriesPattern19::new(client.clone(), "has_unknown".to_string()),
             has_fake_pubkey: SeriesPattern19::new(client.clone(), "has_fake_pubkey".to_string()),
-            has_fake_scripthash: SeriesPattern19::new(client.clone(), "has_fake_scripthash".to_string()),
+            has_fake_scripthash: SeriesPattern19::new(
+                client.clone(),
+                "has_fake_scripthash".to_string(),
+            ),
             has_inscription: SeriesPattern19::new(client.clone(), "has_inscription".to_string()),
             has_annex: SeriesPattern19::new(client.clone(), "has_annex".to_string()),
             has_sighash_all: SeriesPattern19::new(client.clone(), "has_sighash_all".to_string()),
             has_sighash_none: SeriesPattern19::new(client.clone(), "has_sighash_none".to_string()),
-            has_sighash_single: SeriesPattern19::new(client.clone(), "has_sighash_single".to_string()),
-            has_sighash_default: SeriesPattern19::new(client.clone(), "has_sighash_default".to_string()),
-            has_sighash_anyone_can_pay: SeriesPattern19::new(client.clone(), "has_sighash_anyone_can_pay".to_string()),
+            has_sighash_single: SeriesPattern19::new(
+                client.clone(),
+                "has_sighash_single".to_string(),
+            ),
+            has_sighash_default: SeriesPattern19::new(
+                client.clone(),
+                "has_sighash_default".to_string(),
+            ),
+            has_sighash_anyone_can_pay: SeriesPattern19::new(
+                client.clone(),
+                "has_sighash_anyone_can_pay".to_string(),
+            ),
             has_dust_output: SeriesPattern19::new(client.clone(), "has_dust_output".to_string()),
         }
     }
@@ -4343,8 +5937,14 @@ impl SeriesTree_Transactions_Features_Count {
             v1: SeriesPattern18::new(client.clone(), "tx_count_v1".to_string()),
             v2: SeriesPattern18::new(client.clone(), "tx_count_v2".to_string()),
             v3: SeriesPattern18::new(client.clone(), "tx_count_v3".to_string()),
-            other_version: SeriesPattern18::new(client.clone(), "tx_count_other_version".to_string()),
-            explicitly_rbf: SeriesPattern18::new(client.clone(), "tx_count_explicitly_rbf".to_string()),
+            other_version: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_other_version".to_string(),
+            ),
+            explicitly_rbf: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_explicitly_rbf".to_string(),
+            ),
             one_input: SeriesPattern18::new(client.clone(), "tx_count_one_input".to_string()),
             one_output: SeriesPattern18::new(client.clone(), "tx_count_one_output".to_string()),
             p2pk: SeriesPattern18::new(client.clone(), "tx_count_p2pk".to_string()),
@@ -4359,14 +5959,26 @@ impl SeriesTree_Transactions_Features_Count {
             empty: SeriesPattern18::new(client.clone(), "tx_count_empty".to_string()),
             unknown: SeriesPattern18::new(client.clone(), "tx_count_unknown".to_string()),
             fake_pubkey: SeriesPattern18::new(client.clone(), "tx_count_fake_pubkey".to_string()),
-            fake_scripthash: SeriesPattern18::new(client.clone(), "tx_count_fake_scripthash".to_string()),
+            fake_scripthash: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_fake_scripthash".to_string(),
+            ),
             inscription: SeriesPattern18::new(client.clone(), "tx_count_inscription".to_string()),
             annex: SeriesPattern18::new(client.clone(), "tx_count_annex".to_string()),
             sighash_all: SeriesPattern18::new(client.clone(), "tx_count_sighash_all".to_string()),
             sighash_none: SeriesPattern18::new(client.clone(), "tx_count_sighash_none".to_string()),
-            sighash_single: SeriesPattern18::new(client.clone(), "tx_count_sighash_single".to_string()),
-            sighash_default: SeriesPattern18::new(client.clone(), "tx_count_sighash_default".to_string()),
-            sighash_anyone_can_pay: SeriesPattern18::new(client.clone(), "tx_count_sighash_anyone_can_pay".to_string()),
+            sighash_single: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_sighash_single".to_string(),
+            ),
+            sighash_default: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_sighash_default".to_string(),
+            ),
+            sighash_anyone_can_pay: SeriesPattern18::new(
+                client.clone(),
+                "tx_count_sighash_anyone_can_pay".to_string(),
+            ),
             dust_output: SeriesPattern18::new(client.clone(), "tx_count_dust_output".to_string()),
         }
     }
@@ -4380,7 +5992,10 @@ pub struct SeriesTree_Transactions_Count {
 impl SeriesTree_Transactions_Count {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            total: AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(client.clone(), "tx_count".to_string()),
+            total: AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern::new(
+                client.clone(),
+                "tx_count".to_string(),
+            ),
         }
     }
 }
@@ -4394,8 +6009,14 @@ pub struct SeriesTree_Transactions_Size {
 impl SeriesTree_Transactions_Size {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            vsize: SeriesTree_Transactions_Size_Vsize::new(client.clone(), format!("{base_path}_vsize")),
-            weight: SeriesTree_Transactions_Size_Weight::new(client.clone(), format!("{base_path}_weight")),
+            vsize: SeriesTree_Transactions_Size_Vsize::new(
+                client.clone(),
+                format!("{base_path}_vsize"),
+            ),
+            weight: SeriesTree_Transactions_Size_Weight::new(
+                client.clone(),
+                format!("{base_path}_weight"),
+            ),
         }
     }
 }
@@ -4411,8 +6032,14 @@ impl SeriesTree_Transactions_Size_Vsize {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             tx_index: SeriesPattern19::new(client.clone(), "tx_vsize".to_string()),
-            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_vsize".to_string()),
-            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(client.clone(), "tx_vsize_6b".to_string()),
+            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(
+                client.clone(),
+                "tx_vsize".to_string(),
+            ),
+            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern2::new(
+                client.clone(),
+                "tx_vsize_6b".to_string(),
+            ),
         }
     }
 }
@@ -4426,8 +6053,14 @@ pub struct SeriesTree_Transactions_Size_Weight {
 impl SeriesTree_Transactions_Size_Weight {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(client.clone(), "tx_weight".to_string()),
-            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(client.clone(), "tx_weight_6b".to_string()),
+            block: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(
+                client.clone(),
+                "tx_weight".to_string(),
+            ),
+            _6b: MaxMedianMinPct10Pct25Pct75Pct90Pattern::new(
+                client.clone(),
+                "tx_weight_6b".to_string(),
+            ),
         }
     }
 }
@@ -4447,12 +6080,18 @@ pub struct SeriesTree_Transactions_Fees {
 impl SeriesTree_Transactions_Fees {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            count: SeriesTree_Transactions_Fees_Count::new(client.clone(), format!("{base_path}_count")),
+            count: SeriesTree_Transactions_Fees_Count::new(
+                client.clone(),
+                format!("{base_path}_count"),
+            ),
             input_value: SeriesPattern19::new(client.clone(), "input_value".to_string()),
             output_value: SeriesPattern19::new(client.clone(), "output_value".to_string()),
             fee: _6bBlockTxPattern::new(client.clone(), "fee".to_string()),
             fee_rate: SeriesPattern19::new(client.clone(), "fee_rate".to_string()),
-            effective_fee_rate: _6bBlockTxPattern::new(client.clone(), "effective_fee_rate".to_string()),
+            effective_fee_rate: _6bBlockTxPattern::new(
+                client.clone(),
+                "effective_fee_rate".to_string(),
+            ),
             is_cpfp_parent: SeriesPattern19::new(client.clone(), "is_cpfp_parent".to_string()),
             is_cpfp_child: SeriesPattern19::new(client.clone(), "is_cpfp_child".to_string()),
         }
@@ -4485,7 +6124,10 @@ pub struct SeriesTree_Transactions_Patterns {
 impl SeriesTree_Transactions_Patterns {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            count: SeriesTree_Transactions_Patterns_Count::new(client.clone(), format!("{base_path}_count")),
+            count: SeriesTree_Transactions_Patterns_Count::new(
+                client.clone(),
+                format!("{base_path}_count"),
+            ),
             is_coinjoin: SeriesPattern19::new(client.clone(), "is_coinjoin".to_string()),
             is_consolidation: SeriesPattern19::new(client.clone(), "is_consolidation".to_string()),
             is_batch_payout: SeriesPattern19::new(client.clone(), "is_batch_payout".to_string()),
@@ -4539,7 +6181,10 @@ impl SeriesTree_Transactions_Versions {
             v1: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v1".to_string()),
             v2: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v2".to_string()),
             v3: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_v3".to_string()),
-            other: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_other_version".to_string()),
+            other: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_other_version".to_string(),
+            ),
         }
     }
 }
@@ -4553,7 +6198,10 @@ pub struct SeriesTree_Transactions_Volume {
 impl SeriesTree_Transactions_Volume {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            transfer_volume: AverageBlockCumulativeSumPattern2::new(client.clone(), "transfer_volume_bis".to_string()),
+            transfer_volume: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "transfer_volume_bis".to_string(),
+            ),
             tx_per_sec: _1m1w1y24hPattern::new(client.clone(), "tx_per_sec".to_string()),
         }
     }
@@ -4627,10 +6275,22 @@ pub struct SeriesTree_Inputs_ByType {
 impl SeriesTree_Inputs_ByType {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            input_count: SeriesTree_Inputs_ByType_InputCount::new(client.clone(), format!("{base_path}_input_count")),
-            input_share: SeriesTree_Inputs_ByType_InputShare::new(client.clone(), format!("{base_path}_input_share")),
-            tx_count: SeriesTree_Inputs_ByType_TxCount::new(client.clone(), format!("{base_path}_tx_count")),
-            tx_share: EmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2::new(client.clone(), "tx_share_with".to_string()),
+            input_count: SeriesTree_Inputs_ByType_InputCount::new(
+                client.clone(),
+                format!("{base_path}_input_count"),
+            ),
+            input_share: SeriesTree_Inputs_ByType_InputShare::new(
+                client.clone(),
+                format!("{base_path}_input_share"),
+            ),
+            tx_count: SeriesTree_Inputs_ByType_TxCount::new(
+                client.clone(),
+                format!("{base_path}_tx_count"),
+            ),
+            tx_share: EmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2::new(
+                client.clone(),
+                "tx_share_with".to_string(),
+            ),
         }
     }
 }
@@ -4654,18 +6314,54 @@ pub struct SeriesTree_Inputs_ByType_InputCount {
 impl SeriesTree_Inputs_ByType_InputCount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            all: AverageBlockCumulativeSumPattern::new(client.clone(), "input_count_bis".to_string()),
-            p2pk65: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pk65_prevout_count".to_string()),
-            p2pk33: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pk33_prevout_count".to_string()),
-            p2pkh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pkh_prevout_count".to_string()),
-            p2ms: AverageBlockCumulativeSumPattern::new(client.clone(), "p2ms_prevout_count".to_string()),
-            p2sh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2sh_prevout_count".to_string()),
-            p2wpkh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2wpkh_prevout_count".to_string()),
-            p2wsh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2wsh_prevout_count".to_string()),
-            p2tr: AverageBlockCumulativeSumPattern::new(client.clone(), "p2tr_prevout_count".to_string()),
-            p2a: AverageBlockCumulativeSumPattern::new(client.clone(), "p2a_prevout_count".to_string()),
-            unknown: AverageBlockCumulativeSumPattern::new(client.clone(), "unknown_outputs_prevout_count".to_string()),
-            empty: AverageBlockCumulativeSumPattern::new(client.clone(), "empty_outputs_prevout_count".to_string()),
+            all: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "input_count_bis".to_string(),
+            ),
+            p2pk65: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pk65_prevout_count".to_string(),
+            ),
+            p2pk33: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pk33_prevout_count".to_string(),
+            ),
+            p2pkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pkh_prevout_count".to_string(),
+            ),
+            p2ms: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2ms_prevout_count".to_string(),
+            ),
+            p2sh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2sh_prevout_count".to_string(),
+            ),
+            p2wpkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2wpkh_prevout_count".to_string(),
+            ),
+            p2wsh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2wsh_prevout_count".to_string(),
+            ),
+            p2tr: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2tr_prevout_count".to_string(),
+            ),
+            p2a: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2a_prevout_count".to_string(),
+            ),
+            unknown: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "unknown_outputs_prevout_count".to_string(),
+            ),
+            empty: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "empty_outputs_prevout_count".to_string(),
+            ),
         }
     }
 }
@@ -4688,17 +6384,50 @@ pub struct SeriesTree_Inputs_ByType_InputShare {
 impl SeriesTree_Inputs_ByType_InputShare {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pk65_prevout_share".to_string()),
-            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pk33_prevout_share".to_string()),
-            p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pkh_prevout_share".to_string()),
-            p2ms: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2ms_prevout_share".to_string()),
-            p2sh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2sh_prevout_share".to_string()),
-            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2wpkh_prevout_share".to_string()),
-            p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2wsh_prevout_share".to_string()),
-            p2tr: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2tr_prevout_share".to_string()),
-            p2a: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2a_prevout_share".to_string()),
-            unknown: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "unknown_outputs_prevout_share".to_string()),
-            empty: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "empty_outputs_prevout_share".to_string()),
+            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pk65_prevout_share".to_string(),
+            ),
+            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pk33_prevout_share".to_string(),
+            ),
+            p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pkh_prevout_share".to_string(),
+            ),
+            p2ms: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2ms_prevout_share".to_string(),
+            ),
+            p2sh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2sh_prevout_share".to_string(),
+            ),
+            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2wpkh_prevout_share".to_string(),
+            ),
+            p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2wsh_prevout_share".to_string(),
+            ),
+            p2tr: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2tr_prevout_share".to_string(),
+            ),
+            p2a: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2a_prevout_share".to_string(),
+            ),
+            unknown: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "unknown_outputs_prevout_share".to_string(),
+            ),
+            empty: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "empty_outputs_prevout_share".to_string(),
+            ),
         }
     }
 }
@@ -4722,18 +6451,54 @@ pub struct SeriesTree_Inputs_ByType_TxCount {
 impl SeriesTree_Inputs_ByType_TxCount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            all: AverageBlockCumulativeSumPattern::new(client.clone(), "non_coinbase_tx_count".to_string()),
-            p2pk65: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2pk65_prevout".to_string()),
-            p2pk33: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2pk33_prevout".to_string()),
-            p2pkh: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2pkh_prevout".to_string()),
-            p2ms: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2ms_prevout".to_string()),
-            p2sh: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2sh_prevout".to_string()),
-            p2wpkh: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2wpkh_prevout".to_string()),
-            p2wsh: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2wsh_prevout".to_string()),
-            p2tr: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2tr_prevout".to_string()),
-            p2a: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_p2a_prevout".to_string()),
-            unknown: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_unknown_outputs_prevout".to_string()),
-            empty: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_with_empty_outputs_prevout".to_string()),
+            all: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "non_coinbase_tx_count".to_string(),
+            ),
+            p2pk65: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2pk65_prevout".to_string(),
+            ),
+            p2pk33: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2pk33_prevout".to_string(),
+            ),
+            p2pkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2pkh_prevout".to_string(),
+            ),
+            p2ms: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2ms_prevout".to_string(),
+            ),
+            p2sh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2sh_prevout".to_string(),
+            ),
+            p2wpkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2wpkh_prevout".to_string(),
+            ),
+            p2wsh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2wsh_prevout".to_string(),
+            ),
+            p2tr: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2tr_prevout".to_string(),
+            ),
+            p2a: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_p2a_prevout".to_string(),
+            ),
+            unknown: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_unknown_outputs_prevout".to_string(),
+            ),
+            empty: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "tx_count_with_empty_outputs_prevout".to_string(),
+            ),
         }
     }
 }
@@ -4756,7 +6521,10 @@ impl SeriesTree_Outputs {
             spent: SeriesTree_Outputs_Spent::new(client.clone(), format!("{base_path}_spent")),
             count: SeriesTree_Outputs_Count::new(client.clone(), format!("{base_path}_count")),
             per_sec: _1m1w1y24hPattern::new(client.clone(), "outputs_per_sec".to_string()),
-            unspent: SeriesTree_Outputs_Unspent::new(client.clone(), format!("{base_path}_unspent")),
+            unspent: SeriesTree_Outputs_Unspent::new(
+                client.clone(),
+                format!("{base_path}_unspent"),
+            ),
             by_type: SeriesTree_Outputs_ByType::new(client.clone(), format!("{base_path}_by_type")),
             value: SeriesTree_Outputs_Value::new(client.clone(), format!("{base_path}_value")),
         }
@@ -4775,7 +6543,10 @@ pub struct SeriesTree_Outputs_Raw {
 impl SeriesTree_Outputs_Raw {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_txout_index: SeriesPattern18::new(client.clone(), "first_txout_index".to_string()),
+            first_txout_index: SeriesPattern18::new(
+                client.clone(),
+                "first_txout_index".to_string(),
+            ),
             value: SeriesPattern21::new(client.clone(), "value".to_string()),
             output_type: SeriesPattern21::new(client.clone(), "output_type".to_string()),
             type_index: SeriesPattern21::new(client.clone(), "type_index".to_string()),
@@ -4835,11 +6606,26 @@ pub struct SeriesTree_Outputs_ByType {
 impl SeriesTree_Outputs_ByType {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            output_count: SeriesTree_Outputs_ByType_OutputCount::new(client.clone(), format!("{base_path}_output_count")),
-            spendable_output_count: AverageBlockCumulativeSumPattern::new(client.clone(), "spendable_output_count".to_string()),
-            output_share: SeriesTree_Outputs_ByType_OutputShare::new(client.clone(), format!("{base_path}_output_share")),
-            tx_count: AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern::new(client.clone(), "tx_count".to_string()),
-            tx_share: EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2::new(client.clone(), "tx_share_with".to_string()),
+            output_count: SeriesTree_Outputs_ByType_OutputCount::new(
+                client.clone(),
+                format!("{base_path}_output_count"),
+            ),
+            spendable_output_count: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "spendable_output_count".to_string(),
+            ),
+            output_share: SeriesTree_Outputs_ByType_OutputShare::new(
+                client.clone(),
+                format!("{base_path}_output_share"),
+            ),
+            tx_count: AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern::new(
+                client.clone(),
+                "tx_count".to_string(),
+            ),
+            tx_share: EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2::new(
+                client.clone(),
+                "tx_share_with".to_string(),
+            ),
         }
     }
 }
@@ -4864,19 +6650,58 @@ pub struct SeriesTree_Outputs_ByType_OutputCount {
 impl SeriesTree_Outputs_ByType_OutputCount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            all: AverageBlockCumulativeSumPattern::new(client.clone(), "output_count_bis".to_string()),
-            p2pk65: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pk65_output_count".to_string()),
-            p2pk33: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pk33_output_count".to_string()),
-            p2pkh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2pkh_output_count".to_string()),
-            p2ms: AverageBlockCumulativeSumPattern::new(client.clone(), "p2ms_output_count".to_string()),
-            p2sh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2sh_output_count".to_string()),
-            p2wpkh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2wpkh_output_count".to_string()),
-            p2wsh: AverageBlockCumulativeSumPattern::new(client.clone(), "p2wsh_output_count".to_string()),
-            p2tr: AverageBlockCumulativeSumPattern::new(client.clone(), "p2tr_output_count".to_string()),
-            p2a: AverageBlockCumulativeSumPattern::new(client.clone(), "p2a_output_count".to_string()),
-            unknown: AverageBlockCumulativeSumPattern::new(client.clone(), "unknown_outputs_output_count".to_string()),
-            empty: AverageBlockCumulativeSumPattern::new(client.clone(), "empty_outputs_output_count".to_string()),
-            op_return: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_output_count".to_string()),
+            all: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "output_count_bis".to_string(),
+            ),
+            p2pk65: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pk65_output_count".to_string(),
+            ),
+            p2pk33: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pk33_output_count".to_string(),
+            ),
+            p2pkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2pkh_output_count".to_string(),
+            ),
+            p2ms: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2ms_output_count".to_string(),
+            ),
+            p2sh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2sh_output_count".to_string(),
+            ),
+            p2wpkh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2wpkh_output_count".to_string(),
+            ),
+            p2wsh: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2wsh_output_count".to_string(),
+            ),
+            p2tr: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2tr_output_count".to_string(),
+            ),
+            p2a: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "p2a_output_count".to_string(),
+            ),
+            unknown: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "unknown_outputs_output_count".to_string(),
+            ),
+            empty: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "empty_outputs_output_count".to_string(),
+            ),
+            op_return: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "op_return_output_count".to_string(),
+            ),
         }
     }
 }
@@ -4900,18 +6725,54 @@ pub struct SeriesTree_Outputs_ByType_OutputShare {
 impl SeriesTree_Outputs_ByType_OutputShare {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pk65_output_share".to_string()),
-            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pk33_output_share".to_string()),
-            p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2pkh_output_share".to_string()),
-            p2ms: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2ms_output_share".to_string()),
-            p2sh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2sh_output_share".to_string()),
-            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2wpkh_output_share".to_string()),
-            p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2wsh_output_share".to_string()),
-            p2tr: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2tr_output_share".to_string()),
-            p2a: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "p2a_output_share".to_string()),
-            unknown: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "unknown_outputs_output_share".to_string()),
-            empty: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "empty_outputs_output_share".to_string()),
-            op_return: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "op_return_output_share".to_string()),
+            p2pk65: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pk65_output_share".to_string(),
+            ),
+            p2pk33: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pk33_output_share".to_string(),
+            ),
+            p2pkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2pkh_output_share".to_string(),
+            ),
+            p2ms: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2ms_output_share".to_string(),
+            ),
+            p2sh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2sh_output_share".to_string(),
+            ),
+            p2wpkh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2wpkh_output_share".to_string(),
+            ),
+            p2wsh: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2wsh_output_share".to_string(),
+            ),
+            p2tr: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2tr_output_share".to_string(),
+            ),
+            p2a: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "p2a_output_share".to_string(),
+            ),
+            unknown: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "unknown_outputs_output_share".to_string(),
+            ),
+            empty: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "empty_outputs_output_share".to_string(),
+            ),
+            op_return: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "op_return_output_share".to_string(),
+            ),
         }
     }
 }
@@ -4952,16 +6813,34 @@ impl SeriesTree_Addrs {
             raw: SeriesTree_Addrs_Raw::new(client.clone(), format!("{base_path}_raw")),
             indexes: SeriesTree_Addrs_Indexes::new(client.clone(), format!("{base_path}_indexes")),
             data: SeriesTree_Addrs_Data::new(client.clone(), format!("{base_path}_data")),
-            funded: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(client.clone(), "addr_count".to_string()),
-            empty: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(client.clone(), "empty_addr_count".to_string()),
-            activity: SeriesTree_Addrs_Activity::new(client.clone(), format!("{base_path}_activity")),
-            total: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(client.clone(), "total_addr_count".to_string()),
-            new: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(client.clone(), "new_addr_count".to_string()),
+            funded: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(
+                client.clone(),
+                "addr_count".to_string(),
+            ),
+            empty: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(
+                client.clone(),
+                "empty_addr_count".to_string(),
+            ),
+            activity: SeriesTree_Addrs_Activity::new(
+                client.clone(),
+                format!("{base_path}_activity"),
+            ),
+            total: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4::new(
+                client.clone(),
+                "total_addr_count".to_string(),
+            ),
+            new: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(
+                client.clone(),
+                "new_addr_count".to_string(),
+            ),
             reused: SeriesTree_Addrs_Reused::new(client.clone(), format!("{base_path}_reused")),
             respent: SeriesTree_Addrs_Respent::new(client.clone(), format!("{base_path}_respent")),
             exposed: SeriesTree_Addrs_Exposed::new(client.clone(), format!("{base_path}_exposed")),
             delta: SeriesTree_Addrs_Delta::new(client.clone(), format!("{base_path}_delta")),
-            avg_amount: SeriesTree_Addrs_AvgAmount::new(client.clone(), format!("{base_path}_avg_amount")),
+            avg_amount: SeriesTree_Addrs_AvgAmount::new(
+                client.clone(),
+                format!("{base_path}_avg_amount"),
+            ),
         }
     }
 }
@@ -5002,7 +6881,10 @@ pub struct SeriesTree_Addrs_Raw_P2pk65 {
 impl SeriesTree_Addrs_Raw_P2pk65 {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_p2pk65_addr_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_p2pk65_addr_index".to_string(),
+            ),
             bytes: SeriesPattern27::new(client.clone(), "p2pk65_bytes".to_string()),
         }
     }
@@ -5017,7 +6899,10 @@ pub struct SeriesTree_Addrs_Raw_P2pk33 {
 impl SeriesTree_Addrs_Raw_P2pk33 {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_p2pk33_addr_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_p2pk33_addr_index".to_string(),
+            ),
             bytes: SeriesPattern26::new(client.clone(), "p2pk33_bytes".to_string()),
         }
     }
@@ -5062,7 +6947,10 @@ pub struct SeriesTree_Addrs_Raw_P2wpkh {
 impl SeriesTree_Addrs_Raw_P2wpkh {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_p2wpkh_addr_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_p2wpkh_addr_index".to_string(),
+            ),
             bytes: SeriesPattern31::new(client.clone(), "p2wpkh_bytes".to_string()),
         }
     }
@@ -5176,14 +7064,38 @@ impl SeriesTree_Addrs_Activity {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             all: SeriesTree_Addrs_Activity_All::new(client.clone(), format!("{base_path}_all")),
-            p2pk65: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2pk65".to_string()),
-            p2pk33: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2pk33".to_string()),
-            p2pkh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2pkh".to_string()),
-            p2sh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2sh".to_string()),
-            p2wpkh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2wpkh".to_string()),
-            p2wsh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2wsh".to_string()),
-            p2tr: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2tr".to_string()),
-            p2a: ActiveBidirectionalReactivatedReceivingSendingPattern::new(client.clone(), "p2a".to_string()),
+            p2pk65: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2pk65".to_string(),
+            ),
+            p2pk33: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2pk33".to_string(),
+            ),
+            p2pkh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2pkh".to_string(),
+            ),
+            p2sh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2sh".to_string(),
+            ),
+            p2wpkh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2wpkh".to_string(),
+            ),
+            p2wsh: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2wsh".to_string(),
+            ),
+            p2tr: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2tr".to_string(),
+            ),
+            p2a: ActiveBidirectionalReactivatedReceivingSendingPattern::new(
+                client.clone(),
+                "p2a".to_string(),
+            ),
         }
     }
 }
@@ -5200,10 +7112,16 @@ pub struct SeriesTree_Addrs_Activity_All {
 impl SeriesTree_Addrs_Activity_All {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            reactivated: _1m1w1y24hBlockPattern::new(client.clone(), "reactivated_addrs".to_string()),
+            reactivated: _1m1w1y24hBlockPattern::new(
+                client.clone(),
+                "reactivated_addrs".to_string(),
+            ),
             sending: _1m1w1y24hBlockPattern::new(client.clone(), "sending_addrs".to_string()),
             receiving: _1m1w1y24hBlockPattern::new(client.clone(), "receiving_addrs".to_string()),
-            bidirectional: _1m1w1y24hBlockPattern::new(client.clone(), "bidirectional_addrs".to_string()),
+            bidirectional: _1m1w1y24hBlockPattern::new(
+                client.clone(),
+                "bidirectional_addrs".to_string(),
+            ),
             active: _1m1w1y24hBlockPattern::new(client.clone(), "active_addrs".to_string()),
         }
     }
@@ -5220,8 +7138,14 @@ impl SeriesTree_Addrs_Reused {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             count: FundedTotalPattern::new(client.clone(), "reused_addr_count".to_string()),
-            events: SeriesTree_Addrs_Reused_Events::new(client.clone(), format!("{base_path}_events")),
-            supply: SeriesTree_Addrs_Reused_Supply::new(client.clone(), format!("{base_path}_supply")),
+            events: SeriesTree_Addrs_Reused_Events::new(
+                client.clone(),
+                format!("{base_path}_events"),
+            ),
+            supply: SeriesTree_Addrs_Reused_Supply::new(
+                client.clone(),
+                format!("{base_path}_supply"),
+            ),
         }
     }
 }
@@ -5240,13 +7164,34 @@ pub struct SeriesTree_Addrs_Reused_Events {
 impl SeriesTree_Addrs_Reused_Events {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            output_to_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(client.clone(), "output_to_reused_addr_count".to_string()),
-            output_to_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(client.clone(), "output_to_reused_addr_share".to_string()),
-            spendable_output_to_reused_addr_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "spendable_output_to_reused_addr_share".to_string()),
-            input_from_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(client.clone(), "input_from_reused_addr_count".to_string()),
-            input_from_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(client.clone(), "input_from_reused_addr_share".to_string()),
-            active_reused_addr_count: _1m1w1y24hBlockPattern::new(client.clone(), "active_reused_addr_count".to_string()),
-            active_reused_addr_share: _1m1w1y24hBlockPattern2::new(client.clone(), "active_reused_addr_share".to_string()),
+            output_to_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(
+                client.clone(),
+                "output_to_reused_addr_count".to_string(),
+            ),
+            output_to_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(
+                client.clone(),
+                "output_to_reused_addr_share".to_string(),
+            ),
+            spendable_output_to_reused_addr_share: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "spendable_output_to_reused_addr_share".to_string(),
+            ),
+            input_from_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(
+                client.clone(),
+                "input_from_reused_addr_count".to_string(),
+            ),
+            input_from_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(
+                client.clone(),
+                "input_from_reused_addr_share".to_string(),
+            ),
+            active_reused_addr_count: _1m1w1y24hBlockPattern::new(
+                client.clone(),
+                "active_reused_addr_count".to_string(),
+            ),
+            active_reused_addr_share: _1m1w1y24hBlockPattern2::new(
+                client.clone(),
+                "active_reused_addr_share".to_string(),
+            ),
         }
     }
 }
@@ -5269,15 +7214,39 @@ impl SeriesTree_Addrs_Reused_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             all: BtcCentsSatsUsdPattern::new(client.clone(), "reused_addr_supply".to_string()),
-            p2pk65: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk65_reused_addr_supply".to_string()),
-            p2pk33: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk33_reused_addr_supply".to_string()),
-            p2pkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2pkh_reused_addr_supply".to_string()),
-            p2sh: BtcCentsSatsUsdPattern::new(client.clone(), "p2sh_reused_addr_supply".to_string()),
-            p2wpkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wpkh_reused_addr_supply".to_string()),
-            p2wsh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wsh_reused_addr_supply".to_string()),
-            p2tr: BtcCentsSatsUsdPattern::new(client.clone(), "p2tr_reused_addr_supply".to_string()),
+            p2pk65: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk65_reused_addr_supply".to_string(),
+            ),
+            p2pk33: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk33_reused_addr_supply".to_string(),
+            ),
+            p2pkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pkh_reused_addr_supply".to_string(),
+            ),
+            p2sh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2sh_reused_addr_supply".to_string(),
+            ),
+            p2wpkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wpkh_reused_addr_supply".to_string(),
+            ),
+            p2wsh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wsh_reused_addr_supply".to_string(),
+            ),
+            p2tr: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2tr_reused_addr_supply".to_string(),
+            ),
             p2a: BtcCentsSatsUsdPattern::new(client.clone(), "p2a_reused_addr_supply".to_string()),
-            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(client.clone(), "reused_addr_supply_share".to_string()),
+            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(
+                client.clone(),
+                "reused_addr_supply_share".to_string(),
+            ),
         }
     }
 }
@@ -5293,8 +7262,14 @@ impl SeriesTree_Addrs_Respent {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             count: FundedTotalPattern::new(client.clone(), "respent_addr_count".to_string()),
-            events: SeriesTree_Addrs_Respent_Events::new(client.clone(), format!("{base_path}_events")),
-            supply: SeriesTree_Addrs_Respent_Supply::new(client.clone(), format!("{base_path}_supply")),
+            events: SeriesTree_Addrs_Respent_Events::new(
+                client.clone(),
+                format!("{base_path}_events"),
+            ),
+            supply: SeriesTree_Addrs_Respent_Supply::new(
+                client.clone(),
+                format!("{base_path}_supply"),
+            ),
         }
     }
 }
@@ -5313,13 +7288,34 @@ pub struct SeriesTree_Addrs_Respent_Events {
 impl SeriesTree_Addrs_Respent_Events {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            output_to_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(client.clone(), "output_to_respent_addr_count".to_string()),
-            output_to_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(client.clone(), "output_to_respent_addr_share".to_string()),
-            spendable_output_to_reused_addr_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "spendable_output_to_respent_addr_share".to_string()),
-            input_from_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(client.clone(), "input_from_respent_addr_count".to_string()),
-            input_from_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(client.clone(), "input_from_respent_addr_share".to_string()),
-            active_reused_addr_count: _1m1w1y24hBlockPattern::new(client.clone(), "active_respent_addr_count".to_string()),
-            active_reused_addr_share: _1m1w1y24hBlockPattern2::new(client.clone(), "active_respent_addr_share".to_string()),
+            output_to_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(
+                client.clone(),
+                "output_to_respent_addr_count".to_string(),
+            ),
+            output_to_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(
+                client.clone(),
+                "output_to_respent_addr_share".to_string(),
+            ),
+            spendable_output_to_reused_addr_share: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "spendable_output_to_respent_addr_share".to_string(),
+            ),
+            input_from_reused_addr_count: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6::new(
+                client.clone(),
+                "input_from_respent_addr_count".to_string(),
+            ),
+            input_from_reused_addr_share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7::new(
+                client.clone(),
+                "input_from_respent_addr_share".to_string(),
+            ),
+            active_reused_addr_count: _1m1w1y24hBlockPattern::new(
+                client.clone(),
+                "active_respent_addr_count".to_string(),
+            ),
+            active_reused_addr_share: _1m1w1y24hBlockPattern2::new(
+                client.clone(),
+                "active_respent_addr_share".to_string(),
+            ),
         }
     }
 }
@@ -5342,15 +7338,39 @@ impl SeriesTree_Addrs_Respent_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             all: BtcCentsSatsUsdPattern::new(client.clone(), "respent_addr_supply".to_string()),
-            p2pk65: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk65_respent_addr_supply".to_string()),
-            p2pk33: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk33_respent_addr_supply".to_string()),
-            p2pkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2pkh_respent_addr_supply".to_string()),
-            p2sh: BtcCentsSatsUsdPattern::new(client.clone(), "p2sh_respent_addr_supply".to_string()),
-            p2wpkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wpkh_respent_addr_supply".to_string()),
-            p2wsh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wsh_respent_addr_supply".to_string()),
-            p2tr: BtcCentsSatsUsdPattern::new(client.clone(), "p2tr_respent_addr_supply".to_string()),
+            p2pk65: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk65_respent_addr_supply".to_string(),
+            ),
+            p2pk33: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk33_respent_addr_supply".to_string(),
+            ),
+            p2pkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pkh_respent_addr_supply".to_string(),
+            ),
+            p2sh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2sh_respent_addr_supply".to_string(),
+            ),
+            p2wpkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wpkh_respent_addr_supply".to_string(),
+            ),
+            p2wsh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wsh_respent_addr_supply".to_string(),
+            ),
+            p2tr: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2tr_respent_addr_supply".to_string(),
+            ),
             p2a: BtcCentsSatsUsdPattern::new(client.clone(), "p2a_respent_addr_supply".to_string()),
-            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(client.clone(), "respent_addr_supply_share".to_string()),
+            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(
+                client.clone(),
+                "respent_addr_supply_share".to_string(),
+            ),
         }
     }
 }
@@ -5365,7 +7385,10 @@ impl SeriesTree_Addrs_Exposed {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             count: FundedTotalPattern::new(client.clone(), "exposed_addr_count".to_string()),
-            supply: SeriesTree_Addrs_Exposed_Supply::new(client.clone(), format!("{base_path}_supply")),
+            supply: SeriesTree_Addrs_Exposed_Supply::new(
+                client.clone(),
+                format!("{base_path}_supply"),
+            ),
         }
     }
 }
@@ -5388,15 +7411,39 @@ impl SeriesTree_Addrs_Exposed_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             all: BtcCentsSatsUsdPattern::new(client.clone(), "exposed_addr_supply".to_string()),
-            p2pk65: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk65_exposed_addr_supply".to_string()),
-            p2pk33: BtcCentsSatsUsdPattern::new(client.clone(), "p2pk33_exposed_addr_supply".to_string()),
-            p2pkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2pkh_exposed_addr_supply".to_string()),
-            p2sh: BtcCentsSatsUsdPattern::new(client.clone(), "p2sh_exposed_addr_supply".to_string()),
-            p2wpkh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wpkh_exposed_addr_supply".to_string()),
-            p2wsh: BtcCentsSatsUsdPattern::new(client.clone(), "p2wsh_exposed_addr_supply".to_string()),
-            p2tr: BtcCentsSatsUsdPattern::new(client.clone(), "p2tr_exposed_addr_supply".to_string()),
+            p2pk65: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk65_exposed_addr_supply".to_string(),
+            ),
+            p2pk33: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pk33_exposed_addr_supply".to_string(),
+            ),
+            p2pkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2pkh_exposed_addr_supply".to_string(),
+            ),
+            p2sh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2sh_exposed_addr_supply".to_string(),
+            ),
+            p2wpkh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wpkh_exposed_addr_supply".to_string(),
+            ),
+            p2wsh: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2wsh_exposed_addr_supply".to_string(),
+            ),
+            p2tr: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "p2tr_exposed_addr_supply".to_string(),
+            ),
             p2a: BtcCentsSatsUsdPattern::new(client.clone(), "p2a_exposed_addr_supply".to_string()),
-            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(client.clone(), "exposed_addr_supply_share".to_string()),
+            share: AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5::new(
+                client.clone(),
+                "exposed_addr_supply_share".to_string(),
+            ),
         }
     }
 }
@@ -5484,7 +7531,10 @@ impl SeriesTree_Scripts_Raw {
         Self {
             empty: SeriesTree_Scripts_Raw_Empty::new(client.clone(), format!("{base_path}_empty")),
             p2ms: SeriesTree_Scripts_Raw_P2ms::new(client.clone(), format!("{base_path}_p2ms")),
-            unknown: SeriesTree_Scripts_Raw_Unknown::new(client.clone(), format!("{base_path}_unknown")),
+            unknown: SeriesTree_Scripts_Raw_Unknown::new(
+                client.clone(),
+                format!("{base_path}_unknown"),
+            ),
         }
     }
 }
@@ -5498,7 +7548,10 @@ pub struct SeriesTree_Scripts_Raw_Empty {
 impl SeriesTree_Scripts_Raw_Empty {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_empty_output_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_empty_output_index".to_string(),
+            ),
             to_tx_index: SeriesPattern22::new(client.clone(), "tx_index".to_string()),
         }
     }
@@ -5514,7 +7567,10 @@ pub struct SeriesTree_Scripts_Raw_P2ms {
 impl SeriesTree_Scripts_Raw_P2ms {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_p2ms_output_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_p2ms_output_index".to_string(),
+            ),
             to_tx_index: SeriesPattern25::new(client.clone(), "tx_index".to_string()),
             legacy_sigops: SeriesPattern25::new(client.clone(), "p2ms_legacy_sigops".to_string()),
         }
@@ -5531,9 +7587,15 @@ pub struct SeriesTree_Scripts_Raw_Unknown {
 impl SeriesTree_Scripts_Raw_Unknown {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            first_index: SeriesPattern18::new(client.clone(), "first_unknown_output_index".to_string()),
+            first_index: SeriesPattern18::new(
+                client.clone(),
+                "first_unknown_output_index".to_string(),
+            ),
             to_tx_index: SeriesPattern33::new(client.clone(), "tx_index".to_string()),
-            legacy_sigops: SeriesPattern33::new(client.clone(), "unknown_legacy_sigops".to_string()),
+            legacy_sigops: SeriesPattern33::new(
+                client.clone(),
+                "unknown_legacy_sigops".to_string(),
+            ),
         }
     }
 }
@@ -5551,7 +7613,10 @@ impl SeriesTree_OpReturn {
         Self {
             raw: SeriesTree_OpReturn_Raw::new(client.clone(), format!("{base_path}_raw")),
             total: SeriesTree_OpReturn_Total::new(client.clone(), format!("{base_path}_total")),
-            by_kind: SeriesTree_OpReturn_ByKind::new(client.clone(), format!("{base_path}_by_kind")),
+            by_kind: SeriesTree_OpReturn_ByKind::new(
+                client.clone(),
+                format!("{base_path}_by_kind"),
+            ),
             policy: SeriesTree_OpReturn_Policy::new(client.clone(), format!("{base_path}_policy")),
         }
     }
@@ -5571,7 +7636,10 @@ impl SeriesTree_OpReturn_Raw {
             first_index: SeriesPattern18::new(client.clone(), "first_op_return_index".to_string()),
             to_tx_index: SeriesPattern23::new(client.clone(), "tx_index".to_string()),
             kind: SeriesPattern23::new(client.clone(), "kind".to_string()),
-            post_op_return_bytes: SeriesPattern23::new(client.clone(), "op_return_post_op_return_bytes".to_string()),
+            post_op_return_bytes: SeriesPattern23::new(
+                client.clone(),
+                "op_return_post_op_return_bytes".to_string(),
+            ),
         }
     }
 }
@@ -5589,12 +7657,30 @@ pub struct SeriesTree_OpReturn_Total {
 impl SeriesTree_OpReturn_Total {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            data_bytes: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_data_bytes".to_string()),
-            tx_count: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_tx_count".to_string()),
-            tx_vsize: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_tx_vsize".to_string()),
-            fees: AverageBlockCumulativeSumPattern::new(client.clone(), "op_return_fees".to_string()),
-            chain_share: PercentPpmRatioPattern2::new(client.clone(), "op_return_chain_share".to_string()),
-            fee_share: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "op_return_fee_share".to_string()),
+            data_bytes: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "op_return_data_bytes".to_string(),
+            ),
+            tx_count: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "op_return_tx_count".to_string(),
+            ),
+            tx_vsize: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "op_return_tx_vsize".to_string(),
+            ),
+            fees: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "op_return_fees".to_string(),
+            ),
+            chain_share: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "op_return_chain_share".to_string(),
+            ),
+            fee_share: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "op_return_fee_share".to_string(),
+            ),
         }
     }
 }
@@ -5629,29 +7715,98 @@ pub struct SeriesTree_OpReturn_ByKind {
 impl SeriesTree_OpReturn_ByKind {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            runes: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_runes".to_string()),
-            veri_block: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_veri_block".to_string()),
-            omni: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_omni".to_string()),
-            stacks: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_stacks".to_string()),
-            blockstack: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_blockstack".to_string()),
-            colu: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_colu".to_string()),
-            open_assets: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_open_assets".to_string()),
-            komodo: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_komodo".to_string()),
-            coin_spark: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_coin_spark".to_string()),
-            poet: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_poet".to_string()),
-            docproof: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_docproof".to_string()),
-            open_timestamps: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_open_timestamps".to_string()),
-            factom: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_factom".to_string()),
-            eternity_wall: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_eternity_wall".to_string()),
-            memo: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_memo".to_string()),
-            bitproof: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_bitproof".to_string()),
-            ascribe: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_ascribe".to_string()),
-            stampery: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_stampery".to_string()),
-            epobc: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_epobc".to_string()),
-            bare_hash: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_bare_hash".to_string()),
-            text: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_text".to_string()),
-            empty: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_empty".to_string()),
-            unknown: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_unknown".to_string()),
+            runes: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_runes".to_string(),
+            ),
+            veri_block: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_veri_block".to_string(),
+            ),
+            omni: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_omni".to_string(),
+            ),
+            stacks: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_stacks".to_string(),
+            ),
+            blockstack: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_blockstack".to_string(),
+            ),
+            colu: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_colu".to_string(),
+            ),
+            open_assets: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_open_assets".to_string(),
+            ),
+            komodo: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_komodo".to_string(),
+            ),
+            coin_spark: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_coin_spark".to_string(),
+            ),
+            poet: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_poet".to_string(),
+            ),
+            docproof: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_docproof".to_string(),
+            ),
+            open_timestamps: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_open_timestamps".to_string(),
+            ),
+            factom: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_factom".to_string(),
+            ),
+            eternity_wall: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_eternity_wall".to_string(),
+            ),
+            memo: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_memo".to_string(),
+            ),
+            bitproof: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_bitproof".to_string(),
+            ),
+            ascribe: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_ascribe".to_string(),
+            ),
+            stampery: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_stampery".to_string(),
+            ),
+            epobc: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_epobc".to_string(),
+            ),
+            bare_hash: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_bare_hash".to_string(),
+            ),
+            text: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_text".to_string(),
+            ),
+            empty: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_empty".to_string(),
+            ),
+            unknown: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_unknown".to_string(),
+            ),
         }
     }
 }
@@ -5667,10 +7822,22 @@ pub struct SeriesTree_OpReturn_Policy {
 impl SeriesTree_OpReturn_Policy {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            pre_v30_standard: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_standard".to_string()),
-            pre_v30_nonstandard: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_pre_v30_nonstandard".to_string()),
-            oversized: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_oversized".to_string()),
-            multiple: ChainDataFeeFeesOutputTxPattern::new(client.clone(), "op_return_policy_multiple".to_string()),
+            pre_v30_standard: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_policy_pre_v30_standard".to_string(),
+            ),
+            pre_v30_nonstandard: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_policy_pre_v30_nonstandard".to_string(),
+            ),
+            oversized: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_policy_oversized".to_string(),
+            ),
+            multiple: ChainDataFeeFeesOutputTxPattern::new(
+                client.clone(),
+                "op_return_policy_multiple".to_string(),
+            ),
         }
     }
 }
@@ -5685,7 +7852,10 @@ impl SeriesTree_Mining {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             rewards: SeriesTree_Mining_Rewards::new(client.clone(), format!("{base_path}_rewards")),
-            hashrate: SeriesTree_Mining_Hashrate::new(client.clone(), format!("{base_path}_hashrate")),
+            hashrate: SeriesTree_Mining_Hashrate::new(
+                client.clone(),
+                format!("{base_path}_hashrate"),
+            ),
         }
     }
 }
@@ -5702,8 +7872,14 @@ pub struct SeriesTree_Mining_Rewards {
 impl SeriesTree_Mining_Rewards {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            coinbase: AverageBlockCumulativeSumPattern2::new(client.clone(), "coinbase".to_string()),
-            subsidy: SeriesTree_Mining_Rewards_Subsidy::new(client.clone(), format!("{base_path}_subsidy")),
+            coinbase: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "coinbase".to_string(),
+            ),
+            subsidy: SeriesTree_Mining_Rewards_Subsidy::new(
+                client.clone(),
+                format!("{base_path}_subsidy"),
+            ),
             fees: SeriesTree_Mining_Rewards_Fees::new(client.clone(), format!("{base_path}_fees")),
             output_volume: SeriesPattern18::new(client.clone(), "output_volume".to_string()),
             unclaimed: BlockCumulativePattern::new(client.clone(), "unclaimed_rewards".to_string()),
@@ -5724,10 +7900,16 @@ impl SeriesTree_Mining_Rewards_Subsidy {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             block: BtcCentsSatsUsdPattern3::new(client.clone(), "subsidy".to_string()),
-            cumulative: BtcCentsSatsUsdPattern::new(client.clone(), "subsidy_cumulative".to_string()),
+            cumulative: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "subsidy_cumulative".to_string(),
+            ),
             sum: _1m1w1y24hPattern4::new(client.clone(), "subsidy_sum".to_string()),
             average: _1m1w1y24hPattern3::new(client.clone(), "subsidy_average".to_string()),
-            dominance: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "subsidy_dominance".to_string()),
+            dominance: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "subsidy_dominance".to_string(),
+            ),
         }
     }
 }
@@ -5763,8 +7945,14 @@ impl SeriesTree_Mining_Rewards_Fees {
             median: _1m1w1y24hPattern4::new(client.clone(), "fees_median".to_string()),
             pct75: _1m1w1y24hPattern4::new(client.clone(), "fees_pct75".to_string()),
             pct90: _1m1w1y24hPattern4::new(client.clone(), "fees_pct90".to_string()),
-            dominance: _1m1w1y24hPercentPpmRatioPattern::new(client.clone(), "fee_dominance".to_string()),
-            to_subsidy: SeriesTree_Mining_Rewards_Fees_ToSubsidy::new(client.clone(), format!("{base_path}_to_subsidy")),
+            dominance: _1m1w1y24hPercentPpmRatioPattern::new(
+                client.clone(),
+                "fee_dominance".to_string(),
+            ),
+            to_subsidy: SeriesTree_Mining_Rewards_Fees_ToSubsidy::new(
+                client.clone(),
+                format!("{base_path}_to_subsidy"),
+            ),
         }
     }
 }
@@ -5817,9 +8005,15 @@ impl SeriesTree_Mining_Hashrate_Rate {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             base: SeriesPattern1::new(client.clone(), "hash_rate".to_string()),
-            sma: SeriesTree_Mining_Hashrate_Rate_Sma::new(client.clone(), format!("{base_path}_sma")),
+            sma: SeriesTree_Mining_Hashrate_Rate_Sma::new(
+                client.clone(),
+                format!("{base_path}_sma"),
+            ),
             ath: SeriesPattern1::new(client.clone(), "hash_rate_ath".to_string()),
-            drawdown: PercentPpmRatioPattern3::new(client.clone(), "hash_rate_drawdown".to_string()),
+            drawdown: PercentPpmRatioPattern3::new(
+                client.clone(),
+                "hash_rate_drawdown".to_string(),
+            ),
         }
     }
 }
@@ -5858,14 +8052,26 @@ pub struct SeriesTree_Cointime {
 impl SeriesTree_Cointime {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            activity: SeriesTree_Cointime_Activity::new(client.clone(), format!("{base_path}_activity")),
-            age_range: SeriesTree_Cointime_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
+            activity: SeriesTree_Cointime_Activity::new(
+                client.clone(),
+                format!("{base_path}_activity"),
+            ),
+            age_range: SeriesTree_Cointime_AgeRange::new(
+                client.clone(),
+                format!("{base_path}_age_range"),
+            ),
             supply: SeriesTree_Cointime_Supply::new(client.clone(), format!("{base_path}_supply")),
             value: SeriesTree_Cointime_Value::new(client.clone(), format!("{base_path}_value")),
             cap: SeriesTree_Cointime_Cap::new(client.clone(), format!("{base_path}_cap")),
             prices: SeriesTree_Cointime_Prices::new(client.clone(), format!("{base_path}_prices")),
-            adjusted: SeriesTree_Cointime_Adjusted::new(client.clone(), format!("{base_path}_adjusted")),
-            reserve_risk: SeriesTree_Cointime_ReserveRisk::new(client.clone(), format!("{base_path}_reserve_risk")),
+            adjusted: SeriesTree_Cointime_Adjusted::new(
+                client.clone(),
+                format!("{base_path}_adjusted"),
+            ),
+            reserve_risk: SeriesTree_Cointime_ReserveRisk::new(
+                client.clone(),
+                format!("{base_path}_reserve_risk"),
+            ),
         }
     }
 }
@@ -5883,12 +8089,21 @@ pub struct SeriesTree_Cointime_Activity {
 impl SeriesTree_Cointime_Activity {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            coinblocks_created: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_created".to_string()),
-            coinblocks_stored: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_stored".to_string()),
+            coinblocks_created: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "coinblocks_created".to_string(),
+            ),
+            coinblocks_stored: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "coinblocks_stored".to_string(),
+            ),
             liveliness: SeriesPattern1::new(client.clone(), "liveliness".to_string()),
             vaultedness: SeriesPattern1::new(client.clone(), "vaultedness".to_string()),
             ratio: SeriesPattern1::new(client.clone(), "activity_to_vaultedness".to_string()),
-            coinblocks_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_destroyed".to_string()),
+            coinblocks_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "coinblocks_destroyed".to_string(),
+            ),
         }
     }
 }
@@ -5923,29 +8138,98 @@ pub struct SeriesTree_Cointime_AgeRange {
 impl SeriesTree_Cointime_AgeRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            under_1h: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_under_1h_old".to_string()),
-            _1h_to_1d: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_1h_to_1d_old".to_string()),
-            _1d_to_1w: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_1d_to_1w_old".to_string()),
-            _1w_to_1m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_1w_to_1m_old".to_string()),
-            _1m_to_2m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_1m_to_2m_old".to_string()),
-            _2m_to_3m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_2m_to_3m_old".to_string()),
-            _3m_to_4m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_3m_to_4m_old".to_string()),
-            _4m_to_5m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_4m_to_5m_old".to_string()),
-            _5m_to_6m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_5m_to_6m_old".to_string()),
-            _6m_to_9m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_6m_to_9m_old".to_string()),
-            _9m_to_1y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_9m_to_1y_old".to_string()),
-            _1y_to_18m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_1y_to_18m_old".to_string()),
-            _18m_to_2y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_18m_to_2y_old".to_string()),
-            _2y_to_3y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_2y_to_3y_old".to_string()),
-            _3y_to_4y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_3y_to_4y_old".to_string()),
-            _4y_to_5y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_4y_to_5y_old".to_string()),
-            _5y_to_6y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_5y_to_6y_old".to_string()),
-            _6y_to_7y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_6y_to_7y_old".to_string()),
-            _7y_to_8y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_7y_to_8y_old".to_string()),
-            _8y_to_10y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_8y_to_10y_old".to_string()),
-            _10y_to_12y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_10y_to_12y_old".to_string()),
-            _12y_to_15y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_12y_to_15y_old".to_string()),
-            over_15y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_over_15y_old".to_string()),
+            under_1h: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_under_1h_old".to_string(),
+            ),
+            _1h_to_1d: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_1h_to_1d_old".to_string(),
+            ),
+            _1d_to_1w: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_1d_to_1w_old".to_string(),
+            ),
+            _1w_to_1m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_1w_to_1m_old".to_string(),
+            ),
+            _1m_to_2m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_1m_to_2m_old".to_string(),
+            ),
+            _2m_to_3m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_2m_to_3m_old".to_string(),
+            ),
+            _3m_to_4m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_3m_to_4m_old".to_string(),
+            ),
+            _4m_to_5m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_4m_to_5m_old".to_string(),
+            ),
+            _5m_to_6m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_5m_to_6m_old".to_string(),
+            ),
+            _6m_to_9m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_6m_to_9m_old".to_string(),
+            ),
+            _9m_to_1y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_9m_to_1y_old".to_string(),
+            ),
+            _1y_to_18m: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_1y_to_18m_old".to_string(),
+            ),
+            _18m_to_2y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_18m_to_2y_old".to_string(),
+            ),
+            _2y_to_3y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_2y_to_3y_old".to_string(),
+            ),
+            _3y_to_4y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_3y_to_4y_old".to_string(),
+            ),
+            _4y_to_5y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_4y_to_5y_old".to_string(),
+            ),
+            _5y_to_6y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_5y_to_6y_old".to_string(),
+            ),
+            _6y_to_7y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_6y_to_7y_old".to_string(),
+            ),
+            _7y_to_8y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_7y_to_8y_old".to_string(),
+            ),
+            _8y_to_10y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_8y_to_10y_old".to_string(),
+            ),
+            _10y_to_12y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_10y_to_12y_old".to_string(),
+            ),
+            _12y_to_15y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_12y_to_15y_old".to_string(),
+            ),
+            over_15y: CoindaysLivelinessRatioSupplyVaultednessPattern::new(
+                client.clone(),
+                "utxos_over_15y_old".to_string(),
+            ),
         }
     }
 }
@@ -5960,7 +8244,10 @@ impl SeriesTree_Cointime_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             vaulted: BtcCentsSatsUsdPattern::new(client.clone(), "vaulted_supply".to_string()),
-            active: SeriesTree_Cointime_Supply_Active::new(client.clone(), format!("{base_path}_active")),
+            active: SeriesTree_Cointime_Supply_Active::new(
+                client.clone(),
+                format!("{base_path}_active"),
+            ),
         }
     }
 }
@@ -5981,7 +8268,10 @@ impl SeriesTree_Cointime_Supply_Active {
             sats: SeriesPattern1::new(client.clone(), "active_supply_sats".to_string()),
             usd: SeriesPattern1::new(client.clone(), "active_supply_usd".to_string()),
             cents: SeriesPattern1::new(client.clone(), "active_supply_cents".to_string()),
-            in_loss: SharePattern2::new(client.clone(), "cointime_supply_in_loss_share".to_string()),
+            in_loss: SharePattern2::new(
+                client.clone(),
+                "cointime_supply_in_loss_share".to_string(),
+            ),
         }
     }
 }
@@ -5997,9 +8287,18 @@ pub struct SeriesTree_Cointime_Value {
 impl SeriesTree_Cointime_Value {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "cointime_value_destroyed".to_string()),
-            created: AverageBlockCumulativeSumPattern::new(client.clone(), "cointime_value_created".to_string()),
-            stored: AverageBlockCumulativeSumPattern::new(client.clone(), "cointime_value_stored".to_string()),
+            destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "cointime_value_destroyed".to_string(),
+            ),
+            created: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "cointime_value_created".to_string(),
+            ),
+            stored: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "cointime_value_stored".to_string(),
+            ),
             vocdd: AverageBlockCumulativeSumPattern::new(client.clone(), "vocdd".to_string()),
         }
     }
@@ -6041,8 +8340,14 @@ impl SeriesTree_Cointime_Prices {
         Self {
             vaulted: CentsPpmRatioSatsUsdPattern::new(client.clone(), "vaulted_price".to_string()),
             active: CentsPpmRatioSatsUsdPattern::new(client.clone(), "active_price".to_string()),
-            true_market_mean: CentsPpmRatioSatsUsdPattern::new(client.clone(), "true_market_mean".to_string()),
-            cointime: CentsPpmRatioSatsUsdPattern::new(client.clone(), "cointime_price".to_string()),
+            true_market_mean: CentsPpmRatioSatsUsdPattern::new(
+                client.clone(),
+                "true_market_mean".to_string(),
+            ),
+            cointime: CentsPpmRatioSatsUsdPattern::new(
+                client.clone(),
+                "cointime_price".to_string(),
+            ),
         }
     }
 }
@@ -6057,9 +8362,18 @@ pub struct SeriesTree_Cointime_Adjusted {
 impl SeriesTree_Cointime_Adjusted {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            inflation_rate: PercentPpmRatioPattern::new(client.clone(), "cointime_adj_inflation_rate".to_string()),
-            tx_velocity_native: SeriesPattern1::new(client.clone(), "cointime_adj_tx_velocity_btc".to_string()),
-            tx_velocity_fiat: SeriesPattern1::new(client.clone(), "cointime_adj_tx_velocity_usd".to_string()),
+            inflation_rate: PercentPpmRatioPattern::new(
+                client.clone(),
+                "cointime_adj_inflation_rate".to_string(),
+            ),
+            tx_velocity_native: SeriesPattern1::new(
+                client.clone(),
+                "cointime_adj_tx_velocity_btc".to_string(),
+            ),
+            tx_velocity_fiat: SeriesPattern1::new(
+                client.clone(),
+                "cointime_adj_tx_velocity_usd".to_string(),
+            ),
         }
     }
 }
@@ -6093,9 +8407,15 @@ pub struct SeriesTree_Coinflow {
 impl SeriesTree_Coinflow {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            age_range: SeriesTree_Coinflow_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
+            age_range: SeriesTree_Coinflow_AgeRange::new(
+                client.clone(),
+                format!("{base_path}_age_range"),
+            ),
             supply: SeriesTree_Coinflow_Supply::new(client.clone(), format!("{base_path}_supply")),
-            horizon: SeriesTree_Coinflow_Horizon::new(client.clone(), format!("{base_path}_horizon")),
+            horizon: SeriesTree_Coinflow_Horizon::new(
+                client.clone(),
+                format!("{base_path}_horizon"),
+            ),
             cap: CentsUsdPattern3::new(client.clone(), "coinflow_cap".to_string()),
             price: CentsPpmRatioSatsUsdPattern::new(client.clone(), "coinflow_price".to_string()),
         }
@@ -6132,29 +8452,98 @@ pub struct SeriesTree_Coinflow_AgeRange {
 impl SeriesTree_Coinflow_AgeRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            under_1h: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_under_1h_old".to_string()),
-            _1h_to_1d: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_1h_to_1d_old".to_string()),
-            _1d_to_1w: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_1d_to_1w_old".to_string()),
-            _1w_to_1m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_1w_to_1m_old".to_string()),
-            _1m_to_2m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_1m_to_2m_old".to_string()),
-            _2m_to_3m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_2m_to_3m_old".to_string()),
-            _3m_to_4m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_3m_to_4m_old".to_string()),
-            _4m_to_5m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_4m_to_5m_old".to_string()),
-            _5m_to_6m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_5m_to_6m_old".to_string()),
-            _6m_to_9m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_6m_to_9m_old".to_string()),
-            _9m_to_1y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_9m_to_1y_old".to_string()),
-            _1y_to_18m: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_1y_to_18m_old".to_string()),
-            _18m_to_2y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_18m_to_2y_old".to_string()),
-            _2y_to_3y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_2y_to_3y_old".to_string()),
-            _3y_to_4y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_3y_to_4y_old".to_string()),
-            _4y_to_5y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_4y_to_5y_old".to_string()),
-            _5y_to_6y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_5y_to_6y_old".to_string()),
-            _6y_to_7y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_6y_to_7y_old".to_string()),
-            _7y_to_8y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_7y_to_8y_old".to_string()),
-            _8y_to_10y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_8y_to_10y_old".to_string()),
-            _10y_to_12y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_10y_to_12y_old".to_string()),
-            _12y_to_15y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_12y_to_15y_old".to_string()),
-            over_15y: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_over_15y_old".to_string()),
+            under_1h: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_under_1h_old".to_string(),
+            ),
+            _1h_to_1d: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_1h_to_1d_old".to_string(),
+            ),
+            _1d_to_1w: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_1d_to_1w_old".to_string(),
+            ),
+            _1w_to_1m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_1w_to_1m_old".to_string(),
+            ),
+            _1m_to_2m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_1m_to_2m_old".to_string(),
+            ),
+            _2m_to_3m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_2m_to_3m_old".to_string(),
+            ),
+            _3m_to_4m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_3m_to_4m_old".to_string(),
+            ),
+            _4m_to_5m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_4m_to_5m_old".to_string(),
+            ),
+            _5m_to_6m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_5m_to_6m_old".to_string(),
+            ),
+            _6m_to_9m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_6m_to_9m_old".to_string(),
+            ),
+            _9m_to_1y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_9m_to_1y_old".to_string(),
+            ),
+            _1y_to_18m: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_1y_to_18m_old".to_string(),
+            ),
+            _18m_to_2y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_18m_to_2y_old".to_string(),
+            ),
+            _2y_to_3y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_2y_to_3y_old".to_string(),
+            ),
+            _3y_to_4y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_3y_to_4y_old".to_string(),
+            ),
+            _4y_to_5y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_4y_to_5y_old".to_string(),
+            ),
+            _5y_to_6y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_5y_to_6y_old".to_string(),
+            ),
+            _6y_to_7y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_6y_to_7y_old".to_string(),
+            ),
+            _7y_to_8y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_7y_to_8y_old".to_string(),
+            ),
+            _8y_to_10y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_8y_to_10y_old".to_string(),
+            ),
+            _10y_to_12y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_10y_to_12y_old".to_string(),
+            ),
+            _12y_to_15y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_12y_to_15y_old".to_string(),
+            ),
+            over_15y: MobilitySpendingSupplyPattern::new(
+                client.clone(),
+                "utxos_over_15y_old".to_string(),
+            ),
         }
     }
 }
@@ -6168,7 +8557,10 @@ pub struct SeriesTree_Coinflow_Supply {
 impl SeriesTree_Coinflow_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            mobile: SeriesTree_Coinflow_Supply_Mobile::new(client.clone(), format!("{base_path}_mobile")),
+            mobile: SeriesTree_Coinflow_Supply_Mobile::new(
+                client.clone(),
+                format!("{base_path}_mobile"),
+            ),
             immobile: BtcCentsSatsUsdPattern::new(client.clone(), "immobile_supply".to_string()),
         }
     }
@@ -6190,7 +8582,10 @@ impl SeriesTree_Coinflow_Supply_Mobile {
             sats: SeriesPattern1::new(client.clone(), "mobile_supply_sats".to_string()),
             usd: SeriesPattern1::new(client.clone(), "mobile_supply_usd".to_string()),
             cents: SeriesPattern1::new(client.clone(), "mobile_supply_cents".to_string()),
-            in_loss: SharePattern2::new(client.clone(), "coinflow_supply_in_loss_share".to_string()),
+            in_loss: SharePattern2::new(
+                client.clone(),
+                "coinflow_supply_in_loss_share".to_string(),
+            ),
         }
     }
 }
@@ -6209,13 +8604,34 @@ pub struct SeriesTree_Coinflow_Horizon {
 impl SeriesTree_Coinflow_Horizon {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _8y: SupplyPattern::new(client.clone(), "coinflow_8y_supply_in_loss_share".to_string()),
-            _4y: SupplyPattern::new(client.clone(), "coinflow_4y_supply_in_loss_share".to_string()),
-            _2y: SupplyPattern::new(client.clone(), "coinflow_2y_supply_in_loss_share".to_string()),
-            _1y: SupplyPattern::new(client.clone(), "coinflow_1y_supply_in_loss_share".to_string()),
-            _6m: SupplyPattern::new(client.clone(), "coinflow_6m_supply_in_loss_share".to_string()),
-            _3m: SupplyPattern::new(client.clone(), "coinflow_3m_supply_in_loss_share".to_string()),
-            _1m: SupplyPattern::new(client.clone(), "coinflow_1m_supply_in_loss_share".to_string()),
+            _8y: SupplyPattern::new(
+                client.clone(),
+                "coinflow_8y_supply_in_loss_share".to_string(),
+            ),
+            _4y: SupplyPattern::new(
+                client.clone(),
+                "coinflow_4y_supply_in_loss_share".to_string(),
+            ),
+            _2y: SupplyPattern::new(
+                client.clone(),
+                "coinflow_2y_supply_in_loss_share".to_string(),
+            ),
+            _1y: SupplyPattern::new(
+                client.clone(),
+                "coinflow_1y_supply_in_loss_share".to_string(),
+            ),
+            _6m: SupplyPattern::new(
+                client.clone(),
+                "coinflow_6m_supply_in_loss_share".to_string(),
+            ),
+            _3m: SupplyPattern::new(
+                client.clone(),
+                "coinflow_3m_supply_in_loss_share".to_string(),
+            ),
+            _1m: SupplyPattern::new(
+                client.clone(),
+                "coinflow_1m_supply_in_loss_share".to_string(),
+            ),
         }
     }
 }
@@ -6240,13 +8656,34 @@ impl SeriesTree_Bedrock {
             raw: FloorLevelLossPattern::new(client.clone(), "bedrock_raw".to_string()),
             cointime: FloorLevelLossPattern::new(client.clone(), "bedrock_cointime".to_string()),
             coinflow: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow".to_string()),
-            coinflow_8y: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_8y".to_string()),
-            coinflow_4y: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_4y".to_string()),
-            coinflow_2y: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_2y".to_string()),
-            coinflow_1y: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_1y".to_string()),
-            coinflow_6m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_6m".to_string()),
-            coinflow_3m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_3m".to_string()),
-            coinflow_1m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_1m".to_string()),
+            coinflow_8y: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_8y".to_string(),
+            ),
+            coinflow_4y: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_4y".to_string(),
+            ),
+            coinflow_2y: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_2y".to_string(),
+            ),
+            coinflow_1y: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_1y".to_string(),
+            ),
+            coinflow_6m: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_6m".to_string(),
+            ),
+            coinflow_3m: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_3m".to_string(),
+            ),
+            coinflow_1m: FloorLevelLossPattern::new(
+                client.clone(),
+                "bedrock_coinflow_1m".to_string(),
+            ),
         }
     }
 }
@@ -6329,9 +8766,18 @@ impl SeriesTree_Indexes {
             addr: SeriesTree_Indexes_Addr::new(client.clone(), format!("{base_path}_addr")),
             height: SeriesTree_Indexes_Height::new(client.clone(), format!("{base_path}_height")),
             epoch: SeriesTree_Indexes_Epoch::new(client.clone(), format!("{base_path}_epoch")),
-            halving: SeriesTree_Indexes_Halving::new(client.clone(), format!("{base_path}_halving")),
-            minute10: SeriesTree_Indexes_Minute10::new(client.clone(), format!("{base_path}_minute10")),
-            minute30: SeriesTree_Indexes_Minute30::new(client.clone(), format!("{base_path}_minute30")),
+            halving: SeriesTree_Indexes_Halving::new(
+                client.clone(),
+                format!("{base_path}_halving"),
+            ),
+            minute10: SeriesTree_Indexes_Minute10::new(
+                client.clone(),
+                format!("{base_path}_minute10"),
+            ),
+            minute30: SeriesTree_Indexes_Minute30::new(
+                client.clone(),
+                format!("{base_path}_minute30"),
+            ),
             hour1: SeriesTree_Indexes_Hour1::new(client.clone(), format!("{base_path}_hour1")),
             hour4: SeriesTree_Indexes_Hour4::new(client.clone(), format!("{base_path}_hour4")),
             hour12: SeriesTree_Indexes_Hour12::new(client.clone(), format!("{base_path}_hour12")),
@@ -6343,10 +8789,22 @@ impl SeriesTree_Indexes {
             month6: SeriesTree_Indexes_Month6::new(client.clone(), format!("{base_path}_month6")),
             year1: SeriesTree_Indexes_Year1::new(client.clone(), format!("{base_path}_year1")),
             year10: SeriesTree_Indexes_Year10::new(client.clone(), format!("{base_path}_year10")),
-            tx_index: SeriesTree_Indexes_TxIndex::new(client.clone(), format!("{base_path}_tx_index")),
-            txin_index: SeriesTree_Indexes_TxinIndex::new(client.clone(), format!("{base_path}_txin_index")),
-            txout_index: SeriesTree_Indexes_TxoutIndex::new(client.clone(), format!("{base_path}_txout_index")),
-            timestamp: SeriesTree_Indexes_Timestamp::new(client.clone(), format!("{base_path}_timestamp")),
+            tx_index: SeriesTree_Indexes_TxIndex::new(
+                client.clone(),
+                format!("{base_path}_tx_index"),
+            ),
+            txin_index: SeriesTree_Indexes_TxinIndex::new(
+                client.clone(),
+                format!("{base_path}_txin_index"),
+            ),
+            txout_index: SeriesTree_Indexes_TxoutIndex::new(
+                client.clone(),
+                format!("{base_path}_txout_index"),
+            ),
+            timestamp: SeriesTree_Indexes_Timestamp::new(
+                client.clone(),
+                format!("{base_path}_timestamp"),
+            ),
         }
     }
 }
@@ -6370,18 +8828,33 @@ pub struct SeriesTree_Indexes_Addr {
 impl SeriesTree_Indexes_Addr {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            p2pk33: SeriesTree_Indexes_Addr_P2pk33::new(client.clone(), format!("{base_path}_p2pk33")),
-            p2pk65: SeriesTree_Indexes_Addr_P2pk65::new(client.clone(), format!("{base_path}_p2pk65")),
+            p2pk33: SeriesTree_Indexes_Addr_P2pk33::new(
+                client.clone(),
+                format!("{base_path}_p2pk33"),
+            ),
+            p2pk65: SeriesTree_Indexes_Addr_P2pk65::new(
+                client.clone(),
+                format!("{base_path}_p2pk65"),
+            ),
             p2pkh: SeriesTree_Indexes_Addr_P2pkh::new(client.clone(), format!("{base_path}_p2pkh")),
             p2sh: SeriesTree_Indexes_Addr_P2sh::new(client.clone(), format!("{base_path}_p2sh")),
             p2tr: SeriesTree_Indexes_Addr_P2tr::new(client.clone(), format!("{base_path}_p2tr")),
-            p2wpkh: SeriesTree_Indexes_Addr_P2wpkh::new(client.clone(), format!("{base_path}_p2wpkh")),
+            p2wpkh: SeriesTree_Indexes_Addr_P2wpkh::new(
+                client.clone(),
+                format!("{base_path}_p2wpkh"),
+            ),
             p2wsh: SeriesTree_Indexes_Addr_P2wsh::new(client.clone(), format!("{base_path}_p2wsh")),
             p2a: SeriesTree_Indexes_Addr_P2a::new(client.clone(), format!("{base_path}_p2a")),
             p2ms: SeriesTree_Indexes_Addr_P2ms::new(client.clone(), format!("{base_path}_p2ms")),
             empty: SeriesTree_Indexes_Addr_Empty::new(client.clone(), format!("{base_path}_empty")),
-            unknown: SeriesTree_Indexes_Addr_Unknown::new(client.clone(), format!("{base_path}_unknown")),
-            op_return: SeriesTree_Indexes_Addr_OpReturn::new(client.clone(), format!("{base_path}_op_return")),
+            unknown: SeriesTree_Indexes_Addr_Unknown::new(
+                client.clone(),
+                format!("{base_path}_unknown"),
+            ),
+            op_return: SeriesTree_Indexes_Addr_OpReturn::new(
+                client.clone(),
+                format!("{base_path}_op_return"),
+            ),
         }
     }
 }
@@ -6892,13 +9365,28 @@ impl SeriesTree_Indicators {
             nvt: PpmRatioPattern3::new(client.clone(), "nvt".to_string()),
             gini: PercentPpmRatioPattern2::new(client.clone(), "gini".to_string()),
             rhodl_ratio: PpmRatioPattern3::new(client.clone(), "rhodl_ratio".to_string()),
-            thermo_cap_multiple: PpmRatioPattern3::new(client.clone(), "thermo_cap_multiple".to_string()),
-            coindays_destroyed_supply_adj: SeriesPattern1::new(client.clone(), "coindays_destroyed_supply_adj".to_string()),
-            coinyears_destroyed_supply_adj: SeriesPattern1::new(client.clone(), "coinyears_destroyed_supply_adj".to_string()),
-            dormancy: SeriesTree_Indicators_Dormancy::new(client.clone(), format!("{base_path}_dormancy")),
+            thermo_cap_multiple: PpmRatioPattern3::new(
+                client.clone(),
+                "thermo_cap_multiple".to_string(),
+            ),
+            coindays_destroyed_supply_adj: SeriesPattern1::new(
+                client.clone(),
+                "coindays_destroyed_supply_adj".to_string(),
+            ),
+            coinyears_destroyed_supply_adj: SeriesPattern1::new(
+                client.clone(),
+                "coinyears_destroyed_supply_adj".to_string(),
+            ),
+            dormancy: SeriesTree_Indicators_Dormancy::new(
+                client.clone(),
+                format!("{base_path}_dormancy"),
+            ),
             stock_to_flow: SeriesPattern1::new(client.clone(), "stock_to_flow".to_string()),
             seller_exhaustion: SeriesPattern1::new(client.clone(), "seller_exhaustion".to_string()),
-            rarity_meter: SeriesTree_Indicators_RarityMeter::new(client.clone(), format!("{base_path}_rarity_meter")),
+            rarity_meter: SeriesTree_Indicators_RarityMeter::new(
+                client.clone(),
+                format!("{base_path}_rarity_meter"),
+            ),
         }
     }
 }
@@ -6939,21 +9427,36 @@ impl SeriesTree_Indicators_RarityMeter {
 
 /// Series tree node.
 pub struct SeriesTree_Indicators_RarityMeter_Components {
-    pub realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub capitalized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub sth_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub sth_capitalized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub lth_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub lth_capitalized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub over_6m_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub over_4m_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub under_4m_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub under_6m_realized_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub vaulted_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub active_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub true_market_mean_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub cointime_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub coinflow_price:
+        Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
 }
 
 impl SeriesTree_Indicators_RarityMeter_Components {
@@ -7008,12 +9511,27 @@ pub struct SeriesTree_Investing_Period {
 impl SeriesTree_Investing_Period {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            dca_stack: _10y1m1w1y2y3m3y4y5y6m6y8yPattern3::new(client.clone(), "dca_stack".to_string()),
-            dca_cost_basis: SeriesTree_Investing_Period_DcaCostBasis::new(client.clone(), format!("{base_path}_dca_cost_basis")),
-            dca_return: _10y1m1w1y2y3m3y4y5y6m6y8yPattern2::new(client.clone(), "dca_return".to_string()),
+            dca_stack: _10y1m1w1y2y3m3y4y5y6m6y8yPattern3::new(
+                client.clone(),
+                "dca_stack".to_string(),
+            ),
+            dca_cost_basis: SeriesTree_Investing_Period_DcaCostBasis::new(
+                client.clone(),
+                format!("{base_path}_dca_cost_basis"),
+            ),
+            dca_return: _10y1m1w1y2y3m3y4y5y6m6y8yPattern2::new(
+                client.clone(),
+                "dca_return".to_string(),
+            ),
             dca_cagr: _10y2y3y4y5y6y8yPattern::new(client.clone(), "dca_cagr".to_string()),
-            lump_sum_stack: _10y1m1w1y2y3m3y4y5y6m6y8yPattern3::new(client.clone(), "lump_sum_stack".to_string()),
-            lump_sum_return: _10y1m1w1y2y3m3y4y5y6m6y8yPattern2::new(client.clone(), "lump_sum_return".to_string()),
+            lump_sum_stack: _10y1m1w1y2y3m3y4y5y6m6y8yPattern3::new(
+                client.clone(),
+                "lump_sum_stack".to_string(),
+            ),
+            lump_sum_return: _10y1m1w1y2y3m3y4y5y6m6y8yPattern2::new(
+                client.clone(),
+                "lump_sum_return".to_string(),
+            ),
         }
     }
 }
@@ -7063,9 +9581,18 @@ pub struct SeriesTree_Investing_Class {
 impl SeriesTree_Investing_Class {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            dca_stack: SeriesTree_Investing_Class_DcaStack::new(client.clone(), format!("{base_path}_dca_stack")),
-            dca_cost_basis: SeriesTree_Investing_Class_DcaCostBasis::new(client.clone(), format!("{base_path}_dca_cost_basis")),
-            dca_return: SeriesTree_Investing_Class_DcaReturn::new(client.clone(), format!("{base_path}_dca_return")),
+            dca_stack: SeriesTree_Investing_Class_DcaStack::new(
+                client.clone(),
+                format!("{base_path}_dca_stack"),
+            ),
+            dca_cost_basis: SeriesTree_Investing_Class_DcaCostBasis::new(
+                client.clone(),
+                format!("{base_path}_dca_cost_basis"),
+            ),
+            dca_return: SeriesTree_Investing_Class_DcaReturn::new(
+                client.clone(),
+                format!("{base_path}_dca_return"),
+            ),
         }
     }
 }
@@ -7089,18 +9616,54 @@ pub struct SeriesTree_Investing_Class_DcaStack {
 impl SeriesTree_Investing_Class_DcaStack {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            from_2015: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2015".to_string()),
-            from_2016: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2016".to_string()),
-            from_2017: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2017".to_string()),
-            from_2018: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2018".to_string()),
-            from_2019: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2019".to_string()),
-            from_2020: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2020".to_string()),
-            from_2021: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2021".to_string()),
-            from_2022: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2022".to_string()),
-            from_2023: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2023".to_string()),
-            from_2024: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2024".to_string()),
-            from_2025: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2025".to_string()),
-            from_2026: BtcCentsSatsUsdPattern::new(client.clone(), "dca_stack_from_2026".to_string()),
+            from_2015: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2015".to_string(),
+            ),
+            from_2016: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2016".to_string(),
+            ),
+            from_2017: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2017".to_string(),
+            ),
+            from_2018: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2018".to_string(),
+            ),
+            from_2019: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2019".to_string(),
+            ),
+            from_2020: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2020".to_string(),
+            ),
+            from_2021: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2021".to_string(),
+            ),
+            from_2022: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2022".to_string(),
+            ),
+            from_2023: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2023".to_string(),
+            ),
+            from_2024: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2024".to_string(),
+            ),
+            from_2025: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2025".to_string(),
+            ),
+            from_2026: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_stack_from_2026".to_string(),
+            ),
         }
     }
 }
@@ -7124,18 +9687,54 @@ pub struct SeriesTree_Investing_Class_DcaCostBasis {
 impl SeriesTree_Investing_Class_DcaCostBasis {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            from_2015: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2015".to_string()),
-            from_2016: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2016".to_string()),
-            from_2017: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2017".to_string()),
-            from_2018: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2018".to_string()),
-            from_2019: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2019".to_string()),
-            from_2020: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2020".to_string()),
-            from_2021: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2021".to_string()),
-            from_2022: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2022".to_string()),
-            from_2023: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2023".to_string()),
-            from_2024: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2024".to_string()),
-            from_2025: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2025".to_string()),
-            from_2026: CentsSatsUsdPattern::new(client.clone(), "dca_cost_basis_from_2026".to_string()),
+            from_2015: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2015".to_string(),
+            ),
+            from_2016: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2016".to_string(),
+            ),
+            from_2017: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2017".to_string(),
+            ),
+            from_2018: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2018".to_string(),
+            ),
+            from_2019: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2019".to_string(),
+            ),
+            from_2020: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2020".to_string(),
+            ),
+            from_2021: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2021".to_string(),
+            ),
+            from_2022: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2022".to_string(),
+            ),
+            from_2023: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2023".to_string(),
+            ),
+            from_2024: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2024".to_string(),
+            ),
+            from_2025: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2025".to_string(),
+            ),
+            from_2026: CentsSatsUsdPattern::new(
+                client.clone(),
+                "dca_cost_basis_from_2026".to_string(),
+            ),
         }
     }
 }
@@ -7159,18 +9758,54 @@ pub struct SeriesTree_Investing_Class_DcaReturn {
 impl SeriesTree_Investing_Class_DcaReturn {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            from_2015: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2015".to_string()),
-            from_2016: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2016".to_string()),
-            from_2017: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2017".to_string()),
-            from_2018: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2018".to_string()),
-            from_2019: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2019".to_string()),
-            from_2020: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2020".to_string()),
-            from_2021: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2021".to_string()),
-            from_2022: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2022".to_string()),
-            from_2023: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2023".to_string()),
-            from_2024: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2024".to_string()),
-            from_2025: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2025".to_string()),
-            from_2026: PercentPpmRatioPattern::new(client.clone(), "dca_return_from_2026".to_string()),
+            from_2015: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2015".to_string(),
+            ),
+            from_2016: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2016".to_string(),
+            ),
+            from_2017: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2017".to_string(),
+            ),
+            from_2018: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2018".to_string(),
+            ),
+            from_2019: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2019".to_string(),
+            ),
+            from_2020: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2020".to_string(),
+            ),
+            from_2021: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2021".to_string(),
+            ),
+            from_2022: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2022".to_string(),
+            ),
+            from_2023: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2023".to_string(),
+            ),
+            from_2024: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2024".to_string(),
+            ),
+            from_2025: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2025".to_string(),
+            ),
+            from_2026: PercentPpmRatioPattern::new(
+                client.clone(),
+                "dca_return_from_2026".to_string(),
+            ),
         }
     }
 }
@@ -7190,12 +9825,21 @@ impl SeriesTree_Market {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             ath: SeriesTree_Market_Ath::new(client.clone(), format!("{base_path}_ath")),
-            lookback: SeriesTree_Market_Lookback::new(client.clone(), format!("{base_path}_lookback")),
+            lookback: SeriesTree_Market_Lookback::new(
+                client.clone(),
+                format!("{base_path}_lookback"),
+            ),
             returns: SeriesTree_Market_Returns::new(client.clone(), format!("{base_path}_returns")),
             volatility: _1m1w1y24hPattern::new(client.clone(), "price_volatility".to_string()),
             range: SeriesTree_Market_Range::new(client.clone(), format!("{base_path}_range")),
-            moving_average: SeriesTree_Market_MovingAverage::new(client.clone(), format!("{base_path}_moving_average")),
-            technical: SeriesTree_Market_Technical::new(client.clone(), format!("{base_path}_technical")),
+            moving_average: SeriesTree_Market_MovingAverage::new(
+                client.clone(),
+                format!("{base_path}_moving_average"),
+            ),
+            technical: SeriesTree_Market_Technical::new(
+                client.clone(),
+                format!("{base_path}_technical"),
+            ),
         }
     }
 }
@@ -7217,8 +9861,14 @@ impl SeriesTree_Market_Ath {
             drawdown: PercentPpmRatioPattern3::new(client.clone(), "price_drawdown".to_string()),
             days_since: SeriesPattern1::new(client.clone(), "days_since_price_ath".to_string()),
             years_since: SeriesPattern1::new(client.clone(), "years_since_price_ath".to_string()),
-            max_days_between: SeriesPattern1::new(client.clone(), "max_days_between_price_ath".to_string()),
-            max_years_between: SeriesPattern1::new(client.clone(), "max_years_between_price_ath".to_string()),
+            max_days_between: SeriesPattern1::new(
+                client.clone(),
+                "max_days_between_price_ath".to_string(),
+            ),
+            max_years_between: SeriesPattern1::new(
+                client.clone(),
+                "max_years_between_price_ath".to_string(),
+            ),
         }
     }
 }
@@ -7270,9 +9920,15 @@ pub struct SeriesTree_Market_Returns {
 impl SeriesTree_Market_Returns {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            periods: SeriesTree_Market_Returns_Periods::new(client.clone(), format!("{base_path}_periods")),
+            periods: SeriesTree_Market_Returns_Periods::new(
+                client.clone(),
+                format!("{base_path}_periods"),
+            ),
             cagr: _10y2y3y4y5y6y8yPattern::new(client.clone(), "price_cagr".to_string()),
-            sd_24h: SeriesTree_Market_Returns_Sd24h::new(client.clone(), format!("{base_path}_sd_24h")),
+            sd_24h: SeriesTree_Market_Returns_Sd24h::new(
+                client.clone(),
+                format!("{base_path}_sd_24h"),
+            ),
         }
     }
 }
@@ -7325,7 +9981,10 @@ pub struct SeriesTree_Market_Returns_Sd24h {
 impl SeriesTree_Market_Returns_Sd24h {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _24h: SeriesTree_Market_Returns_Sd24h_24h::new(client.clone(), format!("{base_path}_24h")),
+            _24h: SeriesTree_Market_Returns_Sd24h_24h::new(
+                client.clone(),
+                format!("{base_path}_24h"),
+            ),
             _1w: SeriesTree_Market_Returns_Sd24h_1w::new(client.clone(), format!("{base_path}_1w")),
             _1m: SeriesTree_Market_Returns_Sd24h_1m::new(client.clone(), format!("{base_path}_1m")),
             _1y: SeriesTree_Market_Returns_Sd24h_1y::new(client.clone(), format!("{base_path}_1y")),
@@ -7408,8 +10067,14 @@ impl SeriesTree_Market_Range {
             min: _1m1w1y2wPattern::new(client.clone(), "price_min".to_string()),
             max: _1m1w1y2wPattern::new(client.clone(), "price_max".to_string()),
             true_range: SeriesPattern1::new(client.clone(), "price_true_range".to_string()),
-            true_range_sum_2w: SeriesPattern1::new(client.clone(), "price_true_range_sum_2w".to_string()),
-            choppiness_index_2w: PercentPpmRatioPattern2::new(client.clone(), "price_choppiness_index_2w".to_string()),
+            true_range_sum_2w: SeriesPattern1::new(
+                client.clone(),
+                "price_true_range_sum_2w".to_string(),
+            ),
+            choppiness_index_2w: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "price_choppiness_index_2w".to_string(),
+            ),
         }
     }
 }
@@ -7423,8 +10088,14 @@ pub struct SeriesTree_Market_MovingAverage {
 impl SeriesTree_Market_MovingAverage {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            sma: SeriesTree_Market_MovingAverage_Sma::new(client.clone(), format!("{base_path}_sma")),
-            ema: SeriesTree_Market_MovingAverage_Ema::new(client.clone(), format!("{base_path}_ema")),
+            sma: SeriesTree_Market_MovingAverage_Sma::new(
+                client.clone(),
+                format!("{base_path}_sma"),
+            ),
+            ema: SeriesTree_Market_MovingAverage_Ema::new(
+                client.clone(),
+                format!("{base_path}_ema"),
+            ),
         }
     }
 }
@@ -7462,8 +10133,14 @@ impl SeriesTree_Market_MovingAverage_Sma {
             _89d: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_89d".to_string()),
             _111d: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_111d".to_string()),
             _144d: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_144d".to_string()),
-            _200d: SeriesTree_Market_MovingAverage_Sma_200d::new(client.clone(), format!("{base_path}_200d")),
-            _350d: SeriesTree_Market_MovingAverage_Sma_350d::new(client.clone(), format!("{base_path}_350d")),
+            _200d: SeriesTree_Market_MovingAverage_Sma_200d::new(
+                client.clone(),
+                format!("{base_path}_200d"),
+            ),
+            _350d: SeriesTree_Market_MovingAverage_Sma_350d::new(
+                client.clone(),
+                format!("{base_path}_350d"),
+            ),
             _1y: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_1y".to_string()),
             _2y: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_2y".to_string()),
             _200w: CentsPpmRatioSatsUsdPattern::new(client.clone(), "price_sma_200w".to_string()),
@@ -7575,7 +10252,10 @@ impl SeriesTree_Market_Technical {
         Self {
             rsi: SeriesTree_Market_Technical_Rsi::new(client.clone(), format!("{base_path}_rsi")),
             pi_cycle: PpmRatioPattern2::new(client.clone(), "pi_cycle".to_string()),
-            macd: SeriesTree_Market_Technical_Macd::new(client.clone(), format!("{base_path}_macd")),
+            macd: SeriesTree_Market_Technical_Macd::new(
+                client.clone(),
+                format!("{base_path}_macd"),
+            ),
         }
     }
 }
@@ -7607,9 +10287,18 @@ pub struct SeriesTree_Market_Technical_Macd {
 impl SeriesTree_Market_Technical_Macd {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _24h: SeriesTree_Market_Technical_Macd_24h::new(client.clone(), format!("{base_path}_24h")),
-            _1w: SeriesTree_Market_Technical_Macd_1w::new(client.clone(), format!("{base_path}_1w")),
-            _1m: SeriesTree_Market_Technical_Macd_1m::new(client.clone(), format!("{base_path}_1m")),
+            _24h: SeriesTree_Market_Technical_Macd_24h::new(
+                client.clone(),
+                format!("{base_path}_24h"),
+            ),
+            _1w: SeriesTree_Market_Technical_Macd_1w::new(
+                client.clone(),
+                format!("{base_path}_1w"),
+            ),
+            _1m: SeriesTree_Market_Technical_Macd_1m::new(
+                client.clone(),
+                format!("{base_path}_1m"),
+            ),
         }
     }
 }
@@ -7730,16 +10419,28 @@ impl SeriesTree_Pools_Major {
             btcguild: BlocksDominanceRewardsPattern::new(client.clone(), "btcguild".to_string()),
             eligius: BlocksDominanceRewardsPattern::new(client.clone(), "eligius".to_string()),
             f2pool: BlocksDominanceRewardsPattern::new(client.clone(), "f2pool".to_string()),
-            braiinspool: BlocksDominanceRewardsPattern::new(client.clone(), "braiinspool".to_string()),
+            braiinspool: BlocksDominanceRewardsPattern::new(
+                client.clone(),
+                "braiinspool".to_string(),
+            ),
             antpool: BlocksDominanceRewardsPattern::new(client.clone(), "antpool".to_string()),
             btcc: BlocksDominanceRewardsPattern::new(client.clone(), "btcc".to_string()),
             bwpool: BlocksDominanceRewardsPattern::new(client.clone(), "bwpool".to_string()),
             bitfury: BlocksDominanceRewardsPattern::new(client.clone(), "bitfury".to_string()),
             viabtc: BlocksDominanceRewardsPattern::new(client.clone(), "viabtc".to_string()),
             poolin: BlocksDominanceRewardsPattern::new(client.clone(), "poolin".to_string()),
-            spiderpool: BlocksDominanceRewardsPattern::new(client.clone(), "spiderpool".to_string()),
-            binancepool: BlocksDominanceRewardsPattern::new(client.clone(), "binancepool".to_string()),
-            foundryusa: BlocksDominanceRewardsPattern::new(client.clone(), "foundryusa".to_string()),
+            spiderpool: BlocksDominanceRewardsPattern::new(
+                client.clone(),
+                "spiderpool".to_string(),
+            ),
+            binancepool: BlocksDominanceRewardsPattern::new(
+                client.clone(),
+                "binancepool".to_string(),
+            ),
+            foundryusa: BlocksDominanceRewardsPattern::new(
+                client.clone(),
+                "foundryusa".to_string(),
+            ),
             sbicrypto: BlocksDominanceRewardsPattern::new(client.clone(), "sbicrypto".to_string()),
             marapool: BlocksDominanceRewardsPattern::new(client.clone(), "marapool".to_string()),
             secpool: BlocksDominanceRewardsPattern::new(client.clone(), "secpool".to_string()),
@@ -7944,7 +10645,10 @@ impl SeriesTree_Pools_Minor {
             ckpool: BlocksDominancePattern::new(client.clone(), "ckpool".to_string()),
             nicehash: BlocksDominancePattern::new(client.clone(), "nicehash".to_string()),
             bitclub: BlocksDominancePattern::new(client.clone(), "bitclub".to_string()),
-            bitcoinaffiliatenetwork: BlocksDominancePattern::new(client.clone(), "bitcoinaffiliatenetwork".to_string()),
+            bitcoinaffiliatenetwork: BlocksDominancePattern::new(
+                client.clone(),
+                "bitcoinaffiliatenetwork".to_string(),
+            ),
             exxbw: BlocksDominancePattern::new(client.clone(), "exxbw".to_string()),
             bitsolo: BlocksDominancePattern::new(client.clone(), "bitsolo".to_string()),
             twentyoneinc: BlocksDominancePattern::new(client.clone(), "twentyoneinc".to_string()),
@@ -7967,7 +10671,10 @@ impl SeriesTree_Pools_Minor {
             dcexploration: BlocksDominancePattern::new(client.clone(), "dcexploration".to_string()),
             dcex: BlocksDominancePattern::new(client.clone(), "dcex".to_string()),
             btpool: BlocksDominancePattern::new(client.clone(), "btpool".to_string()),
-            fiftyeightcoin: BlocksDominancePattern::new(client.clone(), "fiftyeightcoin".to_string()),
+            fiftyeightcoin: BlocksDominancePattern::new(
+                client.clone(),
+                "fiftyeightcoin".to_string(),
+            ),
             bitcoinindia: BlocksDominancePattern::new(client.clone(), "bitcoinindia".to_string()),
             shawnp0wers: BlocksDominancePattern::new(client.clone(), "shawnp0wers".to_string()),
             phashio: BlocksDominancePattern::new(client.clone(), "phashio".to_string()),
@@ -7980,8 +10687,14 @@ impl SeriesTree_Pools_Minor {
             rawpool: BlocksDominancePattern::new(client.clone(), "rawpool".to_string()),
             haominer: BlocksDominancePattern::new(client.clone(), "haominer".to_string()),
             helix: BlocksDominancePattern::new(client.clone(), "helix".to_string()),
-            bitcoinukraine: BlocksDominancePattern::new(client.clone(), "bitcoinukraine".to_string()),
-            secretsuperstar: BlocksDominancePattern::new(client.clone(), "secretsuperstar".to_string()),
+            bitcoinukraine: BlocksDominancePattern::new(
+                client.clone(),
+                "bitcoinukraine".to_string(),
+            ),
+            secretsuperstar: BlocksDominancePattern::new(
+                client.clone(),
+                "secretsuperstar".to_string(),
+            ),
             tigerpoolnet: BlocksDominancePattern::new(client.clone(), "tigerpoolnet".to_string()),
             sigmapoolcom: BlocksDominancePattern::new(client.clone(), "sigmapoolcom".to_string()),
             okpooltop: BlocksDominancePattern::new(client.clone(), "okpooltop".to_string()),
@@ -7998,25 +10711,40 @@ impl SeriesTree_Pools_Minor {
             arkpool: BlocksDominancePattern::new(client.clone(), "arkpool".to_string()),
             purebtccom: BlocksDominancePattern::new(client.clone(), "purebtccom".to_string()),
             kucoinpool: BlocksDominancePattern::new(client.clone(), "kucoinpool".to_string()),
-            entrustcharitypool: BlocksDominancePattern::new(client.clone(), "entrustcharitypool".to_string()),
+            entrustcharitypool: BlocksDominancePattern::new(
+                client.clone(),
+                "entrustcharitypool".to_string(),
+            ),
             okminer: BlocksDominancePattern::new(client.clone(), "okminer".to_string()),
             titan: BlocksDominancePattern::new(client.clone(), "titan".to_string()),
             pegapool: BlocksDominancePattern::new(client.clone(), "pegapool".to_string()),
             btcnuggets: BlocksDominancePattern::new(client.clone(), "btcnuggets".to_string()),
             cloudhashing: BlocksDominancePattern::new(client.clone(), "cloudhashing".to_string()),
-            digitalxmintsy: BlocksDominancePattern::new(client.clone(), "digitalxmintsy".to_string()),
+            digitalxmintsy: BlocksDominancePattern::new(
+                client.clone(),
+                "digitalxmintsy".to_string(),
+            ),
             telco214: BlocksDominancePattern::new(client.clone(), "telco214".to_string()),
             btcpoolparty: BlocksDominancePattern::new(client.clone(), "btcpoolparty".to_string()),
             multipool: BlocksDominancePattern::new(client.clone(), "multipool".to_string()),
-            transactioncoinmining: BlocksDominancePattern::new(client.clone(), "transactioncoinmining".to_string()),
+            transactioncoinmining: BlocksDominancePattern::new(
+                client.clone(),
+                "transactioncoinmining".to_string(),
+            ),
             btcdig: BlocksDominancePattern::new(client.clone(), "btcdig".to_string()),
-            trickysbtcpool: BlocksDominancePattern::new(client.clone(), "trickysbtcpool".to_string()),
+            trickysbtcpool: BlocksDominancePattern::new(
+                client.clone(),
+                "trickysbtcpool".to_string(),
+            ),
             btcmp: BlocksDominancePattern::new(client.clone(), "btcmp".to_string()),
             eobot: BlocksDominancePattern::new(client.clone(), "eobot".to_string()),
             unomp: BlocksDominancePattern::new(client.clone(), "unomp".to_string()),
             patels: BlocksDominancePattern::new(client.clone(), "patels".to_string()),
             gogreenlight: BlocksDominancePattern::new(client.clone(), "gogreenlight".to_string()),
-            bitcoinindiapool: BlocksDominancePattern::new(client.clone(), "bitcoinindiapool".to_string()),
+            bitcoinindiapool: BlocksDominancePattern::new(
+                client.clone(),
+                "bitcoinindiapool".to_string(),
+            ),
             ekanembtc: BlocksDominancePattern::new(client.clone(), "ekanembtc".to_string()),
             canoe: BlocksDominancePattern::new(client.clone(), "canoe".to_string()),
             tiger: BlocksDominancePattern::new(client.clone(), "tiger".to_string()),
@@ -8024,8 +10752,14 @@ impl SeriesTree_Pools_Minor {
             zulupool: BlocksDominancePattern::new(client.clone(), "zulupool".to_string()),
             wiz: BlocksDominancePattern::new(client.clone(), "wiz".to_string()),
             wk057: BlocksDominancePattern::new(client.clone(), "wk057".to_string()),
-            futurebitapollosolo: BlocksDominancePattern::new(client.clone(), "futurebitapollosolo".to_string()),
-            carbonnegative: BlocksDominancePattern::new(client.clone(), "carbonnegative".to_string()),
+            futurebitapollosolo: BlocksDominancePattern::new(
+                client.clone(),
+                "futurebitapollosolo".to_string(),
+            ),
+            carbonnegative: BlocksDominancePattern::new(
+                client.clone(),
+                "carbonnegative".to_string(),
+            ),
             portlandhodl: BlocksDominancePattern::new(client.clone(), "portlandhodl".to_string()),
             phoenix: BlocksDominancePattern::new(client.clone(), "phoenix".to_string()),
             neopool: BlocksDominancePattern::new(client.clone(), "neopool".to_string()),
@@ -8134,13 +10868,28 @@ impl SeriesTree_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             state: SeriesPattern18::new(client.clone(), "supply_state".to_string()),
-            circulating: BtcCentsSatsUsdPattern::new(client.clone(), "circulating_supply".to_string()),
+            circulating: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "circulating_supply".to_string(),
+            ),
             burned: BlockCumulativePattern::new(client.clone(), "unspendable_supply".to_string()),
-            inflation_rate: PercentPpmRatioPattern::new(client.clone(), "inflation_rate".to_string()),
-            velocity: SeriesTree_Supply_Velocity::new(client.clone(), format!("{base_path}_velocity")),
+            inflation_rate: PercentPpmRatioPattern::new(
+                client.clone(),
+                "inflation_rate".to_string(),
+            ),
+            velocity: SeriesTree_Supply_Velocity::new(
+                client.clone(),
+                format!("{base_path}_velocity"),
+            ),
             market_cap: CentsDeltaUsdPattern::new(client.clone(), "market_cap".to_string()),
-            market_minus_realized_cap_growth_rate: _1m1w1y24hPattern::new(client.clone(), "market_minus_realized_cap_growth_rate".to_string()),
-            hodled_or_lost: BtcCentsSatsUsdPattern::new(client.clone(), "hodled_or_lost_supply".to_string()),
+            market_minus_realized_cap_growth_rate: _1m1w1y24hPattern::new(
+                client.clone(),
+                "market_minus_realized_cap_growth_rate".to_string(),
+            ),
+            hodled_or_lost: BtcCentsSatsUsdPattern::new(
+                client.clone(),
+                "hodled_or_lost_supply".to_string(),
+            ),
         }
     }
 }
@@ -8200,18 +10949,42 @@ impl SeriesTree_Cohorts_Utxo {
             all: SeriesTree_Cohorts_Utxo_All::new(client.clone(), format!("{base_path}_all")),
             sth: SeriesTree_Cohorts_Utxo_Sth::new(client.clone(), format!("{base_path}_sth")),
             lth: SeriesTree_Cohorts_Utxo_Lth::new(client.clone(), format!("{base_path}_lth")),
-            age_range: SeriesTree_Cohorts_Utxo_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
-            under_age: SeriesTree_Cohorts_Utxo_UnderAge::new(client.clone(), format!("{base_path}_under_age")),
-            over_age: SeriesTree_Cohorts_Utxo_OverAge::new(client.clone(), format!("{base_path}_over_age")),
+            age_range: SeriesTree_Cohorts_Utxo_AgeRange::new(
+                client.clone(),
+                format!("{base_path}_age_range"),
+            ),
+            under_age: SeriesTree_Cohorts_Utxo_UnderAge::new(
+                client.clone(),
+                format!("{base_path}_under_age"),
+            ),
+            over_age: SeriesTree_Cohorts_Utxo_OverAge::new(
+                client.clone(),
+                format!("{base_path}_over_age"),
+            ),
             epoch: SeriesTree_Cohorts_Utxo_Epoch::new(client.clone(), format!("{base_path}_epoch")),
             class: SeriesTree_Cohorts_Utxo_Class::new(client.clone(), format!("{base_path}_class")),
             entry: SeriesTree_Cohorts_Utxo_Entry::new(client.clone(), format!("{base_path}_entry")),
-            over_amount: SeriesTree_Cohorts_Utxo_OverAmount::new(client.clone(), format!("{base_path}_over_amount")),
-            amount_range: SeriesTree_Cohorts_Utxo_AmountRange::new(client.clone(), format!("{base_path}_amount_range")),
-            under_amount: SeriesTree_Cohorts_Utxo_UnderAmount::new(client.clone(), format!("{base_path}_under_amount")),
+            over_amount: SeriesTree_Cohorts_Utxo_OverAmount::new(
+                client.clone(),
+                format!("{base_path}_over_amount"),
+            ),
+            amount_range: SeriesTree_Cohorts_Utxo_AmountRange::new(
+                client.clone(),
+                format!("{base_path}_amount_range"),
+            ),
+            under_amount: SeriesTree_Cohorts_Utxo_UnderAmount::new(
+                client.clone(),
+                format!("{base_path}_under_amount"),
+            ),
             type_: SeriesTree_Cohorts_Utxo_Type::new(client.clone(), format!("{base_path}_type")),
-            profitability: SeriesTree_Cohorts_Utxo_Profitability::new(client.clone(), format!("{base_path}_profitability")),
-            matured: SeriesTree_Cohorts_Utxo_Matured::new(client.clone(), format!("{base_path}_matured")),
+            profitability: SeriesTree_Cohorts_Utxo_Profitability::new(
+                client.clone(),
+                format!("{base_path}_profitability"),
+            ),
+            matured: SeriesTree_Cohorts_Utxo_Matured::new(
+                client.clone(),
+                format!("{base_path}_matured"),
+            ),
         }
     }
 }
@@ -8231,11 +11004,26 @@ impl SeriesTree_Cohorts_Utxo_All {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             supply: DeltaDominanceHalfInTotalPattern2::new(client.clone(), "supply".to_string()),
-            outputs: SeriesTree_Cohorts_Utxo_All_Outputs::new(client.clone(), format!("{base_path}_outputs")),
-            activity: SeriesTree_Cohorts_Utxo_All_Activity::new(client.clone(), format!("{base_path}_activity")),
-            realized: SeriesTree_Cohorts_Utxo_All_Realized::new(client.clone(), format!("{base_path}_realized")),
-            cost_basis: SeriesTree_Cohorts_Utxo_All_CostBasis::new(client.clone(), format!("{base_path}_cost_basis")),
-            unrealized: SeriesTree_Cohorts_Utxo_All_Unrealized::new(client.clone(), format!("{base_path}_unrealized")),
+            outputs: SeriesTree_Cohorts_Utxo_All_Outputs::new(
+                client.clone(),
+                format!("{base_path}_outputs"),
+            ),
+            activity: SeriesTree_Cohorts_Utxo_All_Activity::new(
+                client.clone(),
+                format!("{base_path}_activity"),
+            ),
+            realized: SeriesTree_Cohorts_Utxo_All_Realized::new(
+                client.clone(),
+                format!("{base_path}_realized"),
+            ),
+            cost_basis: SeriesTree_Cohorts_Utxo_All_CostBasis::new(
+                client.clone(),
+                format!("{base_path}_cost_basis"),
+            ),
+            unrealized: SeriesTree_Cohorts_Utxo_All_Unrealized::new(
+                client.clone(),
+                format!("{base_path}_unrealized"),
+            ),
             invested_capital: InPattern::new(client.clone(), "invested_capital_in".to_string()),
         }
     }
@@ -8251,7 +11039,10 @@ impl SeriesTree_Cohorts_Utxo_All_Outputs {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             unspent_count: BaseDeltaPattern::new(client.clone(), "utxo_count".to_string()),
-            spent_count: AverageBlockCumulativeSumPattern::new(client.clone(), "spent_utxo_count".to_string()),
+            spent_count: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "spent_utxo_count".to_string(),
+            ),
         }
     }
 }
@@ -8267,9 +11058,18 @@ pub struct SeriesTree_Cohorts_Utxo_All_Activity {
 impl SeriesTree_Cohorts_Utxo_All_Activity {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            transfer_volume: AverageBlockCumulativeInSumPattern::new(client.clone(), "transfer_volume".to_string()),
-            coindays_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "coindays_destroyed".to_string()),
-            coinyears_destroyed: SeriesPattern1::new(client.clone(), "coinyears_destroyed".to_string()),
+            transfer_volume: AverageBlockCumulativeInSumPattern::new(
+                client.clone(),
+                "transfer_volume".to_string(),
+            ),
+            coindays_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "coindays_destroyed".to_string(),
+            ),
+            coinyears_destroyed: SeriesPattern1::new(
+                client.clone(),
+                "coinyears_destroyed".to_string(),
+            ),
             dormancy: _1m1w1y24hPattern::new(client.clone(), "dormancy".to_string()),
         }
     }
@@ -8296,16 +11096,34 @@ impl SeriesTree_Cohorts_Utxo_All_Realized {
         Self {
             cap: CentsDeltaToUsdPattern::new(client.clone(), "realized_cap".to_string()),
             profit: BlockCumulativeSumPattern::new(client.clone(), "realized_profit".to_string()),
-            loss: BlockCumulativeNegativeSumPattern::new(client.clone(), "realized_loss".to_string()),
+            loss: BlockCumulativeNegativeSumPattern::new(
+                client.clone(),
+                "realized_loss".to_string(),
+            ),
             price: CentsPpmRatioSatsUsdPattern::new(client.clone(), "realized_price".to_string()),
             mvrv: SeriesPattern1::new(client.clone(), "mvrv".to_string()),
             net_pnl: BlockChangeCumulativeDeltaSumPattern::new(client.clone(), "net".to_string()),
-            sopr: SeriesTree_Cohorts_Utxo_All_Realized_Sopr::new(client.clone(), format!("{base_path}_sopr")),
-            gross_pnl: BlockCumulativeSumPattern::new(client.clone(), "realized_gross_pnl".to_string()),
-            sell_side_risk_ratio: _1m1w1y24hPattern8::new(client.clone(), "sell_side_risk_ratio".to_string()),
-            peak_regret: BlockCumulativeSumPattern::new(client.clone(), "realized_peak_regret".to_string()),
+            sopr: SeriesTree_Cohorts_Utxo_All_Realized_Sopr::new(
+                client.clone(),
+                format!("{base_path}_sopr"),
+            ),
+            gross_pnl: BlockCumulativeSumPattern::new(
+                client.clone(),
+                "realized_gross_pnl".to_string(),
+            ),
+            sell_side_risk_ratio: _1m1w1y24hPattern8::new(
+                client.clone(),
+                "sell_side_risk_ratio".to_string(),
+            ),
+            peak_regret: BlockCumulativeSumPattern::new(
+                client.clone(),
+                "realized_peak_regret".to_string(),
+            ),
             capitalized: PricePattern::new(client.clone(), "capitalized_price".to_string()),
-            profit_to_loss_ratio: _1m1w1y24hPattern::new(client.clone(), "realized_profit_to_loss_ratio".to_string()),
+            profit_to_loss_ratio: _1m1w1y24hPattern::new(
+                client.clone(),
+                "realized_profit_to_loss_ratio".to_string(),
+            ),
         }
     }
 }
@@ -8320,9 +11138,15 @@ pub struct SeriesTree_Cohorts_Utxo_All_Realized_Sopr {
 impl SeriesTree_Cohorts_Utxo_All_Realized_Sopr {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "value_destroyed".to_string()),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "value_destroyed".to_string(),
+            ),
             ratio: _1m1w1y24hPattern::new(client.clone(), "sopr".to_string()),
-            adjusted: SeriesTree_Cohorts_Utxo_All_Realized_Sopr_Adjusted::new(client.clone(), format!("{base_path}_adjusted")),
+            adjusted: SeriesTree_Cohorts_Utxo_All_Realized_Sopr_Adjusted::new(
+                client.clone(),
+                format!("{base_path}_adjusted"),
+            ),
         }
     }
 }
@@ -8338,8 +11162,14 @@ impl SeriesTree_Cohorts_Utxo_All_Realized_Sopr_Adjusted {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             ratio: _1m1w1y24hPattern::new(client.clone(), "asopr".to_string()),
-            transfer_volume: AverageBlockCumulativeSumPattern::new(client.clone(), "adj_value_created".to_string()),
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "adj_value_destroyed".to_string()),
+            transfer_volume: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "adj_value_created".to_string(),
+            ),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "adj_value_destroyed".to_string(),
+            ),
         }
     }
 }
@@ -8386,14 +11216,32 @@ impl SeriesTree_Cohorts_Utxo_All_Unrealized {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             nupl: PpmRatioPattern::new(client.clone(), "nupl".to_string()),
-            profit: SeriesTree_Cohorts_Utxo_All_Unrealized_Profit::new(client.clone(), format!("{base_path}_profit")),
-            loss: SeriesTree_Cohorts_Utxo_All_Unrealized_Loss::new(client.clone(), format!("{base_path}_loss")),
-            net_pnl: SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl::new(client.clone(), format!("{base_path}_net_pnl")),
+            profit: SeriesTree_Cohorts_Utxo_All_Unrealized_Profit::new(
+                client.clone(),
+                format!("{base_path}_profit"),
+            ),
+            loss: SeriesTree_Cohorts_Utxo_All_Unrealized_Loss::new(
+                client.clone(),
+                format!("{base_path}_loss"),
+            ),
+            net_pnl: SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl::new(
+                client.clone(),
+                format!("{base_path}_net_pnl"),
+            ),
             gross_pnl: CentsUsdPattern3::new(client.clone(), "unrealized_gross_pnl".to_string()),
             invested_capital: InPattern2::new(client.clone(), "invested_capital_in".to_string()),
-            capitalized_cap_in_profit_raw: SeriesPattern18::new(client.clone(), "capitalized_cap_in_profit_raw".to_string()),
-            capitalized_cap_in_loss_raw: SeriesPattern18::new(client.clone(), "capitalized_cap_in_loss_raw".to_string()),
-            sentiment: SeriesTree_Cohorts_Utxo_All_Unrealized_Sentiment::new(client.clone(), format!("{base_path}_sentiment")),
+            capitalized_cap_in_profit_raw: SeriesPattern18::new(
+                client.clone(),
+                "capitalized_cap_in_profit_raw".to_string(),
+            ),
+            capitalized_cap_in_loss_raw: SeriesPattern18::new(
+                client.clone(),
+                "capitalized_cap_in_loss_raw".to_string(),
+            ),
+            sentiment: SeriesTree_Cohorts_Utxo_All_Unrealized_Sentiment::new(
+                client.clone(),
+                format!("{base_path}_sentiment"),
+            ),
         }
     }
 }
@@ -8411,8 +11259,14 @@ impl SeriesTree_Cohorts_Utxo_All_Unrealized_Profit {
         Self {
             usd: SeriesPattern1::new(client.clone(), "unrealized_profit".to_string()),
             cents: SeriesPattern1::new(client.clone(), "unrealized_profit_cents".to_string()),
-            to_mcap: PercentPpmRatioPattern2::new(client.clone(), "unrealized_profit_to_mcap".to_string()),
-            to_own_gross_pnl: PercentPpmRatioPattern2::new(client.clone(), "unrealized_profit_to_own_gross_pnl".to_string()),
+            to_mcap: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "unrealized_profit_to_mcap".to_string(),
+            ),
+            to_own_gross_pnl: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "unrealized_profit_to_own_gross_pnl".to_string(),
+            ),
         }
     }
 }
@@ -8432,8 +11286,14 @@ impl SeriesTree_Cohorts_Utxo_All_Unrealized_Loss {
             usd: SeriesPattern1::new(client.clone(), "unrealized_loss".to_string()),
             cents: SeriesPattern1::new(client.clone(), "unrealized_loss_cents".to_string()),
             negative: SeriesPattern1::new(client.clone(), "unrealized_loss_neg".to_string()),
-            to_mcap: PercentPpmRatioPattern2::new(client.clone(), "unrealized_loss_to_mcap".to_string()),
-            to_own_gross_pnl: PercentPpmRatioPattern2::new(client.clone(), "unrealized_loss_to_own_gross_pnl".to_string()),
+            to_mcap: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "unrealized_loss_to_mcap".to_string(),
+            ),
+            to_own_gross_pnl: PercentPpmRatioPattern2::new(
+                client.clone(),
+                "unrealized_loss_to_own_gross_pnl".to_string(),
+            ),
         }
     }
 }
@@ -8450,7 +11310,10 @@ impl SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl {
         Self {
             usd: SeriesPattern1::new(client.clone(), "net_unrealized_pnl".to_string()),
             cents: SeriesPattern1::new(client.clone(), "net_unrealized_pnl_cents".to_string()),
-            to_own_gross_pnl: PercentPpmRatioPattern3::new(client.clone(), "net_unrealized_pnl_to_own_gross_pnl".to_string()),
+            to_own_gross_pnl: PercentPpmRatioPattern3::new(
+                client.clone(),
+                "net_unrealized_pnl_to_own_gross_pnl".to_string(),
+            ),
         }
     }
 }
@@ -8486,12 +11349,24 @@ pub struct SeriesTree_Cohorts_Utxo_Sth {
 impl SeriesTree_Cohorts_Utxo_Sth {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            supply: DeltaDominanceHalfInTotalPattern2::new(client.clone(), "sth_supply".to_string()),
+            supply: DeltaDominanceHalfInTotalPattern2::new(
+                client.clone(),
+                "sth_supply".to_string(),
+            ),
             outputs: SpentUnspentPattern::new(client.clone(), "sth".to_string()),
-            activity: CoindaysCoinyearsDormancyTransferPattern::new(client.clone(), "sth".to_string()),
-            realized: CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern::new(client.clone(), "sth".to_string()),
+            activity: CoindaysCoinyearsDormancyTransferPattern::new(
+                client.clone(),
+                "sth".to_string(),
+            ),
+            realized: CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern::new(
+                client.clone(),
+                "sth".to_string(),
+            ),
             cost_basis: InMaxMinPerSupplyPattern::new(client.clone(), "sth".to_string()),
-            unrealized: CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2::new(client.clone(), "sth".to_string()),
+            unrealized: CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2::new(
+                client.clone(),
+                "sth".to_string(),
+            ),
             invested_capital: InPattern::new(client.clone(), "sth_invested_capital_in".to_string()),
         }
     }
@@ -8511,12 +11386,24 @@ pub struct SeriesTree_Cohorts_Utxo_Lth {
 impl SeriesTree_Cohorts_Utxo_Lth {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            supply: DeltaDominanceHalfInTotalPattern2::new(client.clone(), "lth_supply".to_string()),
+            supply: DeltaDominanceHalfInTotalPattern2::new(
+                client.clone(),
+                "lth_supply".to_string(),
+            ),
             outputs: SpentUnspentPattern::new(client.clone(), "lth".to_string()),
-            activity: CoindaysCoinyearsDormancyTransferPattern::new(client.clone(), "lth".to_string()),
-            realized: SeriesTree_Cohorts_Utxo_Lth_Realized::new(client.clone(), format!("{base_path}_realized")),
+            activity: CoindaysCoinyearsDormancyTransferPattern::new(
+                client.clone(),
+                "lth".to_string(),
+            ),
+            realized: SeriesTree_Cohorts_Utxo_Lth_Realized::new(
+                client.clone(),
+                format!("{base_path}_realized"),
+            ),
             cost_basis: InMaxMinPerSupplyPattern::new(client.clone(), "lth".to_string()),
-            unrealized: CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2::new(client.clone(), "lth".to_string()),
+            unrealized: CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2::new(
+                client.clone(),
+                "lth".to_string(),
+            ),
             invested_capital: InPattern::new(client.clone(), "lth_invested_capital_in".to_string()),
         }
     }
@@ -8542,17 +11429,44 @@ impl SeriesTree_Cohorts_Utxo_Lth_Realized {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             cap: CentsDeltaToUsdPattern::new(client.clone(), "lth_realized_cap".to_string()),
-            profit: BlockCumulativeSumPattern::new(client.clone(), "lth_realized_profit".to_string()),
-            loss: BlockCumulativeNegativeSumPattern::new(client.clone(), "lth_realized_loss".to_string()),
-            price: CentsPpmRatioSatsUsdPattern::new(client.clone(), "lth_realized_price".to_string()),
+            profit: BlockCumulativeSumPattern::new(
+                client.clone(),
+                "lth_realized_profit".to_string(),
+            ),
+            loss: BlockCumulativeNegativeSumPattern::new(
+                client.clone(),
+                "lth_realized_loss".to_string(),
+            ),
+            price: CentsPpmRatioSatsUsdPattern::new(
+                client.clone(),
+                "lth_realized_price".to_string(),
+            ),
             mvrv: SeriesPattern1::new(client.clone(), "lth_mvrv".to_string()),
-            net_pnl: BlockChangeCumulativeDeltaSumPattern::new(client.clone(), "lth_net".to_string()),
-            sopr: SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr::new(client.clone(), format!("{base_path}_sopr")),
-            gross_pnl: BlockCumulativeSumPattern::new(client.clone(), "lth_realized_gross_pnl".to_string()),
-            sell_side_risk_ratio: _1m1w1y24hPattern8::new(client.clone(), "lth_sell_side_risk_ratio".to_string()),
-            peak_regret: BlockCumulativeSumPattern::new(client.clone(), "lth_realized_peak_regret".to_string()),
+            net_pnl: BlockChangeCumulativeDeltaSumPattern::new(
+                client.clone(),
+                "lth_net".to_string(),
+            ),
+            sopr: SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr::new(
+                client.clone(),
+                format!("{base_path}_sopr"),
+            ),
+            gross_pnl: BlockCumulativeSumPattern::new(
+                client.clone(),
+                "lth_realized_gross_pnl".to_string(),
+            ),
+            sell_side_risk_ratio: _1m1w1y24hPattern8::new(
+                client.clone(),
+                "lth_sell_side_risk_ratio".to_string(),
+            ),
+            peak_regret: BlockCumulativeSumPattern::new(
+                client.clone(),
+                "lth_realized_peak_regret".to_string(),
+            ),
             capitalized: PricePattern::new(client.clone(), "lth_capitalized_price".to_string()),
-            profit_to_loss_ratio: _1m1w1y24hPattern::new(client.clone(), "lth_realized_profit_to_loss_ratio".to_string()),
+            profit_to_loss_ratio: _1m1w1y24hPattern::new(
+                client.clone(),
+                "lth_realized_profit_to_loss_ratio".to_string(),
+            ),
         }
     }
 }
@@ -8566,7 +11480,10 @@ pub struct SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr {
 impl SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            value_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "lth_value_destroyed".to_string()),
+            value_destroyed: AverageBlockCumulativeSumPattern::new(
+                client.clone(),
+                "lth_value_destroyed".to_string(),
+            ),
             ratio: _1m1w1y24hPattern::new(client.clone(), "lth_sopr".to_string()),
         }
     }
@@ -8602,29 +11519,98 @@ pub struct SeriesTree_Cohorts_Utxo_AgeRange {
 impl SeriesTree_Cohorts_Utxo_AgeRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            under_1h: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_1h_old".to_string()),
-            _1h_to_1d: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_1h_to_1d_old".to_string()),
-            _1d_to_1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_1d_to_1w_old".to_string()),
-            _1w_to_1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_1w_to_1m_old".to_string()),
-            _1m_to_2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_1m_to_2m_old".to_string()),
-            _2m_to_3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_2m_to_3m_old".to_string()),
-            _3m_to_4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_3m_to_4m_old".to_string()),
-            _4m_to_5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_4m_to_5m_old".to_string()),
-            _5m_to_6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_5m_to_6m_old".to_string()),
-            _6m_to_9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_6m_to_9m_old".to_string()),
-            _9m_to_1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_9m_to_1y_old".to_string()),
-            _1y_to_18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_1y_to_18m_old".to_string()),
-            _18m_to_2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_18m_to_2y_old".to_string()),
-            _2y_to_3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_2y_to_3y_old".to_string()),
-            _3y_to_4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_3y_to_4y_old".to_string()),
-            _4y_to_5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_4y_to_5y_old".to_string()),
-            _5y_to_6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_5y_to_6y_old".to_string()),
-            _6y_to_7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_6y_to_7y_old".to_string()),
-            _7y_to_8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_7y_to_8y_old".to_string()),
-            _8y_to_10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_8y_to_10y_old".to_string()),
-            _10y_to_12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_10y_to_12y_old".to_string()),
-            _12y_to_15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_12y_to_15y_old".to_string()),
-            over_15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_15y_old".to_string()),
+            under_1h: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_1h_old".to_string(),
+            ),
+            _1h_to_1d: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_1h_to_1d_old".to_string(),
+            ),
+            _1d_to_1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_1d_to_1w_old".to_string(),
+            ),
+            _1w_to_1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_1w_to_1m_old".to_string(),
+            ),
+            _1m_to_2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_1m_to_2m_old".to_string(),
+            ),
+            _2m_to_3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_2m_to_3m_old".to_string(),
+            ),
+            _3m_to_4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_3m_to_4m_old".to_string(),
+            ),
+            _4m_to_5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_4m_to_5m_old".to_string(),
+            ),
+            _5m_to_6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_5m_to_6m_old".to_string(),
+            ),
+            _6m_to_9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_6m_to_9m_old".to_string(),
+            ),
+            _9m_to_1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_9m_to_1y_old".to_string(),
+            ),
+            _1y_to_18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_1y_to_18m_old".to_string(),
+            ),
+            _18m_to_2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_18m_to_2y_old".to_string(),
+            ),
+            _2y_to_3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_2y_to_3y_old".to_string(),
+            ),
+            _3y_to_4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_3y_to_4y_old".to_string(),
+            ),
+            _4y_to_5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_4y_to_5y_old".to_string(),
+            ),
+            _5y_to_6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_5y_to_6y_old".to_string(),
+            ),
+            _6y_to_7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_6y_to_7y_old".to_string(),
+            ),
+            _7y_to_8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_7y_to_8y_old".to_string(),
+            ),
+            _8y_to_10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_8y_to_10y_old".to_string(),
+            ),
+            _10y_to_12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_10y_to_12y_old".to_string(),
+            ),
+            _12y_to_15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_12y_to_15y_old".to_string(),
+            ),
+            over_15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_15y_old".to_string(),
+            ),
         }
     }
 }
@@ -8656,26 +11642,86 @@ pub struct SeriesTree_Cohorts_Utxo_UnderAge {
 impl SeriesTree_Cohorts_Utxo_UnderAge {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_1w_old".to_string()),
-            _1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_1m_old".to_string()),
-            _2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_2m_old".to_string()),
-            _3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_3m_old".to_string()),
-            _4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_4m_old".to_string()),
-            _5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_5m_old".to_string()),
-            _6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_6m_old".to_string()),
-            _9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_9m_old".to_string()),
-            _1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_1y_old".to_string()),
-            _18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_18m_old".to_string()),
-            _2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_2y_old".to_string()),
-            _3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_3y_old".to_string()),
-            _4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_4y_old".to_string()),
-            _5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_5y_old".to_string()),
-            _6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_6y_old".to_string()),
-            _7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_7y_old".to_string()),
-            _8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_8y_old".to_string()),
-            _10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_10y_old".to_string()),
-            _12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_12y_old".to_string()),
-            _15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_under_15y_old".to_string()),
+            _1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_1w_old".to_string(),
+            ),
+            _1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_1m_old".to_string(),
+            ),
+            _2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_2m_old".to_string(),
+            ),
+            _3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_3m_old".to_string(),
+            ),
+            _4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_4m_old".to_string(),
+            ),
+            _5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_5m_old".to_string(),
+            ),
+            _6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_6m_old".to_string(),
+            ),
+            _9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_9m_old".to_string(),
+            ),
+            _1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_1y_old".to_string(),
+            ),
+            _18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_18m_old".to_string(),
+            ),
+            _2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_2y_old".to_string(),
+            ),
+            _3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_3y_old".to_string(),
+            ),
+            _4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_4y_old".to_string(),
+            ),
+            _5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_5y_old".to_string(),
+            ),
+            _6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_6y_old".to_string(),
+            ),
+            _7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_7y_old".to_string(),
+            ),
+            _8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_8y_old".to_string(),
+            ),
+            _10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_10y_old".to_string(),
+            ),
+            _12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_12y_old".to_string(),
+            ),
+            _15y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_under_15y_old".to_string(),
+            ),
         }
     }
 }
@@ -8707,26 +11753,86 @@ pub struct SeriesTree_Cohorts_Utxo_OverAge {
 impl SeriesTree_Cohorts_Utxo_OverAge {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _1d: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_1d_old".to_string()),
-            _1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_1w_old".to_string()),
-            _1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_1m_old".to_string()),
-            _2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_2m_old".to_string()),
-            _3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_3m_old".to_string()),
-            _4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_4m_old".to_string()),
-            _5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_5m_old".to_string()),
-            _6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_6m_old".to_string()),
-            _9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_9m_old".to_string()),
-            _1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_1y_old".to_string()),
-            _18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_18m_old".to_string()),
-            _2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_2y_old".to_string()),
-            _3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_3y_old".to_string()),
-            _4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_4y_old".to_string()),
-            _5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_5y_old".to_string()),
-            _6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_6y_old".to_string()),
-            _7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_7y_old".to_string()),
-            _8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_8y_old".to_string()),
-            _10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_10y_old".to_string()),
-            _12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_12y_old".to_string()),
+            _1d: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_1d_old".to_string(),
+            ),
+            _1w: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_1w_old".to_string(),
+            ),
+            _1m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_1m_old".to_string(),
+            ),
+            _2m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_2m_old".to_string(),
+            ),
+            _3m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_3m_old".to_string(),
+            ),
+            _4m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_4m_old".to_string(),
+            ),
+            _5m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_5m_old".to_string(),
+            ),
+            _6m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_6m_old".to_string(),
+            ),
+            _9m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_9m_old".to_string(),
+            ),
+            _1y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_1y_old".to_string(),
+            ),
+            _18m: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_18m_old".to_string(),
+            ),
+            _2y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_2y_old".to_string(),
+            ),
+            _3y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_3y_old".to_string(),
+            ),
+            _4y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_4y_old".to_string(),
+            ),
+            _5y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_5y_old".to_string(),
+            ),
+            _6y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_6y_old".to_string(),
+            ),
+            _7y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_7y_old".to_string(),
+            ),
+            _8y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_8y_old".to_string(),
+            ),
+            _10y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_10y_old".to_string(),
+            ),
+            _12y: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_12y_old".to_string(),
+            ),
         }
     }
 }
@@ -8743,11 +11849,26 @@ pub struct SeriesTree_Cohorts_Utxo_Epoch {
 impl SeriesTree_Cohorts_Utxo_Epoch {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _0: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "epoch_0".to_string()),
-            _1: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "epoch_1".to_string()),
-            _2: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "epoch_2".to_string()),
-            _3: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "epoch_3".to_string()),
-            _4: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "epoch_4".to_string()),
+            _0: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "epoch_0".to_string(),
+            ),
+            _1: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "epoch_1".to_string(),
+            ),
+            _2: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "epoch_2".to_string(),
+            ),
+            _3: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "epoch_3".to_string(),
+            ),
+            _4: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "epoch_4".to_string(),
+            ),
         }
     }
 }
@@ -8777,24 +11898,78 @@ pub struct SeriesTree_Cohorts_Utxo_Class {
 impl SeriesTree_Cohorts_Utxo_Class {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _2009: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2009".to_string()),
-            _2010: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2010".to_string()),
-            _2011: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2011".to_string()),
-            _2012: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2012".to_string()),
-            _2013: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2013".to_string()),
-            _2014: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2014".to_string()),
-            _2015: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2015".to_string()),
-            _2016: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2016".to_string()),
-            _2017: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2017".to_string()),
-            _2018: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2018".to_string()),
-            _2019: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2019".to_string()),
-            _2020: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2020".to_string()),
-            _2021: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2021".to_string()),
-            _2022: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2022".to_string()),
-            _2023: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2023".to_string()),
-            _2024: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2024".to_string()),
-            _2025: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2025".to_string()),
-            _2026: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "class_2026".to_string()),
+            _2009: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2009".to_string(),
+            ),
+            _2010: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2010".to_string(),
+            ),
+            _2011: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2011".to_string(),
+            ),
+            _2012: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2012".to_string(),
+            ),
+            _2013: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2013".to_string(),
+            ),
+            _2014: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2014".to_string(),
+            ),
+            _2015: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2015".to_string(),
+            ),
+            _2016: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2016".to_string(),
+            ),
+            _2017: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2017".to_string(),
+            ),
+            _2018: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2018".to_string(),
+            ),
+            _2019: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2019".to_string(),
+            ),
+            _2020: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2020".to_string(),
+            ),
+            _2021: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2021".to_string(),
+            ),
+            _2022: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2022".to_string(),
+            ),
+            _2023: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2023".to_string(),
+            ),
+            _2024: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2024".to_string(),
+            ),
+            _2025: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2025".to_string(),
+            ),
+            _2026: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "class_2026".to_string(),
+            ),
         }
     }
 }
@@ -8808,8 +11983,14 @@ pub struct SeriesTree_Cohorts_Utxo_Entry {
 impl SeriesTree_Cohorts_Utxo_Entry {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            discount: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "veteran".to_string()),
-            premium: ActivityOutputsRealizedSupplyUnrealizedPattern::new(client.clone(), "rookie".to_string()),
+            discount: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "veteran".to_string(),
+            ),
+            premium: ActivityOutputsRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "rookie".to_string(),
+            ),
         }
     }
 }
@@ -8834,19 +12015,58 @@ pub struct SeriesTree_Cohorts_Utxo_OverAmount {
 impl SeriesTree_Cohorts_Utxo_OverAmount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _1sat: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_1sat".to_string()),
-            _10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_10sats".to_string()),
-            _100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_100sats".to_string()),
-            _1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_1k_sats".to_string()),
-            _10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_10k_sats".to_string()),
-            _100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_100k_sats".to_string()),
-            _1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_1m_sats".to_string()),
-            _10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_10m_sats".to_string()),
-            _1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_1btc".to_string()),
-            _10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_10btc".to_string()),
-            _100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_100btc".to_string()),
-            _1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_1k_btc".to_string()),
-            _10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_10k_btc".to_string()),
+            _1sat: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_1sat".to_string(),
+            ),
+            _10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_10sats".to_string(),
+            ),
+            _100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_100sats".to_string(),
+            ),
+            _1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_1k_sats".to_string(),
+            ),
+            _10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_10k_sats".to_string(),
+            ),
+            _100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_100k_sats".to_string(),
+            ),
+            _1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_1m_sats".to_string(),
+            ),
+            _10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_10m_sats".to_string(),
+            ),
+            _1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_1btc".to_string(),
+            ),
+            _10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_10btc".to_string(),
+            ),
+            _100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_100btc".to_string(),
+            ),
+            _1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_1k_btc".to_string(),
+            ),
+            _10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_10k_btc".to_string(),
+            ),
         }
     }
 }
@@ -8873,21 +12093,66 @@ pub struct SeriesTree_Cohorts_Utxo_AmountRange {
 impl SeriesTree_Cohorts_Utxo_AmountRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _0sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_0sats".to_string()),
-            _1sat_to_10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_1sat_to_10sats".to_string()),
-            _10sats_to_100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_10sats_to_100sats".to_string()),
-            _100sats_to_1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_100sats_to_1k_sats".to_string()),
-            _1k_sats_to_10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_1k_sats_to_10k_sats".to_string()),
-            _10k_sats_to_100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_10k_sats_to_100k_sats".to_string()),
-            _100k_sats_to_1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_100k_sats_to_1m_sats".to_string()),
-            _1m_sats_to_10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_1m_sats_to_10m_sats".to_string()),
-            _10m_sats_to_1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_10m_sats_to_1btc".to_string()),
-            _1btc_to_10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_1btc_to_10btc".to_string()),
-            _10btc_to_100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_10btc_to_100btc".to_string()),
-            _100btc_to_1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_100btc_to_1k_btc".to_string()),
-            _1k_btc_to_10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_1k_btc_to_10k_btc".to_string()),
-            _10k_btc_to_100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_10k_btc_to_100k_btc".to_string()),
-            over_100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_over_100k_btc".to_string()),
+            _0sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_0sats".to_string(),
+            ),
+            _1sat_to_10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_1sat_to_10sats".to_string(),
+            ),
+            _10sats_to_100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_10sats_to_100sats".to_string(),
+            ),
+            _100sats_to_1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_100sats_to_1k_sats".to_string(),
+            ),
+            _1k_sats_to_10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_1k_sats_to_10k_sats".to_string(),
+            ),
+            _10k_sats_to_100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_10k_sats_to_100k_sats".to_string(),
+            ),
+            _100k_sats_to_1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_100k_sats_to_1m_sats".to_string(),
+            ),
+            _1m_sats_to_10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_1m_sats_to_10m_sats".to_string(),
+            ),
+            _10m_sats_to_1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_10m_sats_to_1btc".to_string(),
+            ),
+            _1btc_to_10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_1btc_to_10btc".to_string(),
+            ),
+            _10btc_to_100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_10btc_to_100btc".to_string(),
+            ),
+            _100btc_to_1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_100btc_to_1k_btc".to_string(),
+            ),
+            _1k_btc_to_10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_1k_btc_to_10k_btc".to_string(),
+            ),
+            _10k_btc_to_100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_10k_btc_to_100k_btc".to_string(),
+            ),
+            over_100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_over_100k_btc".to_string(),
+            ),
         }
     }
 }
@@ -8912,19 +12177,58 @@ pub struct SeriesTree_Cohorts_Utxo_UnderAmount {
 impl SeriesTree_Cohorts_Utxo_UnderAmount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_10sats".to_string()),
-            _100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_100sats".to_string()),
-            _1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_1k_sats".to_string()),
-            _10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_10k_sats".to_string()),
-            _100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_100k_sats".to_string()),
-            _1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_1m_sats".to_string()),
-            _10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_10m_sats".to_string()),
-            _1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_1btc".to_string()),
-            _10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_10btc".to_string()),
-            _100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_100btc".to_string()),
-            _1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_1k_btc".to_string()),
-            _10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_10k_btc".to_string()),
-            _100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(client.clone(), "utxos_under_100k_btc".to_string()),
+            _10sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_10sats".to_string(),
+            ),
+            _100sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_100sats".to_string(),
+            ),
+            _1k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_1k_sats".to_string(),
+            ),
+            _10k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_10k_sats".to_string(),
+            ),
+            _100k_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_100k_sats".to_string(),
+            ),
+            _1m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_1m_sats".to_string(),
+            ),
+            _10m_sats: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_10m_sats".to_string(),
+            ),
+            _1btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_1btc".to_string(),
+            ),
+            _10btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_10btc".to_string(),
+            ),
+            _100btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_100btc".to_string(),
+            ),
+            _1k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_1k_btc".to_string(),
+            ),
+            _10k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_10k_btc".to_string(),
+            ),
+            _100k_btc: ActivityOutputsRealizedSupplyUnrealizedPattern2::new(
+                client.clone(),
+                "utxos_under_100k_btc".to_string(),
+            ),
         }
     }
 }
@@ -8947,17 +12251,50 @@ pub struct SeriesTree_Cohorts_Utxo_Type {
 impl SeriesTree_Cohorts_Utxo_Type {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            p2pk65: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2pk65".to_string()),
-            p2pk33: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2pk33".to_string()),
-            p2pkh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2pkh".to_string()),
-            p2ms: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2ms".to_string()),
-            p2sh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2sh".to_string()),
-            p2wpkh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2wpkh".to_string()),
-            p2wsh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2wsh".to_string()),
-            p2tr: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2tr".to_string()),
-            p2a: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "p2a".to_string()),
-            unknown: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "unknown_outputs".to_string()),
-            empty: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(client.clone(), "empty_outputs".to_string()),
+            p2pk65: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2pk65".to_string(),
+            ),
+            p2pk33: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2pk33".to_string(),
+            ),
+            p2pkh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2pkh".to_string(),
+            ),
+            p2ms: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2ms".to_string(),
+            ),
+            p2sh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2sh".to_string(),
+            ),
+            p2wpkh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2wpkh".to_string(),
+            ),
+            p2wsh: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2wsh".to_string(),
+            ),
+            p2tr: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2tr".to_string(),
+            ),
+            p2a: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "p2a".to_string(),
+            ),
+            unknown: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "unknown_outputs".to_string(),
+            ),
+            empty: ActivityOutputsRealizedSupplyUnrealizedPattern3::new(
+                client.clone(),
+                "empty_outputs".to_string(),
+            ),
         }
     }
 }
@@ -8972,9 +12309,18 @@ pub struct SeriesTree_Cohorts_Utxo_Profitability {
 impl SeriesTree_Cohorts_Utxo_Profitability {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            range: SeriesTree_Cohorts_Utxo_Profitability_Range::new(client.clone(), format!("{base_path}_range")),
-            profit: SeriesTree_Cohorts_Utxo_Profitability_Profit::new(client.clone(), format!("{base_path}_profit")),
-            loss: SeriesTree_Cohorts_Utxo_Profitability_Loss::new(client.clone(), format!("{base_path}_loss")),
+            range: SeriesTree_Cohorts_Utxo_Profitability_Range::new(
+                client.clone(),
+                format!("{base_path}_range"),
+            ),
+            profit: SeriesTree_Cohorts_Utxo_Profitability_Profit::new(
+                client.clone(),
+                format!("{base_path}_profit"),
+            ),
+            loss: SeriesTree_Cohorts_Utxo_Profitability_Loss::new(
+                client.clone(),
+                format!("{base_path}_loss"),
+            ),
         }
     }
 }
@@ -9011,31 +12357,106 @@ pub struct SeriesTree_Cohorts_Utxo_Profitability_Range {
 impl SeriesTree_Cohorts_Utxo_Profitability_Range {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            over_1000pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_1000pct_in_profit".to_string()),
-            _500pct_to_1000pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_500pct_to_1000pct_in_profit".to_string()),
-            _300pct_to_500pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_300pct_to_500pct_in_profit".to_string()),
-            _200pct_to_300pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_200pct_to_300pct_in_profit".to_string()),
-            _100pct_to_200pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_100pct_to_200pct_in_profit".to_string()),
-            _90pct_to_100pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_90pct_to_100pct_in_profit".to_string()),
-            _80pct_to_90pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_80pct_to_90pct_in_profit".to_string()),
-            _70pct_to_80pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_70pct_to_80pct_in_profit".to_string()),
-            _60pct_to_70pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_60pct_to_70pct_in_profit".to_string()),
-            _50pct_to_60pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_50pct_to_60pct_in_profit".to_string()),
-            _40pct_to_50pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_40pct_to_50pct_in_profit".to_string()),
-            _30pct_to_40pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_30pct_to_40pct_in_profit".to_string()),
-            _20pct_to_30pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_20pct_to_30pct_in_profit".to_string()),
-            _10pct_to_20pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_10pct_to_20pct_in_profit".to_string()),
-            _0pct_to_10pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_0pct_to_10pct_in_profit".to_string()),
-            _0pct_to_10pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_0pct_to_10pct_in_loss".to_string()),
-            _10pct_to_20pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_10pct_to_20pct_in_loss".to_string()),
-            _20pct_to_30pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_20pct_to_30pct_in_loss".to_string()),
-            _30pct_to_40pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_30pct_to_40pct_in_loss".to_string()),
-            _40pct_to_50pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_40pct_to_50pct_in_loss".to_string()),
-            _50pct_to_60pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_50pct_to_60pct_in_loss".to_string()),
-            _60pct_to_70pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_60pct_to_70pct_in_loss".to_string()),
-            _70pct_to_80pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_70pct_to_80pct_in_loss".to_string()),
-            _80pct_to_90pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_80pct_to_90pct_in_loss".to_string()),
-            _90pct_to_100pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_90pct_to_100pct_in_loss".to_string()),
+            over_1000pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_1000pct_in_profit".to_string(),
+            ),
+            _500pct_to_1000pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_500pct_to_1000pct_in_profit".to_string(),
+            ),
+            _300pct_to_500pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_300pct_to_500pct_in_profit".to_string(),
+            ),
+            _200pct_to_300pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_200pct_to_300pct_in_profit".to_string(),
+            ),
+            _100pct_to_200pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_100pct_to_200pct_in_profit".to_string(),
+            ),
+            _90pct_to_100pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_90pct_to_100pct_in_profit".to_string(),
+            ),
+            _80pct_to_90pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_80pct_to_90pct_in_profit".to_string(),
+            ),
+            _70pct_to_80pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_70pct_to_80pct_in_profit".to_string(),
+            ),
+            _60pct_to_70pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_60pct_to_70pct_in_profit".to_string(),
+            ),
+            _50pct_to_60pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_50pct_to_60pct_in_profit".to_string(),
+            ),
+            _40pct_to_50pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_40pct_to_50pct_in_profit".to_string(),
+            ),
+            _30pct_to_40pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_30pct_to_40pct_in_profit".to_string(),
+            ),
+            _20pct_to_30pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_20pct_to_30pct_in_profit".to_string(),
+            ),
+            _10pct_to_20pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_10pct_to_20pct_in_profit".to_string(),
+            ),
+            _0pct_to_10pct_in_profit: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_0pct_to_10pct_in_profit".to_string(),
+            ),
+            _0pct_to_10pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_0pct_to_10pct_in_loss".to_string(),
+            ),
+            _10pct_to_20pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_10pct_to_20pct_in_loss".to_string(),
+            ),
+            _20pct_to_30pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_20pct_to_30pct_in_loss".to_string(),
+            ),
+            _30pct_to_40pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_30pct_to_40pct_in_loss".to_string(),
+            ),
+            _40pct_to_50pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_40pct_to_50pct_in_loss".to_string(),
+            ),
+            _50pct_to_60pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_50pct_to_60pct_in_loss".to_string(),
+            ),
+            _60pct_to_70pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_60pct_to_70pct_in_loss".to_string(),
+            ),
+            _70pct_to_80pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_70pct_to_80pct_in_loss".to_string(),
+            ),
+            _80pct_to_90pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_80pct_to_90pct_in_loss".to_string(),
+            ),
+            _90pct_to_100pct_in_loss: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_90pct_to_100pct_in_loss".to_string(),
+            ),
         }
     }
 }
@@ -9061,20 +12482,62 @@ pub struct SeriesTree_Cohorts_Utxo_Profitability_Profit {
 impl SeriesTree_Cohorts_Utxo_Profitability_Profit {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            all: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_in_profit".to_string()),
-            _10pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_10pct_in_profit".to_string()),
-            _20pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_20pct_in_profit".to_string()),
-            _30pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_30pct_in_profit".to_string()),
-            _40pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_40pct_in_profit".to_string()),
-            _50pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_50pct_in_profit".to_string()),
-            _60pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_60pct_in_profit".to_string()),
-            _70pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_70pct_in_profit".to_string()),
-            _80pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_80pct_in_profit".to_string()),
-            _90pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_90pct_in_profit".to_string()),
-            _100pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_100pct_in_profit".to_string()),
-            _200pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_200pct_in_profit".to_string()),
-            _300pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_300pct_in_profit".to_string()),
-            _500pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_500pct_in_profit".to_string()),
+            all: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_in_profit".to_string(),
+            ),
+            _10pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_10pct_in_profit".to_string(),
+            ),
+            _20pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_20pct_in_profit".to_string(),
+            ),
+            _30pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_30pct_in_profit".to_string(),
+            ),
+            _40pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_40pct_in_profit".to_string(),
+            ),
+            _50pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_50pct_in_profit".to_string(),
+            ),
+            _60pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_60pct_in_profit".to_string(),
+            ),
+            _70pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_70pct_in_profit".to_string(),
+            ),
+            _80pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_80pct_in_profit".to_string(),
+            ),
+            _90pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_90pct_in_profit".to_string(),
+            ),
+            _100pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_100pct_in_profit".to_string(),
+            ),
+            _200pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_200pct_in_profit".to_string(),
+            ),
+            _300pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_300pct_in_profit".to_string(),
+            ),
+            _500pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_500pct_in_profit".to_string(),
+            ),
         }
     }
 }
@@ -9095,15 +12558,42 @@ pub struct SeriesTree_Cohorts_Utxo_Profitability_Loss {
 impl SeriesTree_Cohorts_Utxo_Profitability_Loss {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            all: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_in_loss".to_string()),
-            _10pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_10pct_in_loss".to_string()),
-            _20pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_20pct_in_loss".to_string()),
-            _30pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_30pct_in_loss".to_string()),
-            _40pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_40pct_in_loss".to_string()),
-            _50pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_50pct_in_loss".to_string()),
-            _60pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_60pct_in_loss".to_string()),
-            _70pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_70pct_in_loss".to_string()),
-            _80pct: NuplRealizedSupplyUnrealizedPattern::new(client.clone(), "utxos_over_80pct_in_loss".to_string()),
+            all: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_in_loss".to_string(),
+            ),
+            _10pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_10pct_in_loss".to_string(),
+            ),
+            _20pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_20pct_in_loss".to_string(),
+            ),
+            _30pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_30pct_in_loss".to_string(),
+            ),
+            _40pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_40pct_in_loss".to_string(),
+            ),
+            _50pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_50pct_in_loss".to_string(),
+            ),
+            _60pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_60pct_in_loss".to_string(),
+            ),
+            _70pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_70pct_in_loss".to_string(),
+            ),
+            _80pct: NuplRealizedSupplyUnrealizedPattern::new(
+                client.clone(),
+                "utxos_over_80pct_in_loss".to_string(),
+            ),
         }
     }
 }
@@ -9138,29 +12628,98 @@ pub struct SeriesTree_Cohorts_Utxo_Matured {
 impl SeriesTree_Cohorts_Utxo_Matured {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            under_1h: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_under_1h_old_matured_supply".to_string()),
-            _1h_to_1d: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1h_to_1d_old_matured_supply".to_string()),
-            _1d_to_1w: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1d_to_1w_old_matured_supply".to_string()),
-            _1w_to_1m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1w_to_1m_old_matured_supply".to_string()),
-            _1m_to_2m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1m_to_2m_old_matured_supply".to_string()),
-            _2m_to_3m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_2m_to_3m_old_matured_supply".to_string()),
-            _3m_to_4m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_3m_to_4m_old_matured_supply".to_string()),
-            _4m_to_5m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_4m_to_5m_old_matured_supply".to_string()),
-            _5m_to_6m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_5m_to_6m_old_matured_supply".to_string()),
-            _6m_to_9m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_6m_to_9m_old_matured_supply".to_string()),
-            _9m_to_1y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_9m_to_1y_old_matured_supply".to_string()),
-            _1y_to_18m: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_1y_to_18m_old_matured_supply".to_string()),
-            _18m_to_2y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_18m_to_2y_old_matured_supply".to_string()),
-            _2y_to_3y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_2y_to_3y_old_matured_supply".to_string()),
-            _3y_to_4y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_3y_to_4y_old_matured_supply".to_string()),
-            _4y_to_5y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_4y_to_5y_old_matured_supply".to_string()),
-            _5y_to_6y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_5y_to_6y_old_matured_supply".to_string()),
-            _6y_to_7y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_6y_to_7y_old_matured_supply".to_string()),
-            _7y_to_8y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_7y_to_8y_old_matured_supply".to_string()),
-            _8y_to_10y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_8y_to_10y_old_matured_supply".to_string()),
-            _10y_to_12y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_10y_to_12y_old_matured_supply".to_string()),
-            _12y_to_15y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_12y_to_15y_old_matured_supply".to_string()),
-            over_15y: AverageBlockCumulativeSumPattern2::new(client.clone(), "utxos_over_15y_old_matured_supply".to_string()),
+            under_1h: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_under_1h_old_matured_supply".to_string(),
+            ),
+            _1h_to_1d: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_1h_to_1d_old_matured_supply".to_string(),
+            ),
+            _1d_to_1w: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_1d_to_1w_old_matured_supply".to_string(),
+            ),
+            _1w_to_1m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_1w_to_1m_old_matured_supply".to_string(),
+            ),
+            _1m_to_2m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_1m_to_2m_old_matured_supply".to_string(),
+            ),
+            _2m_to_3m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_2m_to_3m_old_matured_supply".to_string(),
+            ),
+            _3m_to_4m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_3m_to_4m_old_matured_supply".to_string(),
+            ),
+            _4m_to_5m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_4m_to_5m_old_matured_supply".to_string(),
+            ),
+            _5m_to_6m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_5m_to_6m_old_matured_supply".to_string(),
+            ),
+            _6m_to_9m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_6m_to_9m_old_matured_supply".to_string(),
+            ),
+            _9m_to_1y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_9m_to_1y_old_matured_supply".to_string(),
+            ),
+            _1y_to_18m: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_1y_to_18m_old_matured_supply".to_string(),
+            ),
+            _18m_to_2y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_18m_to_2y_old_matured_supply".to_string(),
+            ),
+            _2y_to_3y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_2y_to_3y_old_matured_supply".to_string(),
+            ),
+            _3y_to_4y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_3y_to_4y_old_matured_supply".to_string(),
+            ),
+            _4y_to_5y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_4y_to_5y_old_matured_supply".to_string(),
+            ),
+            _5y_to_6y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_5y_to_6y_old_matured_supply".to_string(),
+            ),
+            _6y_to_7y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_6y_to_7y_old_matured_supply".to_string(),
+            ),
+            _7y_to_8y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_7y_to_8y_old_matured_supply".to_string(),
+            ),
+            _8y_to_10y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_8y_to_10y_old_matured_supply".to_string(),
+            ),
+            _10y_to_12y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_10y_to_12y_old_matured_supply".to_string(),
+            ),
+            _12y_to_15y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_12y_to_15y_old_matured_supply".to_string(),
+            ),
+            over_15y: AverageBlockCumulativeSumPattern2::new(
+                client.clone(),
+                "utxos_over_15y_old_matured_supply".to_string(),
+            ),
         }
     }
 }
@@ -9175,9 +12734,18 @@ pub struct SeriesTree_Cohorts_Addr {
 impl SeriesTree_Cohorts_Addr {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            over_amount: SeriesTree_Cohorts_Addr_OverAmount::new(client.clone(), format!("{base_path}_over_amount")),
-            amount_range: SeriesTree_Cohorts_Addr_AmountRange::new(client.clone(), format!("{base_path}_amount_range")),
-            under_amount: SeriesTree_Cohorts_Addr_UnderAmount::new(client.clone(), format!("{base_path}_under_amount")),
+            over_amount: SeriesTree_Cohorts_Addr_OverAmount::new(
+                client.clone(),
+                format!("{base_path}_over_amount"),
+            ),
+            amount_range: SeriesTree_Cohorts_Addr_AmountRange::new(
+                client.clone(),
+                format!("{base_path}_amount_range"),
+            ),
+            under_amount: SeriesTree_Cohorts_Addr_UnderAmount::new(
+                client.clone(),
+                format!("{base_path}_under_amount"),
+            ),
         }
     }
 }
@@ -9202,19 +12770,58 @@ pub struct SeriesTree_Cohorts_Addr_OverAmount {
 impl SeriesTree_Cohorts_Addr_OverAmount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _1sat: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_1sat".to_string()),
-            _10sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_10sats".to_string()),
-            _100sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_100sats".to_string()),
-            _1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_1k_sats".to_string()),
-            _10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_10k_sats".to_string()),
-            _100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_100k_sats".to_string()),
-            _1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_1m_sats".to_string()),
-            _10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_10m_sats".to_string()),
-            _1btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_1btc".to_string()),
-            _10btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_10btc".to_string()),
-            _100btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_100btc".to_string()),
-            _1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_1k_btc".to_string()),
-            _10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_10k_btc".to_string()),
+            _1sat: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_1sat".to_string(),
+            ),
+            _10sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_10sats".to_string(),
+            ),
+            _100sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_100sats".to_string(),
+            ),
+            _1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_1k_sats".to_string(),
+            ),
+            _10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_10k_sats".to_string(),
+            ),
+            _100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_100k_sats".to_string(),
+            ),
+            _1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_1m_sats".to_string(),
+            ),
+            _10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_10m_sats".to_string(),
+            ),
+            _1btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_1btc".to_string(),
+            ),
+            _10btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_10btc".to_string(),
+            ),
+            _100btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_100btc".to_string(),
+            ),
+            _1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_1k_btc".to_string(),
+            ),
+            _10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_10k_btc".to_string(),
+            ),
         }
     }
 }
@@ -9241,21 +12848,66 @@ pub struct SeriesTree_Cohorts_Addr_AmountRange {
 impl SeriesTree_Cohorts_Addr_AmountRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _0sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_0sats".to_string()),
-            _1sat_to_10sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_1sat_to_10sats".to_string()),
-            _10sats_to_100sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_10sats_to_100sats".to_string()),
-            _100sats_to_1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_100sats_to_1k_sats".to_string()),
-            _1k_sats_to_10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_1k_sats_to_10k_sats".to_string()),
-            _10k_sats_to_100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_10k_sats_to_100k_sats".to_string()),
-            _100k_sats_to_1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_100k_sats_to_1m_sats".to_string()),
-            _1m_sats_to_10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_1m_sats_to_10m_sats".to_string()),
-            _10m_sats_to_1btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_10m_sats_to_1btc".to_string()),
-            _1btc_to_10btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_1btc_to_10btc".to_string()),
-            _10btc_to_100btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_10btc_to_100btc".to_string()),
-            _100btc_to_1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_100btc_to_1k_btc".to_string()),
-            _1k_btc_to_10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_1k_btc_to_10k_btc".to_string()),
-            _10k_btc_to_100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_10k_btc_to_100k_btc".to_string()),
-            over_100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_over_100k_btc".to_string()),
+            _0sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_0sats".to_string(),
+            ),
+            _1sat_to_10sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_1sat_to_10sats".to_string(),
+            ),
+            _10sats_to_100sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_10sats_to_100sats".to_string(),
+            ),
+            _100sats_to_1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_100sats_to_1k_sats".to_string(),
+            ),
+            _1k_sats_to_10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_1k_sats_to_10k_sats".to_string(),
+            ),
+            _10k_sats_to_100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_10k_sats_to_100k_sats".to_string(),
+            ),
+            _100k_sats_to_1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_100k_sats_to_1m_sats".to_string(),
+            ),
+            _1m_sats_to_10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_1m_sats_to_10m_sats".to_string(),
+            ),
+            _10m_sats_to_1btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_10m_sats_to_1btc".to_string(),
+            ),
+            _1btc_to_10btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_1btc_to_10btc".to_string(),
+            ),
+            _10btc_to_100btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_10btc_to_100btc".to_string(),
+            ),
+            _100btc_to_1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_100btc_to_1k_btc".to_string(),
+            ),
+            _1k_btc_to_10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_1k_btc_to_10k_btc".to_string(),
+            ),
+            _10k_btc_to_100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_10k_btc_to_100k_btc".to_string(),
+            ),
+            over_100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_over_100k_btc".to_string(),
+            ),
         }
     }
 }
@@ -9280,19 +12932,58 @@ pub struct SeriesTree_Cohorts_Addr_UnderAmount {
 impl SeriesTree_Cohorts_Addr_UnderAmount {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            _10sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10sats".to_string()),
-            _100sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_100sats".to_string()),
-            _1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_1k_sats".to_string()),
-            _10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10k_sats".to_string()),
-            _100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_100k_sats".to_string()),
-            _1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_1m_sats".to_string()),
-            _10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10m_sats".to_string()),
-            _1btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_1btc".to_string()),
-            _10btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10btc".to_string()),
-            _100btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_100btc".to_string()),
-            _1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_1k_btc".to_string()),
-            _10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10k_btc".to_string()),
-            _100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_100k_btc".to_string()),
+            _10sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_10sats".to_string(),
+            ),
+            _100sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_100sats".to_string(),
+            ),
+            _1k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_1k_sats".to_string(),
+            ),
+            _10k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_10k_sats".to_string(),
+            ),
+            _100k_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_100k_sats".to_string(),
+            ),
+            _1m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_1m_sats".to_string(),
+            ),
+            _10m_sats: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_10m_sats".to_string(),
+            ),
+            _1btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_1btc".to_string(),
+            ),
+            _10btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_10btc".to_string(),
+            ),
+            _100btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_100btc".to_string(),
+            ),
+            _1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_1k_btc".to_string(),
+            ),
+            _10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_10k_btc".to_string(),
+            ),
+            _100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(
+                client.clone(),
+                "addrs_under_100k_btc".to_string(),
+            ),
         }
     }
 }
@@ -9337,20 +13028,26 @@ impl BrkClient {
     ///     .last(10)
     ///     .json::<f64>()?;
     /// ```
-    pub fn series_endpoint(&self, series: impl Into<SeriesName>, index: Index) -> SeriesEndpoint<serde_json::Value> {
-        SeriesEndpoint::new(
-            self.base.clone(),
-            Arc::from(series.into().as_str()),
-            index,
-        )
+    pub fn series_endpoint(
+        &self,
+        series: impl Into<SeriesName>,
+        index: Index,
+    ) -> SeriesEndpoint<serde_json::Value> {
+        SeriesEndpoint::new(self.base.clone(), Arc::from(series.into().as_str()), index)
     }
 
     /// Create a dynamic date-based series endpoint builder.
     ///
     /// Returns `Err` if the index is not date-based.
-    pub fn date_series_endpoint(&self, series: impl Into<SeriesName>, index: Index) -> Result<DateSeriesEndpoint<serde_json::Value>> {
+    pub fn date_series_endpoint(
+        &self,
+        series: impl Into<SeriesName>,
+        index: Index,
+    ) -> Result<DateSeriesEndpoint<serde_json::Value>> {
         if !index.is_date_based() {
-            return Err(BrkError { message: format!("{} is not a date-based index", index.name()) });
+            return Err(BrkError {
+                message: format!("{} is not a date-based index", index.name()),
+            });
         }
         Ok(DateSeriesEndpoint::new(
             self.base.clone(),
@@ -9375,14 +13072,23 @@ impl BrkClient {
     }
 
     /// Fetch address hash-prefix matches from raw payload bytes matching `addr_type` length.
-    pub fn get_address_payload_hash_prefix_matches(&self, addr_type: OutputType, payload: &[u8], nibbles: usize) -> Result<AddrHashPrefixMatches> {
+    pub fn get_address_payload_hash_prefix_matches(
+        &self,
+        addr_type: OutputType,
+        payload: &[u8],
+        nibbles: usize,
+    ) -> Result<AddrHashPrefixMatches> {
         validate_address_payload_for_type(addr_type, payload)?;
         let prefix = address_payload_hash_prefix(payload, nibbles)?;
         self.get_address_hash_prefix_matches(addr_type, &prefix)
     }
 
     /// Fetch address hash-prefix matches for a mainnet Bitcoin address.
-    pub fn get_address_hash_prefix_matches_for_address(&self, address: &str, nibbles: usize) -> Result<AddrHashPrefixMatches> {
+    pub fn get_address_hash_prefix_matches_for_address(
+        &self,
+        address: &str,
+        nibbles: usize,
+    ) -> Result<AddrHashPrefixMatches> {
         let hashed = address_hash_prefix(address, nibbles)?;
         self.get_address_hash_prefix_matches(hashed.addr_type, &hashed.prefix)
     }
@@ -9457,9 +13163,17 @@ impl BrkClient {
     /// Endpoint: `GET /api/series/list`
     pub fn list_series(&self, page: Option<i64>, per_page: Option<i64>) -> Result<PaginatedSeries> {
         let mut query = Vec::new();
-        if let Some(v) = page { query.push(format!("page={}", v)); }
-        if let Some(v) = per_page { query.push(format!("per_page={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = page {
+            query.push(format!("page={}", v));
+        }
+        if let Some(v) = per_page {
+            query.push(format!("per_page={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/series/list{}", query_str);
         self.base.get_json(&path)
     }
@@ -9472,8 +13186,14 @@ impl BrkClient {
     pub fn search_series(&self, q: SeriesName, limit: Option<Limit>) -> Result<Vec<String>> {
         let mut query = Vec::new();
         query.push(format!("q={}", q));
-        if let Some(v) = limit { query.push(format!("limit={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = limit {
+            query.push(format!("limit={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/series/search{}", query_str);
         self.base.get_json(&path)
     }
@@ -9492,13 +13212,33 @@ impl BrkClient {
     /// Fetch data for a specific series at the given index. Use query parameters to filter by date range and format (json/csv).
     ///
     /// Endpoint: `GET /api/series/{series}/{index}`
-    pub fn get_series(&self, series: SeriesName, index: Index, start: Option<RangeIndex>, end: Option<RangeIndex>, limit: Option<Limit>, format: Option<Format>) -> Result<FormatResponse<SeriesData>> {
+    pub fn get_series(
+        &self,
+        series: SeriesName,
+        index: Index,
+        start: Option<RangeIndex>,
+        end: Option<RangeIndex>,
+        limit: Option<Limit>,
+        format: Option<Format>,
+    ) -> Result<FormatResponse<SeriesData>> {
         let mut query = Vec::new();
-        if let Some(v) = start { query.push(format!("start={}", v)); }
-        if let Some(v) = end { query.push(format!("end={}", v)); }
-        if let Some(v) = limit { query.push(format!("limit={}", v)); }
-        if let Some(v) = format { query.push(format!("format={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = start {
+            query.push(format!("start={}", v));
+        }
+        if let Some(v) = end {
+            query.push(format!("end={}", v));
+        }
+        if let Some(v) = limit {
+            query.push(format!("limit={}", v));
+        }
+        if let Some(v) = format {
+            query.push(format!("format={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/series/{series}/{}{}", index.name(), query_str);
         if format == Some(Format::CSV) {
             self.base.get_text(&path).map(FormatResponse::Csv)
@@ -9512,13 +13252,33 @@ impl BrkClient {
     /// Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as the standard endpoint.
     ///
     /// Endpoint: `GET /api/series/{series}/{index}/data`
-    pub fn get_series_data(&self, series: SeriesName, index: Index, start: Option<RangeIndex>, end: Option<RangeIndex>, limit: Option<Limit>, format: Option<Format>) -> Result<FormatResponse<Vec<bool>>> {
+    pub fn get_series_data(
+        &self,
+        series: SeriesName,
+        index: Index,
+        start: Option<RangeIndex>,
+        end: Option<RangeIndex>,
+        limit: Option<Limit>,
+        format: Option<Format>,
+    ) -> Result<FormatResponse<Vec<bool>>> {
         let mut query = Vec::new();
-        if let Some(v) = start { query.push(format!("start={}", v)); }
-        if let Some(v) = end { query.push(format!("end={}", v)); }
-        if let Some(v) = limit { query.push(format!("limit={}", v)); }
-        if let Some(v) = format { query.push(format!("format={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = start {
+            query.push(format!("start={}", v));
+        }
+        if let Some(v) = end {
+            query.push(format!("end={}", v));
+        }
+        if let Some(v) = limit {
+            query.push(format!("limit={}", v));
+        }
+        if let Some(v) = format {
+            query.push(format!("format={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/series/{series}/{}/data{}", index.name(), query_str);
         if format == Some(Format::CSV) {
             self.base.get_text(&path).map(FormatResponse::Csv)
@@ -9533,7 +13293,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/series/{series}/{index}/latest`
     pub fn get_series_latest(&self, series: SeriesName, index: Index) -> Result<serde_json::Value> {
-        self.base.get_json(&format!("/api/series/{series}/{}/latest", index.name()))
+        self.base
+            .get_json(&format!("/api/series/{series}/{}/latest", index.name()))
     }
 
     /// Get series data length
@@ -9542,7 +13303,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/series/{series}/{index}/len`
     pub fn get_series_len(&self, series: SeriesName, index: Index) -> Result<i64> {
-        self.base.get_json(&format!("/api/series/{series}/{}/len", index.name()))
+        self.base
+            .get_json(&format!("/api/series/{series}/{}/len", index.name()))
     }
 
     /// Get series version
@@ -9551,7 +13313,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/series/{series}/{index}/version`
     pub fn get_series_version(&self, series: SeriesName, index: Index) -> Result<Version> {
-        self.base.get_json(&format!("/api/series/{series}/{}/version", index.name()))
+        self.base
+            .get_json(&format!("/api/series/{series}/{}/version", index.name()))
     }
 
     /// Bulk series data
@@ -9559,15 +13322,35 @@ impl BrkClient {
     /// Fetch multiple series in a single request. Supports filtering by index and date range. Returns an array of SeriesData objects. For a single series, use `get_series` instead.
     ///
     /// Endpoint: `GET /api/series/bulk`
-    pub fn get_series_bulk(&self, series: SeriesList, index: Index, start: Option<RangeIndex>, end: Option<RangeIndex>, limit: Option<Limit>, format: Option<Format>) -> Result<FormatResponse<Vec<SeriesData>>> {
+    pub fn get_series_bulk(
+        &self,
+        series: SeriesList,
+        index: Index,
+        start: Option<RangeIndex>,
+        end: Option<RangeIndex>,
+        limit: Option<Limit>,
+        format: Option<Format>,
+    ) -> Result<FormatResponse<Vec<SeriesData>>> {
         let mut query = Vec::new();
         query.push(format!("series={}", series));
         query.push(format!("index={}", index));
-        if let Some(v) = start { query.push(format!("start={}", v)); }
-        if let Some(v) = end { query.push(format!("end={}", v)); }
-        if let Some(v) = limit { query.push(format!("limit={}", v)); }
-        if let Some(v) = format { query.push(format!("format={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = start {
+            query.push(format!("start={}", v));
+        }
+        if let Some(v) = end {
+            query.push(format!("end={}", v));
+        }
+        if let Some(v) = limit {
+            query.push(format!("limit={}", v));
+        }
+        if let Some(v) = format {
+            query.push(format!("format={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/series/bulk{}", query_str);
         if format == Some(Format::CSV) {
             self.base.get_text(&path).map(FormatResponse::Csv)
@@ -9603,8 +13386,14 @@ impl BrkClient {
     /// Endpoint: `GET /api/urpd/{cohort}`
     pub fn get_urpd(&self, cohort: Cohort, agg: Option<UrpdAggregation>) -> Result<Urpd> {
         let mut query = Vec::new();
-        if let Some(v) = agg { query.push(format!("agg={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = agg {
+            query.push(format!("agg={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/urpd/{cohort}{}", query_str);
         self.base.get_json(&path)
     }
@@ -9616,10 +13405,21 @@ impl BrkClient {
     /// See the URPD tag description for unit conventions and `agg` options.
     ///
     /// Endpoint: `GET /api/urpd/{cohort}/{date}`
-    pub fn get_urpd_at(&self, cohort: Cohort, date: &str, agg: Option<UrpdAggregation>) -> Result<Urpd> {
+    pub fn get_urpd_at(
+        &self,
+        cohort: Cohort,
+        date: &str,
+        agg: Option<UrpdAggregation>,
+    ) -> Result<Urpd> {
         let mut query = Vec::new();
-        if let Some(v) = agg { query.push(format!("agg={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = agg {
+            query.push(format!("agg={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/urpd/{cohort}/{date}{}", query_str);
         self.base.get_json(&path)
     }
@@ -9632,7 +13432,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/difficulty-adjustment`
     pub fn get_difficulty_adjustment(&self) -> Result<DifficultyAdjustment> {
-        self.base.get_json(&format!("/api/v1/difficulty-adjustment"))
+        self.base
+            .get_json(&format!("/api/v1/difficulty-adjustment"))
     }
 
     /// Current BTC price
@@ -9655,8 +13456,14 @@ impl BrkClient {
     /// Endpoint: `GET /api/v1/historical-price`
     pub fn get_historical_price(&self, timestamp: Option<Timestamp>) -> Result<HistoricalPrice> {
         let mut query = Vec::new();
-        if let Some(v) = timestamp { query.push(format!("timestamp={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        if let Some(v) = timestamp {
+            query.push(format!("timestamp={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/v1/historical-price{}", query_str);
         self.base.get_json(&path)
     }
@@ -9666,9 +13473,14 @@ impl BrkClient {
     /// Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata for the returned addresses through `/api/address/{address}`.
     ///
     /// Endpoint: `GET /api/address/hash-prefix/{addr_type}/{prefix}`
-    pub fn get_address_hash_prefix_matches(&self, addr_type: OutputType, prefix: &str) -> Result<AddrHashPrefixMatches> {
+    pub fn get_address_hash_prefix_matches(
+        &self,
+        addr_type: OutputType,
+        prefix: &str,
+    ) -> Result<AddrHashPrefixMatches> {
         let addr_type = address_payload_type_path(addr_type)?;
-        self.base.get_json(&format!("/api/address/hash-prefix/{addr_type}/{prefix}"))
+        self.base
+            .get_json(&format!("/api/address/hash-prefix/{addr_type}/{prefix}"))
     }
 
     /// Address information
@@ -9701,7 +13513,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/address/{address}/txs/chain`
     pub fn get_address_confirmed_txs(&self, address: Addr) -> Result<Vec<Transaction>> {
-        self.base.get_json(&format!("/api/address/{address}/txs/chain"))
+        self.base
+            .get_json(&format!("/api/address/{address}/txs/chain"))
     }
 
     /// Address confirmed transactions (paginated)
@@ -9711,8 +13524,13 @@ impl BrkClient {
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions-chain)*
     ///
     /// Endpoint: `GET /api/address/{address}/txs/chain/{after_txid}`
-    pub fn get_address_confirmed_txs_after(&self, address: Addr, after_txid: Txid) -> Result<Vec<Transaction>> {
-        self.base.get_json(&format!("/api/address/{address}/txs/chain/{after_txid}"))
+    pub fn get_address_confirmed_txs_after(
+        &self,
+        address: Addr,
+        after_txid: Txid,
+    ) -> Result<Vec<Transaction>> {
+        self.base
+            .get_json(&format!("/api/address/{address}/txs/chain/{after_txid}"))
     }
 
     /// Address mempool transactions
@@ -9723,7 +13541,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/address/{address}/txs/mempool`
     pub fn get_address_mempool_txs(&self, address: Addr) -> Result<Vec<Transaction>> {
-        self.base.get_json(&format!("/api/address/{address}/txs/mempool"))
+        self.base
+            .get_json(&format!("/api/address/{address}/txs/mempool"))
     }
 
     /// Address UTXOs
@@ -9745,7 +13564,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/validate-address/{address}`
     pub fn validate_address(&self, address: &str) -> Result<AddrValidation> {
-        self.base.get_json(&format!("/api/v1/validate-address/{address}"))
+        self.base
+            .get_json(&format!("/api/v1/validate-address/{address}"))
     }
 
     /// Block information
@@ -9800,7 +13620,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/blocks/timestamp/{timestamp}`
     pub fn get_block_by_timestamp(&self, timestamp: Timestamp) -> Result<BlockTimestamp> {
-        self.base.get_json(&format!("/api/v1/mining/blocks/timestamp/{timestamp}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/blocks/timestamp/{timestamp}"))
     }
 
     /// Raw block
@@ -9855,7 +13676,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/block/{hash}/txid/{index}`
     pub fn get_block_txid(&self, hash: BlockHash, index: BlockTxIndex) -> Result<String> {
-        self.base.get_text(&format!("/api/block/{hash}/txid/{index}"))
+        self.base
+            .get_text(&format!("/api/block/{hash}/txid/{index}"))
     }
 
     /// Block transaction IDs
@@ -9887,8 +13709,13 @@ impl BrkClient {
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-transactions)*
     ///
     /// Endpoint: `GET /api/block/{hash}/txs/{start_index}`
-    pub fn get_block_txs_from_index(&self, hash: BlockHash, start_index: BlockTxIndex) -> Result<Vec<Transaction>> {
-        self.base.get_json(&format!("/api/block/{hash}/txs/{start_index}"))
+    pub fn get_block_txs_from_index(
+        &self,
+        hash: BlockHash,
+        start_index: BlockTxIndex,
+    ) -> Result<Vec<Transaction>> {
+        self.base
+            .get_json(&format!("/api/block/{hash}/txs/{start_index}"))
     }
 
     /// Recent blocks
@@ -9954,7 +13781,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/pools/{time_period}`
     pub fn get_pool_stats(&self, time_period: TimePeriod) -> Result<PoolsSummary> {
-        self.base.get_json(&format!("/api/v1/mining/pools/{time_period}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/pools/{time_period}"))
     }
 
     /// Mining pool details
@@ -9976,7 +13804,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/hashrate/pools`
     pub fn get_pools_hashrate(&self) -> Result<Vec<PoolHashrateEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/hashrate/pools"))
+        self.base
+            .get_json(&format!("/api/v1/mining/hashrate/pools"))
     }
 
     /// All pools hashrate
@@ -9986,8 +13815,12 @@ impl BrkClient {
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mining-pool-hashrates)*
     ///
     /// Endpoint: `GET /api/v1/mining/hashrate/pools/{time_period}`
-    pub fn get_pools_hashrate_by_period(&self, time_period: TimePeriod) -> Result<Vec<PoolHashrateEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/hashrate/pools/{time_period}"))
+    pub fn get_pools_hashrate_by_period(
+        &self,
+        time_period: TimePeriod,
+    ) -> Result<Vec<PoolHashrateEntry>> {
+        self.base
+            .get_json(&format!("/api/v1/mining/hashrate/pools/{time_period}"))
     }
 
     /// Mining pool hashrate
@@ -9998,7 +13831,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/pool/{slug}/hashrate`
     pub fn get_pool_hashrate(&self, slug: PoolSlug) -> Result<Vec<PoolHashrateEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/pool/{slug}/hashrate"))
+        self.base
+            .get_json(&format!("/api/v1/mining/pool/{slug}/hashrate"))
     }
 
     /// Mining pool blocks
@@ -10009,7 +13843,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/pool/{slug}/blocks`
     pub fn get_pool_blocks(&self, slug: PoolSlug) -> Result<Vec<BlockInfoV1>> {
-        self.base.get_json(&format!("/api/v1/mining/pool/{slug}/blocks"))
+        self.base
+            .get_json(&format!("/api/v1/mining/pool/{slug}/blocks"))
     }
 
     /// Mining pool blocks from height
@@ -10020,7 +13855,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/pool/{slug}/blocks/{height}`
     pub fn get_pool_blocks_from(&self, slug: PoolSlug, height: Height) -> Result<Vec<BlockInfoV1>> {
-        self.base.get_json(&format!("/api/v1/mining/pool/{slug}/blocks/{height}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/pool/{slug}/blocks/{height}"))
     }
 
     /// Network hashrate (all time)
@@ -10042,7 +13878,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/hashrate/{time_period}`
     pub fn get_hashrate_by_period(&self, time_period: TimePeriod) -> Result<HashrateSummary> {
-        self.base.get_json(&format!("/api/v1/mining/hashrate/{time_period}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/hashrate/{time_period}"))
     }
 
     /// Difficulty adjustments (all time)
@@ -10053,7 +13890,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/difficulty-adjustments`
     pub fn get_difficulty_adjustments(&self) -> Result<Vec<DifficultyAdjustmentEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/difficulty-adjustments"))
+        self.base
+            .get_json(&format!("/api/v1/mining/difficulty-adjustments"))
     }
 
     /// Difficulty adjustments
@@ -10063,8 +13901,13 @@ impl BrkClient {
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-difficulty-adjustments)*
     ///
     /// Endpoint: `GET /api/v1/mining/difficulty-adjustments/{time_period}`
-    pub fn get_difficulty_adjustments_by_period(&self, time_period: TimePeriod) -> Result<Vec<DifficultyAdjustmentEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/difficulty-adjustments/{time_period}"))
+    pub fn get_difficulty_adjustments_by_period(
+        &self,
+        time_period: TimePeriod,
+    ) -> Result<Vec<DifficultyAdjustmentEntry>> {
+        self.base.get_json(&format!(
+            "/api/v1/mining/difficulty-adjustments/{time_period}"
+        ))
     }
 
     /// Mining reward statistics
@@ -10075,7 +13918,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/reward-stats/{block_count}`
     pub fn get_reward_stats(&self, block_count: i64) -> Result<RewardStats> {
-        self.base.get_json(&format!("/api/v1/mining/reward-stats/{block_count}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/reward-stats/{block_count}"))
     }
 
     /// Block fees
@@ -10086,7 +13930,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/blocks/fees/{time_period}`
     pub fn get_block_fees(&self, time_period: TimePeriod) -> Result<Vec<BlockFeesEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/blocks/fees/{time_period}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/blocks/fees/{time_period}"))
     }
 
     /// Block rewards
@@ -10097,7 +13942,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/blocks/rewards/{time_period}`
     pub fn get_block_rewards(&self, time_period: TimePeriod) -> Result<Vec<BlockRewardsEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/blocks/rewards/{time_period}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/blocks/rewards/{time_period}"))
     }
 
     /// Block fee rates
@@ -10108,7 +13954,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/blocks/fee-rates/{time_period}`
     pub fn get_block_fee_rates(&self, time_period: TimePeriod) -> Result<Vec<BlockFeeRatesEntry>> {
-        self.base.get_json(&format!("/api/v1/mining/blocks/fee-rates/{time_period}"))
+        self.base
+            .get_json(&format!("/api/v1/mining/blocks/fee-rates/{time_period}"))
     }
 
     /// Block sizes and weights
@@ -10119,7 +13966,9 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mining/blocks/sizes-weights/{time_period}`
     pub fn get_block_sizes_weights(&self, time_period: TimePeriod) -> Result<BlockSizesWeights> {
-        self.base.get_json(&format!("/api/v1/mining/blocks/sizes-weights/{time_period}"))
+        self.base.get_json(&format!(
+            "/api/v1/mining/blocks/sizes-weights/{time_period}"
+        ))
     }
 
     /// Projected mempool blocks
@@ -10225,7 +14074,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mempool/block-template`
     pub fn get_block_template(&self) -> Result<BlockTemplate> {
-        self.base.get_json(&format!("/api/v1/mempool/block-template"))
+        self.base
+            .get_json(&format!("/api/v1/mempool/block-template"))
     }
 
     /// Block template diff since hash
@@ -10234,7 +14084,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/v1/mempool/block-template/diff/{hash}`
     pub fn get_block_template_diff(&self, hash: NextBlockHash) -> Result<BlockTemplateDiff> {
-        self.base.get_json(&format!("/api/v1/mempool/block-template/diff/{hash}"))
+        self.base
+            .get_json(&format!("/api/v1/mempool/block-template/diff/{hash}"))
     }
 
     /// Live BTC/USD price
@@ -10261,7 +14112,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/oracle/histogram/payments/live`
     pub fn get_oracle_histogram_payments_live(&self) -> Result<Vec<i64>> {
-        self.base.get_json(&format!("/api/oracle/histogram/payments/live"))
+        self.base
+            .get_json(&format!("/api/oracle/histogram/payments/live"))
     }
 
     /// Payment output histogram at height or day
@@ -10270,7 +14122,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/oracle/histogram/payments/{point}`
     pub fn get_oracle_histogram_payments(&self, point: &str) -> Result<Vec<i64>> {
-        self.base.get_json(&format!("/api/oracle/histogram/payments/{point}"))
+        self.base
+            .get_json(&format!("/api/oracle/histogram/payments/{point}"))
     }
 
     /// Live output value histogram
@@ -10279,7 +14132,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/oracle/histogram/outputs/live`
     pub fn get_oracle_histogram_outputs_live(&self) -> Result<Vec<i64>> {
-        self.base.get_json(&format!("/api/oracle/histogram/outputs/live"))
+        self.base
+            .get_json(&format!("/api/oracle/histogram/outputs/live"))
     }
 
     /// Output value histogram at height or day
@@ -10288,7 +14142,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/oracle/histogram/outputs/{point}`
     pub fn get_oracle_histogram_outputs(&self, point: &str) -> Result<Vec<i64>> {
-        self.base.get_json(&format!("/api/oracle/histogram/outputs/{point}"))
+        self.base
+            .get_json(&format!("/api/oracle/histogram/outputs/{point}"))
     }
 
     /// Txid by index
@@ -10352,7 +14207,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/tx/{txid}/merkleblock-proof`
     pub fn get_tx_merkleblock_proof(&self, txid: Txid) -> Result<String> {
-        self.base.get_text(&format!("/api/tx/{txid}/merkleblock-proof"))
+        self.base
+            .get_text(&format!("/api/tx/{txid}/merkleblock-proof"))
     }
 
     /// Transaction merkle proof
@@ -10374,7 +14230,8 @@ impl BrkClient {
     ///
     /// Endpoint: `GET /api/tx/{txid}/outspend/{vout}`
     pub fn get_tx_outspend(&self, txid: Txid, vout: Vout) -> Result<TxOutspend> {
-        self.base.get_json(&format!("/api/tx/{txid}/outspend/{vout}"))
+        self.base
+            .get_json(&format!("/api/tx/{txid}/outspend/{vout}"))
     }
 
     /// All output spend statuses
@@ -10419,8 +14276,14 @@ impl BrkClient {
     /// Endpoint: `GET /api/v1/transaction-times`
     pub fn get_transaction_times(&self, txId: &[Txid]) -> Result<Vec<i64>> {
         let mut query = Vec::new();
-        for v in txId { query.push(format!("txId[]={}", v)); }
-        let query_str = if query.is_empty() { String::new() } else { format!("?{}", query.join("&")) };
+        for v in txId {
+            query.push(format!("txId[]={}", v));
+        }
+        let query_str = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", query.join("&"))
+        };
         let path = format!("/api/v1/transaction-times{}", query_str);
         self.base.get_json(&path)
     }
@@ -10453,5 +14316,4 @@ impl BrkClient {
     pub fn get_api(&self) -> Result<serde_json::Value> {
         self.base.get_json(&format!("/api.json"))
     }
-
 }

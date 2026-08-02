@@ -25,8 +25,7 @@ brk_types = { workspace = true }
 derive_more = { workspace = true }
 jiff = { workspace = true }
 parking_lot = { workspace = true }
-# quickmatch = { path = "../../../quickmatch" }
-quickmatch = "0.5.0"
+quickmatch = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true, optional = true }

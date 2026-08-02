@@ -12,6 +12,7 @@ use brk_reader::{Reader, XORBytes};
 use brk_rpc::Client;
 use brk_types::{BlockHash, Height};
 use fjall::PersistMode;
+use rayon::prelude::*;
 use tracing::{debug, error, info};
 use vecdb::{
     Exit, RawDBError, ReadOnlyClone, ReadableVec, Ro, Rw, StorageMode, WritableVec, unlikely,
@@ -332,9 +333,9 @@ impl Indexer {
 
             if !tasks.is_empty() {
                 let i = Instant::now();
-                for task in tasks {
-                    task().map_err(vecdb::RawDBError::other)?;
-                }
+                tasks
+                    .into_par_iter()
+                    .try_for_each(|task| task().map_err(vecdb::RawDBError::other))?;
                 debug!("Stores committed in {:?}", i.elapsed());
 
                 let i = Instant::now();

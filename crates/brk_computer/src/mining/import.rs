@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use brk_error::Result;
+use brk_indexer::Indexer;
 use brk_types::Version;
 
 use crate::{
@@ -17,13 +18,14 @@ impl Vecs {
     pub(crate) fn forced_import(
         parent_path: &Path,
         parent_version: Version,
+        indexer: &Indexer,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
         let db = open_db(parent_path, super::DB_NAME, 1_000_000)?;
         let version = parent_version;
 
-        let rewards = RewardsVecs::forced_import(&db, version, indexes, cached_starts)?;
+        let rewards = RewardsVecs::forced_import(&db, version, indexer, indexes, cached_starts)?;
         let hashrate = HashrateVecs::forced_import(&db, version, indexes)?;
 
         let this = Self {

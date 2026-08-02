@@ -1,6 +1,5 @@
 use brk_error::{OptionData, Result};
 use brk_types::{Addr, AddrIndexTxIndex, Transaction, TxIndex, Txid, Unit};
-use vecdb::VecIndex;
 
 use crate::Query;
 
@@ -25,7 +24,7 @@ impl Query {
         let txid_reader = self.indexer().vecs.transactions.txid.reader();
         Ok(txindices
             .into_iter()
-            .map(|tx_index| txid_reader.get(tx_index.to_usize()))
+            .map(|tx_index| txid_reader.get(tx_index))
             .collect())
     }
 

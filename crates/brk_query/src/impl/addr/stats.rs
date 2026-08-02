@@ -5,6 +5,7 @@ use brk_types::{
     Addr, AddrBytes, AddrChainStats, AddrHash, AddrStats, AnyAddrDataIndexEnum, Dollars,
     OutputType, TypeIndex,
 };
+use vecdb::ReadableVec;
 
 use crate::Query;
 
@@ -40,8 +41,8 @@ impl Query {
                     .distribution
                     .addrs_data
                     .funded
-                    .reader()
-                    .get(usize::from(index));
+                    .collect_one(index)
+                    .expect("funded address data index should be in bounds");
                 let price = data.realized_price().to_dollars();
                 (data, price)
             }
@@ -50,8 +51,8 @@ impl Query {
                     .distribution
                     .addrs_data
                     .empty
-                    .reader()
-                    .get(usize::from(index))
+                    .collect_one(index)
+                    .expect("empty address data index should be in bounds")
                     .into();
                 (data, Dollars::default())
             }

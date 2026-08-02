@@ -332,13 +332,13 @@ impl Stores {
             .collect_range_at(rollback_start, rollback_end);
 
         for (i, txout_index) in (rollback_start..rollback_end).enumerate() {
-            let output_type = txout_index_to_output_type_reader.get(txout_index);
+            let output_type = txout_index_to_output_type_reader.get_at(txout_index);
             if !output_type.is_addr() {
                 continue;
             }
 
             let addr_type = output_type;
-            let addr_index = txout_index_to_type_index_reader.get(txout_index);
+            let addr_index = txout_index_to_type_index_reader.get_at(txout_index);
             let tx_index = tx_indexes[i];
 
             addr_index_tx_index_to_remove.insert((addr_type, addr_index, tx_index));
@@ -346,7 +346,7 @@ impl Stores {
             let vout = Vout::from(
                 txout_index
                     - tx_index_to_first_txout_index_reader
-                        .get(tx_index.to_usize())
+                        .get(tx_index)
                         .to_usize(),
             );
             let outpoint = OutPoint::new(tx_index, vout);
@@ -371,12 +371,11 @@ impl Stores {
 
                 let output_tx_index = outpoint.tx_index();
                 let vout = outpoint.vout();
-                let txout_index =
-                    tx_index_to_first_txout_index_reader.get(output_tx_index.to_usize()) + vout;
+                let txout_index = tx_index_to_first_txout_index_reader.get(output_tx_index) + vout;
 
                 if txout_index < starting_lengths.txout_index {
-                    let output_type = txout_index_to_output_type_reader.get(txout_index.to_usize());
-                    let type_index = txout_index_to_type_index_reader.get(txout_index.to_usize());
+                    let output_type = txout_index_to_output_type_reader.get(txout_index);
+                    let type_index = txout_index_to_type_index_reader.get(txout_index);
                     Some((outpoint, output_type, type_index, spending_tx_index))
                 } else {
                     None

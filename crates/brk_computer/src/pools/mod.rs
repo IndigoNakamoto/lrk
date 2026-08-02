@@ -3,7 +3,10 @@ use std::{collections::BTreeMap, path::Path};
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{Addr, AddrBytes, Height, OutputType, PoolSlug, Pools, TxOutIndex, pools};
+use brk_types::{
+    Addr, AddrBytes, Height, OutputType, POOL_ATTRIBUTION_VERSION, PoolSlug, Pools, TxOutIndex,
+    pools,
+};
 use rayon::prelude::*;
 use vecdb::{
     AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportableVec, ReadableVec, Rw, StorageMode,
@@ -49,7 +52,10 @@ impl Vecs {
         let db = open_db(parent_path, DB_NAME, 100_000)?;
         let pools = pools();
 
-        let version = parent_version + Version::new(4) + Version::new(pools.len() as u32);
+        let version = parent_version
+            + Version::new(4)
+            + POOL_ATTRIBUTION_VERSION
+            + Version::new(pools.len() as u32);
 
         let mut major_map = BTreeMap::new();
         let mut minor_map = BTreeMap::new();
@@ -121,7 +127,24 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        let dep_version = indexer.vecs.blocks.coinbase_tag.version();
+        let dep_version: Version = [
+            indexer.vecs.blocks.coinbase_tag.version(),
+            indexer.vecs.transactions.first_tx_index.version(),
+            indexer.vecs.transactions.first_txout_index.version(),
+            indexes.tx_index.output_count.version(),
+            indexer.vecs.outputs.output_type.version(),
+            indexer.vecs.outputs.type_index.version(),
+            indexer.vecs.addrs.p2pk65.bytes.version(),
+            indexer.vecs.addrs.p2pk33.bytes.version(),
+            indexer.vecs.addrs.p2pkh.bytes.version(),
+            indexer.vecs.addrs.p2sh.bytes.version(),
+            indexer.vecs.addrs.p2wpkh.bytes.version(),
+            indexer.vecs.addrs.p2wsh.bytes.version(),
+            indexer.vecs.addrs.p2tr.bytes.version(),
+            indexer.vecs.addrs.p2a.bytes.version(),
+        ]
+        .into_iter()
+        .sum();
         let pool_vec_version = self.pool.header().vec_version();
         let pool_computed = self.pool.header().computed_version();
         let expected = pool_vec_version + dep_version;
@@ -167,7 +190,7 @@ impl Vecs {
             len,
             |coinbase_tag| -> Result<()> {
                 let tx_index = first_tx_index_cursor.next().unwrap();
-                let out_start = first_txout_index.get(tx_index.to_usize());
+                let out_start = first_txout_index.get(tx_index);
 
                 let ti = tx_index.to_usize();
                 output_count_cursor.advance(ti - output_count_cursor.position());
@@ -176,17 +199,17 @@ impl Vecs {
                 let pool = (*out_start..(*out_start + *output_count_val))
                     .map(TxOutIndex::from)
                     .find_map(|txout_index| {
-                        let ot = output_type.get(txout_index.to_usize());
-                        let ti = usize::from(type_index.get(txout_index.to_usize()));
+                        let ot = output_type.get(txout_index);
+                        let ti = usize::from(type_index.get(txout_index));
                         match ot {
-                            OutputType::P2PK65 => Some(AddrBytes::from(p2pk65.get(ti))),
-                            OutputType::P2PK33 => Some(AddrBytes::from(p2pk33.get(ti))),
-                            OutputType::P2PKH => Some(AddrBytes::from(p2pkh.get(ti))),
-                            OutputType::P2SH => Some(AddrBytes::from(p2sh.get(ti))),
-                            OutputType::P2WPKH => Some(AddrBytes::from(p2wpkh.get(ti))),
-                            OutputType::P2WSH => Some(AddrBytes::from(p2wsh.get(ti))),
-                            OutputType::P2TR => Some(AddrBytes::from(p2tr.get(ti))),
-                            OutputType::P2A => Some(AddrBytes::from(p2a.get(ti))),
+                            OutputType::P2PK65 => Some(AddrBytes::from(p2pk65.get_at(ti))),
+                            OutputType::P2PK33 => Some(AddrBytes::from(p2pk33.get_at(ti))),
+                            OutputType::P2PKH => Some(AddrBytes::from(p2pkh.get_at(ti))),
+                            OutputType::P2SH => Some(AddrBytes::from(p2sh.get_at(ti))),
+                            OutputType::P2WPKH => Some(AddrBytes::from(p2wpkh.get_at(ti))),
+                            OutputType::P2WSH => Some(AddrBytes::from(p2wsh.get_at(ti))),
+                            OutputType::P2TR => Some(AddrBytes::from(p2tr.get_at(ti))),
+                            OutputType::P2A => Some(AddrBytes::from(p2a.get_at(ti))),
                             _ => None,
                         }
                         .map(|bytes| Addr::try_from(&bytes).unwrap())

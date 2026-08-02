@@ -2,7 +2,6 @@ use std::hash::{Hash, Hasher};
 
 use byteview::ByteView;
 use serde::Serialize;
-use vecdb::Bytes;
 
 use crate::{AddrIndexTxIndex, Vout};
 
@@ -17,6 +16,14 @@ pub struct AddrIndexOutPoint {
 
 impl AddrIndexOutPoint {
     #[inline]
+    pub(crate) fn to_be_bytes(self) -> [u8; 10] {
+        let mut bytes = [0; 10];
+        bytes[..8].copy_from_slice(&self.addr_index_tx_index.to_be_bytes());
+        bytes[8..].copy_from_slice(&self.vout.to_be_bytes());
+        bytes
+    }
+
+    #[inline]
     pub fn tx_index(&self) -> TxIndex {
         self.addr_index_tx_index.tx_index()
     }
@@ -28,11 +35,10 @@ impl AddrIndexOutPoint {
 }
 
 impl Hash for AddrIndexOutPoint {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut buf = [0u8; 10];
-        buf[0..8].copy_from_slice(&self.addr_index_tx_index.to_bytes());
-        buf[8..].copy_from_slice(&self.vout.to_bytes());
-        state.write(&buf);
+        self.addr_index_tx_index.hash(state);
+        self.vout.hash(state);
     }
 }
 
@@ -65,12 +71,27 @@ impl From<AddrIndexOutPoint> for ByteView {
 impl From<&AddrIndexOutPoint> for ByteView {
     #[inline]
     fn from(value: &AddrIndexOutPoint) -> Self {
-        ByteView::from(
-            [
-                &ByteView::from(value.addr_index_tx_index),
-                value.vout.to_be_bytes().as_slice(),
-            ]
-            .concat(),
-        )
+        ByteView::from(value.to_be_bytes())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn byte_encoding_is_stable_and_roundtrips() {
+        let value = AddrIndexOutPoint::from((
+            TypeIndex::new(0x0102_0304),
+            OutPoint::new(TxIndex::new(0x0506_0708), Vout::from(0x090a_u16)),
+        ));
+        let bytes = ByteView::from(value);
+
+        assert_eq!(
+            &*bytes,
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            "the LSM key encoding is part of the persisted format",
+        );
+        assert_eq!(AddrIndexOutPoint::from(bytes), value);
     }
 }

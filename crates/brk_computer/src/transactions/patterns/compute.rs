@@ -101,9 +101,9 @@ impl Vecs {
         let mut input_value = spent.value.cursor();
         let mut input_type = indexer.vecs.inputs.output_type.cursor();
         let mut input_type_index = indexer.vecs.inputs.type_index.cursor();
-        let mut output_value = indexer.vecs.outputs.value.cursor();
-        let mut output_type = indexer.vecs.outputs.output_type.cursor();
-        let mut output_type_index = indexer.vecs.outputs.type_index.cursor();
+        let mut output_value = indexer.vecs.outputs.value.reader().cursor();
+        let mut output_type = indexer.vecs.outputs.output_type.reader().cursor();
+        let mut output_type_index = indexer.vecs.outputs.type_index.reader().cursor();
         let mut has_op_return = features.has_op_return.cursor();
         let mut has_inscription = features.has_inscription.cursor();
         let mut tx_count = indexes.height.tx_index_count.cursor();

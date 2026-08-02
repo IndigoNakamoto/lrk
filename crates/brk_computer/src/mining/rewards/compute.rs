@@ -28,7 +28,12 @@ impl Vecs {
                     prices,
                     &indexer.vecs.transactions.first_tx_index,
                     |_, tx_index| {
-                        let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+                        let mut txout_cursor = indexer
+                            .vecs
+                            .transactions
+                            .first_txout_index
+                            .reader()
+                            .cursor();
                         let mut count_cursor = indexes.tx_index.output_count.cursor();
 
                         let ti = tx_index.to_usize();

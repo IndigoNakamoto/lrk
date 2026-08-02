@@ -1,6 +1,7 @@
 use brk_error::Result;
+use brk_indexer::Indexer;
 use brk_types::Version;
-use vecdb::{Database, EagerVec, ImportableVec};
+use vecdb::{AnyVec, Database, EagerVec, ImportableVec};
 
 use super::Vecs;
 use crate::{
@@ -16,9 +17,15 @@ impl Vecs {
     pub(crate) fn forced_import(
         db: &Database,
         version: Version,
+        indexer: &Indexer,
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&WindowStartVec>,
     ) -> Result<Self> {
+        let coinbase_version = version
+            + indexer.vecs.transactions.first_txout_index.version()
+            + indexes.tx_index.output_count.version()
+            + indexer.vecs.outputs.value.version();
+
         let fee_dominance =
             PercentCumulativeRolling::forced_import(db, "fee_dominance", version, indexes)?;
 
@@ -32,7 +39,7 @@ impl Vecs {
             coinbase: ValuePerBlockCumulativeRolling::forced_import(
                 db,
                 "coinbase",
-                version,
+                coinbase_version,
                 indexes,
                 cached_starts,
             )?,

@@ -1,18 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use std::{
-    borrow::Cow,
-    fmt::Debug,
-    fs,
-    hash::Hash,
-    mem,
-    ops::Range,
-    path::Path,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering::Relaxed},
-    },
-};
+use std::{borrow::Cow, cmp::Ordering, fmt::Debug, fs, hash::Hash, mem, ops::Range, path::Path};
 
 use brk_error::Result;
 use brk_types::{Height, Version};
@@ -32,7 +20,7 @@ pub use kind::*;
 pub use meta::*;
 pub use mode::*;
 
-const MAJOR_FJALL_VERSION: Version = Version::new(3);
+const MAJOR_FJALL_VERSION: Version = Version::new(4);
 
 pub fn open_database(path: &Path) -> fjall::Result<Database> {
     Database::builder(path.join("fjall"))
@@ -44,12 +32,10 @@ pub fn open_database(path: &Path) -> fjall::Result<Database> {
 #[derive(Clone)]
 pub struct Store<K, V> {
     meta: StoreMeta,
-    name: &'static str,
     keyspace: Keyspace,
     puts: FxHashMap<K, V>,
     dels: FxHashSet<K>,
     caches: Vec<FxHashMap<K, V>>,
-    db_reads: Arc<AtomicU64>,
 }
 
 impl<K, V> Store<K, V>
@@ -111,12 +97,10 @@ where
 
         Ok(Self {
             meta,
-            name: Box::leak(Box::new(name.to_string())),
             keyspace,
             puts: FxHashMap::default(),
             dels: FxHashSet::default(),
             caches,
-            db_reads: Arc::new(AtomicU64::new(0)),
         })
     }
 
@@ -179,9 +163,7 @@ where
             }
         }
 
-        self.db_reads.fetch_add(1, Relaxed);
-
-        if let Some(slice) = self.keyspace.get(ByteView::from(key))? {
+        if let Some(slice) = self.keyspace.get_standard(ByteView::from(key))? {
             Ok(Some(Cow::Owned(V::from(ByteView::from(slice)))))
         } else {
             Ok(None)
@@ -240,16 +222,16 @@ where
         let keyspace = self.keyspace.clone();
 
         Ok(Some(Box::new(move || {
-            Self::ingest(&keyspace, puts.iter(), dels.iter())
+            Self::ingest_owned(&keyspace, puts, dels)
         })))
     }
 
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (K, V)> {
         self.keyspace
-            .iter()
-            .map(|res| res.into_inner().unwrap())
-            .map(|(k, v)| (K::from(ByteView::from(&*k)), V::from(ByteView::from(&*v))))
+            .iter_standard()
+            .map(Result::unwrap)
+            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
     }
 
     #[inline]
@@ -259,9 +241,9 @@ where
     ) -> impl DoubleEndedIterator<Item = (K, V)> + '_ {
         let prefix: ByteView = prefix.into();
         self.keyspace
-            .prefix(&*prefix)
-            .map(|res| res.into_inner().unwrap())
-            .map(|(k, v)| (K::from(ByteView::from(&*k)), V::from(ByteView::from(&*v))))
+            .prefix_standard(prefix)
+            .map(Result::unwrap)
+            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
     }
 
     #[inline]
@@ -272,9 +254,9 @@ where
         let start: ByteView = range.start.into();
         let end: ByteView = range.end.into();
         self.keyspace
-            .range(start..end)
-            .map(|res| res.into_inner().unwrap())
-            .map(|(k, v)| (K::from(ByteView::from(&*k)), V::from(ByteView::from(&*v))))
+            .range_standard(start..end)
+            .map(Result::unwrap)
+            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
     }
 
     pub fn approximate_len(&self) -> usize {
@@ -284,11 +266,6 @@ where
     #[inline]
     fn has(&self, height: Height) -> bool {
         self.meta.has(height)
-    }
-
-    #[inline]
-    pub fn needs(&self, height: Height) -> bool {
-        self.meta.needs(height)
     }
 
     fn export_meta(&mut self, height: Height) -> Result<()> {
@@ -321,18 +298,67 @@ where
         items.sort_unstable();
 
         let mut ingestion = keyspace.start_ingestion()?;
+        // FxHashMap/FxHashSet keep keys unique and disjoint; sorting therefore
+        // proves the strict ordering required by the prevalidated writer.
         for item in items {
             match item {
                 Item::Value { key, value } => {
-                    ingestion.write(ByteView::from(key), ByteView::from(value))?;
+                    ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
                 }
                 Item::Tomb(key) => {
-                    ingestion.write_weak_tombstone(ByteView::from(key))?;
+                    ingestion.write_prevalidated_weak_tombstone(ByteView::from(key))?;
                 }
             }
         }
-        ingestion.finish()?;
+        // Store keyspaces are mutated only through these ingestion phases, so
+        // no journaled Fjall write can race their completion.
+        ingestion.finish_exclusive()?;
 
+        Ok(())
+    }
+
+    fn ingest_owned(keyspace: &Keyspace, puts: FxHashMap<K, V>, dels: FxHashSet<K>) -> Result<()> {
+        let mut puts: Vec<_> = puts.into_iter().collect();
+        let mut dels: Vec<_> = dels.into_iter().collect();
+
+        puts.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+        dels.sort_unstable();
+
+        let mut puts = puts.into_iter().peekable();
+        let mut dels = dels.into_iter().peekable();
+        let mut ingestion = keyspace.start_ingestion()?;
+
+        // The buffers are unique and disjoint, and this merge emits them in
+        // strict key order, so release builds can skip re-cloning each key.
+        while puts.peek().is_some() || dels.peek().is_some() {
+            match (puts.peek(), dels.peek()) {
+                (Some((put_key, _)), Some(del_key)) => match put_key.cmp(del_key) {
+                    Ordering::Less => {
+                        let (key, value) = puts.next().unwrap();
+                        ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
+                    }
+                    Ordering::Greater => {
+                        ingestion.write_prevalidated_weak_tombstone(ByteView::from(
+                            dels.next().unwrap(),
+                        ))?;
+                    }
+                    Ordering::Equal => unreachable!("key is both inserted and deleted"),
+                },
+                (Some(_), None) => {
+                    let (key, value) = puts.next().unwrap();
+                    ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
+                }
+                (None, Some(_)) => {
+                    ingestion
+                        .write_prevalidated_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
+                }
+                (None, None) => break,
+            }
+        }
+
+        // Store keyspaces are mutated only through these ingestion phases, so
+        // no journaled Fjall write can race their completion.
+        ingestion.finish_exclusive()?;
         Ok(())
     }
 }
@@ -344,36 +370,12 @@ where
     for<'a> ByteView: From<K> + From<V> + From<&'a K> + From<&'a V>,
     Self: Send + Sync,
 {
-    fn keyspace(&self) -> &Keyspace {
-        &self.keyspace
-    }
-
     fn export_meta(&mut self, height: Height) -> Result<()> {
         self.export_meta(height)
     }
 
-    fn export_meta_if_needed(&mut self, height: Height) -> Result<()> {
-        self.export_meta_if_needed(height)
-    }
-
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
     fn height(&self) -> Option<Height> {
         self.meta.height()
-    }
-
-    fn has(&self, height: Height) -> bool {
-        self.has(height)
-    }
-
-    fn needs(&self, height: Height) -> bool {
-        self.needs(height)
-    }
-
-    fn version(&self) -> Version {
-        self.meta.version()
     }
 
     fn commit(&mut self, height: Height) -> Result<()> {
@@ -386,9 +388,10 @@ where
             return Ok(());
         }
 
-        Self::ingest(&self.keyspace, puts.iter(), dels.iter())?;
-
-        if !self.caches.is_empty() {
+        if self.caches.is_empty() {
+            Self::ingest_owned(&self.keyspace, puts, dels)?;
+        } else {
+            Self::ingest(&self.keyspace, puts.iter(), dels.iter())?;
             self.caches.pop();
             self.caches.insert(0, puts);
         }

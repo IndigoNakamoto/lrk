@@ -12,7 +12,6 @@ use super::Height;
 #[derive(Debug, Clone)]
 pub struct StoreMeta {
     pathbuf: PathBuf,
-    version: Version,
     height: Option<Height>,
 }
 
@@ -41,17 +40,12 @@ impl StoreMeta {
 
         let slf = Self {
             pathbuf: path.to_owned(),
-            version,
             height: Height::try_from(Self::path_height_(path).as_path()).ok(),
         };
 
-        slf.version.write(&slf.path_version())?;
+        version.write(&slf.path_version())?;
 
         Ok((slf, partition))
-    }
-
-    pub fn version(&self) -> Version {
-        self.version
     }
 
     pub fn export(&mut self, height: Height) -> io::Result<()> {

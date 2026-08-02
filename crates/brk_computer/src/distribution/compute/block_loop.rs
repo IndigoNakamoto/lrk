@@ -266,13 +266,13 @@ pub(crate) fn process_blocks(
         // Collection (build tx_index mappings + bulk mmap reads) is merged into the
         // processing closures so outputs and inputs collection overlap each other
         // and tick-tock, instead of running sequentially before the join.
-        let (matured, oi_result) = rayon::join(
+        let (matured, (outputs_result, inputs_result)) = rayon::join(
             || {
                 vecs.utxo_cohorts
                     .tick_tock_next_block(chain_state, timestamp)
             },
-            || -> Result<_> {
-                let (outputs_result, inputs_result) = rayon::join(
+            || {
+                rayon::join(
                     || {
                         let txout_index_to_tx_index = txout_to_tx_index_buf.build(
                             first_tx_index,
@@ -291,7 +291,7 @@ pub(crate) fn process_blocks(
                             &vecs.addrs_data,
                         )
                     },
-                    || -> Result<_> {
+                    || {
                         if input_count > 1 {
                             let txin_index_to_tx_index = txin_to_tx_index_buf.build(
                                 first_tx_index,
@@ -322,19 +322,17 @@ pub(crate) fn process_blocks(
                                 &vecs.addrs_data,
                             )
                         } else {
-                            Ok(InputsResult {
+                            InputsResult {
                                 height_to_sent: Default::default(),
                                 sent_data: Default::default(),
                                 addr_data: Default::default(),
                                 tx_index_vecs: Default::default(),
-                            })
+                            }
                         }
                     },
-                );
-                Ok((outputs_result?, inputs_result?))
+                )
             },
         );
-        let (outputs_result, inputs_result) = oi_result?;
 
         // Merge new address data into current cache
         cache.merge_funded(outputs_result.addr_data);
