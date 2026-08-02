@@ -4,11 +4,11 @@
 
 use crate::SeqNo;
 use std::sync::{
+    Arc,
     atomic::{
         AtomicU64,
         Ordering::{AcqRel, Acquire, Release},
     },
-    Arc,
 };
 
 /// Thread-safe sequence number generator

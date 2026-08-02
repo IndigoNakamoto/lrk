@@ -2,9 +2,6 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
-
 use super::{block_index::BlockIndexImpl, meta::ParsedMeta, regions::ParsedRegions};
 use crate::{
     Checksum, GlobalTableId, SeqNo,
@@ -15,7 +12,7 @@ use crate::{
 };
 use std::{
     path::PathBuf,
-    sync::{Arc, OnceLock, atomic::AtomicBool},
+    sync::{Arc, atomic::AtomicBool},
 };
 
 pub struct Inner {
@@ -58,13 +55,6 @@ pub struct Inner {
     pub(super) checksum: Checksum,
 
     pub(super) global_seqno: SeqNo,
-
-    #[cfg(feature = "metrics")]
-    pub(crate) metrics: Arc<Metrics>,
-
-    /// Cached sum of referenced blob file bytes for this table.
-    /// Lazily computed on first access to avoid repeated I/O in compaction decisions.
-    pub(crate) cached_blob_bytes: OnceLock<u64>,
 }
 
 impl Inner {

@@ -1,4 +1,4 @@
-use lsm_tree::{get_tmp_folder, AbstractTree, Config, Guard, SeqNo, SequenceNumberCounter, Slice};
+use lsm_tree::{AbstractTree, Config, Guard, SeqNo, SequenceNumberCounter, Slice, get_tmp_folder};
 use test_log::test;
 
 const ITEM_COUNT: usize = 1_000;
@@ -70,43 +70,6 @@ fn tree_flushed_count() -> lsm_tree::Result<()> {
 
     Ok(())
 }
-
-#[test]
-fn tree_flushed_count_blob() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(Default::default()))
-    .open()?;
-
-    for x in 0..ITEM_COUNT as u64 {
-        let key = x.to_be_bytes();
-        let value = nanoid::nanoid!();
-        tree.insert(key, value.as_bytes(), 0);
-    }
-
-    tree.flush_active_memtable(0)?;
-
-    assert_eq!(tree.len(SeqNo::MAX, None)?, ITEM_COUNT);
-    assert_eq!(
-        tree.iter(SeqNo::MAX, None).flat_map(|x| x.key()).count(),
-        ITEM_COUNT
-    );
-    assert_eq!(
-        tree.iter(SeqNo::MAX, None)
-            .rev()
-            .flat_map(|x| x.key())
-            .count(),
-        ITEM_COUNT
-    );
-
-    Ok(())
-}
-
 #[test]
 fn tree_non_locking_count() -> lsm_tree::Result<()> {
     use std::ops::Bound::{self, Excluded, Unbounded};

@@ -3,20 +3,14 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::GlobalTableId;
-use quick_cache::{sync::Cache as QuickCache, UnitWeighter};
+use quick_cache::{UnitWeighter, sync::Cache as QuickCache};
 use std::{fs::File, sync::Arc};
-
-const TAG_BLOCK: u8 = 0;
-const TAG_BLOB: u8 = 1;
 
 type Item = Arc<File>;
 
-#[derive(Eq, std::hash::Hash, PartialEq)]
-struct CacheKey(u8, u64, u64);
-
-/// Caches file descriptors to tables and blob files
+/// Caches file descriptors to tables
 pub struct DescriptorTable {
-    inner: QuickCache<CacheKey, Item, UnitWeighter, rustc_hash::FxBuildHasher>,
+    inner: QuickCache<GlobalTableId, Item, UnitWeighter, rustc_hash::FxBuildHasher>,
 }
 
 impl DescriptorTable {
@@ -41,33 +35,14 @@ impl DescriptorTable {
 
     #[must_use]
     pub fn access_for_table(&self, id: &GlobalTableId) -> Option<Arc<File>> {
-        let key = CacheKey(TAG_BLOCK, id.tree_id(), id.table_id());
-        self.inner.get(&key)
+        self.inner.get(id)
     }
 
     pub fn insert_for_table(&self, id: GlobalTableId, item: Item) {
-        let key = CacheKey(TAG_BLOCK, id.tree_id(), id.table_id());
-        self.inner.insert(key, item);
-    }
-
-    #[must_use]
-    pub fn access_for_blob_file(&self, id: &GlobalTableId) -> Option<Arc<File>> {
-        let key = CacheKey(TAG_BLOB, id.tree_id(), id.table_id());
-        self.inner.get(&key)
-    }
-
-    pub fn insert_for_blob_file(&self, id: GlobalTableId, item: Item) {
-        let key = CacheKey(TAG_BLOB, id.tree_id(), id.table_id());
-        self.inner.insert(key, item);
+        self.inner.insert(id, item);
     }
 
     pub fn remove_for_table(&self, id: &GlobalTableId) {
-        let key = CacheKey(TAG_BLOCK, id.tree_id(), id.table_id());
-        self.inner.remove(&key);
-    }
-
-    pub fn remove_for_blob_file(&self, id: &GlobalTableId) {
-        let key = CacheKey(TAG_BLOB, id.tree_id(), id.table_id());
-        self.inner.remove(&key);
+        self.inner.remove(id);
     }
 }

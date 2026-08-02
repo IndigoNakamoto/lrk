@@ -2,11 +2,11 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{file::MAGIC_BYTES, keyspace::InternalKeyspaceId, Slice};
+use crate::{Slice, file::MAGIC_BYTES, keyspace::InternalKeyspaceId};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use lsm_tree::{
-    coding::{Decode, Encode},
     CompressionType, SeqNo, UserKey, UserValue, ValueType,
+    coding::{Decode, Encode},
 };
 use std::io::{Read, Write};
 

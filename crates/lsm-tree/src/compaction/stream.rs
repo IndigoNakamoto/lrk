@@ -7,14 +7,6 @@ use std::iter::Peekable;
 
 type Item = crate::Result<InternalValue>;
 
-/// A callback that receives all dropped KVs
-///
-/// Used for counting blobs that are not referenced anymore because of
-/// vHandles that are being dropped through compaction.
-pub trait DroppedKvCallback {
-    fn on_dropped(&mut self, kv: &InternalValue);
-}
-
 /// Verdict returned by [`StreamFilter`]
 #[derive(Debug)]
 pub enum StreamFilterVerdict {
@@ -46,15 +38,12 @@ impl StreamFilter for NoFilter {
 /// Consumes a stream of KVs and emits a new stream according to GC and tombstone rules
 ///
 /// This iterator is used during flushing & compaction.
-pub struct CompactionStream<'a, I: Iterator<Item = Item>, F: StreamFilter = NoFilter> {
+pub struct CompactionStream<I: Iterator<Item = Item>, F: StreamFilter = NoFilter> {
     /// KV stream
     inner: Peekable<I>,
 
     /// MVCC watermark to get rid of old versions
     gc_seqno_threshold: SeqNo,
-
-    /// Event emitter that receives all dropped KVs
-    dropped_callback: Option<&'a mut dyn DroppedKvCallback>,
 
     /// Stream filter
     filter: F,
@@ -64,7 +53,7 @@ pub struct CompactionStream<'a, I: Iterator<Item = Item>, F: StreamFilter = NoFi
     zero_seqnos: bool,
 }
 
-impl<I: Iterator<Item = Item>> CompactionStream<'_, I, NoFilter> {
+impl<I: Iterator<Item = Item>> CompactionStream<I, NoFilter> {
     /// Initializes a new merge iterator
     #[must_use]
     pub fn new(iter: I, gc_seqno_threshold: SeqNo) -> Self {
@@ -73,7 +62,6 @@ impl<I: Iterator<Item = Item>> CompactionStream<'_, I, NoFilter> {
         Self {
             inner: iter,
             gc_seqno_threshold,
-            dropped_callback: None,
             filter: NoFilter,
             evict_tombstones: false,
             zero_seqnos: false,
@@ -81,13 +69,12 @@ impl<I: Iterator<Item = Item>> CompactionStream<'_, I, NoFilter> {
     }
 }
 
-impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> CompactionStream<'a, I, F> {
+impl<I: Iterator<Item = Item>, F: StreamFilter> CompactionStream<I, F> {
     /// Installs a filter into this stream.
-    pub fn with_filter<NF: StreamFilter>(self, filter: NF) -> CompactionStream<'a, I, NF> {
+    pub fn with_filter<NF: StreamFilter>(self, filter: NF) -> CompactionStream<I, NF> {
         CompactionStream {
             inner: self.inner,
             gc_seqno_threshold: self.gc_seqno_threshold,
-            dropped_callback: self.dropped_callback,
             filter,
             evict_tombstones: self.evict_tombstones,
             zero_seqnos: self.zero_seqnos,
@@ -96,12 +83,6 @@ impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> CompactionStream<'a, I,
 
     pub fn evict_tombstones(mut self, b: bool) -> Self {
         self.evict_tombstones = b;
-        self
-    }
-
-    /// Installs a callback that receives all dropped KVs.
-    pub fn with_drop_callback(mut self, cb: &'a mut dyn DroppedKvCallback) -> Self {
-        self.dropped_callback = Some(cb);
         self
     }
 
@@ -118,15 +99,7 @@ impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> CompactionStream<'a, I,
         loop {
             let Some(next) = self.inner.next_if(|kv| {
                 if let Ok(kv) = kv {
-                    let expired = kv.key.user_key == key;
-
-                    if expired {
-                        if let Some(watcher) = &mut self.dropped_callback {
-                            watcher.on_dropped(kv);
-                        }
-                    }
-
-                    expired
+                    kv.key.user_key == key
                 } else {
                     true
                 }
@@ -139,7 +112,7 @@ impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> CompactionStream<'a, I,
     }
 }
 
-impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> Iterator for CompactionStream<'a, I, F> {
+impl<I: Iterator<Item = Item>, F: StreamFilter> Iterator for CompactionStream<I, F> {
     type Item = Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -150,18 +123,10 @@ impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> Iterator for Compaction
                 match fail_iter!(self.filter.filter_item(&head)) {
                     StreamFilterVerdict::Keep => { /* Do nothing */ }
                     StreamFilterVerdict::Replace((new_type, new_value)) => {
-                        // If we are replacing this item's value, call the dropped callback for the previous item
-                        if let Some(watcher) = &mut self.dropped_callback {
-                            watcher.on_dropped(&head);
-                        }
                         head.value = new_value;
                         head.key.value_type = new_type;
                     }
                     StreamFilterVerdict::Drop => {
-                        if let Some(watcher) = &mut self.dropped_callback {
-                            watcher.on_dropped(&head);
-                        }
-
                         // Ignore
                         continue;
                     }
@@ -223,7 +188,7 @@ impl<'a, I: Iterator<Item = Item>, F: StreamFilter + 'a> Iterator for Compaction
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{value::InternalValue, ValueType};
+    use crate::{ValueType, value::InternalValue};
     use test_log::test;
 
     macro_rules! stream {
@@ -257,49 +222,6 @@ mod tests {
         ($iter:expr) => {
             assert!($iter.next().is_none(), "iterator should be closed (done)");
         };
-    }
-
-    #[derive(Default)]
-    struct TrackCallback {
-        items: Vec<InternalValue>,
-    }
-
-    impl DroppedKvCallback for TrackCallback {
-        fn on_dropped(&mut self, kv: &InternalValue) {
-            self.items.push(kv.clone());
-        }
-    }
-
-    #[test]
-    #[expect(clippy::unwrap_used)]
-    fn compaction_stream_expired_callback_1() -> crate::Result<()> {
-        #[rustfmt::skip]
-        let vec = stream![
-          "a", "", "T",
-          "a", "", "T",
-          "a", "", "T",
-        ];
-
-        let mut my_watcher = TrackCallback::default();
-
-        let iter = vec.iter().cloned().map(Ok);
-        let mut iter = CompactionStream::new(iter, 1_000).with_drop_callback(&mut my_watcher);
-
-        assert_eq!(
-            InternalValue::from_components(*b"a", *b"", 999, ValueType::Tombstone),
-            iter.next().unwrap()?,
-        );
-        iter_closed!(iter);
-
-        assert_eq!(
-            [
-                InternalValue::from_components("a", "", 998, ValueType::Tombstone),
-                InternalValue::from_components("a", "", 997, ValueType::Tombstone),
-            ],
-            &*my_watcher.items,
-        );
-
-        Ok(())
     }
 
     #[test]
@@ -648,11 +570,8 @@ mod tests {
             "b", "b", "V",
         ];
 
-        let mut drop_cb = TrackCallback { items: vec![] };
         let iter = vec.iter().cloned().map(Ok);
-        let iter = CompactionStream::new(iter, 995)
-            .with_filter(Filter(b"7"))
-            .with_drop_callback(&mut drop_cb);
+        let iter = CompactionStream::new(iter, 995).with_filter(Filter(b"7"));
 
         let out: Vec<_> = iter.map(Result::unwrap).collect();
 
@@ -664,21 +583,11 @@ mod tests {
             "a", "", "T",
             "a", "", "T",
         ]);
-
-        let fc = InternalValue::from_components;
-
-        #[rustfmt::skip]
-        assert_eq!(drop_cb.items, [
-            fc(b"a", b"6", 996, ValueType::Value),
-            fc(b"a", b"5", 995, ValueType::Value),
-            fc(b"a", b"4", 994, ValueType::Value),
-            fc(b"b", b"b", 999, ValueType::Value),
-        ]);
     }
 
     pub mod custom_mvcc {
         use super::*;
-        use byteorder::{ReadBytesExt, WriteBytesExt, BE};
+        use byteorder::{BE, ReadBytesExt, WriteBytesExt};
         use test_log::test;
 
         /// MVCC trailer size (anything but user key)
@@ -774,14 +683,11 @@ mod tests {
                 kv(b"abc", 2, b"a", false),
             ];
 
-            let mut drop_cb = TrackCallback { items: vec![] };
             let iter = vec.iter().cloned().map(Ok);
-            let iter = CompactionStream::new(iter, 995)
-                .with_filter(Filter {
-                    mvcc_watermark: 5,
-                    prev_user_key: None,
-                })
-                .with_drop_callback(&mut drop_cb);
+            let iter = CompactionStream::new(iter, 995).with_filter(Filter {
+                mvcc_watermark: 5,
+                prev_user_key: None,
+            });
 
             let out: Vec<_> = iter.map(Result::unwrap).collect();
 
@@ -807,14 +713,11 @@ mod tests {
                 kv(b"d", 0, b"c", false),
             ];
 
-            let mut drop_cb = TrackCallback { items: vec![] };
             let iter = vec.iter().cloned().map(Ok);
-            let iter = CompactionStream::new(iter, 995)
-                .with_filter(Filter {
-                    mvcc_watermark: 3,
-                    prev_user_key: None,
-                })
-                .with_drop_callback(&mut drop_cb);
+            let iter = CompactionStream::new(iter, 995).with_filter(Filter {
+                mvcc_watermark: 3,
+                prev_user_key: None,
+            });
 
             let out: Vec<_> = iter.map(Result::unwrap).collect();
 

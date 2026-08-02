@@ -11,6 +11,7 @@ mod write_delay;
 mod test;
 
 use crate::{
+    Database, Guard, Iter,
     file::{KEYSPACES_FOLDER, LSM_CURRENT_VERSION_MARKER},
     flush::Task as FlushTask,
     ingestion::Ingestion,
@@ -18,14 +19,13 @@ use crate::{
     poison::PoisonSignal,
     supervisor::Supervisor,
     worker_pool::WorkerMessage,
-    Database, Guard, Iter,
 };
-use lsm_tree::{AbstractTree, AnyTree, SeqNo, UserKey, UserValue};
+use lsm_tree::{AbstractTree, SeqNo, Tree, UserKey, UserValue};
 use options::CreateOptions;
 use std::{
     ops::RangeBounds,
     path::Path,
-    sync::{atomic::AtomicBool, Arc, MutexGuard},
+    sync::{Arc, MutexGuard, atomic::AtomicBool},
     time::Duration,
 };
 use write_delay::perform_write_stall;
@@ -50,7 +50,6 @@ pub fn apply_to_base_config(
         .index_block_pinning_policy(our_config.index_block_pinning_policy.clone())
         .data_block_hash_ratio_policy(our_config.data_block_hash_ratio_policy.clone())
         .expect_point_read_hits(our_config.expect_point_read_hits)
-        .with_kv_separation(our_config.kv_separation_opts.clone())
         .index_block_partitioning_policy(our_config.index_block_partitioning_policy.clone())
         .filter_block_partitioning_policy(our_config.filter_block_partitioning_policy.clone())
         .filter_policy(our_config.filter_policy.clone())
@@ -78,7 +77,7 @@ pub struct KeyspaceInner {
 
     /// LSM-tree wrapper
     #[doc(hidden)]
-    pub tree: AnyTree,
+    pub tree: Tree,
 
     pub(crate) supervisor: Supervisor,
 
@@ -132,9 +131,6 @@ impl Drop for KeyspaceInner {
                 }
             }
         }
-
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::decrement_drop_counter();
     }
 }
 
@@ -183,14 +179,6 @@ impl std::hash::Hash for Keyspace {
 }
 
 impl Keyspace {
-    #[inline]
-    fn standard_tree(&self) -> &lsm_tree::Tree {
-        let lsm_tree::AnyTree::Standard(tree) = &self.tree else {
-            panic!("standard keyspace operation used with a blob keyspace");
-        };
-        tree
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn id(&self) -> InternalKeyspaceId {
@@ -271,14 +259,6 @@ impl Keyspace {
         Ok(())
     }
 
-    /// Returns the number of blob bytes on disk that are not referenced.
-    ///
-    /// These will be reclaimed over time by blob garbage collection automatically.
-    #[must_use]
-    pub fn fragmented_blob_bytes(&self) -> u64 {
-        self.tree.stale_blob_bytes()
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn sealed_memtable_count(&self) -> usize {
@@ -304,7 +284,7 @@ impl Keyspace {
     pub(crate) fn from_database(
         keyspace_id: InternalKeyspaceId,
         db: &Database,
-        tree: AnyTree,
+        tree: Tree,
         name: KeyspaceKey,
         config: CreateOptions,
     ) -> Self {
@@ -360,17 +340,6 @@ impl Keyspace {
             is_poisoned: db.is_poisoned.clone(),
             lock_file: db.lock_file.clone(),
         })))
-    }
-
-    /// Returns the metrics struct of the underlying LSM-tree.
-    ///
-    /// # Note
-    ///
-    /// This function is experimental and metric names may change in future releases.
-    #[cfg(feature = "metrics")]
-    #[doc(hidden)]
-    pub fn metrics(&self) -> &lsm_tree::Metrics {
-        &**self.tree.metrics()
     }
 
     /// Returns the underlying LSM-tree's path.
@@ -432,7 +401,7 @@ impl Keyspace {
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
         let nonce = self.supervisor.snapshot_tracker.open();
         let range = ..;
-        self.standard_tree()
+        self.tree
             .create_range::<&[u8], _>(&range, nonce.instant, None)
             .map(move |item| {
                 let _keep_snapshot_alive = &nonce;
@@ -472,7 +441,7 @@ impl Keyspace {
         range: R,
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
         let nonce = self.supervisor.snapshot_tracker.open();
-        self.standard_tree()
+        self.tree
             .create_range(&range, nonce.instant, None)
             .map(move |item| {
                 let _keep_snapshot_alive = &nonce;
@@ -512,7 +481,7 @@ impl Keyspace {
         prefix: K,
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
         let nonce = self.supervisor.snapshot_tracker.open();
-        self.standard_tree()
+        self.tree
             .create_prefix(prefix, nonce.instant, None)
             .map(move |item| {
                 let _keep_snapshot_alive = &nonce;
@@ -677,7 +646,7 @@ impl Keyspace {
         &self,
         key: K,
     ) -> crate::Result<Option<lsm_tree::UserValue>> {
-        Ok(self.standard_tree().get(key, SeqNo::MAX)?)
+        Ok(self.tree.get(key, SeqNo::MAX)?)
     }
 
     /// Retrieves the size of an item from the keyspace.
@@ -751,12 +720,6 @@ impl Keyspace {
     /// ```
     pub fn last_key_value(&self) -> Option<Guard> {
         self.tree.last_key_value(SeqNo::MAX, None).map(Guard)
-    }
-
-    /// Returns `true` if the underlying LSM-tree is key-value-separated.
-    #[must_use]
-    pub fn is_kv_separated(&self) -> bool {
-        matches!(self.tree, crate::AnyTree::Blob(_))
     }
 
     // NOTE: Used in tests
@@ -906,13 +869,6 @@ impl Keyspace {
     #[must_use]
     pub fn table_count(&self) -> usize {
         self.tree.table_count()
-    }
-
-    /// Number of blob files in the LSM-tree.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn blob_file_count(&self) -> usize {
-        self.tree.blob_file_count()
     }
 
     /// Performs major compaction, blocking the caller until it's done.

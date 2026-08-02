@@ -4,8 +4,8 @@
 
 use crate::key::InternalKey;
 use crate::{
-    value::{InternalValue, SeqNo, UserValue},
     ValueType,
+    value::{InternalValue, SeqNo, UserValue},
 };
 use crossbeam_skiplist::SkipMap;
 use std::ops::RangeBounds;

@@ -2,21 +2,19 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{db_config::CompactionFilterAssigner, tx::single_writer::Openable, Config};
+use crate::{Config, Database, db_config::CompactionFilterAssigner};
 use lsm_tree::{Cache, CompressionType, DescriptorTable};
-use std::{marker::PhantomData, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 /// Database builder
-pub struct Builder<O: Openable> {
+pub struct Builder {
     inner: Config,
-    _phantom: PhantomData<O>,
 }
 
-impl<O: Openable> Builder<O> {
+impl Builder {
     pub(crate) fn new(path: &Path) -> Self {
         Self {
             inner: Config::new(path),
-            _phantom: PhantomData,
         }
     }
 
@@ -31,8 +29,8 @@ impl<O: Openable> Builder<O> {
     /// # Errors
     ///
     /// Errors if an I/O error occurred, or if the database can not be opened.
-    pub fn open(self) -> crate::Result<O> {
-        O::open(self.inner)
+    pub fn open(self) -> crate::Result<Database> {
+        Database::open(self.inner)
     }
 
     /// Sets the cache capacity in bytes.

@@ -1,6 +1,6 @@
 use crate::{
     checksum::ChecksummedWriter,
-    file::{fsync_directory, retry_transient_io, rewrite_atomic, CURRENT_VERSION_FILE},
+    file::{CURRENT_VERSION_FILE, fsync_directory, retry_transient_io, rewrite_atomic},
     version::Version,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -56,13 +56,12 @@ pub fn persist_version(folder: &Path, version: &Version) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TreeType;
     use test_log::test;
 
     #[test]
     fn version_persist_replaces_orphaned_file() -> crate::Result<()> {
         let dir = tempfile::tempdir()?;
-        let version = Version::new(0, TreeType::Standard);
+        let version = Version::new(0);
 
         // Simulates the leftover of a persist that failed midway
         std::fs::write(dir.path().join("v0"), b"partial")?;

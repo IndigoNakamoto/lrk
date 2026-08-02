@@ -74,6 +74,17 @@ macro_rules! read_u64 {
     }};
 }
 
+macro_rules! read_u32 {
+    ($block:expr, $name:expr) => {{
+        let bytes = $block
+            .point_read($name, SeqNo::MAX)
+            .unwrap_or_else(|| panic!("meta property {:?} should exist", $name));
+
+        let mut bytes = &bytes.value[..];
+        bytes.read_u32::<LittleEndian>()?
+    }};
+}
+
 impl ParsedMeta {
     #[expect(clippy::expect_used, clippy::too_many_lines)]
     pub fn load_with_handle(file: &File, handle: &BlockHandle) -> crate::Result<Self> {
@@ -95,11 +106,7 @@ impl ParsedMeta {
                 .expect("Table version should exist")
                 .value;
 
-            assert!(
-                matches!(&*table_version, [3u8 | 4u8]),
-                "unsupported table version {}",
-                table_version[0],
-            );
+            assert_eq!(&*table_version, [5], "unsupported table version");
         }
 
         {
@@ -136,7 +143,7 @@ impl ParsedMeta {
             "index block restart intervals >1 are not supported for this version",
         );
 
-        let id = read_u64!(block, b"table_id");
+        let id = read_u32!(block, b"table_id");
         let item_count = read_u64!(block, b"item_count");
         let tombstone_count = read_u64!(block, b"tombstone_count");
         let data_block_count = read_u64!(block, b"block_count#data");

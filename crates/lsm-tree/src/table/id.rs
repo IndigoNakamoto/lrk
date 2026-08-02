@@ -2,9 +2,9 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::tree::inner::TreeId;
+use crate::{SequenceNumberCounter, tree::inner::TreeId};
 
-pub type TableId = u64;
+pub type TableId = u32;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalTableId(TreeId, TableId);
@@ -22,9 +22,13 @@ impl GlobalTableId {
 }
 
 impl From<(TreeId, TableId)> for GlobalTableId {
-    fn from((tid, sid): (TreeId, TableId)) -> Self {
-        Self(tid, sid)
+    fn from((tree_id, table_id): (TreeId, TableId)) -> Self {
+        Self(tree_id, table_id)
     }
+}
+
+pub(crate) fn next_table_id(counter: &SequenceNumberCounter) -> TableId {
+    counter.next().try_into().expect("ran out of table IDs")
 }
 
 #[cfg(test)]
@@ -40,5 +44,6 @@ mod tests {
 
         assert_eq!(global_table_id.tree_id(), 42);
         assert_eq!(global_table_id.table_id(), 7);
+        assert_eq!(size_of::<GlobalTableId>(), 8);
     }
 }

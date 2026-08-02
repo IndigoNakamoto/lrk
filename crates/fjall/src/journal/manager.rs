@@ -49,17 +49,11 @@ pub struct JournalManager {
 impl Drop for JournalManager {
     fn drop(&mut self) {
         log::trace!("Dropping journal manager");
-
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::decrement_drop_counter();
     }
 }
 
 impl JournalManager {
     pub(crate) fn new() -> Self {
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::increment_drop_counter();
-
         Self {
             items: Vec::with_capacity(10),
             disk_space_in_bytes: 0,

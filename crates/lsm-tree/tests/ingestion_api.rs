@@ -1,6 +1,4 @@
-use lsm_tree::{
-    get_tmp_folder, AbstractTree, Config, KvSeparationOptions, SeqNo, SequenceNumberCounter,
-};
+use lsm_tree::{AbstractTree, Config, SeqNo, SequenceNumberCounter, get_tmp_folder};
 
 #[test]
 fn tree_ingestion_tombstones_delete_existing_keys() -> lsm_tree::Result<()> {
@@ -147,37 +145,6 @@ fn ingestion_enforces_order_standard_panics() {
     // Panics here
     let _ = ingest.write(b"k1", b"v");
 }
-
-#[test]
-fn blob_ingestion_out_of_order_panics_without_blob_write() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = lsm_tree::Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(8)))
-    .open()?;
-
-    let before = tree.blob_file_count();
-
-    // Use a small value for the first write to avoid blob I/O
-    let result = std::panic::catch_unwind(|| {
-        let mut ingest = tree.ingestion().unwrap();
-        ingest.write(b"k2", b"x").unwrap();
-
-        // Second write would require blob I/O, but ordering check should fire before any blob write
-        let _ = ingest.write(b"k1", [1u8; 16]);
-    });
-    assert!(result.is_err());
-
-    let after = tree.blob_file_count();
-    assert_eq!(before, after);
-
-    Ok(())
-}
-
 #[test]
 fn memtable_put_overrides_table_tombstone() -> lsm_tree::Result<()> {
     use lsm_tree::AbstractTree;
@@ -212,40 +179,6 @@ fn memtable_put_overrides_table_tombstone() -> lsm_tree::Result<()> {
     );
     Ok(())
 }
-
-#[test]
-fn blob_tree_ingestion_tombstones_delete_existing_keys() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(1)))
-    .open()?;
-
-    for i in 0..8u32 {
-        let key = format!("b{:03}", i);
-        tree.insert(key.as_bytes(), b"x", 0);
-    }
-
-    let mut ingest = tree.ingestion()?;
-    for i in 0..8u32 {
-        let key = format!("b{:03}", i);
-        ingest.write_tombstone(key)?;
-    }
-    ingest.finish()?;
-
-    for i in 0..8u32 {
-        let key = format!("b{:03}", i);
-        assert!(tree.get(key.as_bytes(), SeqNo::MAX)?.is_none());
-    }
-    assert_eq!(tree.tombstone_count(), 8);
-
-    Ok(())
-}
-
 #[test]
 fn tree_ingestion_finish_no_writes_noop() -> lsm_tree::Result<()> {
     let folder = get_tmp_folder();
@@ -263,106 +196,6 @@ fn tree_ingestion_finish_no_writes_noop() -> lsm_tree::Result<()> {
 
     assert_eq!(before_tables, after_tables);
     assert!(tree.is_empty(SeqNo::MAX, None)?);
-
-    Ok(())
-}
-
-#[test]
-fn blob_ingestion_only_tombstones_does_not_create_blob_files() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(1)))
-    .open()?;
-
-    for i in 0..5u32 {
-        let key = format!("d{:03}", i);
-        tree.insert(key.as_bytes(), b"value", 0);
-    }
-
-    let before_blobs = tree.blob_file_count();
-
-    let mut ingest = tree.ingestion()?;
-    for i in 0..5u32 {
-        let key = format!("d{:03}", i);
-        ingest.write_tombstone(key)?;
-    }
-    ingest.finish()?;
-
-    let after_blobs = tree.blob_file_count();
-    assert_eq!(before_blobs, after_blobs);
-
-    for i in 0..5u32 {
-        let key = format!("d{:03}", i);
-        assert!(tree.get(key.as_bytes(), SeqNo::MAX)?.is_none());
-    }
-
-    Ok(())
-}
-
-#[test]
-fn blob_ingestion_finish_no_writes_noop() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(1)))
-    .open()?;
-
-    let before_tables = tree.table_count();
-    let before_blobs = tree.blob_file_count();
-
-    tree.ingestion()?.finish()?;
-
-    let after_tables = tree.table_count();
-    let after_blobs = tree.blob_file_count();
-
-    assert_eq!(before_tables, after_tables);
-    assert_eq!(before_blobs, after_blobs);
-    assert!(tree.is_empty(SeqNo::MAX, None)?);
-
-    Ok(())
-}
-
-#[test]
-fn blob_ingestion_separates_large_values_and_reads_ok() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(8)))
-    .open()?;
-
-    let mut ingest = tree.ingestion()?;
-    ingest.write("k_big1", [1u8; 16])?;
-    ingest.write("k_big2", [2u8; 32])?;
-    ingest.write("k_small", "abc")?;
-    ingest.finish()?;
-
-    assert!(tree.blob_file_count() >= 1);
-
-    assert_eq!(
-        tree.get("k_small", SeqNo::MAX)?,
-        Some(b"abc".as_slice().into())
-    );
-    assert_eq!(
-        tree.get("k_big1", SeqNo::MAX)?.as_deref().map(|s| s.len()),
-        Some(16)
-    );
-    assert_eq!(
-        tree.get("k_big2", SeqNo::MAX)?.as_deref().map(|s| s.len()),
-        Some(32)
-    );
 
     Ok(())
 }

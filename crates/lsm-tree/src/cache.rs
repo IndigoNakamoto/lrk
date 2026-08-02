@@ -2,45 +2,31 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use crate::GlobalTableId;
 use crate::table::block::Header;
 use crate::table::{Block, BlockOffset};
-use crate::{GlobalTableId, UserValue};
-use quick_cache::sync::Cache as QuickCache;
 use quick_cache::Weighter;
-
-const TAG_BLOCK: u8 = 0;
-const TAG_BLOB: u8 = 1;
-
-#[derive(Clone)]
-enum Item {
-    Block(Block),
-    Blob(UserValue),
-}
+use quick_cache::sync::Cache as QuickCache;
 
 #[derive(Eq, std::hash::Hash, PartialEq)]
-struct CacheKey(u8, u64, u64, u64);
+struct CacheKey(GlobalTableId, u64);
 
-impl From<(u8, u64, u64, u64)> for CacheKey {
-    fn from((tag, root_id, table_id, offset): (u8, u64, u64, u64)) -> Self {
-        Self(tag, root_id, table_id, offset)
+impl CacheKey {
+    fn from_id(id: GlobalTableId, offset: BlockOffset) -> Self {
+        Self(id, *offset)
     }
 }
 
 #[derive(Clone)]
 struct BlockWeighter;
 
-impl Weighter<CacheKey, Item> for BlockWeighter {
-    fn weight(&self, _: &CacheKey, item: &Item) -> u64 {
-        use Item::{Blob, Block};
-
-        match item {
-            Block(b) => (Header::serialized_len() as u64) + u64::from(b.header.uncompressed_length),
-            Blob(b) => b.len() as u64,
-        }
+impl Weighter<CacheKey, Block> for BlockWeighter {
+    fn weight(&self, _: &CacheKey, block: &Block) -> u64 {
+        (Header::serialized_len() as u64) + u64::from(block.header.uncompressed_length)
     }
 }
 
-/// Cache, in which blocks or blobs are cached in-memory
+/// Cache in which table blocks are cached in memory
 /// after being retrieved from disk
 ///
 /// This speeds up consecutive queries to nearby data, improving
@@ -67,7 +53,7 @@ impl Weighter<CacheKey, Item> for BlockWeighter {
 pub struct Cache {
     // NOTE: rustc_hash performed best: https://fjall-rs.github.io/post/fjall-2-1
     /// Concurrent cache implementation
-    data: QuickCache<CacheKey, Item, BlockWeighter, rustc_hash::FxBuildHasher>,
+    data: QuickCache<CacheKey, Block, BlockWeighter, rustc_hash::FxBuildHasher>,
 
     /// Capacity in bytes
     capacity: u64,
@@ -115,47 +101,12 @@ impl Cache {
     #[doc(hidden)]
     #[must_use]
     pub fn get_block(&self, id: GlobalTableId, offset: BlockOffset) -> Option<Block> {
-        let key: CacheKey = (TAG_BLOCK, id.tree_id(), id.table_id(), *offset).into();
-
-        Some(match self.data.get(&key)? {
-            Item::Block(block) => block,
-            Item::Blob(_) => unreachable!("invalid cache item"),
-        })
+        let key = CacheKey::from_id(id, offset);
+        self.data.get(&key)
     }
 
     #[doc(hidden)]
     pub fn insert_block(&self, id: GlobalTableId, offset: BlockOffset, block: Block) {
-        self.data.insert(
-            (TAG_BLOCK, id.tree_id(), id.table_id(), *offset).into(),
-            Item::Block(block),
-        );
-    }
-
-    #[doc(hidden)]
-    pub fn insert_blob(
-        &self,
-        vlog_id: crate::TreeId,
-        vhandle: &crate::vlog::ValueHandle,
-        value: UserValue,
-    ) {
-        self.data.insert(
-            (TAG_BLOB, vlog_id, vhandle.blob_file_id, vhandle.offset).into(),
-            Item::Blob(value),
-        );
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn get_blob(
-        &self,
-        vlog_id: crate::TreeId,
-        vhandle: &crate::vlog::ValueHandle,
-    ) -> Option<UserValue> {
-        let key: CacheKey = (TAG_BLOB, vlog_id, vhandle.blob_file_id, vhandle.offset).into();
-
-        Some(match self.data.get(&key)? {
-            Item::Blob(blob) => blob,
-            Item::Block(_) => unreachable!("invalid cache item"),
-        })
+        self.data.insert(CacheKey::from_id(id, offset), block);
     }
 }

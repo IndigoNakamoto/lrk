@@ -1,7 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lsm_tree::{
-    config::BlockSizePolicy, AbstractTree, Cache, Config, Guard, KvSeparationOptions, SeqNo,
-    SequenceNumberCounter,
+    AbstractTree, Cache, Config, Guard, SeqNo, SequenceNumberCounter, config::BlockSizePolicy,
 };
 use std::{path::Path, sync::Arc};
 use tempfile::tempdir;
@@ -376,32 +375,11 @@ fn disjoint_tree_minmax(c: &mut Criterion) {
     });
 }
 
-fn blob_tree_get(c: &mut Criterion) {
-    let folder = tempfile::tempdir().unwrap();
-
-    let tree = config(folder.path())
-        .use_cache(Cache::with_capacity_bytes(0).into())
-        .with_kv_separation(Some(KvSeparationOptions::default()))
-        .open()
-        .unwrap();
-
-    let value = b"powek5bowa".repeat(100);
-
-    tree.insert("mykey", &value, 0);
-
-    c.bench_function("blob tree get", |b| {
-        b.iter(|| {
-            tree.get("mykey", SeqNo::MAX).unwrap().unwrap();
-        });
-    });
-}
-
 // TODO: benchmark point read disjoint vs non-disjoint level vs disjoint *tree*
 // TODO: benchmark .prefix().next() and .next_back(), disjoint and non-disjoint
 
 criterion_group!(
     benches,
-    blob_tree_get,
     disjoint_tree_minmax,
     disk_point_read,
     full_scan,

@@ -5,11 +5,8 @@ license.workspace = true
 version.workspace = true
 edition.workspace = true
 readme.workspace = true
-include = ["src/**/*", "LICENSE-APACHE", "LICENSE-MIT", "README.md"]
 repository.workspace = true
 homepage.workspace = true
-keywords = ["lsmt", "lsm", "rocksdb", "leveldb", "key-value"]
-categories = ["data-structures", "database-implementations", "algorithms"]
 
 [lib]
 name = "lsm_tree"
@@ -18,41 +15,34 @@ path = "src/lib.rs"
 [features]
 default = []
 lz4 = ["dep:lz4_flex"]
-bytes_1 = ["dep:bytes"]
-metrics = []
 
 [dependencies]
-bytes = { version = "1", optional = true }
 byteorder = { package = "byteorder-lite", version = "0.1.0" }
 byteview = { workspace = true }
 crossbeam-skiplist = "0.1.3"
-enum_dispatch = "0.3.13"
 interval-heap = "0.0.5"
 log = { workspace = true }
 lz4_flex = { workspace = true, features = ["checked-decode"], optional = true }
-quick_cache = { version = "0.6.16", default-features = false, features = [] }
+quick_cache = { version = "0.7.0", default-features = false, features = [] }
 rustc-hash = { workspace = true }
-self_cell = "1.2.0"
+self_cell = "1.3.0"
 sfa = "~1.0.0"
 tempfile = { workspace = true }
-varint-rs = "2.2.0"
-xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
+varint-rs = "2.2.1"
+xxhash-rust = { version = "0.8.18", features = ["xxh3"] }
 
 [dev-dependencies]
-criterion = { version = "0.8.0", features = ["html_reports"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
 fs_extra = "1.3.0"
-nanoid = "0.4.0"
-rand = "0.9.2"
+nanoid = "0.5.0"
+rand = "0.10.2"
 strum = { version = "0.28.0", features = ["derive"] }
-test-log = "0.2.18"
+test-log = "0.2.21"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(coverage,coverage_nightly)',
 ] }
-
-[package.metadata.cargo-all-features]
-denylist = []
 
 [[bench]]
 name = "merge"

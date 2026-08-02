@@ -42,9 +42,6 @@ fn test_with_table(
         let (_, checksum) = writer.finish()?.unwrap();
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -54,8 +51,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 false,
                 false,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -72,9 +67,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -84,8 +76,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 true,
                 false,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -102,9 +92,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -114,8 +101,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 false,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -132,9 +117,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -144,8 +126,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 true,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -162,9 +142,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -174,8 +151,6 @@ fn test_with_table(
                 None,
                 true,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -210,9 +185,6 @@ fn test_with_table(
         let (_, checksum) = writer.finish()?.unwrap();
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -222,8 +194,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 false,
                 false,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -239,9 +209,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -251,8 +218,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 true,
                 false,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -268,9 +233,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -280,8 +242,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 false,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -298,9 +258,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file.clone(),
                 checksum,
@@ -310,8 +267,6 @@ fn test_with_table(
                 Some(Arc::new(DescriptorTable::new(10))),
                 true,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -328,9 +283,6 @@ fn test_with_table(
         }
 
         {
-            #[cfg(feature = "metrics")]
-            let metrics = Arc::new(Metrics::default());
-
             let table = Table::recover(
                 file,
                 checksum,
@@ -340,8 +292,6 @@ fn test_with_table(
                 None,
                 true,
                 true,
-                #[cfg(feature = "metrics")]
-                metrics,
             )?;
 
             assert_eq!(0, table.id());
@@ -850,7 +800,6 @@ fn table_zero_bpk() -> crate::Result<()> {
     clippy::indexing_slicing,
     clippy::cast_possible_truncation
 )]
-#[cfg(not(feature = "metrics"))]
 fn table_read_fuzz_1() -> crate::Result<()> {
     use crate::Slice;
     use crate::ValueType::{Tombstone, Value};
@@ -1299,8 +1248,6 @@ fn table_partitioned_index() -> crate::Result<()> {
         Some(Arc::new(crate::DescriptorTable::new(10))),
         true,
         true,
-        #[cfg(feature = "metrics")]
-        Default::default(),
     )
     .unwrap();
 
@@ -1408,8 +1355,6 @@ fn table_global_seqno() -> crate::Result<()> {
         Some(Arc::new(crate::DescriptorTable::new(10))),
         true,
         true,
-        #[cfg(feature = "metrics")]
-        Default::default(),
     )?;
 
     // global seqno is 7, so a1 is = 8 -> can not be read by snapshot=8
@@ -1459,8 +1404,6 @@ fn table_return_global_seqno() -> crate::Result<()> {
         Some(Arc::new(crate::DescriptorTable::new(10))),
         true,
         true,
-        #[cfg(feature = "metrics")]
-        Default::default(),
     )?;
 
     assert_eq!(

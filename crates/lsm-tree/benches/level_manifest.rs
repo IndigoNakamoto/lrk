@@ -1,5 +1,5 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use lsm_tree::{config::BlockSizePolicy, AbstractTree, Config};
+use criterion::{Criterion, criterion_group, criterion_main};
+use lsm_tree::{AbstractTree, Config, config::BlockSizePolicy};
 
 fn iterate_tables(c: &mut Criterion) {
     let mut group = c.benchmark_group("Iterate version tables");

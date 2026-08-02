@@ -3,13 +3,13 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::{
-    compaction::worker::run as run_compaction, flush::worker::run as run_flush, poison::PoisonDart,
-    stats::Stats, supervisor::Supervisor, Keyspace,
+    Keyspace, compaction::worker::run as run_compaction, flush::worker::run as run_flush,
+    poison::PoisonDart, stats::Stats, supervisor::Supervisor,
 };
 use lsm_tree::MemtableId;
 use std::{
     borrow::Cow,
-    sync::{atomic::AtomicUsize, Arc, Mutex},
+    sync::{Arc, Mutex, atomic::AtomicUsize},
     thread::JoinHandle,
 };
 

@@ -7,17 +7,15 @@ use crate::{
     compaction::state::CompactionState,
     config::Config,
     stop_signal::StopSignal,
+    table::next_table_id,
     version::{SuperVersions, Version, persist_version},
 };
 use std::sync::{Arc, Mutex, RwLock, atomic::AtomicU64};
 
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
-
 /// Unique tree ID
 ///
 /// Tree IDs are monotonically increasing integers.
-pub type TreeId = u64;
+pub type TreeId = u32;
 
 /// Unique memtable ID
 ///
@@ -27,7 +25,10 @@ pub type MemtableId = u64;
 /// Hands out a unique (monotonically increasing) tree ID.
 pub fn get_next_tree_id() -> TreeId {
     static TREE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
-    TREE_ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    TREE_ID_COUNTER
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        .try_into()
+        .expect("ran out of tree IDs")
 }
 
 pub struct TreeInner {
@@ -41,10 +42,6 @@ pub struct TreeInner {
     /// Hands out a unique (monotonically increasing) table ID
     #[doc(hidden)]
     pub table_id_counter: SequenceNumberCounter,
-
-    // This is not really used in the normal tree, but we need it in the blob tree
-    /// Hands out a unique (monotonically increasing) blob file ID
-    pub(crate) blob_file_id_counter: SequenceNumberCounter,
 
     pub(crate) version_history: Arc<RwLock<SuperVersions>>,
 
@@ -65,43 +62,28 @@ pub struct TreeInner {
 
     /// Serializes flush operations.
     pub(crate) flush_lock: Mutex<()>,
-
-    #[doc(hidden)]
-    #[cfg(feature = "metrics")]
-    pub metrics: Arc<Metrics>,
 }
 
 impl TreeInner {
     pub(crate) fn create_new(config: Config) -> crate::Result<Self> {
-        let version = Version::new(
-            0,
-            if config.kv_separation_opts.is_some() {
-                crate::TreeType::Blob
-            } else {
-                crate::TreeType::Standard
-            },
-        );
+        let version = Version::new(0);
         persist_version(&config.path, &version)?;
 
         Ok(Self {
             id: get_next_tree_id(),
             memtable_id_counter: SequenceNumberCounter::new(1),
             table_id_counter: SequenceNumberCounter::default(),
-            blob_file_id_counter: SequenceNumberCounter::default(),
             config: Arc::new(config),
             version_history: Arc::new(RwLock::new(SuperVersions::new(version))),
             stop_signal: StopSignal::default(),
             major_compaction_lock: RwLock::default(),
             flush_lock: Mutex::default(),
             compaction_state: Arc::new(Mutex::new(CompactionState::default())),
-
-            #[cfg(feature = "metrics")]
-            metrics: Metrics::default().into(),
         })
     }
 
     pub fn get_next_table_id(&self) -> TableId {
-        self.table_id_counter.next()
+        next_table_id(&self.table_id_counter)
     }
 }
 

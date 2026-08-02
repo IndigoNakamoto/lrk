@@ -3,15 +3,15 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::{
+    Database, HashMap, Keyspace,
     file::{KEYSPACES_FOLDER, LSM_CURRENT_VERSION_MARKER},
     journal::{
         batch_reader::JournalBatchReader, manager::EvictionWatermark, reader::JournalReader,
     },
     keyspace::{
-        apply_to_base_config, options::CreateOptions as KeyspaceCreateOptions, InternalKeyspaceId,
+        InternalKeyspaceId, apply_to_base_config, options::CreateOptions as KeyspaceCreateOptions,
     },
     meta_keyspace::MetaKeyspace,
-    Database, HashMap, Keyspace,
 };
 use lsm_tree::AbstractTree;
 use std::path::PathBuf;
@@ -176,9 +176,6 @@ pub fn recover_sealed_memtables(
                     }
                     lsm_tree::ValueType::WeakTombstone => {
                         tree.remove_weak(item.key, batch.seqno);
-                    }
-                    lsm_tree::ValueType::Indirection => {
-                        unreachable!()
                     }
                 }
             }

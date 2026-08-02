@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
+use criterion::{BatchSize, Criterion, Throughput, criterion_group, criterion_main};
 use lsm_tree::{
-    table::block::{Block, BlockType},
     CompressionType,
+    table::block::{Block, BlockType},
 };
 
 fn input(size: usize) -> Vec<u8> {

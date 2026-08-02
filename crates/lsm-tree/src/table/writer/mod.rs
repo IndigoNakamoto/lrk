@@ -23,18 +23,9 @@ use crate::{
         },
     },
     time::unix_timestamp,
-    vlog::BlobFileId,
 };
 use index::BlockIndexWriter;
 use std::{fs::File, io::BufWriter, path::PathBuf};
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug, std::hash::Hash)]
-pub struct LinkedFile {
-    pub blob_file_id: BlobFileId,
-    pub bytes: u64,
-    pub on_disk_bytes: u64,
-    pub len: usize,
-}
 
 #[derive(Default)]
 struct FixedLen {
@@ -115,8 +106,6 @@ pub struct Writer {
     /// Tracks the previously written item to detect weak tombstone/value pairs
     previous_item: Option<(UserKey, ValueType)>,
 
-    linked_blob_files: Vec<LinkedFile>,
-
     initial_level: u8,
 }
 
@@ -166,24 +155,7 @@ impl Writer {
             bloom_policy: BloomConstructionPolicy::default(),
 
             previous_item: None,
-
-            linked_blob_files: Vec::new(),
         })
-    }
-
-    pub fn link_blob_file(
-        &mut self,
-        blob_file_id: BlobFileId,
-        len: usize,
-        bytes: u64,
-        on_disk_bytes: u64,
-    ) {
-        self.linked_blob_files.push(LinkedFile {
-            blob_file_id,
-            bytes,
-            on_disk_bytes,
-            len,
-        });
     }
 
     #[must_use]
@@ -477,28 +449,8 @@ impl Writer {
         log::trace!("Finishing filter writer");
         let filter_block_count = self.filter_writer.finish(&mut self.file_writer)?;
 
-        if !self.linked_blob_files.is_empty() {
-            use byteorder::{LE, WriteBytesExt};
-
-            self.file_writer.start("linked_blob_files")?;
-
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "there are never 4 billion blob files linked to a single table"
-            )]
-            self.file_writer
-                .write_u32::<LE>(self.linked_blob_files.len() as u32)?;
-
-            for file in self.linked_blob_files {
-                self.file_writer.write_u64::<LE>(file.blob_file_id)?;
-                self.file_writer.write_u64::<LE>(file.len as u64)?;
-                self.file_writer.write_u64::<LE>(file.bytes)?;
-                self.file_writer.write_u64::<LE>(file.on_disk_bytes)?;
-            }
-        }
-
         self.file_writer.start("table_version")?;
-        self.file_writer.write_all(&[0x4])?;
+        self.file_writer.write_all(&[0x5])?;
 
         // Write metadata
         self.file_writer.start("meta")?;
@@ -567,7 +519,7 @@ impl Writer {
                 meta("seqno#max", &self.meta.highest_seqno.to_le_bytes()),
                 meta("seqno#min", &self.meta.lowest_seqno.to_le_bytes()),
                 meta("table_id", &self.table_id.to_le_bytes()),
-                meta("table_version", &[4u8]),
+                meta("table_version", &[5u8]),
                 meta(
                     "tombstone_count",
                     &(self.meta.tombstone_count as u64).to_le_bytes(),

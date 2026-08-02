@@ -1,6 +1,4 @@
-use lsm_tree::{
-    get_tmp_folder, AbstractTree, Config, KvSeparationOptions, SeqNo, SequenceNumberCounter,
-};
+use lsm_tree::{AbstractTree, Config, SeqNo, SequenceNumberCounter, get_tmp_folder};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -126,56 +124,6 @@ fn ingestion_blocks_memtable_writes_until_finish() -> lsm_tree::Result<()> {
         tree.get(b"k_block", SeqNo::MAX)?,
         Some(b"v".as_slice().into())
     );
-
-    Ok(())
-}
-
-#[test]
-fn blob_ingestion_honors_invariants_and_blocks_writes() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(1)))
-    .open()?;
-
-    // Write small values into memtable and then start blob ingestion
-    for i in 0..4u32 {
-        let k = format!("b{:03}", i);
-        tree.insert(k.as_bytes(), b"y", 1);
-    }
-
-    let (started_tx, started_rx) = mpsc::channel();
-    let (done_tx, done_rx) = mpsc::channel();
-    let tree2 = tree.clone();
-
-    let ingest = tree.ingestion()?;
-
-    let handle = thread::spawn(move || {
-        started_tx.send(()).ok();
-        tree2.insert(b"b999", b"z", 31);
-        done_tx.send(()).ok();
-    });
-
-    started_rx.recv().unwrap();
-    thread::sleep(Duration::from_millis(100));
-    assert!(done_rx.try_recv().is_ok());
-
-    handle.join().unwrap();
-    ingest.finish()?;
-
-    // Data visible after ingestion, including concurrent write
-    for i in 0..4u32 {
-        let k = format!("b{:03}", i);
-        assert_eq!(
-            tree.get(k.as_bytes(), SeqNo::MAX)?,
-            Some(b"y".as_slice().into())
-        );
-    }
-    assert_eq!(tree.get(b"b999", SeqNo::MAX)?, Some(b"z".as_slice().into()));
 
     Ok(())
 }

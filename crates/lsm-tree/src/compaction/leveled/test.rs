@@ -116,8 +116,8 @@ fn leveled_l0_reached_limit_disjoint_l1() -> crate::Result<()> {
         tree.flush_active_memtable(0)?;
     }
 
-    let fifo = Arc::new(Strategy::default());
-    tree.compact(fifo, 0)?;
+    let strategy = Arc::new(Strategy::default());
+    tree.compact(strategy, 0)?;
 
     assert_eq!(1, tree.table_count());
 

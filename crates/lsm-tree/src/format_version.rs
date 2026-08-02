@@ -16,6 +16,9 @@ pub enum FormatVersion {
 
     /// Fixed-width key/value lengths in table data blocks
     V4,
+
+    /// 32-bit tree and table IDs
+    V5,
 }
 
 impl std::fmt::Display for FormatVersion {
@@ -31,6 +34,7 @@ impl From<FormatVersion> for u8 {
             FormatVersion::V2 => 2,
             FormatVersion::V3 => 3,
             FormatVersion::V4 => 4,
+            FormatVersion::V5 => 5,
         }
     }
 }
@@ -44,6 +48,7 @@ impl TryFrom<u8> for FormatVersion {
             2 => Ok(Self::V2),
             3 => Ok(Self::V3),
             4 => Ok(Self::V4),
+            5 => Ok(Self::V5),
             _ => Err(()),
         }
     }

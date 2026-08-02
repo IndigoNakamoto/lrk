@@ -3,20 +3,17 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::{
-    iter_guard::IterGuardImpl, table::Table, version::Version, vlog::BlobFile, AnyTree, BlobTree,
-    Config, Guard, InternalValue, KvPair, Memtable, SeqNo, TableId, Tree, UserKey, UserValue,
+    Config, Guard, InternalValue, Memtable, SeqNo, TableId, UserKey, UserValue,
+    iter_guard::IterGuardImpl, table::Table, version::Version,
 };
 use std::{
     ops::RangeBounds,
     sync::{Arc, MutexGuard, RwLockWriteGuard},
 };
 
-pub type RangeItem = crate::Result<KvPair>;
-
-type FlushToTablesResult = (Vec<Table>, Option<Vec<BlobFile>>);
+type FlushToTablesResult = Vec<Table>;
 
 /// Generic Tree API
-#[enum_dispatch::enum_dispatch]
 pub trait AbstractTree {
     /// Debug method for tracing the MVCC history of a key.
     #[doc(hidden)]
@@ -100,14 +97,8 @@ pub trait AbstractTree {
 
         drop(version_history);
 
-        if let Some((tables, blob_files)) = self.flush_to_tables(stream)? {
-            self.register_tables(
-                &tables,
-                blob_files.as_deref(),
-                None,
-                &sealed_ids,
-                seqno_threshold,
-            )?;
+        if let Some(tables) = self.flush_to_tables(stream)? {
+            self.register_tables(&tables, &sealed_ids, seqno_threshold)?;
         }
 
         Ok(Some(flushed_size))
@@ -153,17 +144,6 @@ pub trait AbstractTree {
     /// Returns the approximate number of values reclaimable once weak tombstones can be GC'd.
     fn weak_tombstone_reclaimable_count(&self) -> u64;
 
-    /// Drops tables that are fully contained in a given range.
-    ///
-    /// Accepts any `RangeBounds`, including unbounded or exclusive endpoints.
-    /// If the normalized lower bound is greater than the upper bound, the
-    /// method returns without performing any work.
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` only if an IO error occurs.
-    fn drop_range<K: AsRef<[u8]>, R: RangeBounds<K>>(&self, range: R) -> crate::Result<()>;
-
     /// Drops all tables and clears all memtables atomically.
     ///
     /// # Errors
@@ -178,11 +158,6 @@ pub trait AbstractTree {
     /// Will return `Err` if an IO error occurs.
     fn major_compact(&self, target_size: u64, seqno_threshold: SeqNo) -> crate::Result<()>;
 
-    /// Returns the disk space used by stale blobs.
-    fn stale_blob_bytes(&self) -> u64 {
-        0
-    }
-
     /// Gets the disk space usage of all filters in the tree.
     ///
     /// May not correspond to the actual memory size because filter blocks may be paged out.
@@ -196,10 +171,6 @@ pub trait AbstractTree {
 
     /// Gets the length of the version free list.
     fn version_free_list_len(&self) -> usize;
-
-    /// Returns the metrics structure.
-    #[cfg(feature = "metrics")]
-    fn metrics(&self) -> &Arc<crate::Metrics>;
 
     /// Acquires the flush lock which is required to call [`Tree::flush`].
     fn get_flush_lock(&self) -> MutexGuard<'_, ()>;
@@ -226,8 +197,6 @@ pub trait AbstractTree {
     fn register_tables(
         &self,
         tables: &[Table],
-        blob_files: Option<&[BlobFile]>,
-        frag_map: Option<crate::blob_tree::FragmentationMap>,
         sealed_memtables_to_delete: &[crate::tree::inner::MemtableId],
         gc_watermark: SeqNo,
     ) -> crate::Result<()>;
@@ -265,17 +234,6 @@ pub trait AbstractTree {
     /// Returns the active memtable.
     fn active_memtable(&self) -> Arc<Memtable>;
 
-    /// Returns the tree type.
-    fn tree_type(&self) -> crate::TreeType {
-        // NOTE: This is only really safe to do, because we validate
-        // that the config's kv_separation_opts is consistent with the tree type during recovery.
-        if self.tree_config().kv_separation_opts.is_some() {
-            crate::TreeType::Blob
-        } else {
-            crate::TreeType::Standard
-        }
-    }
-
     /// Seals the active memtable.
     fn rotate_memtable(&self) -> Option<Arc<Memtable>>;
 
@@ -291,9 +249,6 @@ pub trait AbstractTree {
     ///
     /// Can be used to determine whether to write stall.
     fn l0_run_count(&self) -> usize;
-
-    /// Returns the number of blob files currently in the tree.
-    fn blob_file_count(&self) -> usize;
 
     /// Approximates the number of items in the tree.
     fn approximate_len(&self) -> usize;

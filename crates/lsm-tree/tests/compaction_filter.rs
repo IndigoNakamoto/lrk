@@ -1,8 +1,8 @@
+use lsm_tree::compaction::PullDown;
 use lsm_tree::compaction::filter::{
     CompactionFilter, Context as CompactionFilterContext, Factory, ItemAccessor, Verdict,
 };
-use lsm_tree::compaction::PullDown;
-use lsm_tree::{get_tmp_folder, AbstractTree, KvSeparationOptions, SeqNo, SequenceNumberCounter};
+use lsm_tree::{AbstractTree, SeqNo, SequenceNumberCounter, get_tmp_folder};
 use std::sync::{Arc, Mutex};
 use test_log::test;
 
@@ -11,14 +11,13 @@ fn u32_s(n: u32) -> [u8; 4] {
 }
 
 fn u32_f(mut buf: &[u8]) -> u32 {
-    use byteorder::{ReadBytesExt, BE};
+    use byteorder::{BE, ReadBytesExt};
 
     buf.read_u32::<BE>().unwrap()
 }
 
-fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
+fn filter_basic() -> lsm_tree::Result<()> {
     struct FilterState {
-        expect_blob: bool,
         disable: bool,
         do_rewrite: bool,
         saw_value: bool,
@@ -28,7 +27,6 @@ fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
     }
 
     let filter_state = Arc::new(Mutex::new(FilterState {
-        expect_blob: true,
         disable: true,
         do_rewrite: false,
         saw_value: false,
@@ -59,7 +57,6 @@ fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
             } else if key >= 0xff000000 {
                 let value = u32_f(&item.value()?);
                 assert_eq!(key & 0xff, value);
-                assert_eq!(item.is_indirection(), state.expect_blob);
                 state.saw_value = true;
 
                 if !state.do_rewrite {
@@ -108,11 +105,6 @@ fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
         SequenceNumberCounter::default(),
         SequenceNumberCounter::default(),
     )
-    .with_kv_separation(if blob {
-        Some(KvSeparationOptions::default().separation_threshold(2))
-    } else {
-        None
-    })
     .with_compaction_filter_factory(Some(Arc::new(FilterFactory(filter_state.clone()))));
     config.level_count = 3;
     let tree = config.open()?;
@@ -136,7 +128,6 @@ fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
 
     let mut state = filter_state.lock().unwrap();
     state.disable = false;
-    state.expect_blob = blob;
     state.expect_last_level = Some(false);
     drop(state);
 
@@ -189,11 +180,6 @@ fn filter_basic(blob: bool) -> lsm_tree::Result<()> {
 }
 
 #[test]
-fn compaction_filter_with_blob() -> lsm_tree::Result<()> {
-    filter_basic(true)
-}
-
-#[test]
-fn compaction_filter_no_blob() -> lsm_tree::Result<()> {
-    filter_basic(false)
+fn compaction_filter() -> lsm_tree::Result<()> {
+    filter_basic()
 }

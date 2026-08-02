@@ -1,10 +1,6 @@
-use crate::{
-    blob_tree::Guard as BlobGuard, tree::Guard as StandardGuard, KvPair, UserKey, UserValue,
-};
-use enum_dispatch::enum_dispatch;
+use crate::{KvPair, UserKey, UserValue, tree::Guard as StandardGuard};
 
 /// Guard to access key-value pairs
-#[enum_dispatch]
 pub trait IterGuard {
     /// Accesses the key-value pair if the predicate returns `true`.
     ///
@@ -53,12 +49,5 @@ pub trait IterGuard {
     }
 }
 
-/// Generic iterator value
-#[enum_dispatch(IterGuard)]
-pub enum IterGuardImpl {
-    /// Iterator value of a standard LSM-tree
-    Standard(StandardGuard),
-
-    /// Iterator value of a key-value separated tree
-    Blob(BlobGuard),
-}
+/// Iterator value.
+pub type IterGuardImpl = StandardGuard;

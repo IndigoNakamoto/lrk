@@ -20,143 +20,15 @@ pub use restart_interval::RestartIntervalPolicy;
 pub type PartitioningPolicy = PinningPolicy;
 
 use crate::{
-    compaction::filter::Factory, path::absolute_path, version::DEFAULT_LEVEL_COUNT, AnyTree,
-    BlobTree, Cache, CompressionType, DescriptorTable, SequenceNumberCounter, Tree,
+    Cache, CompressionType, DescriptorTable, SequenceNumberCounter, Tree,
+    compaction::filter::Factory, path::absolute_path, version::DEFAULT_LEVEL_COUNT,
 };
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-/// LSM-tree type
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum TreeType {
-    /// Standard LSM-tree, see [`Tree`]
-    Standard,
-
-    /// Key-value separated LSM-tree, see [`BlobTree`]
-    Blob,
-}
-
-impl From<TreeType> for u8 {
-    fn from(val: TreeType) -> Self {
-        match val {
-            TreeType::Standard => 0,
-            TreeType::Blob => 1,
-        }
-    }
-}
-
-impl TryFrom<u8> for TreeType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Standard),
-            1 => Ok(Self::Blob),
-            _ => Err(()),
-        }
-    }
-}
-
 const DEFAULT_FILE_FOLDER: &str = ".lsm.data";
-
-/// Options for key-value separation
-#[derive(Clone, Debug, PartialEq)]
-pub struct KvSeparationOptions {
-    /// What type of compression is used for blobs
-    #[doc(hidden)]
-    pub compression: CompressionType,
-
-    /// Blob file target size in bytes
-    #[doc(hidden)]
-    pub file_target_size: u64,
-
-    /// Key-value separation threshold in bytes
-    #[doc(hidden)]
-    pub separation_threshold: u32,
-
-    #[doc(hidden)]
-    pub staleness_threshold: f32,
-
-    #[doc(hidden)]
-    pub age_cutoff: f32,
-}
-
-impl Default for KvSeparationOptions {
-    fn default() -> Self {
-        Self {
-            #[cfg(feature="lz4")]
-            compression:   CompressionType::Lz4,
-
-            #[cfg(not(feature="lz4"))]
-            compression: CompressionType::None,
-
-            file_target_size: /* 64 MiB */ 64 * 1_024 * 1_024,
-            separation_threshold: /* 1 KiB */ 1_024,
-
-            staleness_threshold: 0.25,
-            age_cutoff: 0.25,
-        }
-    }
-}
-
-impl KvSeparationOptions {
-    /// Sets the blob compression method.
-    #[must_use]
-    pub fn compression(mut self, compression: CompressionType) -> Self {
-        self.compression = compression;
-        self
-    }
-
-    /// Sets the target size of blob files.
-    ///
-    /// Smaller blob files allow more granular garbage collection
-    /// which allows lower space amp for lower write I/O cost.
-    ///
-    /// Larger blob files decrease the number of files on disk and maintenance
-    /// overhead.
-    ///
-    /// Defaults to 64 MiB.
-    #[must_use]
-    pub fn file_target_size(mut self, bytes: u64) -> Self {
-        self.file_target_size = bytes;
-        self
-    }
-
-    /// Sets the key-value separation threshold in bytes.
-    ///
-    /// Smaller value will reduce compaction overhead and thus write amplification,
-    /// at the cost of lower read performance.
-    ///
-    /// Defaults to 1 KiB.
-    #[must_use]
-    pub fn separation_threshold(mut self, bytes: u32) -> Self {
-        self.separation_threshold = bytes;
-        self
-    }
-
-    /// Sets the staleness threshold percentage.
-    ///
-    /// The staleness percentage determines how much a blob file needs to be fragmented to be
-    /// picked up by the garbage collection.
-    ///
-    /// Defaults to 33%.
-    #[must_use]
-    pub fn staleness_threshold(mut self, ratio: f32) -> Self {
-        self.staleness_threshold = ratio;
-        self
-    }
-
-    /// Sets the age cutoff threshold.
-    ///
-    /// Defaults to 20%.
-    #[must_use]
-    pub fn age_cutoff(mut self, ratio: f32) -> Self {
-        self.age_cutoff = ratio;
-        self
-    }
-}
 
 /// Tree configuration builder
 pub struct Config {
@@ -225,9 +97,6 @@ pub struct Config {
     /// Compaction filter factory
     pub compaction_filter_factory: Option<Arc<dyn Factory>>,
 
-    #[doc(hidden)]
-    pub kv_separation_opts: Option<KvSeparationOptions>,
-
     /// The global sequence number generator
     ///
     /// Should be shared between multple trees of a database
@@ -282,8 +151,6 @@ impl Default for Config {
             compaction_filter_factory: None,
 
             expect_point_read_hits: false,
-
-            kv_separation_opts: None,
         }
     }
 }
@@ -443,13 +310,6 @@ impl Config {
         self
     }
 
-    /// Toggles key-value separation.
-    #[must_use]
-    pub fn with_kv_separation(mut self, opts: Option<KvSeparationOptions>) -> Self {
-        self.kv_separation_opts = opts;
-        self
-    }
-
     /// Installs a custom compaction filter.
     #[must_use]
     pub fn with_compaction_filter_factory(mut self, factory: Option<Arc<dyn Factory>>) -> Self {
@@ -462,11 +322,7 @@ impl Config {
     /// # Errors
     ///
     /// Will return `Err` if an IO error occurs.
-    pub fn open(self) -> crate::Result<AnyTree> {
-        Ok(if self.kv_separation_opts.is_some() {
-            AnyTree::Blob(BlobTree::open(self)?)
-        } else {
-            AnyTree::Standard(Tree::open(self)?)
-        })
+    pub fn open(self) -> crate::Result<Tree> {
+        Tree::open(self)
     }
 }

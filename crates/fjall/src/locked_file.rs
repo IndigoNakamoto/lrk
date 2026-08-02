@@ -61,7 +61,9 @@ impl LockedFileGuard {
             if let Err(e) = file.try_lock() {
                 match e {
                     std::fs::TryLockError::Error(e) => {
-                        log::error!("Failed to acquire database lock - if this is expected, you can try opening again (maybe wait a little)");
+                        log::error!(
+                            "Failed to acquire database lock - if this is expected, you can try opening again (maybe wait a little)"
+                        );
                         return Err(crate::Error::Io(e));
                     }
                     std::fs::TryLockError::WouldBlock => {

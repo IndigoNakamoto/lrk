@@ -1,6 +1,4 @@
-use lsm_tree::{
-    get_tmp_folder, AbstractTree, Config, Guard, SeqNo, SequenceNumberCounter, TreeType,
-};
+use lsm_tree::{AbstractTree, Config, Guard, SeqNo, SequenceNumberCounter, get_tmp_folder};
 use test_log::test;
 
 const ITEM_COUNT: usize = 10_000;
@@ -38,79 +36,6 @@ fn tree_reload_smoke_test() -> lsm_tree::Result<()> {
 
     Ok(())
 }
-
-#[test]
-fn tree_reload_smoke_test_blob() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let large_value = "a".repeat(10_000);
-
-    {
-        let tree = Config::new(
-            &folder,
-            SequenceNumberCounter::default(),
-            SequenceNumberCounter::default(),
-        )
-        .with_kv_separation(Some(Default::default()))
-        .open()?;
-
-        assert_eq!(0, tree.table_count());
-
-        tree.insert("a", &large_value, 0);
-        tree.flush_active_memtable(0)?;
-
-        assert_eq!(1, tree.table_count());
-        assert!(tree.contains_key("a", SeqNo::MAX)?);
-    }
-
-    {
-        let tree = Config::new(
-            &folder,
-            SequenceNumberCounter::default(),
-            SequenceNumberCounter::default(),
-        )
-        .with_kv_separation(Some(Default::default()))
-        .open()?;
-
-        assert_eq!(1, tree.table_count());
-        assert_eq!(large_value.as_bytes(), tree.get("a", SeqNo::MAX)?.unwrap());
-    }
-
-    Ok(())
-}
-
-#[test]
-fn tree_reload_blob_again_without_opts() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    {
-        let tree = Config::new(
-            &folder,
-            SequenceNumberCounter::default(),
-            SequenceNumberCounter::default(),
-        )
-        .with_kv_separation(Some(Default::default()))
-        .open()?;
-
-        assert_eq!(0, tree.table_count());
-        assert_eq!(0, tree.blob_file_count());
-    }
-
-    {
-        let tree = Config::new(
-            &folder,
-            SequenceNumberCounter::default(),
-            SequenceNumberCounter::default(),
-        )
-        .with_kv_separation(None)
-        .open();
-
-        assert!(matches!(tree, Err(lsm_tree::Error::Unrecoverable)));
-    }
-
-    Ok(())
-}
-
 #[test]
 fn tree_reload_empty() -> lsm_tree::Result<()> {
     let folder = get_tmp_folder();
@@ -132,7 +57,6 @@ fn tree_reload_empty() -> lsm_tree::Result<()> {
                 .count(),
             0
         );
-        assert_eq!(tree.tree_type(), TreeType::Standard);
     }
 
     {
@@ -152,7 +76,6 @@ fn tree_reload_empty() -> lsm_tree::Result<()> {
                 .count(),
             0
         );
-        assert_eq!(tree.tree_type(), TreeType::Standard);
 
         tree.flush_active_memtable(0)?;
     }
@@ -174,7 +97,6 @@ fn tree_reload_empty() -> lsm_tree::Result<()> {
                 .count(),
             0
         );
-        assert_eq!(tree.tree_type(), TreeType::Standard);
 
         tree.flush_active_memtable(0)?;
     }
@@ -196,7 +118,6 @@ fn tree_reload_empty() -> lsm_tree::Result<()> {
                 .count(),
             0
         );
-        assert_eq!(tree.tree_type(), TreeType::Standard);
     }
 
     Ok(())

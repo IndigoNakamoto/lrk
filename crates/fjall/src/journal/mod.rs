@@ -18,7 +18,7 @@ use crate::file::fsync_directory;
 use batch_reader::JournalBatchReader;
 use lsm_tree::CompressionType;
 use reader::JournalReader;
-use recovery::{recover_journals, RecoveryResult};
+use recovery::{RecoveryResult, recover_journals};
 use std::{
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
@@ -53,9 +53,6 @@ impl Drop for Journal {
                 log::error!("Flush error on drop: {e:?}");
             }
         }
-
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::decrement_drop_counter();
     }
 }
 
@@ -91,9 +88,6 @@ impl Journal {
 
         // IMPORTANT: fsync folder on Unix
         fsync_directory(folder)?;
-
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::increment_drop_counter();
 
         Ok(Self {
             writer: Mutex::new(writer),

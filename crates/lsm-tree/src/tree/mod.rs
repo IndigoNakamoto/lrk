@@ -9,7 +9,7 @@ pub mod sealed;
 use crate::{
     AbstractTree, Checksum, KvPair, SeqNo, SequenceNumberCounter, TableId, UserKey, UserValue,
     ValueType,
-    compaction::{CompactionStrategy, drop_range::OwnedBounds, state::CompactionState},
+    compaction::{CompactionStrategy, state::CompactionState},
     config::Config,
     file::CURRENT_VERSION_FILE,
     format_version::FormatVersion,
@@ -20,18 +20,17 @@ use crate::{
     slice::Slice,
     table::Table,
     value::InternalValue,
-    version::{SuperVersion, SuperVersions, Version, recovery::recover},
-    vlog::BlobFile,
+    version::{
+        SuperVersion, SuperVersions, Version,
+        recovery::{get_current_version, recover},
+    },
 };
 use inner::{TreeId, TreeInner};
 use std::{
-    ops::{Bound, RangeBounds},
+    ops::RangeBounds,
     path::Path,
     sync::{Arc, Mutex, RwLock},
 };
-
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
 
 /// Iterator value guard
 pub struct Guard(crate::Result<(UserKey, UserValue)>);
@@ -100,15 +99,15 @@ impl AbstractTree for Tree {
     }
 
     fn next_table_id(&self) -> TableId {
-        self.0.table_id_counter.get()
+        self.0
+            .table_id_counter
+            .get()
+            .try_into()
+            .expect("ran out of table IDs")
     }
 
     fn id(&self) -> TreeId {
         self.id
-    }
-
-    fn blob_file_count(&self) -> usize {
-        0
     }
 
     fn print_trace(&self, key: &[u8]) -> crate::Result<()> {
@@ -179,11 +178,6 @@ impl AbstractTree for Tree {
         self.flush_lock.lock().expect("lock is poisoned")
     }
 
-    #[cfg(feature = "metrics")]
-    fn metrics(&self) -> &Arc<crate::Metrics> {
-        &self.0.metrics
-    }
-
     fn version_free_list_len(&self) -> usize {
         #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
         self.version_history
@@ -198,10 +192,7 @@ impl AbstractTree for Tree {
         seqno: SeqNo,
         index: Option<(Arc<Memtable>, SeqNo)>,
     ) -> Box<dyn DoubleEndedIterator<Item = IterGuardImpl> + Send + 'static> {
-        Box::new(
-            self.create_prefix(&prefix, seqno, index)
-                .map(|kv| IterGuardImpl::Standard(Guard(kv))),
-        )
+        Box::new(self.create_prefix(&prefix, seqno, index).map(Guard))
     }
 
     fn range<K: AsRef<[u8]>, R: RangeBounds<K>>(
@@ -210,10 +201,7 @@ impl AbstractTree for Tree {
         seqno: SeqNo,
         index: Option<(Arc<Memtable>, SeqNo)>,
     ) -> Box<dyn DoubleEndedIterator<Item = IterGuardImpl> + Send + 'static> {
-        Box::new(
-            self.create_range(&range, seqno, index)
-                .map(|kv| IterGuardImpl::Standard(Guard(kv))),
-        )
+        Box::new(self.create_range(&range, seqno, index).map(Guard))
     }
 
     /// Returns the number of tombstones in the tree.
@@ -240,27 +228,6 @@ impl AbstractTree for Tree {
             .sum()
     }
 
-    fn drop_range<K: AsRef<[u8]>, R: RangeBounds<K>>(&self, range: R) -> crate::Result<()> {
-        let (bounds, is_empty) = Self::range_bounds_to_owned_bounds(&range);
-
-        if is_empty {
-            return Ok(());
-        }
-
-        let strategy = Arc::new(crate::compaction::drop_range::Strategy::new(bounds));
-
-        // IMPORTANT: Write lock so we can be the only compaction going on
-        #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
-        let _lock = self
-            .0
-            .major_compaction_lock
-            .write()
-            .expect("lock is poisoned");
-
-        log::info!("Starting drop_range compaction");
-        self.inner_compact(strategy, 0)
-    }
-
     fn clear(&self) -> crate::Result<()> {
         let config = self.tree_config();
         let mut versions = self.get_version_history_lock();
@@ -271,7 +238,7 @@ impl AbstractTree for Tree {
                 let mut copy = v.clone();
                 copy.active_memtable = Arc::new(Memtable::new(self.memtable_id_counter.next()));
                 copy.sealed_memtables = Arc::default();
-                copy.version = Version::new(v.version.id() + 1, self.tree_type());
+                copy.version = Version::new(v.version.id() + 1);
                 Ok(copy)
             },
             &config.seqno,
@@ -342,7 +309,7 @@ impl AbstractTree for Tree {
     fn flush_to_tables(
         &self,
         stream: impl Iterator<Item = crate::Result<InternalValue>>,
-    ) -> crate::Result<Option<(Vec<Table>, Option<Vec<BlobFile>>)>> {
+    ) -> crate::Result<Option<Vec<Table>>> {
         use crate::{file::TABLES_FOLDER, table::multi_writer::MultiWriter};
         use std::time::Instant;
 
@@ -368,27 +335,23 @@ impl AbstractTree for Tree {
             folder.display(),
         );
 
-        let mut table_writer = MultiWriter::new(
-            folder.clone(),
-            self.table_id_counter.clone(),
-            64 * 1_024 * 1_024,
-            0,
-        )?
-        .use_data_block_restart_interval(data_block_restart_interval)
-        .use_index_block_restart_interval(index_block_restart_interval)
-        .use_data_block_compression(data_block_compression)
-        .use_index_block_compression(index_block_compression)
-        .use_data_block_size(data_block_size)
-        .use_data_block_hash_ratio(data_block_hash_ratio)
-        .use_bloom_policy({
-            use crate::config::FilterPolicyEntry::{Bloom, None};
-            use crate::table::filter::BloomConstructionPolicy;
+        let mut table_writer =
+            MultiWriter::new(folder, self.table_id_counter.clone(), 64 * 1_024 * 1_024, 0)?
+                .use_data_block_restart_interval(data_block_restart_interval)
+                .use_index_block_restart_interval(index_block_restart_interval)
+                .use_data_block_compression(data_block_compression)
+                .use_index_block_compression(index_block_compression)
+                .use_data_block_size(data_block_size)
+                .use_data_block_hash_ratio(data_block_hash_ratio)
+                .use_bloom_policy({
+                    use crate::config::FilterPolicyEntry::{Bloom, None};
+                    use crate::table::filter::BloomConstructionPolicy;
 
-            match self.config.filter_policy.get(0) {
-                Bloom(policy) => policy,
-                None => BloomConstructionPolicy::BitsPerKey(0.0),
-            }
-        });
+                    match self.config.filter_policy.get(0) {
+                        Bloom(policy) => policy,
+                        None => BloomConstructionPolicy::BitsPerKey(0.0),
+                    }
+                });
 
         if index_partitioning {
             table_writer = table_writer.use_partitioned_index();
@@ -401,7 +364,7 @@ impl AbstractTree for Tree {
             table_writer.write(item?)?;
         }
 
-        let result = table_writer.finish()?;
+        let (folder, result) = table_writer.finish()?;
 
         log::debug!("Flushed memtable(s) in {:?}", start.elapsed());
 
@@ -421,29 +384,21 @@ impl AbstractTree for Tree {
                     self.config.descriptor_table.clone(),
                     pin_filter,
                     pin_index,
-                    #[cfg(feature = "metrics")]
-                    self.metrics.clone(),
                 )
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        Ok(Some((tables, None)))
+        Ok(Some(tables))
     }
 
     #[expect(clippy::significant_drop_tightening)]
     fn register_tables(
         &self,
         tables: &[Table],
-        blob_files: Option<&[BlobFile]>,
-        frag_map: Option<crate::blob_tree::FragmentationMap>,
         sealed_memtables_to_delete: &[crate::tree::inner::MemtableId],
         gc_watermark: SeqNo,
     ) -> crate::Result<()> {
-        log::trace!(
-            "Registering {} tables, {} blob files",
-            tables.len(),
-            blob_files.map(<[BlobFile]>::len).unwrap_or_default(),
-        );
+        log::trace!("Registering {} tables", tables.len());
 
         #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
         let mut _compaction_state = self.compaction_state.lock().expect("lock is poisoned");
@@ -467,11 +422,7 @@ impl AbstractTree for Tree {
             |current| {
                 let mut copy = current.clone();
 
-                copy.version = copy.version.with_new_l0_run(
-                    tables,
-                    blob_files,
-                    frag_map.filter(|x| !x.is_empty()),
-                );
+                copy.version = copy.version.with_new_l0_run(tables);
 
                 for &table_id in sealed_memtables_to_delete {
                     log::trace!("releasing sealed memtable #{table_id}");
@@ -789,51 +740,6 @@ impl Tree {
         None
     }
 
-    pub(crate) fn get_version_for_snapshot(&self, seqno: SeqNo) -> SuperVersion {
-        #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
-        self.version_history
-            .read()
-            .expect("lock is poisoned")
-            .get_version_for_snapshot(seqno)
-    }
-
-    /// Normalizes a user-provided range into owned `Bound<Slice>` values.
-    ///
-    /// Returns a tuple containing:
-    /// - the `OwnedBounds` that mirror the original bounds semantics (including
-    ///   inclusive/exclusive markers and unbounded endpoints), and
-    /// - a `bool` flag indicating whether the normalized range is logically
-    ///   empty (e.g., when the lower bound is greater than the upper bound).
-    ///
-    /// Callers can use the flag to detect empty ranges and skip further work
-    /// while still having access to the normalized bounds for non-empty cases.
-    fn range_bounds_to_owned_bounds<K: AsRef<[u8]>, R: RangeBounds<K>>(
-        range: &R,
-    ) -> (OwnedBounds, bool) {
-        use Bound::{Excluded, Included, Unbounded};
-
-        let start = match range.start_bound() {
-            Included(key) => Included(Slice::from(key.as_ref())),
-            Excluded(key) => Excluded(Slice::from(key.as_ref())),
-            Unbounded => Unbounded,
-        };
-
-        let end = match range.end_bound() {
-            Included(key) => Included(Slice::from(key.as_ref())),
-            Excluded(key) => Excluded(Slice::from(key.as_ref())),
-            Unbounded => Unbounded,
-        };
-
-        let is_empty =
-            if let (Included(lo) | Excluded(lo), Included(hi) | Excluded(hi)) = (&start, &end) {
-                lo.as_ref() > hi.as_ref()
-            } else {
-                false
-            };
-
-        (OwnedBounds { start, end }, is_empty)
-    }
-
     /// Opens an LSM-tree in the given directory.
     ///
     /// Will recover previous state if the folder was previously
@@ -954,7 +860,7 @@ impl Tree {
             .insert(value)
     }
 
-    /// Recovers previous state, by loading the level manifest, tables and blob files.
+    /// Recovers previous state by loading the level manifest and tables.
     ///
     /// # Errors
     ///
@@ -967,63 +873,33 @@ impl Tree {
 
         let tree_id = get_next_tree_id();
 
-        #[cfg(feature = "metrics")]
-        let metrics = Arc::new(Metrics::default());
-
-        let version = Self::recover_levels(
-            &config.path,
-            tree_id,
-            &config,
-            #[cfg(feature = "metrics")]
-            &metrics,
-        )?;
-
         {
-            let manifest_path = config.path.join(format!("v{}", version.id()));
+            let current_version = get_current_version(&config.path)?;
+            let manifest_path = config.path.join(format!("v{current_version}"));
             let reader = sfa::Reader::new(&manifest_path)?;
             let manifest = Manifest::decode_from(&manifest_path, &reader)?;
-
-            if manifest.version != FormatVersion::V4 {
-                return Err(crate::Error::InvalidVersion(manifest.version.into()));
-            }
-
-            let requested_tree_type = match config.kv_separation_opts {
-                Some(_) => crate::TreeType::Blob,
-                None => crate::TreeType::Standard,
-            };
-
-            if version.tree_type() != requested_tree_type {
-                log::error!(
-                    "Tried to open a {requested_tree_type:?}Tree, but the existing tree is of type {:?}Tree. This indicates a misconfiguration or corruption.",
-                    version.tree_type(),
-                );
-                return Err(crate::Error::Unrecoverable);
-            }
 
             // IMPORTANT: Restore persisted config
             config.level_count = manifest.level_count;
         }
+
+        let version = Self::recover_levels(&config.path, tree_id, &config)?;
 
         let highest_table_id = version
             .iter_tables()
             .map(Table::id)
             .max()
             .unwrap_or_default();
-
         let inner = TreeInner {
             id: tree_id,
             memtable_id_counter: SequenceNumberCounter::new(1),
-            table_id_counter: SequenceNumberCounter::new(highest_table_id + 1),
-            blob_file_id_counter: SequenceNumberCounter::default(),
+            table_id_counter: SequenceNumberCounter::new(u64::from(highest_table_id) + 1),
             version_history: Arc::new(RwLock::new(SuperVersions::new(version))),
             stop_signal: StopSignal::default(),
             config: Arc::new(config),
             major_compaction_lock: RwLock::default(),
             flush_lock: Mutex::default(),
             compaction_state: Arc::new(Mutex::new(CompactionState::default())),
-
-            #[cfg(feature = "metrics")]
-            metrics,
         };
 
         Ok(Self(Arc::new(inner)))
@@ -1055,7 +931,6 @@ impl Tree {
         tree_path: P,
         tree_id: TreeId,
         config: &Config,
-        #[cfg(feature = "metrics")] metrics: &Arc<Metrics>,
     ) -> crate::Result<Version> {
         use crate::{TableId, file::TABLES_FOLDER, file::fsync_directory};
 
@@ -1152,8 +1027,6 @@ impl Tree {
                     config.descriptor_table.clone(),
                     pin_filter,
                     pin_index,
-                    #[cfg(feature = "metrics")]
-                    metrics.clone(),
                 )?;
 
                 tables.push(table);
@@ -1176,14 +1049,7 @@ impl Tree {
 
         log::debug!("Successfully recovered {} tables", tables.len());
 
-        let (blob_files, orphaned_blob_files) = crate::vlog::recover_blob_files(
-            &tree_path.join(crate::file::BLOBS_FOLDER),
-            &recovery.blob_file_ids,
-            tree_id,
-            config.descriptor_table.as_ref(),
-        )?;
-
-        let version = Version::from_recovery(recovery, &tables, &blob_files)?;
+        let version = Version::from_recovery(recovery, &tables)?;
 
         // NOTE: Cleanup old versions
         // But only after we definitely recovered the latest version
@@ -1192,11 +1058,6 @@ impl Tree {
         for table_path in orphaned_tables {
             log::debug!("Deleting orphaned table {}", table_path.display());
             std::fs::remove_file(&table_path)?;
-        }
-
-        for blob_file_path in orphaned_blob_files {
-            log::debug!("Deleting orphaned blob file {}", blob_file_path.display());
-            std::fs::remove_file(&blob_file_path)?;
         }
 
         Ok(version)

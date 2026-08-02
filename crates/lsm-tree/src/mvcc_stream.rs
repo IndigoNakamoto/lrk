@@ -88,7 +88,7 @@ impl<I: DoubleEndedIterator<Item = crate::Result<InternalValue>>> DoubleEndedIte
 #[expect(clippy::string_lit_as_bytes)]
 mod tests {
     use super::*;
-    use crate::{value::InternalValue, ValueType};
+    use crate::{ValueType, value::InternalValue};
     use test_log::test;
 
     macro_rules! stream {

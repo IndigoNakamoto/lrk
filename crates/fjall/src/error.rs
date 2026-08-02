@@ -3,7 +3,7 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::{
-    journal::error::RecoveryError as JournalRecoveryError, version::FormatVersion, CompressionType,
+    CompressionType, journal::error::RecoveryError as JournalRecoveryError, version::FormatVersion,
 };
 
 /// Errors that may occur in the storage engine

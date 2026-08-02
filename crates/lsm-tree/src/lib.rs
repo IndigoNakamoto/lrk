@@ -60,17 +60,10 @@ macro_rules! fail_iter {
 }
 
 macro_rules! unwrap {
-    ($x:expr) => {{
-        $x.expect("should read")
-    }};
+    ($x:expr) => {{ $x.expect("should read") }};
 }
 
-mod any_tree;
-
 mod abstract_tree;
-
-#[doc(hidden)]
-pub mod blob_tree;
 
 #[doc(hidden)]
 mod cache;
@@ -100,7 +93,6 @@ mod error;
 pub mod file;
 
 mod hash;
-mod ingestion;
 mod iter_guard;
 mod key;
 mod key_range;
@@ -111,11 +103,6 @@ mod run_scanner;
 
 #[doc(hidden)]
 pub mod merge;
-
-#[cfg(feature = "metrics")]
-pub(crate) mod metrics;
-
-// mod multi_reader;
 
 #[doc(hidden)]
 pub mod mvcc_stream;
@@ -145,8 +132,6 @@ pub mod util;
 mod value;
 mod value_type;
 mod version;
-mod vlog;
-
 /// User defined key (byte array)
 pub type UserKey = Slice;
 
@@ -158,41 +143,33 @@ pub type KvPair = (UserKey, UserValue);
 
 #[doc(hidden)]
 pub use {
-    blob_tree::{handle::BlobIndirection, Guard as BlobGuard},
     checksum::Checksum,
     iter_guard::IterGuardImpl,
     key_range::KeyRange,
     merge::BoxedIterator,
     slice::Builder,
     table::{GlobalTableId, Table, TableId},
-    tree::inner::TreeId,
     tree::Guard as StandardGuard,
+    tree::inner::TreeId,
     value::InternalValue,
 };
 
 pub use {
     abstract_tree::AbstractTree,
-    any_tree::AnyTree,
-    blob_tree::BlobTree,
     cache::Cache,
     compression::CompressionType,
-    config::{Config, KvSeparationOptions, TreeType},
+    config::Config,
     descriptor_table::DescriptorTable,
     error::{Error, Result},
     format_version::FormatVersion,
-    ingestion::AnyIngestion,
     iter_guard::IterGuard as Guard,
     memtable::{Memtable, MemtableId},
     seqno::SequenceNumberCounter,
     slice::Slice,
-    tree::Tree,
+    tree::{Tree, ingest::Ingestion},
     value::SeqNo,
     value_type::ValueType,
-    vlog::BlobFile,
 };
-
-#[cfg(feature = "metrics")]
-pub use metrics::Metrics;
 
 #[doc(hidden)]
 #[must_use]

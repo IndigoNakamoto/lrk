@@ -2,13 +2,13 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{db::Keyspaces, keyspace::InternalKeyspaceId, Keyspace};
+use crate::{Keyspace, db::Keyspaces, keyspace::InternalKeyspaceId};
 use byteview::StrView;
-use lsm_tree::{AbstractTree, AnyTree, SeqNo, SequenceNumberCounter, UserValue};
+use lsm_tree::{AbstractTree, SeqNo, SequenceNumberCounter, Tree, UserValue};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 pub fn encode_config_key(keyspace_id: InternalKeyspaceId, name: &str) -> crate::UserKey {
-    use byteorder::{WriteBytesExt, BE};
+    use byteorder::{BE, WriteBytesExt};
     use std::io::Write;
 
     #[expect(unsafe_code)]
@@ -46,7 +46,7 @@ pub struct MetaKeyspace {
     ///
     /// We never commit data through the WAL but write tables directly using
     /// lsm-tree's ingestion API.
-    inner: AnyTree,
+    inner: Tree,
 
     /// Dictionary of all keyspaces
     #[doc(hidden)]
@@ -58,7 +58,7 @@ pub struct MetaKeyspace {
 
 impl MetaKeyspace {
     pub(crate) fn new(
-        inner: AnyTree,
+        inner: Tree,
         keyspaces: Arc<RwLock<Keyspaces>>,
         seqno_generator: SequenceNumberCounter,
         visible_seqno: SequenceNumberCounter,
@@ -224,7 +224,7 @@ impl MetaKeyspace {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Database, Guard, KeyspaceCreateOptions, Readable, SingleWriterTxDatabase};
+    use crate::{Database, Guard, KeyspaceCreateOptions};
     use test_log::test;
 
     const ITEM_COUNT: usize = 10;
@@ -375,83 +375,6 @@ mod tests {
     }
 
     #[test]
-    fn tx_keyspace_delete() -> crate::Result<()> {
-        let folder = tempfile::tempdir()?;
-
-        let path;
-
-        {
-            let db = SingleWriterTxDatabase::builder(&folder).open()?;
-
-            let tree = db.keyspace("default", KeyspaceCreateOptions::default)?;
-            path = tree.path();
-
-            assert!(path.try_exists()?);
-
-            for x in 0..ITEM_COUNT as u64 {
-                let key = x.to_be_bytes();
-                let value = nanoid::nanoid!();
-                tree.insert(key, value.as_bytes())?;
-            }
-
-            for x in 0..ITEM_COUNT as u64 {
-                let key: [u8; 8] = (x + ITEM_COUNT as u64).to_be_bytes();
-                let value = nanoid::nanoid!();
-                tree.insert(key, value.as_bytes())?;
-            }
-
-            assert_eq!(db.read_tx().len(&tree)?, ITEM_COUNT * 2);
-            assert_eq!(
-                db.read_tx().iter(&tree).flat_map(Guard::key).count(),
-                ITEM_COUNT * 2,
-            );
-            assert_eq!(
-                db.read_tx().iter(&tree).rev().flat_map(Guard::key).count(),
-                ITEM_COUNT * 2,
-            );
-        }
-
-        for _ in 0..3 {
-            let db = SingleWriterTxDatabase::builder(&folder).open()?;
-
-            let tree = db.keyspace("default", KeyspaceCreateOptions::default)?;
-
-            assert_eq!(db.read_tx().len(&tree)?, ITEM_COUNT * 2);
-            assert_eq!(
-                db.read_tx().iter(&tree).flat_map(Guard::key).count(),
-                ITEM_COUNT * 2,
-            );
-            assert_eq!(
-                db.read_tx().iter(&tree).rev().flat_map(Guard::key).count(),
-                ITEM_COUNT * 2,
-            );
-
-            assert!(path.try_exists()?);
-        }
-
-        {
-            let db = SingleWriterTxDatabase::builder(&folder).open()?;
-
-            {
-                let tree = db.keyspace("default", KeyspaceCreateOptions::default)?;
-
-                assert!(path.try_exists()?);
-
-                db.inner().delete_keyspace(tree.inner().clone())?;
-            }
-
-            assert!(!path.try_exists()?);
-        }
-
-        {
-            let _db = Database::builder(&folder).open()?;
-            assert!(!path.try_exists()?);
-        }
-
-        Ok(())
-    }
-
-    #[test]
     fn keyspace_delete_and_reopening_behavior() -> crate::Result<()> {
         let keyspace_name = "default";
         let folder = tempfile::tempdir()?;
@@ -473,9 +396,10 @@ mod tests {
         db.delete_keyspace(keyspace)?;
         assert!(!keyspace_exists(1)?);
 
-        assert!(db
-            .keyspace("default", KeyspaceCreateOptions::default)
-            .is_ok());
+        assert!(
+            db.keyspace("default", KeyspaceCreateOptions::default)
+                .is_ok()
+        );
         assert!(keyspace_exists(2)?);
 
         Ok(())

@@ -852,39 +852,6 @@ mod tests {
     }
 
     #[test]
-    fn data_block_vhandle() -> crate::Result<()> {
-        let items = [InternalValue::from_components(
-            "abc",
-            "world",
-            1,
-            crate::ValueType::Indirection,
-        )];
-
-        for restart_interval in 1..=16 {
-            let bytes = DataBlock::encode_into_vec(&items, restart_interval, 0.0)?;
-            let serialized_len = bytes.len();
-
-            let data_block = DataBlock::new(Block {
-                data: bytes.into(),
-                header: Header {
-                    block_type: BlockType::Data,
-                    checksum: Checksum::from_raw(0),
-                    data_length: 0,
-                    uncompressed_length: 0,
-                },
-            });
-
-            assert_eq!(data_block.len(), items.len());
-            assert_eq!(data_block.inner.size(), serialized_len);
-
-            assert_eq!(Some(items[0].clone()), data_block.point_read(b"abc", 777));
-            assert!(data_block.point_read(b"abc", 1).is_none());
-        }
-
-        Ok(())
-    }
-
-    #[test]
     fn data_block_mvcc_read_first() -> crate::Result<()> {
         let items = [InternalValue::from_components(
             "hello",

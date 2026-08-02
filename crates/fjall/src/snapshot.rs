@@ -2,7 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{snapshot_nonce::SnapshotNonce, Guard, Iter, Keyspace, Readable};
+use crate::{Guard, Iter, Keyspace, Readable, snapshot_nonce::SnapshotNonce};
 use lsm_tree::{AbstractTree, SeqNo, UserValue};
 use std::ops::RangeBounds;
 

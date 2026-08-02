@@ -174,11 +174,12 @@ impl<T: Ranged> Run<T> {
 #[expect(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::TableId;
     use test_log::test;
 
     #[derive(Clone)]
     struct FakeTable {
-        id: u64,
+        id: TableId,
         key_range: KeyRange,
     }
 
@@ -188,7 +189,7 @@ mod tests {
         }
     }
 
-    fn s(id: u64, min: &str, max: &str) -> FakeTable {
+    fn s(id: TableId, min: &str, max: &str) -> FakeTable {
         FakeTable {
             id,
             key_range: KeyRange::new((min.as_bytes().into(), max.as_bytes().into())),
@@ -283,15 +284,14 @@ mod tests {
             run.range_overlap_indexes(&(b"z" as &[u8]..=b"zzz"))
         );
         assert_eq!(Some((3, 3)), run.range_overlap_indexes(&(b"z" as &[u8]..)));
-        assert!(run
-            .range_overlap_indexes(&(b"zzz" as &[u8]..=b"zzzzzzz"))
-            .is_none());
+        assert!(
+            run.range_overlap_indexes(&(b"zzz" as &[u8]..=b"zzzzzzz"))
+                .is_none()
+        );
     }
 
     #[test]
     fn run_range_contained() {
-        use crate::TableId;
-
         let items = vec![
             s(0, "a", "d"),
             s(1, "e", "j"),
@@ -411,7 +411,7 @@ mod tests {
         );
 
         assert_eq!(
-            &[] as &[u64],
+            &[] as &[TableId],
             &*run
                 .get_overlapping(&KeyRange::new((b"zzz".into(), b"zzzz".into())))
                 .iter()

@@ -11,7 +11,6 @@
 //! - Keyspaces (a.k.a. column families) with cross-keyspace atomic semantics
 //! - Built-in compression (default = `LZ4`)
 //! - Serializable transactions (optional)
-//! - Key-value separation for large blob use cases (optional)
 //! - Automatic background maintenance
 //!
 //! It is not:
@@ -98,10 +97,6 @@ pub mod compaction;
 
 mod db_config;
 
-#[cfg(feature = "__internal_whitebox")]
-#[doc(hidden)]
-pub mod drop;
-
 mod db;
 
 #[cfg(test)]
@@ -126,7 +121,6 @@ mod snapshot_nonce;
 mod snapshot_tracker;
 mod stats;
 mod supervisor;
-mod tx;
 mod version;
 mod worker_pool;
 mod write_buffer_manager;
@@ -152,27 +146,16 @@ pub use {
     guard::Guard,
     iter::Iter,
     journal::{error::RecoveryError as JournalRecoveryError, writer::PersistMode},
-    keyspace::{options::CreateOptions as KeyspaceCreateOptions, Keyspace},
+    keyspace::{Keyspace, options::CreateOptions as KeyspaceCreateOptions},
     readable::Readable,
     snapshot::Snapshot,
     version::FormatVersion,
 };
 
-pub use tx::single_writer::{
-    SingleWriterTxKeyspace, TxDatabase as SingleWriterTxDatabase,
-    WriteTransaction as SingleWriterWriteTx,
-};
-
-pub use tx::optimistic::{
-    Conflict, OptimisticTxDatabase, OptimisticTxKeyspace, WriteTransaction as OptimisticWriteTx,
-};
-
 #[doc(hidden)]
-pub use lsm_tree::{AbstractTree, AnyTree, Error as LsmError, TreeType};
+pub use lsm_tree::{AbstractTree, Error as LsmError};
 
-pub use lsm_tree::{
-    CompressionType, KvPair, KvSeparationOptions, SeqNo, Slice, UserKey, UserValue,
-};
+pub use lsm_tree::{CompressionType, KvPair, SeqNo, Slice, UserKey, UserValue};
 
 /// Utility functions
 pub mod util {

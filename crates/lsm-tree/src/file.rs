@@ -8,7 +8,6 @@ use std::{fs::File, io::Write, path::Path};
 pub const MAGIC_BYTES: [u8; 4] = [b'L', b'S', b'M', 3];
 
 pub const TABLES_FOLDER: &str = "tables";
-pub const BLOBS_FOLDER: &str = "blobs";
 pub const CURRENT_VERSION_FILE: &str = "current";
 
 /// Reads bytes from a file using `pread`.
@@ -50,7 +49,10 @@ pub fn read_exact(file: &File, offset: u64, size: usize) -> std::io::Result<Slic
         if bytes_read != size {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
-                format!("read_exact({bytes_read}) at {offset} did not read enough bytes {size}; file has length {}", file.metadata()?.len()),
+                format!(
+                    "read_exact({bytes_read}) at {offset} did not read enough bytes {size}; file has length {}",
+                    file.metadata()?.len()
+                ),
             ));
         }
     }

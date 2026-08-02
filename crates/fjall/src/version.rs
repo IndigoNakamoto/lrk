@@ -18,6 +18,9 @@ pub enum FormatVersion {
 
     /// Fixed-width key/value lengths in LSM table data blocks
     V4,
+
+    /// 32-bit LSM tree and table IDs
+    V5,
 }
 
 impl std::fmt::Display for FormatVersion {
@@ -33,6 +36,7 @@ impl From<FormatVersion> for u8 {
             FormatVersion::V2 => 2,
             FormatVersion::V3 => 3,
             FormatVersion::V4 => 4,
+            FormatVersion::V5 => 5,
         }
     }
 }
@@ -46,6 +50,7 @@ impl TryFrom<u8> for FormatVersion {
             2 => Ok(Self::V2),
             3 => Ok(Self::V3),
             4 => Ok(Self::V4),
+            5 => Ok(Self::V5),
             _ => Err(()),
         }
     }
@@ -110,13 +115,13 @@ mod tests {
     }
 
     #[test]
-    pub fn version_serialize_and_deserialize_4() -> crate::Result<()> {
+    pub fn version_serialize_and_deserialize_5() -> crate::Result<()> {
         let mut bytes = vec![];
-        FormatVersion::V4.write_file_header(&mut bytes)?;
-        assert_eq!(bytes, &[b'F', b'J', b'L', 4]);
+        FormatVersion::V5.write_file_header(&mut bytes)?;
+        assert_eq!(bytes, &[b'F', b'J', b'L', 5]);
         assert_eq!(
             FormatVersion::parse_file_header(&bytes),
-            Some(FormatVersion::V4),
+            Some(FormatVersion::V5),
         );
         Ok(())
     }

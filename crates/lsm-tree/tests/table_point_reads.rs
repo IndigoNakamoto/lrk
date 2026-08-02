@@ -1,6 +1,5 @@
 use lsm_tree::{
-    config::BlockSizePolicy, get_tmp_folder, AbstractTree, Config, KvSeparationOptions, SeqNo,
-    SequenceNumberCounter,
+    AbstractTree, Config, SeqNo, SequenceNumberCounter, config::BlockSizePolicy, get_tmp_folder,
 };
 use test_log::test;
 
@@ -113,56 +112,6 @@ fn table_point_reads_mvcc_slab() -> lsm_tree::Result<()> {
                 String::from_utf8_lossy(&item.value)
                     .parse::<SeqNo>()
                     .unwrap(),
-                seqno - 1
-            );
-        }
-    }
-
-    Ok(())
-}
-
-#[test]
-fn blob_tree_table_point_reads_mvcc_slab() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .data_block_size_policy(BlockSizePolicy::all(1_024))
-    .with_kv_separation(Some(KvSeparationOptions::default().separation_threshold(1)))
-    .open()?;
-
-    let keys = [0, 1, 2]
-        .into_iter()
-        .map(u64::to_be_bytes)
-        .collect::<Vec<_>>();
-
-    for key in &keys {
-        for seqno in 0..ITEM_COUNT as u64 {
-            tree.insert(key, seqno.to_string(), seqno);
-        }
-    }
-    tree.flush_active_memtable(0)?;
-
-    for key in &keys {
-        let item = tree.get(key, SeqNo::MAX)?.unwrap();
-        assert_eq!(
-            String::from_utf8_lossy(&item).parse::<SeqNo>().unwrap(),
-            ITEM_COUNT as u64 - 1
-        );
-    }
-
-    for key in &keys {
-        // NOTE: Need to start at seqno=1
-        for seqno in 1..ITEM_COUNT as u64 {
-            let value = tree.get(key, seqno)?.unwrap();
-
-            // NOTE: When snapshot is =1, it will read any items with
-            // seqno less than 1
-            assert_eq!(
-                String::from_utf8_lossy(&value).parse::<SeqNo>().unwrap(),
                 seqno - 1
             );
         }

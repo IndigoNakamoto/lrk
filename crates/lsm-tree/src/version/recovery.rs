@@ -2,10 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{
-    coding::Decode, file::CURRENT_VERSION_FILE, version::VersionId, vlog::BlobFileId, Checksum,
-    SeqNo, TableId, TreeType,
-};
+use crate::{Checksum, SeqNo, TableId, file::CURRENT_VERSION_FILE, version::VersionId};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::path::Path;
 
@@ -24,11 +21,8 @@ pub struct RecoveredTable {
 }
 
 pub struct Recovery {
-    pub tree_type: TreeType,
     pub curr_version_id: VersionId,
     pub table_ids: Vec<Vec<Vec<RecoveredTable>>>,
-    pub blob_file_ids: Vec<(BlobFileId, Checksum)>,
-    pub gc_stats: crate::blob_tree::FragmentationMap,
 }
 
 pub fn recover(folder: &Path) -> crate::Result<Recovery> {
@@ -68,7 +62,7 @@ pub fn recover(folder: &Path) -> crate::Result<Recovery> {
                 let table_count = reader.read_u32::<LittleEndian>()?;
 
                 for _ in 0..table_count {
-                    let id = reader.read_u64::<LittleEndian>()?;
+                    let id = reader.read_u32::<LittleEndian>()?;
                     let checksum_type = reader.read_u8()?;
 
                     if checksum_type != 0 {
@@ -94,67 +88,26 @@ pub fn recover(folder: &Path) -> crate::Result<Recovery> {
         }
     }
 
-    let blob_file_ids = {
-        let mut reader = toc
-            .section(b"blob_files")
+    let tree_type = {
+        let byte = toc
+            .section(b"tree_type")
             .ok_or(crate::Error::Unrecoverable)
             .inspect_err(|_| {
-                log::error!("blob_files section not found in version #{curr_version_id} - maybe the file is corrupted?");
-            })?
-            .buf_reader(&version_file_path)?;
-
-        let blob_file_count = reader.read_u32::<LittleEndian>()?;
-        let mut blob_file_ids = Vec::with_capacity(blob_file_count as usize);
-
-        for _ in 0..blob_file_count {
-            let id = reader.read_u64::<LittleEndian>()?;
-
-            let checksum_type = reader.read_u8()?;
-
-            if checksum_type != 0 {
-                return Err(crate::Error::InvalidTag(("ChecksumType", checksum_type)));
-            }
-
-            let checksum = reader.read_u128::<LittleEndian>()?;
-            let checksum = Checksum::from_raw(checksum);
-
-            blob_file_ids.push((id, checksum));
-        }
-
-        blob_file_ids.sort_by_key(|(id, _)| *id);
-        blob_file_ids
-    };
-
-    debug_assert!(blob_file_ids.is_sorted_by_key(|(id, _)| id));
-
-    let gc_stats = {
-        let mut reader = toc
-            .section(b"blob_gc_stats")
-            .ok_or(crate::Error::Unrecoverable)
-            .inspect_err(|_| {
-                log::error!("blob_gc_stats section not found in version #{curr_version_id} - maybe the file is corrupted?");
-            })?
-            .buf_reader(&version_file_path)?;
-
-        crate::blob_tree::FragmentationMap::decode_from(&mut reader)?
-    };
-
-    Ok(Recovery {
-        tree_type: {
-            let byte = toc.section(b"tree_type").ok_or(crate::Error::Unrecoverable)
-            .inspect_err(|_|{
                 log::error!("tree_type section not found in version #{curr_version_id} - maybe the file is corrupted?");
             })?
-            .buf_reader(
-                &version_file_path
-            )?
+            .buf_reader(&version_file_path)?
             .read_u8()?;
 
-            TreeType::try_from(byte).map_err(|()| crate::Error::InvalidHeader("TreeType"))?
-        },
+        byte
+    };
+
+    if tree_type != 0 {
+        log::error!("Blob trees are not supported by this build");
+        return Err(crate::Error::Unrecoverable);
+    }
+
+    Ok(Recovery {
         curr_version_id,
         table_ids: levels,
-        blob_file_ids,
-        gc_stats,
     })
 }

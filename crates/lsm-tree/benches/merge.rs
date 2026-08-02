@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lsm_tree::merge::{BoxedIterator, Merger};
-use lsm_tree::{mvcc_stream::MvccStream, InternalValue, Memtable};
+use lsm_tree::{InternalValue, Memtable, mvcc_stream::MvccStream};
 use nanoid::nanoid;
 
 fn merger(c: &mut Criterion) {

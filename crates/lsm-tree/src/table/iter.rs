@@ -16,9 +16,6 @@ use crate::{
 use self_cell::self_cell;
 use std::{path::PathBuf, sync::Arc};
 
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
-
 type InnerIter<'a> = DataBlockIter<'a>;
 
 pub enum Bound {
@@ -113,9 +110,6 @@ pub struct Iter {
     hi_data_block: Option<OwnedDataBlockIter>,
 
     range: Bounds,
-
-    #[cfg(feature = "metrics")]
-    metrics: Arc<Metrics>,
 }
 
 impl Iter {
@@ -127,7 +121,6 @@ impl Iter {
         file_accessor: FileAccessor,
         cache: Arc<Cache>,
         compression: CompressionType,
-        #[cfg(feature = "metrics")] metrics: Arc<Metrics>,
     ) -> Self {
         Self {
             table_id,
@@ -149,9 +142,6 @@ impl Iter {
             hi_data_block: None,
 
             range: (None, None),
-
-            #[cfg(feature = "metrics")]
-            metrics,
         }
     }
 
@@ -257,8 +247,6 @@ impl Iterator for Iter {
                         &BlockHandle::new(handle.offset(), handle.size()),
                         crate::table::block::BlockType::Data,
                         self.compression,
-                        #[cfg(feature = "metrics")]
-                        &self.metrics,
                     ))
                 }
             };
@@ -378,8 +366,6 @@ impl DoubleEndedIterator for Iter {
                         &BlockHandle::new(handle.offset(), handle.size()),
                         crate::table::block::BlockType::Data,
                         self.compression,
-                        #[cfg(feature = "metrics")]
-                        &self.metrics,
                     ))
                 }
             };

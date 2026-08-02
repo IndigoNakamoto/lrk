@@ -2,7 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{snapshot_tracker::SnapshotTracker, stats::Stats, Keyspace};
+use crate::{Keyspace, snapshot_tracker::SnapshotTracker, stats::Stats};
 use lsm_tree::AbstractTree;
 use std::time::Instant;
 
@@ -23,7 +23,7 @@ pub fn run(
         keyspace.name,
     );
 
-    let strategy = keyspace.config.compaction_strategy.clone();
+    let strategy = std::sync::Arc::new(crate::compaction::Leveled::default());
 
     stats.active_compaction_count.fetch_add(1, Relaxed);
 
@@ -33,7 +33,7 @@ pub fn run(
 
     if let Err(e) = keyspace
         .tree
-        .compact(strategy.clone(), snapshot_tracker.get_seqno_safe_to_gc())
+        .compact(strategy, snapshot_tracker.get_seqno_safe_to_gc())
     {
         log::error!("Compaction failed: {e:?}");
         stats.active_compaction_count.fetch_sub(1, Relaxed);

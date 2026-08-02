@@ -2,10 +2,10 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{snapshot_nonce::SnapshotNonce, SeqNo};
+use crate::{SeqNo, snapshot_nonce::SnapshotNonce};
 use dashmap::DashMap;
 use lsm_tree::SequenceNumberCounter;
-use std::sync::{atomic::AtomicU64, Arc, RwLock};
+use std::sync::{Arc, RwLock, atomic::AtomicU64};
 
 /// Keeps track of open snapshots
 pub struct SnapshotTrackerInner {

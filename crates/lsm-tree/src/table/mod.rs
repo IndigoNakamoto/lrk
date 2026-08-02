@@ -22,6 +22,7 @@ mod tests;
 
 pub use block::{Block, BlockOffset};
 pub use data_block::DataBlock;
+pub(crate) use id::next_table_id;
 pub use id::{GlobalTableId, TableId};
 pub use index_block::{BlockHandle, IndexBlock, KeyedBlockHandle};
 pub use scanner::Scanner;
@@ -37,7 +38,6 @@ use crate::{
         block_index::{BlockIndex, FullBlockIndex, TwoLevelBlockIndex, VolatileBlockIndex},
         filter::block::FilterBlock,
         regions::ParsedRegions,
-        writer::LinkedFile,
     },
     value::PointReadValue,
 };
@@ -52,9 +52,6 @@ use std::{
     sync::Arc,
 };
 use util::load_block;
-
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
 
 pub type TableInner = Inner;
 
@@ -89,70 +86,6 @@ impl Table {
     #[must_use]
     pub fn global_seqno(&self) -> SeqNo {
         self.0.global_seqno
-    }
-
-    pub fn referenced_blob_bytes(&self) -> crate::Result<u64> {
-        if let Some(v) = self.0.cached_blob_bytes.get() {
-            return Ok(*v);
-        }
-
-        let sum = self
-            .list_blob_file_references()?
-            .map(|bf| bf.iter().map(|f| f.on_disk_bytes).sum::<u64>())
-            .unwrap_or_default();
-
-        let _ = self.0.cached_blob_bytes.set(sum);
-        Ok(sum)
-    }
-
-    pub fn list_blob_file_references(&self) -> crate::Result<Option<Vec<LinkedFile>>> {
-        use byteorder::{LE, ReadBytesExt};
-
-        Ok(if let Some(handle) = &self.regions.linked_blob_files {
-            let table_id = self.global_id();
-
-            let (fd, fd_cache_miss) =
-                if let Some(fd) = self.file_accessor.access_for_table(&table_id) {
-                    (fd, false)
-                } else {
-                    (Arc::new(File::open(&*self.path)?), true)
-                };
-
-            // Read the exact region using pread-style helper
-            let buf = crate::file::read_exact(&fd, *handle.offset(), handle.size() as usize)?;
-
-            // If we opened the file here, cache the FD for future accesses
-            if fd_cache_miss {
-                self.file_accessor.insert_for_table(table_id, fd);
-            }
-
-            // Parse the buffer
-            let mut reader = &buf[..];
-            let len = reader.read_u32::<LE>()?;
-            let mut blob_files = Vec::with_capacity(len as usize);
-
-            for _ in 0..len {
-                let blob_file_id = reader.read_u64::<LE>()?;
-                let len = reader.read_u64::<LE>()?;
-                let bytes = reader.read_u64::<LE>()?;
-                let on_disk_bytes = reader.read_u64::<LE>()?;
-
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    reason = "truncation is not expected to happen"
-                )]
-                blob_files.push(LinkedFile {
-                    blob_file_id,
-                    bytes,
-                    len: len as usize,
-                    on_disk_bytes,
-                });
-            }
-
-            Some(blob_files)
-        } else {
-            None
-        })
     }
 
     /// Gets the global table ID.
@@ -208,8 +141,6 @@ impl Table {
             handle,
             block_type,
             compression,
-            #[cfg(feature = "metrics")]
-            &self.metrics,
         )
     }
 
@@ -252,9 +183,6 @@ impl Table {
         key_hash: u64,
         point_read: impl FnOnce(&Self, &[u8], SeqNo) -> crate::Result<Option<T>>,
     ) -> crate::Result<Option<T>> {
-        #[cfg(feature = "metrics")]
-        use std::sync::atomic::Ordering::Relaxed;
-
         // Translate seqno to "our" seqno
         let seqno = seqno.saturating_sub(self.global_seqno());
 
@@ -299,35 +227,11 @@ impl Table {
 
         if let Some(filter_block) = &filter_block {
             if !filter_block.maybe_contains_hash(key_hash)? {
-                #[cfg(feature = "metrics")]
-                {
-                    self.metrics.filter_queries.fetch_add(1, Relaxed);
-                    self.metrics.io_skipped_by_filter.fetch_add(1, Relaxed);
-                }
-
                 return Ok(None);
             }
         }
 
-        let item = point_read(self, key, seqno);
-
-        #[cfg(not(feature = "metrics"))]
-        {
-            item
-        }
-
-        #[cfg(feature = "metrics")]
-        {
-            // NOTE: Only increment the filter queries when the filter reported a miss
-            // and we actually waste an I/O for a non-existing item.
-            // Otherwise, the filter efficiency decreases whenever an item is hit.
-            // https://github.com/fjall-rs/lsm-tree/issues/246
-            item.inspect(|maybe_kv| {
-                if maybe_kv.is_none() && filter_block.is_some() {
-                    self.metrics.filter_queries.fetch_add(1, Relaxed);
-                }
-            })
-        }
+        point_read(self, key, seqno)
     }
 
     fn point_read(&self, key: &[u8], seqno: SeqNo) -> crate::Result<Option<InternalValue>> {
@@ -432,8 +336,6 @@ impl Table {
             self.file_accessor.clone(),
             self.cache.clone(),
             self.metadata.data_block_compression,
-            #[cfg(feature = "metrics")]
-            self.metrics.clone(),
         );
 
         match range.start_bound() {
@@ -485,7 +387,6 @@ impl Table {
         descriptor_table: Option<Arc<DescriptorTable>>,
         pin_filter: bool,
         pin_index: bool,
-        #[cfg(feature = "metrics")] metrics: Arc<Metrics>,
     ) -> crate::Result<Self> {
         use meta::ParsedMeta;
         use regions::ParsedRegions;
@@ -495,12 +396,20 @@ impl Table {
         let mut file = std::fs::File::open(&file_path)?;
         let file_path = Arc::new(file_path);
 
-        #[cfg(feature = "metrics")]
-        metrics
-            .table_file_opened_uncached
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
         let trailer = sfa::Reader::from_reader(&mut file)?;
+
+        let table_version = trailer
+            .toc()
+            .section(b"table_version")
+            .ok_or(crate::Error::Unrecoverable)?;
+        if table_version.len() != 1 {
+            return Err(crate::Error::Unrecoverable);
+        }
+        let version = byteorder::ReadBytesExt::read_u8(&mut table_version.buf_reader(&file_path)?)?;
+        if version != 5 {
+            return Err(crate::Error::InvalidVersion(version));
+        }
+
         let regions = ParsedRegions::parse_from_toc(trailer.toc())?;
 
         log::trace!("Reading meta block, with meta_ptr={:?}", regions.metadata);
@@ -529,9 +438,6 @@ impl Table {
                 path: Arc::clone(&file_path),
                 file_accessor: file_accessor.clone(),
                 table_id: (tree_id, metadata.id).into(),
-
-                #[cfg(feature = "metrics")]
-                metrics: metrics.clone(),
             })
         } else if pin_index {
             log::trace!(
@@ -551,9 +457,6 @@ impl Table {
                 handle: regions.tli,
                 path: Arc::clone(&file_path),
                 table_id: (tree_id, metadata.id).into(),
-
-                #[cfg(feature = "metrics")]
-                metrics: metrics.clone(),
             })
         };
 
@@ -624,11 +527,6 @@ impl Table {
 
             checksum,
             global_seqno,
-
-            #[cfg(feature = "metrics")]
-            metrics,
-
-            cached_blob_bytes: std::sync::OnceLock::new(),
         })))
     }
 

@@ -2,7 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use super::entry::{serialize_marker_item, Entry};
+use super::entry::{Entry, serialize_marker_item};
 use crate::{
     batch::item::Item as BatchItem, file::fsync_directory, journal::recovery::JournalId,
     keyspace::InternalKeyspaceId,

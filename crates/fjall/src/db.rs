@@ -3,12 +3,13 @@
 // (found in the LICENSE-* files in the repository)
 
 use crate::{
+    HashMap, Keyspace, KeyspaceCreateOptions,
     batch::WriteBatch,
     db_config::Config,
-    file::{fsync_directory, KEYSPACES_FOLDER, LOCK_FILE, VERSION_MARKER},
+    file::{KEYSPACES_FOLDER, LOCK_FILE, VERSION_MARKER, fsync_directory},
     flush::manager::FlushManager,
-    journal::{manager::JournalManager, writer::PersistMode, Journal},
-    keyspace::{name::is_valid_keyspace_name, KeyspaceKey},
+    journal::{Journal, manager::JournalManager, writer::PersistMode},
+    keyspace::{KeyspaceKey, name::is_valid_keyspace_name},
     locked_file::LockedFileGuard,
     meta_keyspace::MetaKeyspace,
     poison::{PoisonDart, PoisonSignal},
@@ -17,17 +18,15 @@ use crate::{
     snapshot_tracker::SnapshotTracker,
     stats::Stats,
     supervisor::{Supervisor, SupervisorInner},
-    tx::single_writer::Openable,
     version::FormatVersion,
     worker_pool::{WorkerMessage, WorkerPool},
     write_buffer_manager::WriteBufferManager,
-    HashMap, Keyspace, KeyspaceCreateOptions,
 };
 use lsm_tree::{AbstractTree, SequenceNumberCounter};
 use std::{
     fs::remove_dir_all,
     path::Path,
-    sync::{atomic::AtomicUsize, Arc, RwLock},
+    sync::{Arc, RwLock, atomic::AtomicUsize},
 };
 
 pub type Keyspaces = HashMap<KeyspaceKey, Keyspace>;
@@ -106,9 +105,6 @@ impl Drop for DatabaseInner {
                 );
             }
         }
-
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::decrement_drop_counter();
     }
 }
 
@@ -131,15 +127,6 @@ impl std::ops::Deref for Database {
     }
 }
 
-impl Openable for Database {
-    fn open(config: Config) -> crate::Result<Self>
-    where
-        Self: Sized,
-    {
-        Self::open(config)
-    }
-}
-
 impl Database {
     /// Opens a cross-keyspace snapshot.
     ///
@@ -152,7 +139,7 @@ impl Database {
     }
 
     /// Creates a new database builder to create or open a database at `path`.
-    pub fn builder(path: impl AsRef<Path>) -> crate::DatabaseBuilder<Self> {
+    pub fn builder(path: impl AsRef<Path>) -> crate::DatabaseBuilder {
         crate::DatabaseBuilder::new(path.as_ref())
     }
 
@@ -391,9 +378,6 @@ impl Database {
         let db = Self::create_or_recover(config)?;
         // db.start_background_threads()?;
 
-        #[cfg(feature = "__internal_whitebox")]
-        crate::drop::increment_drop_counter();
-
         Ok(db)
     }
 
@@ -477,9 +461,6 @@ impl Database {
             self.meta_keyspace
                 .create_keyspace(keyspace_id, &name, handle.clone(), keyspaces)?;
 
-            #[cfg(feature = "__internal_whitebox")]
-            crate::drop::increment_drop_counter();
-
             handle
         })
     }
@@ -549,12 +530,12 @@ impl Database {
                     "It looks like you are trying to open a V2 database - the database needs a manual migration, a tool is available at https://github.com/fjall-rs/migrate-v2-v3."
                 );
             }
-            if version as u8 > 4 {
+            if version as u8 > 5 {
                 log::error!(
                     "It looks like you are trying to open a database from the future. Are you a time traveller?"
                 );
             }
-            if version != FormatVersion::V4 {
+            if version != FormatVersion::V5 {
                 return Err(crate::Error::InvalidVersion(Some(version)));
             }
         } else {
@@ -718,9 +699,6 @@ impl Database {
                             lsm_tree::ValueType::WeakTombstone => {
                                 tree.remove_weak(item.key, batch.seqno);
                             }
-                            lsm_tree::ValueType::Indirection => {
-                                unreachable!()
-                            }
                         }
                     }
 
@@ -837,7 +815,7 @@ impl Database {
 
         // NOTE: Lastly, fsync version marker, which contains the version
         let mut marker = std::fs::File::create_new(config.path.join(VERSION_MARKER))?;
-        FormatVersion::V4.write_file_header(&mut marker)?;
+        FormatVersion::V5.write_file_header(&mut marker)?;
         marker.sync_all()?;
 
         // IMPORTANT: fsync folders on Unix

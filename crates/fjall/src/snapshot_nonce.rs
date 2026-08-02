@@ -2,7 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{snapshot_tracker::SnapshotTracker, SeqNo};
+use crate::{SeqNo, snapshot_tracker::SnapshotTracker};
 
 /// Holds a snapshot instant and automatically frees it from the snapshot tracker when dropped
 pub struct SnapshotNonce {

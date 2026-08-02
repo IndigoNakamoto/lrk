@@ -29,7 +29,6 @@ impl std::fmt::Debug for InternalKey {
                 ValueType::Value => "V",
                 ValueType::Tombstone => "T",
                 ValueType::WeakTombstone => "W",
-                ValueType::Indirection => "Vb",
             },
         )
     }

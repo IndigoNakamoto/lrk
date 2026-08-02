@@ -9,9 +9,6 @@ use crate::{
 };
 use std::{path::Path, sync::Arc};
 
-#[cfg(feature = "metrics")]
-use crate::metrics::Metrics;
-
 #[must_use]
 pub fn aggregate_run_key_range(tables: &[Table]) -> KeyRange {
     #[expect(clippy::expect_used, reason = "runs are never empty by definition")]
@@ -37,40 +34,17 @@ pub fn load_block(
     handle: &BlockHandle,
     block_type: BlockType,
     compression: CompressionType,
-    #[cfg(feature = "metrics")] metrics: &Metrics,
 ) -> crate::Result<Block> {
-    #[cfg(feature = "metrics")]
-    use std::sync::atomic::Ordering::Relaxed;
-
     log::trace!("load {block_type:?} block {handle:?}");
 
     if let Some(block) = cache.get_block(table_id, handle.offset()) {
-        #[cfg(feature = "metrics")]
-        match block_type {
-            BlockType::Filter => {
-                metrics.filter_block_load_cached.fetch_add(1, Relaxed);
-            }
-            BlockType::Index => {
-                metrics.index_block_load_cached.fetch_add(1, Relaxed);
-            }
-            BlockType::Data | BlockType::Meta => {
-                metrics.data_block_load_cached.fetch_add(1, Relaxed);
-            }
-        }
-
         return Ok(block);
     }
 
     let (fd, fd_cache_miss) = if let Some(cached_fd) = file_accessor.access_for_table(&table_id) {
-        #[cfg(feature = "metrics")]
-        metrics.table_file_opened_cached.fetch_add(1, Relaxed);
-
         (cached_fd, false)
     } else {
         let fd = std::fs::File::open(path)?;
-
-        #[cfg(feature = "metrics")]
-        metrics.table_file_opened_uncached.fetch_add(1, Relaxed);
 
         (Arc::new(fd), true)
     };
@@ -82,31 +56,6 @@ pub fn load_block(
             "BlockType",
             block.header.block_type.into(),
         )));
-    }
-
-    #[cfg(feature = "metrics")]
-    match block_type {
-        BlockType::Filter => {
-            metrics.filter_block_load_io.fetch_add(1, Relaxed);
-
-            metrics
-                .filter_block_io_requested
-                .fetch_add(handle.size().into(), Relaxed);
-        }
-        BlockType::Index => {
-            metrics.index_block_load_io.fetch_add(1, Relaxed);
-
-            metrics
-                .index_block_io_requested
-                .fetch_add(handle.size().into(), Relaxed);
-        }
-        BlockType::Data | BlockType::Meta => {
-            metrics.data_block_load_io.fetch_add(1, Relaxed);
-
-            metrics
-                .data_block_io_requested
-                .fetch_add(handle.size().into(), Relaxed);
-        }
     }
 
     // Cache FD

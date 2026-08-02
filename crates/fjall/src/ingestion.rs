@@ -2,17 +2,17 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{worker_pool::WorkerMessage, Keyspace};
-use lsm_tree::{AnyIngestion, UserKey, UserValue};
+use crate::{Keyspace, worker_pool::WorkerMessage};
+use lsm_tree::{Ingestion as TreeIngestion, UserKey, UserValue};
 
 pub struct Ingestion<'a> {
     keyspace: &'a Keyspace,
-    inner: AnyIngestion<'a>,
+    inner: TreeIngestion<'a>,
 }
 
 impl<'a> Ingestion<'a> {
     pub fn new(keyspace: &'a Keyspace) -> crate::Result<Self> {
-        let inner = keyspace.tree.ingestion()?;
+        let inner = TreeIngestion::new(&keyspace.tree)?;
         Ok(Self { keyspace, inner })
     }
 
@@ -21,36 +21,19 @@ impl<'a> Ingestion<'a> {
         key: K,
         value: V,
     ) -> crate::Result<()> {
-        self.inner.write(key, value).map_err(Into::into)
-    }
-
-    #[doc(hidden)]
-    pub fn write_prevalidated<K: Into<UserKey>, V: Into<UserValue>>(
-        &mut self,
-        key: K,
-        value: V,
-    ) -> crate::Result<()> {
         self.inner
-            .write_prevalidated(key, value)
+            .write(key.into(), value.into())
             .map_err(Into::into)
     }
 
     pub fn write_tombstone<K: Into<UserKey>>(&mut self, key: K) -> crate::Result<()> {
-        self.inner.write_tombstone(key).map_err(Into::into)
+        self.inner.write_tombstone(key.into()).map_err(Into::into)
     }
 
     #[doc(hidden)]
     pub fn write_weak_tombstone<K: Into<UserKey>>(&mut self, key: K) -> crate::Result<()> {
-        self.inner.write_weak_tombstone(key).map_err(Into::into)
-    }
-
-    #[doc(hidden)]
-    pub fn write_prevalidated_weak_tombstone<K: Into<UserKey>>(
-        &mut self,
-        key: K,
-    ) -> crate::Result<()> {
         self.inner
-            .write_prevalidated_weak_tombstone(key)
+            .write_weak_tombstone(key.into())
             .map_err(Into::into)
     }
 
@@ -72,7 +55,7 @@ impl<'a> Ingestion<'a> {
         // insert seqno=1
         let _journal_lock = self.keyspace.supervisor.journal.get_writer();
 
-        self.finish_inner()
+        self.finish_inner(false)
     }
 
     /// Finishes the ingestion without taking the global journal writer lock.
@@ -81,12 +64,17 @@ impl<'a> Ingestion<'a> {
     /// the same database. Exclusive ingestions into independent keyspaces may
     /// still finish concurrently.
     pub fn finish_exclusive(self) -> crate::Result<()> {
-        self.finish_inner()
+        self.finish_inner(true)
     }
 
-    fn finish_inner(self) -> crate::Result<()> {
-        self.inner
-            .finish()
+    fn finish_inner(self, exclusive: bool) -> crate::Result<()> {
+        let result = if exclusive {
+            self.inner.finish_exclusive()
+        } else {
+            self.inner.finish()
+        };
+
+        result
             .inspect(|()| {
                 self.keyspace
                     .worker_messager

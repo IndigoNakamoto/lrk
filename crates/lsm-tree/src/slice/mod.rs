@@ -2,12 +2,6 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-// Using tokio bytes
-#[cfg(feature = "bytes_1")]
-mod slice_bytes;
-
-// Using byteview
-#[cfg(not(feature = "bytes_1"))]
 mod slice_default;
 
 use std::{
@@ -15,11 +9,7 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(not(feature = "bytes_1"))]
 pub use slice_default::{Builder, Slice};
-
-#[cfg(feature = "bytes_1")]
-pub use slice_bytes::{Builder, Slice};
 
 impl AsRef<[u8]> for Slice {
     fn as_ref(&self) -> &[u8] {
@@ -29,15 +19,7 @@ impl AsRef<[u8]> for Slice {
 
 impl From<&[u8]> for Slice {
     fn from(value: &[u8]) -> Self {
-        #[cfg(not(feature = "bytes_1"))]
-        {
-            Self(byteview::ByteView::new(value))
-        }
-
-        #[cfg(feature = "bytes_1")]
-        {
-            Self(bytes::Bytes::from(value.to_vec()))
-        }
+        Self(byteview::ByteView::new(value))
     }
 }
 

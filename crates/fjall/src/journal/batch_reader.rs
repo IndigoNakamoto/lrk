@@ -3,7 +3,7 @@
 // (found in the LICENSE-* files in the repository)
 
 use super::reader::JournalReader;
-use crate::{journal::entry::Entry, keyspace::InternalKeyspaceId, JournalRecoveryError};
+use crate::{JournalRecoveryError, journal::entry::Entry, keyspace::InternalKeyspaceId};
 use lsm_tree::{SeqNo, UserKey, UserValue, ValueType};
 use std::{fs::OpenOptions, hash::Hasher};
 
@@ -63,7 +63,9 @@ impl JournalBatchReader {
 
     fn on_close(&self) -> crate::Result<()> {
         if self.is_in_batch {
-            log::debug!("Invalid batch: missing terminator, but last batch, so probably incomplete, discarding to keep atomicity");
+            log::debug!(
+                "Invalid batch: missing terminator, but last batch, so probably incomplete, discarding to keep atomicity"
+            );
 
             // Discard batch
             self.truncate_to(self.last_valid_pos)?;
@@ -125,7 +127,9 @@ impl Iterator for JournalBatchReader {
                     self.checksum_builder = xxhash_rust::xxh3::Xxh3::new();
 
                     if got_checksum != expected_checksum {
-                        log::error!("Invalid batch: checksum check failed, expected: {expected_checksum}, got: {got_checksum}");
+                        log::error!(
+                            "Invalid batch: checksum check failed, expected: {expected_checksum}, got: {got_checksum}"
+                        );
                         return Some(Err(JournalRecovery(JournalRecoveryError::ChecksumMismatch)));
                     }
 

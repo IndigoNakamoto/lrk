@@ -13,10 +13,10 @@ fn standard_fast_paths_preserve_results_and_snapshot() -> fjall::Result<()> {
     let tree = db.keyspace("standard", KeyspaceCreateOptions::default)?;
 
     let mut ingestion = tree.start_ingestion()?;
-    ingestion.write_prevalidated("a1", "one")?;
-    ingestion.write_prevalidated("a2", "two")?;
-    ingestion.write_prevalidated("b1", "three")?;
-    ingestion.write_prevalidated_weak_tombstone("c1")?;
+    ingestion.write("a1", "one")?;
+    ingestion.write("a2", "two")?;
+    ingestion.write("b1", "three")?;
+    ingestion.write_weak_tombstone("c1")?;
     ingestion.finish_exclusive()?;
 
     assert_eq!(tree.get_standard("a2")?.as_deref(), Some(b"two".as_slice()));

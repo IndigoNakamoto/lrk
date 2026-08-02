@@ -2,12 +2,11 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{checksum::ChecksumType, FormatVersion, TreeType};
+use crate::{FormatVersion, checksum::ChecksumType};
 use byteorder::ReadBytesExt;
 use std::{io::Read, path::Path};
 
 pub struct Manifest {
-    pub version: FormatVersion,
     pub level_count: u8,
 }
 
@@ -29,7 +28,11 @@ impl Manifest {
             FormatVersion::try_from(version).map_err(|()| crate::Error::InvalidVersion(version))?
         };
 
-        let _tree_type: TreeType = {
+        if version != FormatVersion::V5 {
+            return Err(crate::Error::InvalidVersion(version.into()));
+        }
+
+        {
             #[expect(
                 clippy::expect_used,
                 reason = "tree_type section must exist in manifest"
@@ -40,10 +43,10 @@ impl Manifest {
 
             let mut reader = section.buf_reader(path)?;
             let tree_type = reader.read_u8()?;
-            tree_type
-                .try_into()
-                .map_err(|()| crate::Error::InvalidTag(("TreeType", tree_type)))?
-        };
+            if tree_type != 0 {
+                return Err(crate::Error::InvalidTag(("TreeType", tree_type)));
+            }
+        }
 
         let level_count = {
             #[expect(
@@ -85,9 +88,6 @@ impl Manifest {
             );
         }
 
-        Ok(Self {
-            version,
-            level_count,
-        })
+        Ok(Self { level_count })
     }
 }

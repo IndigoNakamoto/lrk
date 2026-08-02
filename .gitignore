@@ -27,6 +27,7 @@ _*
 /*.txt
 /*.csv
 /tmp
+**/.test
 
 # Logs
 *.log*

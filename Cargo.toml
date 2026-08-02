@@ -59,7 +59,7 @@ brk_traversable = { version = "0.3.6", path = "crates/brk_traversable", features
 brk_traversable_derive = { version = "0.3.6", path = "crates/brk_traversable_derive" }
 brk_types = { version = "0.3.6", path = "crates/brk_types" }
 brk_website = { version = "0.3.6", path = "crates/brk_website" }
-byteview = "0.10.2"
+byteview = { version = "0.3.6", path = "crates/byteview" }
 color-eyre = "0.6.5"
 corepc-jsonrpc = { package = "jsonrpc", version = "0.19.0", features = ["simple_http"], default-features = false }
 corepc-types = { version = "0.15.0", features = ["std"], default-features = false }
@@ -70,10 +70,10 @@ jiff = { version = "0.2.35", features = ["perf-inline", "tz-system"], default-fe
 libc = "0.2"
 log = "0.4.33"
 lsm-tree = { path = "crates/lsm-tree", version = "0.3.6", default-features = false }
-lz4_flex = { version = "0.13.1", default-features = false }
+lz4_flex = { version = "=0.13.1", default-features = false }
 owo-colors = "4.3.0"
 parking_lot = "0.12.5"
-pco = "1.0.2"
+pco = "1.0.3"
 quickmatch = { path = "crates/quickmatch", version = "0.3.6" }
 rawdb = { path = "crates/rawdb", version = "0.3.6" }
 rayon = "1.12.0"

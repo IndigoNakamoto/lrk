@@ -3,17 +3,10 @@
 //! Compaction filters allow users to run custom logic during compactions, e.g. custom cleanup rules such as TTL.
 //! Because compactions run in background workers, using compactions filters instead of scans can massively increase the efficiency of the storage engine.
 use crate::{
-    coding::{Decode, Encode},
-    compaction::{
-        stream::{StreamFilter, StreamFilterVerdict},
-        worker::Options,
-    },
-    key::InternalKey,
-    version::Version,
-    vlog::{Accessor, BlobFileWriter, ValueHandle},
-    BlobIndirection, InternalValue, KvSeparationOptions, UserKey, UserValue, ValueType,
+    InternalValue, UserKey, UserValue, ValueType,
+    compaction::stream::{StreamFilter, StreamFilterVerdict},
 };
-use std::{panic::RefUnwindSafe, path::Path};
+use std::panic::RefUnwindSafe;
 
 /// Verdict returned by a [`CompactionFilter`].
 #[non_exhaustive]
@@ -91,33 +84,9 @@ pub trait Factory: Send + Sync + RefUnwindSafe {
     fn make_filter(&self, ctx: &Context) -> Box<dyn CompactionFilter>;
 }
 
-struct AccessorShared<'a> {
-    opts: &'a Options,
-    version: &'a Version,
-    blobs_folder: &'a Path,
-}
-
-impl AccessorShared<'_> {
-    /// Fetches a value from the blob store.
-    fn get_indirect_value(
-        &self,
-        user_key: &[u8],
-        vhandle: &ValueHandle,
-    ) -> crate::Result<Option<UserValue>> {
-        Accessor::new(&self.version.blob_files).get(
-            self.opts.tree_id,
-            self.blobs_folder,
-            user_key,
-            vhandle,
-            &self.opts.config.cache,
-        )
-    }
-}
-
 /// Accessor for the key/value from a compaction filter
 pub struct ItemAccessor<'a> {
     item: &'a InternalValue,
-    shared: &'a AccessorShared<'a>,
 }
 
 impl<'a> ItemAccessor<'a> {
@@ -127,45 +96,16 @@ impl<'a> ItemAccessor<'a> {
         &self.item.key.user_key
     }
 
-    /// Returns whether this item's value is stored separately.
-    #[must_use]
-    #[doc(hidden)]
-    pub fn is_indirection(&self) -> bool {
-        self.item.key.value_type.is_indirection()
-    }
-
     /// Get the value of this item.
     ///
     /// # Errors
     ///
-    /// This method will return an error if blob retrieval fails.
+    /// This method will return an error if reading the value fails.
     pub fn value(&self) -> crate::Result<UserValue> {
-        match self.item.key.value_type {
-            crate::ValueType::Value => Ok(self.item.value.clone()),
-            crate::ValueType::Indirection => {
-                // Resolve and read the value from a blob file.
-                let mut reader = &self.item.value[..];
-                let indirection = BlobIndirection::decode_from(&mut reader)?;
-                let vhandle = indirection.vhandle;
-
-                let value = self
-                    .shared
-                    .get_indirect_value(&self.item.key.user_key, &vhandle)?;
-
-                if let Some(value) = value {
-                    Ok(value)
-                } else {
-                    log::error!(
-                        "failed to read referenced blob file during execution of compaction filter. key: {:?}, vptr: {indirection:?}",
-                        self.item.key,
-                    );
-                    Err(crate::Error::Unrecoverable)
-                }
-            }
-            crate::ValueType::WeakTombstone | crate::ValueType::Tombstone => {
-                unreachable!("tombstones are filtered out before calling filter")
-            }
+        if self.item.is_tombstone() {
+            unreachable!("tombstones are filtered out before calling filter");
         }
+        Ok(self.item.value.clone())
     }
 }
 
@@ -174,76 +114,12 @@ impl<'a> ItemAccessor<'a> {
 // NOTE: this slightly helps insulate CompactionStream from lifetime spam
 pub(crate) struct StreamFilterAdapter<'a, 'b: 'a> {
     filter: Option<&'a mut (dyn CompactionFilter + 'b)>,
-    shared: AccessorShared<'a>,
-    blob_opts: Option<&'a KvSeparationOptions>,
-    blob_writer: &'a mut Option<BlobFileWriter>,
     ctx: &'a Context,
 }
 
 impl<'a, 'b: 'a> StreamFilterAdapter<'a, 'b> {
-    pub fn new(
-        filter: Option<&'a mut (dyn CompactionFilter + 'b)>,
-        opts: &'a Options,
-        version: &'a Version,
-        blobs_folder: &'a Path,
-        blob_writer: &'a mut Option<BlobFileWriter>,
-        ctx: &'a Context,
-    ) -> Self {
-        Self {
-            filter,
-            shared: AccessorShared {
-                opts,
-                version,
-                blobs_folder,
-            },
-            blob_opts: opts.config.kv_separation_opts.as_ref(),
-            blob_writer,
-            ctx,
-        }
-    }
-
-    /// Redirects a write to a blob file if KV separation is enabled and
-    /// the value meets the separation threshold.
-    fn handle_write(
-        &mut self,
-        prev_key: &InternalKey,
-        new_value: UserValue,
-    ) -> crate::Result<(ValueType, UserValue)> {
-        let Some(blob_opts) = self.blob_opts else {
-            return Ok((ValueType::Value, new_value));
-        };
-
-        #[expect(clippy::cast_possible_truncation, reason = "values are u32 length max")]
-        let value_size = new_value.len() as u32;
-
-        if value_size < blob_opts.separation_threshold {
-            return Ok((ValueType::Value, new_value));
-        }
-
-        let writer = if let Some(writer) = self.blob_writer {
-            writer
-        } else {
-            // Instantiate writer as necessary
-            let writer = BlobFileWriter::new(
-                self.shared.opts.blob_file_id_generator.clone(),
-                self.shared.blobs_folder,
-                self.shared.opts.tree_id,
-                self.shared.opts.config.descriptor_table.clone(),
-            )?
-            .use_target_size(blob_opts.file_target_size)
-            .use_compression(blob_opts.compression);
-
-            self.blob_writer.insert(writer)
-        };
-
-        let vhandle = writer.write(&prev_key.user_key, prev_key.seqno, &new_value)?;
-
-        let indirection = BlobIndirection {
-            vhandle,
-            size: value_size,
-        };
-
-        Ok((ValueType::Indirection, indirection.encode_into_vec().into()))
+    pub fn new(filter: Option<&'a mut (dyn CompactionFilter + 'b)>, ctx: &'a Context) -> Self {
+        Self { filter, ctx }
     }
 }
 
@@ -253,13 +129,7 @@ impl<'a, 'b: 'a> StreamFilter for StreamFilterAdapter<'a, 'b> {
             return Ok(StreamFilterVerdict::Keep);
         };
 
-        match filter.filter_item(
-            ItemAccessor {
-                item,
-                shared: &self.shared,
-            },
-            self.ctx,
-        )? {
+        match filter.filter_item(ItemAccessor { item }, self.ctx)? {
             Verdict::Destroy => Ok(StreamFilterVerdict::Drop),
             Verdict::Keep => Ok(StreamFilterVerdict::Keep),
             Verdict::Remove => Ok(StreamFilterVerdict::Replace((
@@ -270,9 +140,9 @@ impl<'a, 'b: 'a> StreamFilter for StreamFilterAdapter<'a, 'b> {
                 ValueType::WeakTombstone,
                 UserValue::empty(),
             ))),
-            Verdict::ReplaceValue(new_value) => self
-                .handle_write(&item.key, new_value)
-                .map(StreamFilterVerdict::Replace),
+            Verdict::ReplaceValue(new_value) => {
+                Ok(StreamFilterVerdict::Replace((ValueType::Value, new_value)))
+            }
         }
     }
 }

@@ -5,8 +5,8 @@
 use crate::keyspace::config::{DecodeConfig, EncodeConfig};
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use lsm_tree::{
-    coding::{Decode, Encode},
     CompressionType,
+    coding::{Decode, Encode},
 };
 
 impl EncodeConfig for crate::config::CompressionPolicy {

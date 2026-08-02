@@ -299,14 +299,14 @@ where
 
         let mut ingestion = keyspace.start_ingestion()?;
         // FxHashMap/FxHashSet keep keys unique and disjoint; sorting therefore
-        // proves the strict ordering required by the prevalidated writer.
+        // proves the strict ordering required by ingestion.
         for item in items {
             match item {
                 Item::Value { key, value } => {
-                    ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
+                    ingestion.write(ByteView::from(key), ByteView::from(value))?;
                 }
                 Item::Tomb(key) => {
-                    ingestion.write_prevalidated_weak_tombstone(ByteView::from(key))?;
+                    ingestion.write_weak_tombstone(ByteView::from(key))?;
                 }
             }
         }
@@ -335,22 +335,19 @@ where
                 (Some((put_key, _)), Some(del_key)) => match put_key.cmp(del_key) {
                     Ordering::Less => {
                         let (key, value) = puts.next().unwrap();
-                        ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
+                        ingestion.write(ByteView::from(key), ByteView::from(value))?;
                     }
                     Ordering::Greater => {
-                        ingestion.write_prevalidated_weak_tombstone(ByteView::from(
-                            dels.next().unwrap(),
-                        ))?;
+                        ingestion.write_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
                     }
                     Ordering::Equal => unreachable!("key is both inserted and deleted"),
                 },
                 (Some(_), None) => {
                     let (key, value) = puts.next().unwrap();
-                    ingestion.write_prevalidated(ByteView::from(key), ByteView::from(value))?;
+                    ingestion.write(ByteView::from(key), ByteView::from(value))?;
                 }
                 (None, Some(_)) => {
-                    ingestion
-                        .write_prevalidated_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
+                    ingestion.write_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
                 }
                 (None, None) => break,
             }

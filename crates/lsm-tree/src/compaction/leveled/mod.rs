@@ -7,12 +7,12 @@ mod test;
 
 use super::{Choice, CompactionStrategy, Input as CompactionInput};
 use crate::{
-    compaction::state::{hidden_set::HiddenSet, CompactionState},
+    HashSet, TableId,
+    compaction::state::{CompactionState, hidden_set::HiddenSet},
     config::Config,
     slice_windows::{GrowingWindowsExt, ShrinkingWindowsExt},
-    table::{util::aggregate_run_key_range, Table},
+    table::{Table, util::aggregate_run_key_range},
     version::{Run, Version},
-    HashSet, TableId,
 };
 
 /// Tries to find the most optimal compaction set from one level into the other.
@@ -235,42 +235,6 @@ impl Strategy {
 impl CompactionStrategy for Strategy {
     fn get_name(&self) -> &'static str {
         NAME
-    }
-
-    fn get_config(&self) -> Vec<crate::KvPair> {
-        vec![
-            (
-                crate::UserKey::from("leveled_l0_threshold"),
-                crate::UserValue::from(self.l0_threshold.to_le_bytes()),
-            ),
-            (
-                crate::UserKey::from("leveled_target_size"),
-                crate::UserValue::from(self.target_size.to_le_bytes()),
-            ),
-            (
-                crate::UserKey::from("leveled_level_ratio_policy"),
-                crate::UserValue::from({
-                    use byteorder::{LittleEndian, WriteBytesExt};
-
-                    let mut v = vec![];
-
-                    #[expect(
-                        clippy::expect_used,
-                        clippy::cast_possible_truncation,
-                        reason = "writing into Vec should not fail; policies have length of 255 max"
-                    )]
-                    v.write_u8(self.level_ratio_policy.len() as u8)
-                        .expect("cannot fail");
-
-                    for &f in &self.level_ratio_policy {
-                        #[expect(clippy::expect_used, reason = "writing into Vec should not fail")]
-                        v.write_f32::<LittleEndian>(f).expect("cannot fail");
-                    }
-
-                    v
-                }),
-            ),
-        ]
     }
 
     #[expect(clippy::too_many_lines)]

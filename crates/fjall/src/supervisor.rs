@@ -7,7 +7,7 @@ use lsm_tree::SequenceNumberCounter;
 use crate::{
     db::Keyspaces,
     flush::manager::FlushManager,
-    journal::{manager::JournalManager, Journal},
+    journal::{Journal, manager::JournalManager},
     snapshot_tracker::SnapshotTracker,
     write_buffer_manager::WriteBufferManager,
 };

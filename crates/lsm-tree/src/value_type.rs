@@ -14,11 +14,6 @@ pub enum ValueType {
 
     /// "Weak" deletion (a.k.a. `SingleDelete` in `RocksDB`)
     WeakTombstone,
-
-    /// Value pointer
-    ///
-    /// Points to a blob in a blob file.
-    Indirection = 4,
 }
 
 impl ValueType {
@@ -26,10 +21,6 @@ impl ValueType {
     #[must_use]
     pub fn is_tombstone(self) -> bool {
         self == Self::Tombstone || self == Self::WeakTombstone
-    }
-
-    pub(crate) fn is_indirection(self) -> bool {
-        self == Self::Indirection
     }
 }
 
@@ -41,7 +32,6 @@ impl TryFrom<u8> for ValueType {
             0 => Ok(Self::Value),
             1 => Ok(Self::Tombstone),
             2 => Ok(Self::WeakTombstone),
-            4 => Ok(Self::Indirection),
             _ => Err(()),
         }
     }
@@ -53,7 +43,6 @@ impl From<ValueType> for u8 {
             ValueType::Value => 0,
             ValueType::Tombstone => 1,
             ValueType::WeakTombstone => 2,
-            ValueType::Indirection => 4,
         }
     }
 }

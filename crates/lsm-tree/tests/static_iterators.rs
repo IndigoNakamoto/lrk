@@ -2,7 +2,7 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use lsm_tree::{get_tmp_folder, AbstractTree, Config, Guard, SequenceNumberCounter};
+use lsm_tree::{AbstractTree, Config, Guard, SequenceNumberCounter, get_tmp_folder};
 use test_log::test;
 
 /// Test that iterators can be stored in a struct (proving they're 'static)
@@ -173,42 +173,6 @@ fn static_iterator_with_segments() -> lsm_tree::Result<()> {
         .len();
 
     assert_eq!(count, 100);
-
-    Ok(())
-}
-
-/// Test BlobTree static iterator
-#[test]
-fn static_iterator_blob_tree() -> lsm_tree::Result<()> {
-    let folder = get_tmp_folder();
-
-    let tree = Config::new(
-        &folder,
-        SequenceNumberCounter::default(),
-        SequenceNumberCounter::default(),
-    )
-    .with_kv_separation(Some(Default::default()))
-    .open()?;
-
-    // Insert values that will be separated to blob files
-    let large_value = vec![b'X'; 2048];
-    for i in 0..20 {
-        tree.insert(format!("blob_{:03}", i), large_value.clone(), i as u64);
-    }
-
-    tree.flush_active_memtable(20)?;
-
-    let iter = tree.range("blob_000"..="blob_019", 20, None);
-    drop(tree);
-
-    let results: Vec<_> = iter
-        .map(|guard| guard.into_inner())
-        .collect::<lsm_tree::Result<Vec<_>>>()?;
-
-    assert_eq!(results.len(), 20);
-    for (_, value) in results {
-        assert_eq!(value.len(), 2048);
-    }
 
     Ok(())
 }

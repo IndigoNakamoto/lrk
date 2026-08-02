@@ -2,28 +2,20 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-mod blob_file_list;
 mod optimize;
 mod persist;
 pub mod recovery;
 pub mod run;
 mod super_version;
 
-pub use blob_file_list::BlobFileList;
 pub use persist::persist_version;
 pub use run::Run;
 pub use super_version::{SuperVersion, SuperVersions};
 
-use crate::blob_tree::{FragmentationEntry, FragmentationMap};
 use crate::checksum::ChecksumType;
-use crate::coding::Encode;
 use crate::compaction::state::hidden_set::HiddenSet;
 use crate::version::recovery::Recovery;
-use crate::TreeType;
-use crate::{
-    vlog::{BlobFile, BlobFileId},
-    HashSet, KeyRange, Table, TableId,
-};
+use crate::{HashSet, KeyRange, Table, TableId};
 use optimize::optimize_runs;
 use run::Ranged;
 use std::{ops::Deref, sync::Arc};
@@ -142,22 +134,8 @@ pub struct VersionInner {
     /// The version's ID
     id: VersionId,
 
-    tree_type: TreeType,
-
     /// The individual LSM-tree levels which consist of runs of tables
     levels: Vec<Level>,
-
-    // NOTE: We purposefully use Arc<_> to avoid deep cloning the blob files again and again
-    //
-    // Changing the value log tends to happen way less often than other modifications to the
-    // LSM-tree
-    //
-    /// Blob files for large values (value log)
-    #[doc(hidden)]
-    pub blob_files: Arc<BlobFileList>,
-
-    /// Blob file fragmentation
-    gc_stats: Arc<FragmentationMap>,
 }
 
 /// A version is an immutable, point-in-time view of a tree's structure
@@ -178,18 +156,9 @@ impl std::ops::Deref for Version {
 
 // TODO: impl using generics so we can easily unit test Version transformation functions
 impl Version {
-    /// Returns the initial tree type.
-    pub fn tree_type(&self) -> TreeType {
-        self.tree_type
-    }
-
     /// Returns the version ID.
     pub fn id(&self) -> VersionId {
         self.id
-    }
-
-    pub fn gc_stats(&self) -> &FragmentationMap {
-        &self.gc_stats
     }
 
     pub fn l0(&self) -> &Level {
@@ -208,25 +177,15 @@ impl Version {
     }
 
     /// Creates a new empty version.
-    pub fn new(id: VersionId, tree_type: TreeType) -> Self {
+    pub fn new(id: VersionId) -> Self {
         let levels = (0..DEFAULT_LEVEL_COUNT).map(|_| Level::empty()).collect();
 
         Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type,
-                levels,
-                blob_files: Arc::default(),
-                gc_stats: Arc::default(),
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         }
     }
 
-    pub(crate) fn from_recovery(
-        recovery: Recovery,
-        tables: &[Table],
-        blob_files: &[BlobFile],
-    ) -> crate::Result<Self> {
+    pub(crate) fn from_recovery(recovery: Recovery, tables: &[Table]) -> crate::Result<Self> {
         let version_levels = recovery
             .table_ids
             .iter()
@@ -259,31 +218,13 @@ impl Version {
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        Ok(Self::from_levels(
-            recovery.curr_version_id,
-            recovery.tree_type,
-            version_levels,
-            BlobFileList::new(blob_files.iter().cloned().map(|bf| (bf.id(), bf)).collect()),
-            recovery.gc_stats,
-        ))
+        Ok(Self::from_levels(recovery.curr_version_id, version_levels))
     }
 
     /// Creates a new pre-populated version.
-    pub fn from_levels(
-        id: VersionId,
-        tree_type: TreeType,
-        levels: Vec<Level>,
-        blob_files: BlobFileList,
-        gc_stats: FragmentationMap,
-    ) -> Self {
+    pub fn from_levels(id: VersionId, levels: Vec<Level>) -> Self {
         Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type,
-                levels,
-                blob_files: Arc::new(blob_files),
-                gc_stats: Arc::new(gc_stats),
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         }
     }
 
@@ -300,10 +241,6 @@ impl Version {
     /// Returns the number of tables in all levels.
     pub fn table_count(&self) -> usize {
         self.iter_levels().map(|x| x.table_count()).sum()
-    }
-
-    pub fn blob_file_count(&self) -> usize {
-        self.blob_files.len()
     }
 
     /// Returns an iterator over all tables.
@@ -324,12 +261,7 @@ impl Version {
     }
 
     /// Creates a new version with the additional run added to the "top" of L0.
-    pub fn with_new_l0_run(
-        &self,
-        run: &[Table],
-        blob_files: Option<&[BlobFile]>,
-        diff: Option<FragmentationMap>,
-    ) -> Self {
+    pub fn with_new_l0_run(&self, run: &[Table]) -> Self {
         let id = self.id + 1;
 
         let mut levels = vec![];
@@ -366,48 +298,18 @@ impl Version {
         // L1+
         levels.extend(self.levels.iter().skip(1).cloned());
 
-        // Value log
-        let value_log = if let Some(blob_files) = blob_files {
-            let mut copy = self.blob_files.deref().clone();
-            copy.extend(blob_files.iter().cloned().map(|bf| (bf.id(), bf)));
-            copy.into()
-        } else {
-            self.blob_files.clone()
-        };
-
-        let gc_stats = if let Some(diff) = diff {
-            let mut copy = self.gc_stats.deref().clone();
-            diff.merge_into(&mut copy);
-            copy.prune(&value_log);
-            Arc::new(copy)
-        } else {
-            self.gc_stats.clone()
-        };
-
         Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type: self.tree_type,
-                levels,
-                blob_files: value_log,
-                gc_stats,
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         }
     }
 
     /// Returns a new version with a list of tables removed.
     ///
     /// The table files are not immediately deleted, this is handled by the version system's free list.
-    pub fn with_dropped(
-        &self,
-        ids: &[TableId],
-        dropped_blob_files: &mut Vec<BlobFile>,
-    ) -> crate::Result<Self> {
+    pub fn with_dropped(&self, ids: &[TableId]) -> crate::Result<Self> {
         let id = self.id + 1;
 
         let mut levels = vec![];
-
-        let mut dropped_tables: Vec<Table> = vec![];
 
         for level in &self.levels {
             let runs = level
@@ -417,12 +319,7 @@ impl Version {
                     // TODO: don't clone Arc inner if we don't need to modify
                     let mut run: Run<_> = run.deref().clone();
 
-                    let removed_tables = run
-                        .inner_mut()
-                        .extract_if(.., |x| ids.contains(&x.metadata.id));
-
-                    dropped_tables.extend(removed_tables);
-
+                    run.retain(|x| !ids.contains(&x.metadata.id));
                     run
                 })
                 .filter(|x| !x.is_empty())
@@ -433,61 +330,12 @@ impl Version {
             levels.push(Level::from_runs(runs.into_iter().map(Arc::new).collect()));
         }
 
-        let gc_stats = if dropped_tables.is_empty() {
-            self.gc_stats.clone()
-        } else {
-            let mut copy = self.gc_stats.deref().clone();
-
-            for table in &dropped_tables {
-                let linked_blob_files = table.list_blob_file_references()?.unwrap_or_default();
-
-                for blob_file in linked_blob_files {
-                    copy.entry(blob_file.blob_file_id)
-                        .and_modify(|counter| {
-                            counter.bytes += blob_file.bytes;
-                            counter.len += blob_file.len;
-                        })
-                        .or_insert_with(|| {
-                            FragmentationEntry::new(
-                                blob_file.len,
-                                blob_file.bytes,
-                                blob_file.on_disk_bytes,
-                            )
-                        });
-                }
-            }
-
-            Arc::new(copy)
-        };
-
-        let value_log = if dropped_tables.is_empty() {
-            self.blob_files.clone()
-        } else {
-            let mut copy = self.blob_files.deref().clone();
-            dropped_blob_files.extend(copy.prune_dead(&gc_stats));
-            Arc::new(copy)
-        };
-
         Ok(Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type: self.tree_type,
-                levels,
-                blob_files: value_log,
-                gc_stats,
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         })
     }
 
-    pub fn with_merge(
-        &self,
-        old_ids: &[TableId],
-        new_tables: &[Table],
-        dest_level: usize,
-        diff: Option<FragmentationMap>,
-        new_blob_files: Vec<BlobFile>,
-        blob_files_to_drop: &HashSet<BlobFileId>,
-    ) -> Self {
+    pub fn with_merge(&self, old_ids: &[TableId], new_tables: &[Table], dest_level: usize) -> Self {
         let id = self.id + 1;
 
         let mut levels = vec![];
@@ -516,47 +364,8 @@ impl Version {
             levels.push(Level::from_runs(runs.into_iter().map(Arc::new).collect()));
         }
 
-        let has_diff = diff.is_some();
-
-        let value_log = if has_diff || !new_blob_files.is_empty() || !blob_files_to_drop.is_empty()
-        {
-            let mut copy = self.blob_files.deref().clone();
-
-            for blob_file in new_blob_files {
-                copy.insert(blob_file.id(), blob_file);
-            }
-
-            for &id in blob_files_to_drop {
-                copy.remove(id);
-            }
-
-            Arc::new(copy)
-        } else {
-            self.blob_files.clone()
-        };
-
-        let gc_stats = if has_diff || !blob_files_to_drop.is_empty() {
-            let mut copy = self.gc_stats.deref().clone();
-
-            if let Some(diff) = diff {
-                diff.merge_into(&mut copy);
-            }
-
-            copy.prune(&value_log);
-
-            Arc::new(copy)
-        } else {
-            self.gc_stats.clone()
-        };
-
         Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type: self.tree_type,
-                levels,
-                blob_files: value_log,
-                gc_stats,
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         }
     }
 
@@ -598,13 +407,7 @@ impl Version {
         }
 
         Self {
-            inner: Arc::new(VersionInner {
-                id,
-                tree_type: self.tree_type,
-                levels,
-                blob_files: self.blob_files.clone(),
-                gc_stats: self.gc_stats.clone(),
-            }),
+            inner: Arc::new(VersionInner { id, levels }),
         }
     }
 }
@@ -623,13 +426,13 @@ impl Version {
         //
 
         writer.start("format_version")?;
-        writer.write_u8(FormatVersion::V4.into())?;
+        writer.write_u8(FormatVersion::V5.into())?;
 
         writer.start("crate_version")?;
         writer.write_all(env!("CARGO_PKG_VERSION").as_bytes())?;
 
         writer.start("tree_type")?;
-        writer.write_u8(self.tree_type.into())?;
+        writer.write_u8(0)?;
 
         writer.start("level_count")?;
         #[expect(
@@ -672,32 +475,13 @@ impl Version {
 
                 // Tables
                 for table in run.iter() {
-                    writer.write_u64::<LittleEndian>(table.id())?;
+                    writer.write_u32::<LittleEndian>(table.id())?;
                     writer.write_u8(0)?; // Checksum type, 0 = XXH3
                     writer.write_u128::<LittleEndian>(table.checksum().into_u128())?;
                     writer.write_u64::<LittleEndian>(table.global_seqno())?;
                 }
             }
         }
-
-        writer.start("blob_files")?;
-
-        // Blob file count
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "there are always less than 4 billion blob files"
-        )]
-        writer.write_u32::<LittleEndian>(self.blob_files.len() as u32)?;
-
-        for file in self.blob_files.iter() {
-            writer.write_u64::<LittleEndian>(file.id())?;
-            writer.write_u8(0)?; // Checksum type, 0 = XXH3
-            writer.write_u128::<LittleEndian>(file.0.checksum.into_u128())?;
-        }
-
-        writer.start("blob_gc_stats")?;
-
-        self.gc_stats.encode_into(writer)?;
 
         Ok(())
     }

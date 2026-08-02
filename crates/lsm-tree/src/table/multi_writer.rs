@@ -2,11 +2,9 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use super::{filter::BloomConstructionPolicy, writer::Writer};
+use super::{filter::BloomConstructionPolicy, id::next_table_id, writer::Writer};
 use crate::{
-    Checksum, CompressionType, HashMap, SequenceNumberCounter, TableId, UserKey,
-    blob_tree::handle::BlobIndirection, table::writer::LinkedFile, value::InternalValue,
-    vlog::BlobFileId,
+    Checksum, CompressionType, SequenceNumberCounter, TableId, UserKey, value::InternalValue,
 };
 use std::path::PathBuf;
 
@@ -44,9 +42,6 @@ pub struct MultiWriter {
     bloom_policy: BloomConstructionPolicy,
 
     current_key: Option<UserKey>,
-    has_items: bool,
-
-    linked_blobs: HashMap<BlobFileId, LinkedFile>,
 
     /// Level the tables are written to
     initial_level: u8,
@@ -60,7 +55,7 @@ impl MultiWriter {
         target_size: u64,
         initial_level: u8,
     ) -> crate::Result<Self> {
-        let current_table_id = table_id_generator.next();
+        let current_table_id = next_table_id(&table_id_generator);
 
         let path = base_path.join(current_table_id.to_string());
         let writer = Writer::new(path, current_table_id, initial_level)?;
@@ -91,26 +86,7 @@ impl MultiWriter {
             bloom_policy: BloomConstructionPolicy::default(),
 
             current_key: None,
-            has_items: false,
-
-            linked_blobs: HashMap::default(),
         })
-    }
-
-    pub fn register_blob(&mut self, indirection: BlobIndirection) {
-        self.linked_blobs
-            .entry(indirection.vhandle.blob_file_id)
-            .and_modify(|entry| {
-                entry.bytes += u64::from(indirection.size);
-                entry.on_disk_bytes += u64::from(indirection.vhandle.on_disk_size);
-                entry.len += 1;
-            })
-            .or_insert_with(|| LinkedFile {
-                blob_file_id: indirection.vhandle.blob_file_id,
-                bytes: u64::from(indirection.size),
-                on_disk_bytes: u64::from(indirection.vhandle.on_disk_size),
-                len: 1,
-            });
     }
 
     #[must_use]
@@ -184,7 +160,7 @@ impl MultiWriter {
     fn rotate(&mut self) -> crate::Result<()> {
         log::debug!("Rotating table writer");
 
-        let new_table_id = self.table_id_generator.next();
+        let new_table_id = next_table_id(&self.table_id_generator);
         let path = self.base_path.join(new_table_id.to_string());
 
         let mut new_writer = Writer::new(path, new_table_id, self.initial_level)?
@@ -203,17 +179,7 @@ impl MultiWriter {
             new_writer = new_writer.use_partitioned_filter();
         }
 
-        let mut old_writer = std::mem::replace(&mut self.writer, new_writer);
-
-        for linked in self.linked_blobs.values() {
-            old_writer.link_blob_file(
-                linked.blob_file_id,
-                linked.len,
-                linked.bytes,
-                linked.on_disk_bytes,
-            );
-        }
-        self.linked_blobs.clear();
+        let old_writer = std::mem::replace(&mut self.writer, new_writer);
 
         if let Some((table_id, checksum)) = old_writer.finish()? {
             self.results.push((table_id, checksum));
@@ -235,7 +201,6 @@ impl MultiWriter {
         }
 
         self.writer.write(item)?;
-        self.has_items = true;
 
         Ok(())
     }
@@ -246,32 +211,22 @@ impl MultiWriter {
         }
 
         self.writer.write_distinct(item)?;
-        self.has_items = true;
         Ok(())
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        !self.has_items
+        self.results.is_empty() && self.writer.meta.first_key.is_none()
     }
 
     /// Finishes the last table, making sure all data is written durably
     ///
     /// Returns the metadata of created tables
-    pub fn finish(mut self) -> crate::Result<Vec<(TableId, Checksum)>> {
-        for linked in self.linked_blobs.values() {
-            self.writer.link_blob_file(
-                linked.blob_file_id,
-                linked.len,
-                linked.bytes,
-                linked.on_disk_bytes,
-            );
-        }
-
+    pub fn finish(mut self) -> crate::Result<(PathBuf, Vec<(TableId, Checksum)>)> {
         if let Some((table_id, checksum)) = self.writer.finish()? {
             self.results.push((table_id, checksum));
         }
 
-        Ok(self.results)
+        Ok((self.base_path, self.results))
     }
 }
 
