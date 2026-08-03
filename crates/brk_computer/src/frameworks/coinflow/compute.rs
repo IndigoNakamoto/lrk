@@ -33,8 +33,6 @@ impl Vecs {
         cointime: &cointime::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.db.sync_bg_tasks()?;
-
         let starting_lengths = indexer.safe_lengths();
         let source_cohorts: Vec<_> = distribution.utxo_cohorts.age_range.iter().collect();
         let transfer_volumes: Vec<_> = source_cohorts
@@ -78,11 +76,6 @@ impl Vecs {
             exit,
         )?;
 
-        let exit = exit.clone();
-        self.db.run_bg(move |db| {
-            let _lock = exit.lock();
-            db.compact_deferred_default()
-        });
         Ok(())
     }
 

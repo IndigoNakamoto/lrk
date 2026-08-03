@@ -1,7 +1,7 @@
 use brk_cohort::AgeRange;
 use brk_traversable::Traversable;
 use brk_types::{Cents, StoredF64};
-use vecdb::{Database, Rw, StorageMode};
+use vecdb::{Rw, StorageMode};
 
 use crate::internal::{
     FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, SpotValuePerBlock,
@@ -118,9 +118,6 @@ pub struct CohortVecs<M: StorageMode = Rw> {
 
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    #[traversable(skip)]
-    pub(crate) db: Database,
-
     pub age_range: AgeRange<CohortVecs<M>>,
     pub supply: Split<SpotValuePerBlock<M>>,
     #[traversable(wrap = "supply/mobile/in_loss", rename = "share")]

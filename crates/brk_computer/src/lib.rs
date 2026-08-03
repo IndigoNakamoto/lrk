@@ -28,17 +28,13 @@ pub mod price;
 mod supply;
 mod transactions;
 
-use frameworks::{coinflow, cointime};
-use models::bedrock;
-
 #[derive(Traversable)]
 pub struct Computer<M: StorageMode = Rw> {
     pub blocks: Box<blocks::Vecs<M>>,
     pub mining: Box<mining::Vecs<M>>,
     pub transactions: Box<transactions::Vecs<M>>,
-    pub cointime: Box<cointime::Vecs<M>>,
-    pub coinflow: Box<coinflow::Vecs<M>>,
-    pub bedrock: Box<bedrock::Vecs<M>>,
+    pub frameworks: Box<frameworks::Vecs<M>>,
+    pub models: Box<models::Vecs<M>>,
     pub constants: Box<constants::Vecs>,
     pub indexes: Box<indexes::Vecs<M>>,
     pub indicators: Box<indicators::Vecs<M>>,
@@ -95,8 +91,8 @@ impl Computer {
 
         let cached_starts = blocks.lookback.cached_window_starts();
 
-        let (inputs, outputs, mining, transactions, pools, cointime, coinflow, op_return) = timed(
-            "Imported inputs/outputs/mining/tx/pools/cointime/coinflow/op_return",
+        let (inputs, outputs, mining, transactions, pools, frameworks, op_return) = timed(
+            "Imported inputs/outputs/mining/tx/pools/frameworks/op_return",
             || {
                 thread::scope(|s| -> Result<_> {
                     let inputs_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -125,7 +121,7 @@ impl Computer {
                             &indexes,
                             &cached_starts,
                         )?);
-                        let cointime = Box::new(cointime::Vecs::forced_import(
+                        let frameworks = Box::new(frameworks::Vecs::forced_import(
                             &computed_path,
                             VERSION,
                             &indexes,
@@ -133,7 +129,7 @@ impl Computer {
                             &price,
                             &mining.rewards.subsidy.cumulative.cents,
                         )?);
-                        Ok((mining, cointime))
+                        Ok((mining, frameworks))
                     })?;
 
                     let transactions_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -155,13 +151,6 @@ impl Computer {
                         )?))
                     })?;
 
-                    let coinflow = Box::new(coinflow::Vecs::forced_import(
-                        &computed_path,
-                        VERSION,
-                        &indexes,
-                        &price,
-                    )?);
-
                     let op_return_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(op_return::Vecs::forced_import(
                             &computed_path,
@@ -173,7 +162,7 @@ impl Computer {
 
                     let inputs = inputs_handle.join().unwrap()?;
                     let outputs = outputs_handle.join().unwrap()?;
-                    let (mining, cointime) = mining_handle.join().unwrap()?;
+                    let (mining, frameworks) = mining_handle.join().unwrap()?;
                     let transactions = transactions_handle.join().unwrap()?;
                     let pools = pools_handle.join().unwrap()?;
                     let op_return = op_return_handle.join().unwrap()?;
@@ -184,8 +173,7 @@ impl Computer {
                         mining,
                         transactions,
                         pools,
-                        cointime,
-                        coinflow,
+                        frameworks,
                         op_return,
                     ))
                 })
@@ -246,13 +234,13 @@ impl Computer {
                 VERSION,
                 &indexes,
                 &distribution,
-                &cointime,
+                &frameworks.cointime,
                 &cached_starts,
             )?))
         })?;
 
-        let bedrock = timed("Imported bedrock", || -> Result<_> {
-            Ok(Box::new(bedrock::Vecs::forced_import(
+        let models = timed("Imported models", || -> Result<_> {
+            Ok(Box::new(models::Vecs::forced_import(
                 &computed_path,
                 VERSION,
                 &indexes,
@@ -272,9 +260,8 @@ impl Computer {
             distribution,
             supply,
             pools,
-            cointime,
-            coinflow,
-            bedrock,
+            frameworks,
+            models,
             indexes,
             inputs,
             price,
@@ -293,9 +280,8 @@ impl Computer {
             blocks::DB_NAME,
             mining::DB_NAME,
             transactions::DB_NAME,
-            cointime::DB_NAME,
-            coinflow::DB_NAME,
-            bedrock::DB_NAME,
+            frameworks::DB_NAME,
+            models::DB_NAME,
             indicators::DB_NAME,
             indexes::DB_NAME,
             investing::DB_NAME,
@@ -489,8 +475,8 @@ impl Computer {
                 )
             })?;
 
-            timed("Computed cointime", || {
-                self.cointime.compute(
+            timed("Computed frameworks", || {
+                self.frameworks.compute(
                     indexer,
                     &self.indexes,
                     &self.price,
@@ -501,24 +487,14 @@ impl Computer {
                 )
             })?;
 
-            timed("Computed coinflow", || {
-                self.coinflow.compute(
+            timed("Computed models", || {
+                self.models.compute(
                     indexer,
                     &self.indexes,
                     &self.price,
                     &self.distribution,
-                    &self.cointime,
-                    exit,
-                )
-            })?;
-
-            timed("Computed bedrock", || {
-                self.bedrock.compute(
-                    indexer,
-                    &self.indexes,
-                    &self.distribution,
-                    &self.cointime,
-                    &self.coinflow,
+                    &self.market,
+                    &self.frameworks,
                     exit,
                 )
             })?;
@@ -526,15 +502,6 @@ impl Computer {
             indicators.join().unwrap()?;
             Ok(())
         })?;
-
-        self.indicators.rarity_meter.compute(
-            indexer,
-            &self.distribution,
-            &self.cointime,
-            &self.coinflow,
-            &self.price,
-            exit,
-        )?;
 
         indexer.advance_safe_lengths()?;
 
@@ -582,9 +549,8 @@ impl_iter_named!(
     blocks,
     mining,
     transactions,
-    cointime,
-    coinflow,
-    bedrock,
+    frameworks,
+    models,
     constants,
     indicators,
     indexes,

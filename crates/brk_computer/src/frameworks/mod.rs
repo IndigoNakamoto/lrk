@@ -1,7 +1,14 @@
 use brk_types::StoredF64;
 
-pub mod coinflow;
-pub mod cointime;
+pub(crate) mod coinflow;
+pub(crate) mod cointime;
+mod compute;
+mod import;
+mod vecs;
+
+pub use vecs::Vecs;
+
+pub const DB_NAME: &str = "frameworks";
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct WeightedRatio {

@@ -182,8 +182,6 @@ impl Vecs {
         coinflow: &coinflow::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.db.sync_bg_tasks()?;
-
         let cointime_liveliness: Vec<_> = cointime
             .age_range
             .iter()
@@ -304,11 +302,6 @@ impl Vecs {
             }
         }
 
-        let bedrock_exit = exit.clone();
-        self.db.run_bg(move |db| {
-            let _lock = bedrock_exit.lock();
-            db.compact_deferred_default()
-        });
         Ok(())
     }
 

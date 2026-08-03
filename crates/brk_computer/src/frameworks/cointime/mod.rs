@@ -11,7 +11,7 @@ mod compute;
 mod import;
 
 use brk_traversable::Traversable;
-use vecdb::{Database, Rw, StorageMode};
+use vecdb::{Rw, StorageMode};
 
 pub use activity::Vecs as ActivityVecs;
 pub use adjusted::Vecs as AdjustedVecs;
@@ -22,13 +22,8 @@ pub use reserve_risk::Vecs as ReserveRiskVecs;
 pub use supply::{BaseVecs as SupplyBaseVecs, Vecs as SupplyVecs};
 pub use value::Vecs as ValueVecs;
 
-pub const DB_NAME: &str = "cointime";
-
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    #[traversable(skip)]
-    pub(crate) db: Database,
-
     pub activity: ActivityVecs<M>,
     pub age_range: AgeRangeVecs<M>,
     pub supply: SupplyVecs<M>,

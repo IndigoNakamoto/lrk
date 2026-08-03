@@ -1,19 +1,13 @@
-use std::path::Path;
-
 use brk_error::Result;
 use brk_types::{StoredF64, Version};
 use vecdb::Database;
 
 use super::{
-    DB_NAME,
     price::Price,
     urpd_metric::{UrpdMappings, UrpdMetric},
     vecs::{Levels, ModeVecs, Modes, Percentiles, Vecs},
 };
-use crate::{
-    indexes,
-    internal::db_utils::{finalize_db, open_db},
-};
+use crate::indexes;
 
 const VERSION: Version = Version::new(4);
 
@@ -85,22 +79,17 @@ fn import_mode(
 
 impl Vecs {
     pub(crate) fn forced_import(
-        parent_path: &Path,
+        db: &Database,
         parent_version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let db = open_db(parent_path, DB_NAME, 50_000)?;
         let version = parent_version + VERSION;
         let mappings = UrpdMappings::new(indexes);
 
-        let this = Self {
+        Ok(Self {
             modes: Modes::try_from_fn(|name| {
-                import_mode(&db, &format!("bedrock_{name}"), version, &mappings)
+                import_mode(db, &format!("bedrock_{name}"), version, &mappings)
             })?,
-            db,
-        };
-
-        finalize_db(&this.db, &this)?;
-        Ok(this)
+        })
     }
 }

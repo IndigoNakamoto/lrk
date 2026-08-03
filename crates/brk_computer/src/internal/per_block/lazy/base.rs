@@ -18,8 +18,8 @@ use crate::{
 #[traversable(merge)]
 pub struct LazyPerBlock<T, S1T = T>
 where
-    T: ComputedVecValue + PartialOrd + JsonSchema,
-    S1T: ComputedVecValue,
+    T: VecValue + PartialOrd + JsonSchema,
+    S1T: VecValue,
 {
     pub height: LazyVecFrom1<Height, T, Height, S1T>,
     #[deref]
@@ -30,8 +30,8 @@ where
 
 impl<T, S1T> LazyPerBlock<T, S1T>
 where
-    T: ComputedVecValue + JsonSchema + 'static,
-    S1T: ComputedVecValue + JsonSchema,
+    T: VecValue + PartialOrd + JsonSchema + 'static,
+    S1T: VecValue + PartialOrd + JsonSchema,
 {
     pub(crate) fn from_resolutions<F: UnaryTransform<S1T, T>>(
         name: &str,
@@ -153,8 +153,8 @@ where
 
 impl<T, S1T> ReadOnlyClone for LazyPerBlock<T, S1T>
 where
-    T: ComputedVecValue + PartialOrd + JsonSchema,
-    S1T: ComputedVecValue,
+    T: VecValue + PartialOrd + JsonSchema,
+    S1T: VecValue,
 {
     type ReadOnly = Self;
     fn read_only_clone(&self) -> Self {

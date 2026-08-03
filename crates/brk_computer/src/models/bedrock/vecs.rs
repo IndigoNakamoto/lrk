@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::StoredF64;
 use derive_more::{Deref, DerefMut};
-use vecdb::{Database, Rw, StorageMode};
+use vecdb::{Rw, StorageMode};
 
 use super::{price::Price, urpd_metric::UrpdMetric};
 
@@ -86,8 +86,6 @@ impl<T> Modes<T> {
 
 #[derive(Deref, DerefMut, Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    #[traversable(skip)]
-    pub(crate) db: Database,
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
