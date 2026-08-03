@@ -182,7 +182,11 @@ where
         if with_changes {
             self.stamped_write_with_changes(stamp)
         } else {
-            self.stamped_write(stamp)
+            self.stamped_write(stamp)?;
+            if self.saved_stamped_changes() > 0 {
+                self.save_rollback_state();
+            }
+            Ok(())
         }
     }
 

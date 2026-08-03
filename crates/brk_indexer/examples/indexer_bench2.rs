@@ -49,6 +49,7 @@ fn main() -> Result<()> {
     loop {
         let i = Instant::now();
         indexer.index(&reader, &client, &exit)?;
+        indexer.advance_safe_lengths()?;
         info!("Done in {:?}", i.elapsed());
 
         Mimalloc::collect();

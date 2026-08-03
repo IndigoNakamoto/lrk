@@ -1471,6 +1471,32 @@ mod raw_rollback {
         Ok(())
     }
 
+    fn run_rollback_after_untracked_checkpoint<V>() -> Result<()>
+    where
+        V: RollbackVec,
+        V::Target: RollbackOps + AnyStoredVec,
+    {
+        let (db, _temp) = setup_db()?;
+        let (mut vec, _) = V::import_with_changes(&db, "test", 10)?;
+
+        for i in 0..100 {
+            vec.push(i);
+        }
+
+        AnyStoredVec::any_stamped_write_maybe_with_changes(vec.deref_mut(), Stamp::new(1), false)?;
+
+        vec.deref_mut().update(65, 999)?;
+        AnyStoredVec::any_stamped_write_maybe_with_changes(vec.deref_mut(), Stamp::new(2), true)?;
+
+        vec.deref_mut().rollback()?;
+
+        assert_eq!(vec.len(), 100);
+        assert_eq!(vec.deref_mut().collect()[65], 65);
+        assert_eq!(RollbackOps::stamp(vec.deref_mut()), Stamp::new(1));
+
+        Ok(())
+    }
+
     // ============================================================================
     // Test instantiation for each raw vec type
     // ============================================================================
@@ -1549,6 +1575,10 @@ mod raw_rollback {
         fn rollback_after_rollback_with_delete() -> Result<()> {
             run_rollback_after_rollback_with_delete::<V>()
         }
+        #[test]
+        fn rollback_after_untracked_checkpoint() -> Result<()> {
+            run_rollback_after_untracked_checkpoint::<V>()
+        }
     }
 
     mod bytes {
@@ -1624,11 +1654,87 @@ mod raw_rollback {
         fn rollback_after_rollback_with_delete() -> Result<()> {
             run_rollback_after_rollback_with_delete::<V>()
         }
+        #[test]
+        fn rollback_after_untracked_checkpoint() -> Result<()> {
+            run_rollback_after_untracked_checkpoint::<V>()
+        }
     }
 } // end mod raw_rollback
 
 // ============================================================================
-// PART 3: Comprehensive Integration Test
+// PART 3: Checkpoint Rollback Tests (ALL vec types)
+// ============================================================================
+
+mod checkpoint_rollback {
+    use super::*;
+
+    fn run<V>() -> Result<()>
+    where
+        V: StoredVec<I = usize, T = u32>,
+    {
+        let (db, _temp) = setup_db()?;
+        let options = ImportOptions::new(&db, "test", Version::TWO).with_saved_stamped_changes(10);
+        let mut vec = V::forced_import_with(options)?;
+
+        for i in 0..100 {
+            vec.push(i);
+        }
+        AnyStoredVec::any_stamped_write_maybe_with_changes(&mut vec, Stamp::new(1), false)?;
+
+        vec.push(100);
+        AnyStoredVec::any_stamped_write_maybe_with_changes(&mut vec, Stamp::new(2), true)?;
+        WritableVec::rollback(&mut vec)?;
+
+        assert_eq!(vec.collect(), (0..100).collect::<Vec<_>>());
+        assert_eq!(AnyStoredVec::stamp(&vec), Stamp::new(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn bytes() -> Result<()> {
+        run::<vecdb::BytesVec<usize, u32>>()
+    }
+
+    #[cfg(feature = "zerocopy")]
+    #[test]
+    fn zerocopy() -> Result<()> {
+        run::<vecdb::ZeroCopyVec<usize, u32>>()
+    }
+
+    #[cfg(feature = "pco")]
+    #[test]
+    fn pco() -> Result<()> {
+        run::<vecdb::PcoVec<usize, u32>>()
+    }
+
+    #[cfg(feature = "lz4")]
+    #[test]
+    fn lz4() -> Result<()> {
+        run::<vecdb::LZ4Vec<usize, u32>>()
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn zstd() -> Result<()> {
+        run::<vecdb::ZstdVec<usize, u32>>()
+    }
+
+    #[cfg(feature = "zerocopy")]
+    #[test]
+    fn eager_zerocopy() -> Result<()> {
+        run::<vecdb::EagerVec<vecdb::ZeroCopyVec<usize, u32>>>()
+    }
+
+    #[cfg(feature = "pco")]
+    #[test]
+    fn eager_pco() -> Result<()> {
+        run::<vecdb::EagerVec<vecdb::PcoVec<usize, u32>>>()
+    }
+}
+
+// ============================================================================
+// PART 4: Comprehensive Integration Test
 // ============================================================================
 // Complex rollback + flush + reopen test with file integrity verification.
 

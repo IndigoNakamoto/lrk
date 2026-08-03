@@ -111,9 +111,7 @@ pub fn main() -> anyhow::Result<()> {
 
         Mimalloc::collect();
 
-        computer.compute(&indexer, &exit)?;
-
-        indexer.advance_safe_lengths()?;
+        computer.compute(&mut indexer, &exit)?;
 
         info!("Total time: {:?}", total_start.elapsed());
         info!("Waiting for new blocks...");

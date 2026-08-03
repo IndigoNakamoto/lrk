@@ -183,16 +183,20 @@ impl Region {
         self.write_with(data, Some(at), false)
     }
 
-    /// Writes (offset, value) pairs directly to the mmap within region bounds.
+    /// Writes ascending (offset, value) pairs directly to the mmap within region bounds.
     #[inline]
-    pub fn batch_write_each<T, F>(
+    pub fn batch_write_ordered<T, F>(
         &self,
-        iter: impl Iterator<Item = (usize, T)>,
+        mut iter: impl Iterator<Item = (usize, T)>,
         value_len: usize,
         mut write_fn: F,
     ) where
         F: FnMut(&T, &mut [u8]),
     {
+        let Some((first_offset, first_value)) = iter.next() else {
+            return;
+        };
+
         let meta = self.meta();
         let region_start = meta.start();
         let region_len = meta.len();
@@ -202,10 +206,19 @@ impl Region {
         let mmap = db.mmap();
         let ptr = mmap.as_ptr() as *mut u8;
 
-        let mut dirty_start = usize::MAX;
-        let mut dirty_end = 0usize;
+        let first_end = first_offset
+            .checked_add(value_len)
+            .expect("offset + value_len overflow");
+        assert!(first_end <= region_len);
+        let first_abs_offset = region_start + first_offset;
+        let first_slice =
+            unsafe { std::slice::from_raw_parts_mut(ptr.add(first_abs_offset), value_len) };
+        write_fn(&first_value, first_slice);
 
+        let mut previous_offset = first_offset;
+        let mut dirty_end = first_end;
         for (offset, value) in iter {
+            debug_assert!(offset >= previous_offset, "batch offsets must be ordered");
             let end_offset = offset
                 .checked_add(value_len)
                 .expect("offset + value_len overflow");
@@ -214,15 +227,13 @@ impl Region {
             let abs_offset = region_start + offset;
             let slice = unsafe { std::slice::from_raw_parts_mut(ptr.add(abs_offset), value_len) };
             write_fn(&value, slice);
-            dirty_start = dirty_start.min(offset);
-            dirty_end = dirty_end.max(end_offset);
+            previous_offset = offset;
+            dirty_end = end_offset;
         }
 
-        if dirty_start < dirty_end {
-            let mut bounds = self.0.dirty_bounds.lock();
-            bounds.0 = bounds.0.min(dirty_start);
-            bounds.1 = bounds.1.max(dirty_end);
-        }
+        let mut bounds = self.0.dirty_bounds.lock();
+        bounds.0 = bounds.0.min(first_offset);
+        bounds.1 = bounds.1.max(dirty_end);
     }
 
     pub fn truncate(&self, from: usize) -> Result<()> {

@@ -48,6 +48,7 @@ fn main() -> Result<()> {
 
     let i = Instant::now();
     indexer.index(&reader, &client, &exit)?;
+    indexer.advance_safe_lengths()?;
     info!("Done in {:?}", i.elapsed());
 
     sleep(Duration::from_secs(60));

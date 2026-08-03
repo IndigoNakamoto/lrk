@@ -100,6 +100,7 @@ impl TreeIter {
         guard: IterState,
         range: R,
         seqno: SeqNo,
+        include_memtables: bool,
     ) -> Self {
         Self::new(guard, |lock| {
             let lo = match range.start_bound() {
@@ -195,33 +196,30 @@ impl TreeIter {
                 }
             }
 
-            // Sealed memtables
-            for memtable in lock.version.sealed_memtables.iter() {
-                let iter = memtable.range(range.clone());
+            if include_memtables {
+                for memtable in lock.version.sealed_memtables.iter() {
+                    let iter = memtable.range(range.clone());
 
-                iters.push(Box::new(
-                    iter.filter(move |item| seqno_filter(item.key.seqno, seqno))
-                        .map(Ok),
-                ));
-            }
+                    iters.push(Box::new(
+                        iter.filter(move |item| seqno_filter(item.key.seqno, seqno))
+                            .map(Ok),
+                    ));
+                }
 
-            // Active memtable
-            {
                 let iter = lock.version.active_memtable.range(range.clone());
-
                 iters.push(Box::new(
                     iter.filter(move |item| seqno_filter(item.key.seqno, seqno))
                         .map(Ok),
                 ));
-            }
 
-            if let Some((mt, seqno)) = &lock.ephemeral {
-                let iter = Box::new(
-                    mt.range(range)
-                        .filter(move |item| seqno_filter(item.key.seqno, *seqno))
-                        .map(Ok),
-                );
-                iters.push(iter);
+                if let Some((mt, seqno)) = &lock.ephemeral {
+                    let iter = Box::new(
+                        mt.range(range)
+                            .filter(move |item| seqno_filter(item.key.seqno, *seqno))
+                            .map(Ok),
+                    );
+                    iters.push(iter);
+                }
             }
 
             let merged = Merger::new(iters);

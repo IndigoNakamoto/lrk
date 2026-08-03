@@ -164,23 +164,33 @@ impl Table {
         seqno: SeqNo,
         key_hash: u64,
     ) -> crate::Result<Option<InternalValue>> {
-        self.get_with(key, seqno, key_hash, Self::point_read)
+        let mut key_hash = Some(key_hash);
+        self.get_with(key, seqno, &mut key_hash, Self::point_read)
     }
 
     pub(crate) fn get_value(
         &self,
         key: &[u8],
         seqno: SeqNo,
-        key_hash: u64,
+        key_hash: &mut Option<u64>,
     ) -> crate::Result<Option<PointReadValue>> {
         self.get_with(key, seqno, key_hash, Self::point_read_value)
+    }
+
+    pub(crate) fn get_lazy(
+        &self,
+        key: &[u8],
+        seqno: SeqNo,
+        key_hash: &mut Option<u64>,
+    ) -> crate::Result<Option<InternalValue>> {
+        self.get_with(key, seqno, key_hash, Self::point_read)
     }
 
     fn get_with<T>(
         &self,
         key: &[u8],
         seqno: SeqNo,
-        key_hash: u64,
+        key_hash: &mut Option<u64>,
         point_read: impl FnOnce(&Self, &[u8], SeqNo) -> crate::Result<Option<T>>,
     ) -> crate::Result<Option<T>> {
         // Translate seqno to "our" seqno
@@ -226,6 +236,9 @@ impl Table {
         };
 
         if let Some(filter_block) = &filter_block {
+            let key_hash = *key_hash.get_or_insert_with(|| {
+                crate::table::filter::standard_bloom::Builder::get_hash(key)
+            });
             if !filter_block.maybe_contains_hash(key_hash)? {
                 return Ok(None);
             }

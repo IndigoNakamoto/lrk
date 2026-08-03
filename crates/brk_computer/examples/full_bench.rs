@@ -66,7 +66,7 @@ pub fn main() -> color_eyre::Result<()> {
         Mimalloc::collect();
 
         let i = Instant::now();
-        computer.compute(&indexer, &exit)?;
+        computer.compute(&mut indexer, &exit)?;
         info!("Done in {:?}", i.elapsed());
 
         sleep(Duration::from_secs(60));

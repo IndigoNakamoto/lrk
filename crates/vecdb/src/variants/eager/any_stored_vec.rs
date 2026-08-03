@@ -64,6 +64,10 @@ where
         self.0.stamped_write_with_changes(stamp)
     }
 
+    fn any_save_rollback_state(&mut self) {
+        self.0.save_rollback_state()
+    }
+
     fn remove(self) -> Result<()> {
         self.0.remove()
     }

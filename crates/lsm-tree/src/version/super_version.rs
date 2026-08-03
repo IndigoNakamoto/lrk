@@ -158,9 +158,16 @@ impl SuperVersions {
     pub fn latest_version(&self) -> SuperVersion {
         #[expect(clippy::expect_used, reason = "SuperVersion is expected to exist")]
         self.0
-            .iter()
-            .last()
+            .back()
             .map(|version| version.as_ref().clone())
+            .expect("should always have a SuperVersion")
+    }
+
+    pub(crate) fn latest_version_arc(&self) -> Arc<SuperVersion> {
+        #[expect(clippy::expect_used, reason = "SuperVersion is expected to exist")]
+        self.0
+            .back()
+            .cloned()
             .expect("should always have a SuperVersion")
     }
 

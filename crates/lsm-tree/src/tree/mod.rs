@@ -618,19 +618,7 @@ impl AbstractTree for Tree {
             return Ok(ignore_tombstone_value(entry).map(|entry| entry.value));
         }
 
-        let key_hash = crate::table::filter::standard_bloom::Builder::get_hash(key);
-        for table in super_version
-            .version
-            .iter_levels()
-            .flat_map(|level| level.iter())
-            .filter_map(|run| run.get_for_key(key))
-        {
-            if let Some(item) = table.get_value(key, seqno, key_hash)? {
-                return Ok((!item.value_type.is_tombstone()).then_some(item.value));
-            }
-        }
-
-        Ok(None)
+        Self::get_value_from_tables(&super_version.version, key, seqno)
     }
 
     fn insert<K: Into<UserKey>, V: Into<UserValue>>(
@@ -681,7 +669,36 @@ impl Tree {
 
         let iter_state = { IterState { version, ephemeral } };
 
-        TreeIter::create_range(iter_state, bounds, seqno)
+        TreeIter::create_range(iter_state, bounds, seqno, true)
+    }
+
+    fn create_internal_range_exclusive<'a, K: AsRef<[u8]> + 'a, R: RangeBounds<K> + 'a>(
+        version: SuperVersion,
+        range: &'a R,
+    ) -> impl DoubleEndedIterator<Item = crate::Result<InternalValue>> + 'static + use<K, R> {
+        use crate::range::{IterState, TreeIter};
+        use std::ops::Bound::{Excluded, Included, Unbounded};
+
+        let lo: std::ops::Bound<UserKey> = match range.start_bound() {
+            Included(x) => Included(x.as_ref().into()),
+            Excluded(x) => Excluded(x.as_ref().into()),
+            Unbounded => Unbounded,
+        };
+        let hi: std::ops::Bound<UserKey> = match range.end_bound() {
+            Included(x) => Included(x.as_ref().into()),
+            Excluded(x) => Excluded(x.as_ref().into()),
+            Unbounded => Unbounded,
+        };
+
+        TreeIter::create_range(
+            IterState {
+                version,
+                ephemeral: None,
+            },
+            (lo, hi),
+            SeqNo::MAX,
+            false,
+        )
     }
 
     pub(crate) fn get_internal_entry_from_version(
@@ -709,17 +726,35 @@ impl Tree {
         key: &[u8],
         seqno: SeqNo,
     ) -> crate::Result<Option<InternalValue>> {
-        // NOTE: Create key hash for hash sharing
-        // https://fjall-rs.github.io/post/bloom-filter-hash-sharing/
-        let key_hash = crate::table::filter::standard_bloom::Builder::get_hash(key);
+        let mut key_hash = None;
 
         for table in version
             .iter_levels()
             .flat_map(|lvl| lvl.iter())
             .filter_map(|run| run.get_for_key(key))
         {
-            if let Some(item) = table.get(key, seqno, key_hash)? {
+            if let Some(item) = table.get_lazy(key, seqno, &mut key_hash)? {
                 return Ok(ignore_tombstone_value(item));
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn get_value_from_tables(
+        version: &Version,
+        key: &[u8],
+        seqno: SeqNo,
+    ) -> crate::Result<Option<UserValue>> {
+        let mut key_hash = None;
+
+        for table in version
+            .iter_levels()
+            .flat_map(|level| level.iter())
+            .filter_map(|run| run.get_for_key(key))
+        {
+            if let Some(item) = table.get_value(key, seqno, &mut key_hash)? {
+                return Ok((!item.value_type.is_tombstone()).then_some(item.value));
             }
         }
 
@@ -832,6 +867,43 @@ impl Tree {
         })
     }
 
+    /// Reads the latest on-disk value without probing memtables.
+    ///
+    /// The caller must ensure all writes use exclusive ingestion.
+    #[doc(hidden)]
+    pub fn get_exclusive<K: AsRef<[u8]>>(&self, key: K) -> crate::Result<Option<UserValue>> {
+        let key = key.as_ref();
+        #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
+        let super_version = self
+            .version_history
+            .read()
+            .expect("lock is poisoned")
+            .latest_version_arc();
+
+        Self::get_value_from_tables(&super_version.version, key, SeqNo::MAX)
+    }
+
+    /// Creates a latest-version range without adding empty memtable readers.
+    ///
+    /// The caller must ensure all writes use exclusive ingestion.
+    #[doc(hidden)]
+    pub fn create_range_exclusive<'a, K: AsRef<[u8]> + 'a, R: RangeBounds<K> + 'a>(
+        &self,
+        range: &'a R,
+    ) -> impl DoubleEndedIterator<Item = crate::Result<KvPair>> + 'static + use<K, R> {
+        #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
+        let super_version = self
+            .version_history
+            .read()
+            .expect("lock is poisoned")
+            .latest_version();
+
+        Self::create_internal_range_exclusive(super_version, range).map(|item| match item {
+            Ok(kv) => Ok((kv.key.user_key, kv.value)),
+            Err(e) => Err(e),
+        })
+    }
+
     #[doc(hidden)]
     pub fn create_prefix<'a, K: AsRef<[u8]> + 'a>(
         &self,
@@ -843,6 +915,20 @@ impl Tree {
 
         let range = prefix_to_range(prefix.as_ref());
         self.create_range(&range, seqno, ephemeral)
+    }
+
+    /// Creates a latest-version prefix iterator without memtable readers.
+    ///
+    /// The caller must ensure all writes use exclusive ingestion.
+    #[doc(hidden)]
+    pub fn create_prefix_exclusive<K: AsRef<[u8]>>(
+        &self,
+        prefix: K,
+    ) -> impl DoubleEndedIterator<Item = crate::Result<KvPair>> + 'static + use<K> {
+        use crate::range::prefix_to_range;
+
+        let range = prefix_to_range(prefix.as_ref());
+        self.create_range_exclusive(&range)
     }
 
     /// Adds an item to the active memtable.

@@ -7,7 +7,7 @@ use std::{
     ops::Deref,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering, fence},
     },
 };
 
@@ -88,7 +88,15 @@ unsafe impl Sync for ByteView {}
 
 impl Clone for ByteView {
     fn clone(&self) -> Self {
-        self.slice(..)
+        if !self.is_inline() {
+            self.get_heap_region()
+                .ref_count
+                .fetch_add(1, Ordering::Relaxed);
+        }
+
+        // SAFETY: Inline views own no external resource. Heap views share their
+        // allocation, whose reference count was incremented above.
+        unsafe { std::ptr::read(self) }
     }
 }
 
@@ -100,9 +108,10 @@ impl Drop for ByteView {
 
         let heap_region = self.get_heap_region();
 
-        if heap_region.ref_count.fetch_sub(1, Ordering::AcqRel) != 1 {
+        if heap_region.ref_count.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
+        fence(Ordering::Acquire);
 
         unsafe {
             let header_size = std::mem::size_of::<HeapAllocationHeader>();
@@ -121,35 +130,27 @@ impl Eq for ByteView {}
 impl std::cmp::PartialEq for ByteView {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let src_ptr = (self as *const Self).cast::<u8>();
-            let other_ptr: *const u8 = (other as *const Self).cast::<u8>();
-
-            let a = *src_ptr.cast::<u64>();
-            let b = *other_ptr.cast::<u64>();
+            let a = std::ptr::from_ref(self).cast::<u64>().read_unaligned();
+            let b = std::ptr::from_ref(other).cast::<u64>().read_unaligned();
 
             if a != b {
                 return false;
             }
         }
 
-        // NOTE: At this point we know
-        // both strings must have the same prefix and same length
-        //
-        // If we are inlined, the other string must be inlined too,
-        // so checking the short slice is enough
-        if self.is_inline() {
-            self.get_short_slice() == other.get_short_slice()
-        } else {
-            self.get_long_slice() == other.get_long_slice()
-        }
+        // The first word contains the length and cached four-byte prefix.
+        // Compare only the bytes that were not already checked.
+        self.get(PREFIX_SIZE..).unwrap_or_default() == other.get(PREFIX_SIZE..).unwrap_or_default()
     }
 }
 
 impl std::cmp::Ord for ByteView {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.prefix()
-            .cmp(other.prefix())
-            .then_with(|| self.deref().cmp(&**other))
+        self.prefix().cmp(other.prefix()).then_with(|| {
+            self.get(PREFIX_SIZE..)
+                .unwrap_or_default()
+                .cmp(other.get(PREFIX_SIZE..).unwrap_or_default())
+        })
     }
 }
 
@@ -239,14 +240,8 @@ impl ByteView {
                 let slice_ptr: &[u8] = &*self;
                 let slice_ptr = slice_ptr.as_ptr();
 
-                // Zero out prefix
-                (*self.trailer.long).prefix[0] = 0;
-                (*self.trailer.long).prefix[1] = 0;
-                (*self.trailer.long).prefix[2] = 0;
-                (*self.trailer.long).prefix[3] = 0;
-
                 let prefix = (*self.trailer.long).prefix.as_mut_ptr();
-                std::ptr::copy_nonoverlapping(slice_ptr, prefix, self.len().min(4));
+                std::ptr::copy_nonoverlapping(slice_ptr, prefix, PREFIX_SIZE);
             }
         }
     }
@@ -594,7 +589,7 @@ impl ByteView {
         } else {
             // IMPORTANT: Increase ref count
             let heap_region = self.get_heap_region();
-            heap_region.ref_count.fetch_add(1, Ordering::Release);
+            heap_region.ref_count.fetch_add(1, Ordering::Relaxed);
 
             let mut child = Self {
                 // SAFETY: self.data must be defined
@@ -625,17 +620,22 @@ impl ByteView {
     /// Returns `true` if `needle` is a prefix of the slice or equal to the slice.
     pub fn starts_with<T: AsRef<[u8]>>(&self, needle: T) -> bool {
         let needle = needle.as_ref();
+        let prefix_len = PREFIX_SIZE.min(needle.len());
 
         unsafe {
-            let len = PREFIX_SIZE.min(needle.len());
-            let needle_prefix: &[u8] = needle.get_unchecked(..len);
+            let needle_prefix: &[u8] = needle.get_unchecked(..prefix_len);
 
             if !self.prefix().starts_with(needle_prefix) {
                 return false;
             }
         }
 
-        self.deref().starts_with(needle)
+        if needle.len() <= PREFIX_SIZE {
+            true
+        } else {
+            self.get(PREFIX_SIZE..)
+                .is_some_and(|bytes| bytes.starts_with(&needle[PREFIX_SIZE..]))
+        }
     }
 
     /// Returns `true` if the slice is empty.

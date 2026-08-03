@@ -200,6 +200,10 @@ where
         <Self as WritableVec<I, T>>::stamped_write_with_changes(self, stamp)
     }
 
+    fn any_save_rollback_state(&mut self) {
+        <Self as WritableVec<I, T>>::save_rollback_state(self)
+    }
+
     fn remove(self) -> Result<()> {
         Self::remove(self)
     }

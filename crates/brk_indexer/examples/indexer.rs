@@ -41,6 +41,7 @@ fn main() -> color_eyre::Result<()> {
     loop {
         let i = Instant::now();
         indexer.checked_index(&reader, &client, &exit)?;
+        indexer.advance_safe_lengths()?;
         info!("Done in {:?}", i.elapsed());
 
         Mimalloc::collect();

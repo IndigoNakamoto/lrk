@@ -109,7 +109,7 @@ where
                 }
             } else {
                 // Normal case: write directly to mmap, no intermediate allocations
-                region.batch_write_each(
+                region.batch_write_ordered(
                     updated
                         .into_iter()
                         .map(|(index, value)| (index * Self::SIZE_OF_T + HEADER_OFFSET, value)),
@@ -152,6 +152,10 @@ where
 
     fn any_stamped_write_with_changes(&mut self, stamp: Stamp) -> Result<()> {
         <Self as WritableVec<I, T>>::stamped_write_with_changes(self, stamp)
+    }
+
+    fn any_save_rollback_state(&mut self) {
+        <Self as WritableVec<I, T>>::save_rollback_state(self)
     }
 
     fn remove(self) -> Result<()> {

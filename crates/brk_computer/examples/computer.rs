@@ -53,7 +53,7 @@ pub fn main() -> color_eyre::Result<()> {
 
         Mimalloc::collect();
 
-        computer.compute(&indexer, &exit)?;
+        computer.compute(&mut indexer, &exit)?;
         dbg!(i.elapsed());
         sleep(Duration::from_secs(10));
     }

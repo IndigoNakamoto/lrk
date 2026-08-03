@@ -50,7 +50,7 @@ pub fn main() -> Result<()> {
     Mimalloc::collect();
 
     let i = Instant::now();
-    computer.compute(&indexer, &exit)?;
+    computer.compute(&mut indexer, &exit)?;
     info!("Done in {:?}", i.elapsed());
 
     // We want to benchmark the drop too

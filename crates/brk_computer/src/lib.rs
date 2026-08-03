@@ -335,7 +335,7 @@ impl Computer {
         Ok(())
     }
 
-    pub fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
+    pub fn compute(&mut self, indexer: &mut Indexer, exit: &Exit) -> Result<()> {
         internal::cache_clear_all();
 
         let compute_start = Instant::now();
@@ -535,6 +535,8 @@ impl Computer {
             &self.price,
             exit,
         )?;
+
+        indexer.advance_safe_lengths()?;
 
         info!("Total compute time: {:?}", compute_start.elapsed());
         Ok(())

@@ -399,14 +399,10 @@ impl Keyspace {
     pub fn iter_standard(
         &self,
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
-        let nonce = self.supervisor.snapshot_tracker.open();
         let range = ..;
         self.tree
-            .create_range::<&[u8], _>(&range, nonce.instant, None)
-            .map(move |item| {
-                let _keep_snapshot_alive = &nonce;
-                item.map_err(Into::into)
-            })
+            .create_range_exclusive::<&[u8], _>(&range)
+            .map(|item| item.map_err(Into::into))
     }
 
     /// Returns an iterator over a range of items.
@@ -440,13 +436,9 @@ impl Keyspace {
         &self,
         range: R,
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
-        let nonce = self.supervisor.snapshot_tracker.open();
         self.tree
-            .create_range(&range, nonce.instant, None)
-            .map(move |item| {
-                let _keep_snapshot_alive = &nonce;
-                item.map_err(Into::into)
-            })
+            .create_range_exclusive(&range)
+            .map(|item| item.map_err(Into::into))
     }
 
     /// Returns an iterator over a prefixed set of items.
@@ -480,13 +472,9 @@ impl Keyspace {
         &self,
         prefix: K,
     ) -> impl DoubleEndedIterator<Item = crate::Result<crate::KvPair>> + Send + 'static {
-        let nonce = self.supervisor.snapshot_tracker.open();
         self.tree
-            .create_prefix(prefix, nonce.instant, None)
-            .map(move |item| {
-                let _keep_snapshot_alive = &nonce;
-                item.map_err(Into::into)
-            })
+            .create_prefix_exclusive(prefix)
+            .map(|item| item.map_err(Into::into))
     }
 
     /// Approximates the number of items in the keyspace.
@@ -646,7 +634,7 @@ impl Keyspace {
         &self,
         key: K,
     ) -> crate::Result<Option<lsm_tree::UserValue>> {
-        Ok(self.tree.get(key, SeqNo::MAX)?)
+        Ok(self.tree.get_exclusive(key)?)
     }
 
     /// Retrieves the size of an item from the keyspace.

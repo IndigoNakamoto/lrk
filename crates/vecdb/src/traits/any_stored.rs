@@ -59,6 +59,10 @@ pub trait AnyStoredVec: AnyVec {
     /// Prefixed with `any_` to avoid conflict with `WritableVec::stamped_write_with_changes`.
     fn any_stamped_write_with_changes(&mut self, stamp: Stamp) -> Result<()>;
 
+    /// Advances the in-memory rollback baseline to the current stored state.
+    #[doc(hidden)]
+    fn any_save_rollback_state(&mut self);
+
     /// Flushes with the given stamp, optionally saving changes for rollback.
     #[inline]
     fn any_stamped_write_maybe_with_changes(
@@ -69,7 +73,11 @@ pub trait AnyStoredVec: AnyVec {
         if with_changes {
             self.any_stamped_write_with_changes(stamp)
         } else {
-            self.stamped_write(stamp)
+            self.stamped_write(stamp)?;
+            if self.saved_stamped_changes() > 0 {
+                self.any_save_rollback_state();
+            }
+            Ok(())
         }
     }
 
