@@ -3,7 +3,9 @@ use std::{fs::File, mem, sync::Arc};
 use log::{debug, trace};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{Database, Error, Reader, RegionMetadata, Result, WeakDatabase};
+use crate::{
+    Database, Error, PAGE_SIZE, PAGE_SIZE_MINUS_1, Reader, RegionMetadata, Result, WeakDatabase,
+};
 
 /// Named, dynamically-sized region within a database.
 #[derive(Debug, Clone)]
@@ -68,6 +70,105 @@ impl Region {
 
     pub fn open_db_read_only_file(&self) -> Result<File> {
         self.db().open_read_only_file()
+    }
+
+    /// Ensures the region has at least `capacity` bytes of reserved space.
+    ///
+    /// Reserving capacity does not change the region's logical length or write
+    /// into the added space. When the region cannot grow in place, its current
+    /// contents are moved once to a sufficiently large contiguous range.
+    pub fn reserve_capacity(&self, capacity: usize) -> Result<()> {
+        let capacity = capacity
+            .max(PAGE_SIZE)
+            .checked_add(PAGE_SIZE_MINUS_1)
+            .ok_or(Error::RegionSizeOverflow {
+                current: self.meta().reserved(),
+                requested: capacity,
+            })?
+            & !PAGE_SIZE_MINUS_1;
+
+        let db = self.db();
+        let index = self.index();
+        let meta = self.meta();
+        let start = meta.start();
+        let len = meta.len();
+        let reserved = meta.reserved();
+        drop(meta);
+
+        if capacity <= reserved {
+            return Ok(());
+        }
+
+        let added_reserve = capacity - reserved;
+        let mut layout = db.layout_mut();
+
+        // Extend the final region without moving it.
+        if layout.is_last_anything(self) {
+            {
+                let mut meta = self.meta_mut();
+                meta.set_reserved(capacity);
+            }
+            drop(layout);
+
+            if let Err(error) = db.set_min_len(start + capacity) {
+                self.meta_mut().set_reserved(reserved);
+                return Err(error);
+            }
+
+            let regions = db.regions();
+            self.meta_mut().write_if_dirty(index, &regions);
+            return Ok(());
+        }
+
+        // Consume a hole immediately following the region.
+        let hole_start = start + reserved;
+        if layout
+            .get_hole(hole_start)
+            .is_some_and(|gap| gap >= added_reserve)
+        {
+            layout.remove_or_compress_hole(hole_start, added_reserve)?;
+            self.meta_mut().set_reserved(capacity);
+            drop(layout);
+
+            let regions = db.regions();
+            self.meta_mut().write_if_dirty(index, &regions);
+            return Ok(());
+        }
+
+        // Relocate to an existing hole or append a new sparse range.
+        let new_start = if let Some(hole_start) = layout.find_smallest_adequate_hole(capacity) {
+            layout.remove_or_compress_hole(hole_start, capacity)?;
+            layout.reserve(hole_start, capacity);
+            drop(layout);
+            hole_start
+        } else {
+            let new_start = layout.len();
+            layout.reserve(new_start, capacity);
+            drop(layout);
+
+            if let Err(error) = db.set_min_len(new_start + capacity) {
+                db.layout_mut().take_reserved(new_start);
+                return Err(error);
+            }
+            new_start
+        };
+
+        db.copy(start, new_start, len)?;
+
+        let mut layout = db.layout_mut();
+        layout.move_region(new_start, self)?;
+        assert_eq!(layout.take_reserved(new_start), Some(capacity));
+
+        if len > 0 {
+            self.mark_dirty(0, len);
+        }
+        let regions = db.regions();
+        let mut meta = self.meta_mut();
+        meta.set_start(new_start);
+        meta.set_reserved(capacity);
+        meta.write_if_dirty(index, &regions);
+
+        Ok(())
     }
 
     /// Appends data to the region. Not durable until `flush()`.

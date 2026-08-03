@@ -63,6 +63,38 @@ fn test_create_region_idempotent() -> Result<()> {
 }
 
 #[test]
+fn test_reserve_region_capacity_preserves_data() -> Result<()> {
+    let (db, _temp) = setup_test_db()?;
+
+    let region = db.create_region_if_needed("first")?;
+    region.write(b"preserved")?;
+    let blocker = db.create_region_if_needed("blocker")?;
+    let initial_start = region.meta().start();
+
+    region.reserve_capacity(PAGE_SIZE * 3 + 1)?;
+
+    let meta = region.meta();
+    assert_ne!(meta.start(), initial_start);
+    assert_eq!(meta.len(), b"preserved".len());
+    assert_eq!(meta.reserved(), PAGE_SIZE * 4);
+    drop(meta);
+    assert_eq!(region.create_reader().read_all(), b"preserved");
+    assert_eq!(blocker.meta().start(), PAGE_SIZE);
+
+    db.flush()?;
+    drop(blocker);
+    drop(region);
+    drop(db);
+
+    let reopened = Database::open(_temp.path())?;
+    let region = reopened.get_region("first").unwrap();
+    assert_eq!(region.meta().reserved(), PAGE_SIZE * 4);
+    assert_eq!(region.create_reader().read_all(), b"preserved");
+
+    Ok(())
+}
+
+#[test]
 fn test_write_to_region_within_reserved() -> Result<()> {
     let (db, _temp) = setup_test_db()?;
 

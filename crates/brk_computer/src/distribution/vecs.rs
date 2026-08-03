@@ -11,8 +11,8 @@ use brk_types::{
 use rayon::prelude::*;
 use tracing::{debug, info};
 use vecdb::{
-    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportableVec, LazyVecFrom1, ReadOnlyClone,
-    ReadableCloneableVec, ReadableVec, Rw, Stamp, StorageMode, WritableVec,
+    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportOptions, ImportableVec, LazyVecFrom1,
+    ReadOnlyClone, ReadableCloneableVec, ReadableVec, Rw, Stamp, StorageMode, WritableVec,
 };
 
 use crate::{
@@ -211,11 +211,11 @@ impl Vecs {
         // Create address data BytesVecs first so we can also use them for identity mappings
         let funded_addr_data_version = version + FUNDED_ADDR_DATA_VERSION;
         let funded_addr_index_to_funded_addr_data = BytesVec::forced_import_with(
-            vecdb::ImportOptions::new(&db, "funded_addr_data", funded_addr_data_version)
+            ImportOptions::new(&db, "funded_addr_data", funded_addr_data_version)
                 .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
         )?;
         let empty_addr_index_to_empty_addr_data = BytesVec::forced_import_with(
-            vecdb::ImportOptions::new(&db, "empty_addr_data", version)
+            ImportOptions::new(&db, "empty_addr_data", version)
                 .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
         )?;
 
@@ -278,7 +278,7 @@ impl Vecs {
 
         let this = Self {
             supply_state: BytesVec::forced_import_with(
-                vecdb::ImportOptions::new(&db, "supply_state", version)
+                ImportOptions::new(&db, "supply_state", version)
                     .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
             )?,
 

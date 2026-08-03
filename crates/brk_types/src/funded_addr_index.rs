@@ -3,7 +3,7 @@ use std::ops::Add;
 use derive_more::Deref;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use crate::TypeIndex;
 
@@ -68,6 +68,10 @@ impl PrintableIndex for FundedAddrIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["fundedaddr", "funded_addr_index"]
     }
+}
+
+impl VecIndex for FundedAddrIndex {
+    const INITIAL_CAPACITY: usize = 70_000_000;
 }
 
 impl std::fmt::Display for FundedAddrIndex {

@@ -3,7 +3,7 @@ use std::ops::{Add, AddAssign};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use super::Vout;
 
@@ -120,6 +120,10 @@ impl PrintableIndex for TxOutIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["txo", "txout", "txout_index"]
     }
+}
+
+impl VecIndex for TxOutIndex {
+    const INITIAL_CAPACITY: usize = 4_700_000_000;
 }
 
 impl std::fmt::Display for TxOutIndex {

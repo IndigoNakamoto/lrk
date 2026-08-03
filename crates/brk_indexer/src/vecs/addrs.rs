@@ -14,8 +14,7 @@ use vecdb::{
     PcoVecValue, ReadableVec, Ro, Rw, Stamp, StorageMode, VecIndex, WritableVec,
 };
 
-use crate::parallel_import;
-use crate::readers::AddrReaders;
+use crate::{parallel_import, readers::AddrReaders};
 
 #[derive(Traversable)]
 pub struct AddrTypeVecs<

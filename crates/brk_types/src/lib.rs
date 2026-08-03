@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-pub use vecdb::{CheckedSub, Exit, PrintableIndex, Version};
+pub use vecdb::{CheckedSub, Exit, PrintableIndex, VecIndex, Version};
 
 mod addr;
 mod addr_bytes;
@@ -190,6 +190,7 @@ mod urpd_aggregation;
 mod urpd_bucket;
 mod urpd_raw;
 mod utxo;
+mod vec_index;
 mod vin;
 mod vout;
 mod vsize;

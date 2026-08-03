@@ -45,6 +45,15 @@ where
             });
         }
 
+        let initial_capacity = I::INITIAL_CAPACITY;
+        if region_len == 0 && format.is_raw() && initial_capacity > 0 {
+            let capacity = initial_capacity
+                .checked_mul(size_of::<T>())
+                .and_then(|bytes| bytes.checked_add(HEADER_OFFSET))
+                .ok_or(Error::Overflow)?;
+            region.reserve_capacity(capacity)?;
+        }
+
         let header = if region_len == 0 {
             Header::create_and_write(&region, options.version, format)?
         } else {

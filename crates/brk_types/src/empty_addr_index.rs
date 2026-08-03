@@ -3,7 +3,7 @@ use std::ops::Add;
 use derive_more::Deref;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use crate::TypeIndex;
 
@@ -72,6 +72,10 @@ impl PrintableIndex for EmptyAddrIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["emptyaddr", "empty_addr_index"]
     }
+}
+
+impl VecIndex for EmptyAddrIndex {
+    const INITIAL_CAPACITY: usize = 1_800_000_000;
 }
 
 impl std::fmt::Display for EmptyAddrIndex {
