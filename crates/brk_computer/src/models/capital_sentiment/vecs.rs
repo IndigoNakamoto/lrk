@@ -2,18 +2,18 @@ use brk_traversable::Traversable;
 use brk_types::{CapitalSentimentPhase, StoredBool, StoredI8, StoredU8};
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::{LazyPerBlock, PerBlock};
+use crate::internal::{DailyMetric, LazyDailyMetric};
 
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    /// Compact, per-block source of truth.
+    /// Compact daily source of truth.
     #[traversable(hidden)]
-    pub(super) phase_code: PerBlock<StoredU8, M>,
+    pub(super) phase_code: DailyMetric<StoredU8, M>,
 
-    /// BRK Signal position: `true` is long and `false` is cash.
-    pub is_long: PerBlock<StoredBool, M>,
+    /// BRK Signal position: `true` is long and `false` is short.
+    pub is_long: DailyMetric<StoredBool, M>,
     /// Lazy complement of `is_long`.
-    pub is_short: LazyPerBlock<StoredBool>,
-    pub phase: LazyPerBlock<Option<CapitalSentimentPhase>, StoredU8>,
-    pub score: LazyPerBlock<Option<StoredI8>, Option<CapitalSentimentPhase>>,
+    pub is_short: LazyDailyMetric<StoredBool, StoredBool>,
+    pub phase: LazyDailyMetric<Option<CapitalSentimentPhase>, StoredU8>,
+    pub score: LazyDailyMetric<Option<StoredI8>, Option<CapitalSentimentPhase>>,
 }

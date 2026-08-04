@@ -5,10 +5,10 @@ use vecdb::{Database, ReadableCloneableVec, UnaryTransform};
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{LazyPerBlock, PerBlock},
+    internal::{DailyMappings, DailyMetric, LazyDailyMetric},
 };
 
-const VERSION: Version = Version::new(3);
+const VERSION: Version = Version::new(4);
 
 struct CodeToPhase;
 
@@ -51,31 +51,37 @@ impl Vecs {
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         let version = parent_version + VERSION;
+        let mappings = DailyMappings::new(indexes);
 
-        let phase_code =
-            PerBlock::forced_import(db, "capital_sentiment_phase_code", version, indexes)?;
-        let is_long = PerBlock::<StoredBool>::forced_import(
+        let phase_code = DailyMetric::forced_import(
+            db,
+            "capital_sentiment_phase_code",
+            version,
+            &mappings,
+        )?;
+        let is_long = DailyMetric::<StoredBool>::forced_import(
             db,
             "capital_sentiment_is_long",
             version,
-            indexes,
+            &mappings,
         )?;
-        let is_short = LazyPerBlock::from_computed::<IsLongToIsShort>(
+        let is_short = LazyDailyMetric::from_source::<IsLongToIsShort>(
             "capital_sentiment_is_short",
             version,
-            is_long.height.read_only_boxed_clone(),
-            &is_long,
+            is_long.day1.read_only_boxed_clone(),
+            &mappings,
         );
-        let phase = LazyPerBlock::from_computed::<CodeToPhase>(
+        let phase = LazyDailyMetric::from_source::<CodeToPhase>(
             "capital_sentiment_phase",
             version,
-            phase_code.height.read_only_boxed_clone(),
-            &phase_code,
+            phase_code.day1.read_only_boxed_clone(),
+            &mappings,
         );
-        let score = LazyPerBlock::from_lazy::<PhaseToScore, StoredU8>(
+        let score = LazyDailyMetric::from_source::<PhaseToScore>(
             "capital_sentiment_score",
             version,
-            &phase,
+            phase.day1.read_only_boxed_clone(),
+            &mappings,
         );
 
         Ok(Self {

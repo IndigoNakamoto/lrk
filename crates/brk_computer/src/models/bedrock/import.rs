@@ -6,10 +6,12 @@ use vecdb::Database;
 
 use super::{
     price::Price,
-    urpd_metric::{UrpdMappings, UrpdMetric},
     vecs::{Levels, ModeVecs, Modes, Percentiles, Vecs},
 };
-use crate::indexes;
+use crate::{
+    indexes,
+    internal::{DailyMappings, DailyMetric},
+};
 
 const VERSION: Version = Version::new(4);
 
@@ -41,16 +43,16 @@ fn import_ratio(
     db: &Database,
     name: &str,
     version: Version,
-    mappings: &UrpdMappings,
-) -> Result<UrpdMetric<StoredF64>> {
-    UrpdMetric::forced_import(db, name, version, mappings)
+    mappings: &DailyMappings,
+) -> Result<DailyMetric<StoredF64>> {
+    DailyMetric::forced_import(db, name, version, mappings)
 }
 
 fn import_price(
     db: &Database,
     name: &str,
     version: Version,
-    mappings: &UrpdMappings,
+    mappings: &DailyMappings,
 ) -> Result<Price> {
     Price::forced_import(db, name, version, mappings)
 }
@@ -59,7 +61,7 @@ fn import_mode(
     db: &Database,
     name: &str,
     version: Version,
-    mappings: &UrpdMappings,
+    mappings: &DailyMappings,
 ) -> Result<ModeVecs> {
     Ok(ModeVecs {
         loss_threshold: import_percentiles(|percentile| {
@@ -87,7 +89,7 @@ impl Vecs {
         states_path: PathBuf,
     ) -> Result<Self> {
         let version = parent_version + VERSION;
-        let mappings = UrpdMappings::new(indexes);
+        let mappings = DailyMappings::new(indexes);
 
         Ok(Self {
             states_path,

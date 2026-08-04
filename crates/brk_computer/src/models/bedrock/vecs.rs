@@ -5,7 +5,8 @@ use brk_types::StoredF64;
 use derive_more::{Deref, DerefMut};
 use vecdb::{Rw, StorageMode};
 
-use super::{price::Price, urpd_metric::UrpdMetric};
+use super::price::Price;
+use crate::internal::DailyMetric;
 
 pub(crate) const MODE_COUNT: usize = 10;
 pub(crate) const MODE_NAMES: [&str; MODE_COUNT] = [
@@ -45,7 +46,7 @@ pub struct Levels<T> {
 
 #[derive(Traversable)]
 pub struct ModeVecs<M: StorageMode = Rw> {
-    pub loss_threshold: Percentiles<UrpdMetric<StoredF64, M>>,
+    pub loss_threshold: Percentiles<DailyMetric<StoredF64, M>>,
     pub floor: Percentiles<Price<M>>,
     pub level: Levels<Price<M>>,
 }

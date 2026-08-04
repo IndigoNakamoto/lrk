@@ -468,7 +468,6 @@ impl Computer {
                     &self.indexes,
                     &self.price,
                     &self.distribution,
-                    &self.market,
                     &self.frameworks,
                     exit,
                 )

@@ -7,24 +7,29 @@ use brk_types::{
     Month3, Month6, Timestamp, Version, Week1, Year1, Year10,
 };
 use schemars::JsonSchema;
+use serde::Serialize;
 use vecdb::{
-    AnyExportableVec, AnyVec, Database, EagerVec, ImportableVec, LazyVecFrom1, PcoVec,
-    ReadableBoxedVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode, TypedVec, VecIndex,
-    VecValue, short_type_name,
+    AnyExportableVec, AnyVec, Database, EagerVec, Formattable, ImportableVec, LazyVecFrom1,
+    PcoVec, PcoVecValue, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
+    TypedVec, UnaryTransform, VecIndex, VecValue, short_type_name,
 };
 
-use crate::{indexes, internal::NumericValue};
+use crate::indexes;
 
 type StoredDay<T, M> = <M as StorageMode>::Stored<EagerVec<PcoVec<Day1, T>>>;
 type DayMapping<I, T> = LazyVecFrom1<I, Day1, I, T>;
-type Repeated<I, T> = UrpdView<I, T, RepeatDay>;
-type Last<I, T> = UrpdView<I, T, LastDay>;
+type Repeated<I, T> = DailyView<I, T, RepeatDay>;
+type Last<I, T> = DailyView<I, T, LastDay>;
+
+pub trait DailyValue: VecValue + Formattable + JsonSchema + Serialize {}
+
+impl<T> DailyValue for T where T: VecValue + Formattable + JsonSchema + Serialize {}
 
 pub struct RepeatDay;
 pub struct LastDay;
 
 #[derive(Clone)]
-pub(crate) struct UrpdMappings {
+pub(crate) struct DailyMappings {
     height: DayMapping<Height, Day1>,
     minute10: DayMapping<Minute10, Timestamp>,
     minute30: DayMapping<Minute30, Timestamp>,
@@ -42,7 +47,7 @@ pub(crate) struct UrpdMappings {
     epoch: DayMapping<Epoch, Timestamp>,
 }
 
-impl UrpdMappings {
+impl DailyMappings {
     pub(crate) fn new(indexes: &indexes::Vecs) -> Self {
         let height = LazyVecFrom1::init(
             "day1",
@@ -87,9 +92,9 @@ fn date_mapping<I: VecIndex>(source: ReadableBoxedVec<I, Date>) -> DayMapping<I,
 
 #[derive(Clone, Traversable)]
 #[traversable(merge)]
-pub struct UrpdViews<T>
+pub struct DailyViews<T>
 where
-    T: NumericValue + JsonSchema,
+    T: DailyValue,
 {
     pub height: Repeated<Height, T>,
     pub minute10: Repeated<Minute10, T>,
@@ -108,15 +113,15 @@ where
     pub epoch: Last<Epoch, T>,
 }
 
-impl<T> UrpdViews<T>
+impl<T> DailyViews<T>
 where
-    T: NumericValue + JsonSchema,
+    T: DailyValue,
 {
-    pub(super) fn new(
+    pub(crate) fn new(
         name: &str,
         source: ReadableBoxedVec<Day1, T>,
         version: Version,
-        mappings: &UrpdMappings,
+        mappings: &DailyMappings,
     ) -> Self {
         Self {
             height: repeated(name, source.clone(), version, &mappings.height),
@@ -140,30 +145,70 @@ where
 
 #[derive(Traversable)]
 #[traversable(merge)]
-pub struct UrpdMetric<T, M: StorageMode = Rw>
+pub struct DailyMetric<T, M: StorageMode = Rw>
 where
-    T: NumericValue + JsonSchema,
+    T: DailyValue + PcoVecValue,
 {
     pub day1: StoredDay<T, M>,
     #[traversable(flatten)]
-    pub views: Box<UrpdViews<T>>,
+    pub views: Box<DailyViews<T>>,
 }
 
-impl<T> UrpdMetric<T>
+impl<T> DailyMetric<T>
 where
-    T: NumericValue + JsonSchema,
+    T: DailyValue + PcoVecValue,
 {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
-        mappings: &UrpdMappings,
+        mappings: &DailyMappings,
     ) -> Result<Self> {
         let day1 = EagerVec::forced_import(db, name, version)?;
         let source = day1.read_only_boxed_clone();
-        let views = Box::new(UrpdViews::new(name, source, version, mappings));
+        let views = Box::new(DailyViews::new(name, source, version, mappings));
 
         Ok(Self { day1, views })
+    }
+}
+
+type LazyDay<T, S> = LazyVecFrom1<Day1, T, Day1, S>;
+
+#[derive(Clone, Traversable)]
+#[traversable(merge)]
+pub struct LazyDailyMetric<T, S>
+where
+    T: DailyValue,
+    S: VecValue,
+{
+    pub day1: LazyDay<T, S>,
+    #[traversable(flatten)]
+    pub views: Box<DailyViews<T>>,
+}
+
+impl<T, S> LazyDailyMetric<T, S>
+where
+    T: DailyValue,
+    S: VecValue,
+{
+    pub(crate) fn from_source<F>(
+        name: &str,
+        version: Version,
+        source: ReadableBoxedVec<Day1, S>,
+        mappings: &DailyMappings,
+    ) -> Self
+    where
+        F: UnaryTransform<S, T>,
+    {
+        let day1 = LazyVecFrom1::transformed::<F>(name, version, source);
+        let views = Box::new(DailyViews::new(
+            name,
+            day1.read_only_boxed_clone(),
+            version,
+            mappings,
+        ));
+
+        Self { day1, views }
     }
 }
 
@@ -178,7 +223,7 @@ where
     T: VecValue,
     V: ReadableCloneableVec<I, Day1> + ?Sized,
 {
-    UrpdView::new(name, version, source, mapping.read_only_boxed_clone())
+    DailyView::new(name, version, source, mapping.read_only_boxed_clone())
 }
 
 fn last<I, T, V>(
@@ -192,7 +237,7 @@ where
     T: VecValue,
     V: ReadableCloneableVec<I, Day1> + ?Sized,
 {
-    UrpdView::new(name, version, source, mapping.read_only_boxed_clone())
+    DailyView::new(name, version, source, mapping.read_only_boxed_clone())
 }
 
 pub trait DayStrategy: Send + Sync + 'static {
@@ -220,7 +265,7 @@ impl DayStrategy for LastDay {
     }
 }
 
-pub struct UrpdView<I, T, S>
+pub struct DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -232,7 +277,7 @@ where
     _phantom: PhantomData<fn() -> S>,
 }
 
-impl<I, T, S> Clone for UrpdView<I, T, S>
+impl<I, T, S> Clone for DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -248,7 +293,7 @@ where
     }
 }
 
-impl<I, T, S> UrpdView<I, T, S>
+impl<I, T, S> DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -312,7 +357,7 @@ where
     }
 }
 
-impl<I, T, S> AnyVec for UrpdView<I, T, S>
+impl<I, T, S> AnyVec for DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -347,7 +392,7 @@ where
     }
 }
 
-impl<I, T, S> TypedVec for UrpdView<I, T, S>
+impl<I, T, S> TypedVec for DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -357,7 +402,7 @@ where
     type T = Option<T>;
 }
 
-impl<I, T, S> ReadableVec<I, Option<T>> for UrpdView<I, T, S>
+impl<I, T, S> ReadableVec<I, Option<T>> for DailyView<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
@@ -407,10 +452,10 @@ where
     }
 }
 
-impl<I, T, S> Traversable for UrpdView<I, T, S>
+impl<I, T, S> Traversable for DailyView<I, T, S>
 where
     I: VecIndex,
-    T: NumericValue + JsonSchema,
+    T: DailyValue,
     S: DayStrategy,
 {
     fn to_tree_node(&self) -> TreeNode {
@@ -526,7 +571,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let path =
-            std::env::temp_dir().join(format!("brk-urpd-view-{}-{suffix}", std::process::id()));
+            std::env::temp_dir().join(format!("brk-daily-view-{}-{suffix}", std::process::id()));
         let db = Database::open(&path).unwrap();
 
         let mut source: EagerVec<PcoVec<Day1, StoredF64>> =
@@ -542,7 +587,7 @@ mod tests {
         source.write().unwrap();
         mapping.write().unwrap();
 
-        let view = UrpdView::<Height, StoredF64, RepeatDay>::new(
+        let view = DailyView::<Height, StoredF64, RepeatDay>::new(
             "test",
             Version::ONE,
             source.read_only_boxed_clone(),

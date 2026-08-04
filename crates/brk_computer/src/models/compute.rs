@@ -3,7 +3,7 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{distribution, frameworks, indexes, market, price};
+use crate::{distribution, frameworks, indexes, price};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -13,7 +13,6 @@ impl Vecs {
         indexes: &indexes::Vecs,
         prices: &price::Vecs,
         distribution: &distribution::Vecs,
-        market: &market::Vecs,
         frameworks: &frameworks::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -28,7 +27,7 @@ impl Vecs {
             exit,
         )?;
         self.capital_sentiment
-            .compute(indexer, prices, distribution, market, exit)?;
+            .compute(indexer, indexes, prices, distribution, exit)?;
         self.rarity_meter.compute(
             indexer,
             distribution,
