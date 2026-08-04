@@ -3,7 +3,7 @@ use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
-use vecdb::{CachedVec, Database, EagerVec, ImportableVec, PcoVec, ReadOnlyClone, Rw, StorageMode};
+use vecdb::{CachedVec, Database, EagerVec, ImportableVec, PcoVec, Rw, StorageMode};
 
 use crate::{
     indexes,
@@ -35,13 +35,12 @@ where
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let height: EagerVec<PcoVec<Height, T>> = EagerVec::forced_import(db, name, version)?;
+        let height = CachedVec::wrap(EagerVec::forced_import(db, name, version)?);
 
-        let resolutions =
-            Resolutions::forced_import(name, height.read_only_clone(), version, indexes);
+        let resolutions = Resolutions::from_cached_height(name, &height, version, indexes);
 
         Ok(Self {
-            height: CachedVec::wrap(height),
+            height,
             resolutions: Box::new(resolutions),
         })
     }

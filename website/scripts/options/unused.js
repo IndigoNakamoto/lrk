@@ -35,7 +35,9 @@ function walkSeries(node, map, path) {
       const joined = newPath.join(".");
       if (
         joined.endsWith(".count.total.average") ||
-        joined === "cohorts.utxo.all.supply.dominance"
+        joined === "cohorts.utxo.all.supply.dominance" ||
+        joined === "models.capitalSentiment.phase" ||
+        joined === "cohorts.utxo.all.outputs.spentCount.average"
       )
         continue;
       walkSeries(/** @type {TreeNode | null | undefined} */ (value), map, newPath);

@@ -641,7 +641,7 @@ export function createChart({ parent, brk, fitContent }) {
 
         /**
          * @param {number[]} indexes
-         * @param {(number | null | [number, number, number, number])[]} values
+         * @param {(number | boolean | null | [number, number, number, number])[]} values
          */
         function processData(indexes, values) {
           const length = Math.min(indexes.length, values.length);
@@ -675,6 +675,8 @@ export function createChart({ parent, brk, fitContent }) {
               return { time, value: NaN };
             } else if (typeof v === "number") {
               return { time, value: v };
+            } else if (typeof v === "boolean") {
+              return { time, value: Number(v) };
             } else {
               if (!Array.isArray(v) || v.length !== 4)
                 throw new Error(`Expected OHLC tuple, got: ${v}`);
@@ -757,7 +759,7 @@ export function createChart({ parent, brk, fitContent }) {
         async function fetchAndProcess() {
           /** @type {SeriesData<number> | null} */
           let timeData = null;
-          /** @type {(number | null | [number, number, number, number])[] | null} */
+          /** @type {(number | boolean | null | [number, number, number, number])[] | null} */
           let valuesData = null;
           /** @type {string | null} */
           let valuesStamp = null;

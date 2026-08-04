@@ -46,8 +46,7 @@ where
                     .collect();
 
                 for j in 0..(end - skip) {
-                    let i = skip + j;
-                    this.checked_push_at(i, aggregate(&batches, j))?;
+                    this.push(aggregate(&batches, j));
                 }
 
                 Ok(())
@@ -164,7 +163,6 @@ where
                     .collect();
 
                 for j in 0..(end - skip) {
-                    let i = skip + j;
                     let mut total_weight = 0.0_f64;
                     let mut weighted_sum = 0.0_f64;
 
@@ -184,7 +182,7 @@ where
                         V::T::from(0.0)
                     };
 
-                    this.checked_push_at(i, result)?;
+                    this.push(result);
                 }
 
                 Ok(())

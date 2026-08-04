@@ -6,8 +6,8 @@ use vecdb::{DeltaSub, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneab
 use crate::{
     indexes,
     internal::{
-        CentsUnsignedToDollars, DerivedResolutions, LazyPerBlock, LazyRollingSumFromHeight,
-        Resolutions, SatsToBitcoin, WindowStartVec, Windows,
+        CachedWindowStartVec, CentsUnsignedToDollars, DerivedResolutions, LazyPerBlock,
+        LazyRollingSumFromHeight, Resolutions, SatsToBitcoin, Windows,
     },
 };
 
@@ -31,13 +31,13 @@ impl LazyRollingSumsAmountFromHeight {
         version: Version,
         cumulative_sats: &(impl ReadableCloneableVec<Height, Sats> + 'static),
         cumulative_cents: &(impl ReadableCloneableVec<Height, Cents> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_sats = cumulative_sats.read_only_boxed_clone();
         let cum_cents = cumulative_cents.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();

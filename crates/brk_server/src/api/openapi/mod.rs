@@ -204,6 +204,12 @@ All errors return structured JSON with a consistent format:
                 - `raw`: one bucket per rounded price (default).\n\
                 - `lin200` / `lin500` / `lin1000`: linear buckets, $200 / $500 / $1000 wide.\n\
                 - `log10` / `log50` / `log100` / `log200`: logarithmic buckets, N bins per price decade.\n\n\
+                Weight supply with the `weight` query parameter:\n\
+                - `raw`: unweighted supply (default).\n\
+                - `cointime`: cointime-weighted supply.\n\
+                - `coinflow`: coinflow-weighted supply.\n\n\
+                Weighted `all`, `sth`, and `lth` snapshots are persisted. Weighted age-range \
+                cohorts are derived from their raw snapshot and daily cohort weight.\n\n\
                 Discovery flow: `GET /api/urpd` (cohorts), `GET /api/urpd/{cohort}` (latest), \
                 `GET /api/urpd/{cohort}/dates` (history), `GET /api/urpd/{cohort}/{date}` (specific)."
                     .to_string(),

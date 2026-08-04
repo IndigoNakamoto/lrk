@@ -6,7 +6,7 @@ use vecdb::Database;
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlockFull, PerBlockRolling, WindowStartVec, Windows},
+    internal::{CachedPerBlockRolling, CachedWindowStartVec, PerBlockFull, Windows},
 };
 
 fn block_vbytes(_: Height, weight: Weight) -> StoredU64 {
@@ -19,7 +19,7 @@ impl Vecs {
         version: Version,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             vbytes: PerBlockFull::forced_import(
@@ -31,7 +31,7 @@ impl Vecs {
                 indexes,
                 cached_starts,
             )?,
-            size: PerBlockRolling::forced_import(
+            size: CachedPerBlockRolling::forced_import(
                 db,
                 "block_size",
                 version,

@@ -2,12 +2,12 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, PartsPerMillion32, Sats, Version};
-use derive_more::{Deref, DerefMut};
-use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
+    distribution::metrics::AllSupplyCache,
     indexes,
-    internal::{PercentPerBlock, RatioSats, WithAddrTypes},
+    internal::{LazyPercentPerBlock, PercentPerBlock, RatioSats},
 };
 
 use super::vecs::AddrSupplyVecs;
@@ -16,10 +16,12 @@ use super::vecs::AddrSupplyVecs;
 ///
 /// - `all`: category supply / circulating supply
 /// - Per-type: type's category supply / type's total supply
-#[derive(Deref, DerefMut, Traversable)]
-pub struct AddrSupplyShareVecs<M: StorageMode = Rw>(
-    #[traversable(flatten)] pub WithAddrTypes<PercentPerBlock<PartsPerMillion32, M>>,
-);
+#[derive(Traversable)]
+pub struct AddrSupplyShareVecs<M: StorageMode = Rw> {
+    pub all: LazyPercentPerBlock<PartsPerMillion32>,
+    #[traversable(flatten)]
+    pub by_addr_type: ByAddrType<PercentPerBlock<PartsPerMillion32, M>>,
+}
 
 impl AddrSupplyShareVecs {
     pub(crate) fn forced_import(
@@ -27,32 +29,38 @@ impl AddrSupplyShareVecs {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        supply: &AddrSupplyVecs,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
-        Ok(Self(
-            WithAddrTypes::<PercentPerBlock<PartsPerMillion32>>::forced_import(
-                db,
-                &format!("{name}_addr_supply_share"),
-                version,
-                indexes,
-            )?,
-        ))
+        let name = format!("{name}_addr_supply_share");
+        let all = LazyPercentPerBlock::from_cached_ratio::<Sats, Sats, RatioSats<PartsPerMillion32>>(
+            &name,
+            version,
+            &supply.all.sats.height,
+            all_supply.cached_boxed_clone(),
+            indexes,
+        );
+        let by_addr_type = ByAddrType::new_with_name(|type_name| {
+            PercentPerBlock::forced_import(db, &format!("{type_name}_{name}"), version, indexes)
+        })?;
+
+        Ok(Self { all, by_addr_type })
+    }
+
+    pub(crate) fn reset_height(&mut self) -> Result<()> {
+        for share in self.by_addr_type.values_mut() {
+            share.ppm.height.reset()?;
+        }
+        Ok(())
     }
 
     pub(crate) fn compute_rest(
         &mut self,
         max_from: Height,
         supply: &AddrSupplyVecs,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
     ) -> Result<()> {
-        self.all
-            .compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>>(
-                max_from,
-                &supply.all.sats.height,
-                all_supply_sats,
-                exit,
-            )?;
         for ((_, share), ((_, cat), (_, denom))) in self
             .by_addr_type
             .iter_mut()

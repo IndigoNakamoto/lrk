@@ -1,31 +1,26 @@
 use brk_error::Result;
-use brk_types::{Height, StoredU64, Version};
+use brk_types::Version;
 use vecdb::Database;
 
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlockFull, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, PerBlockFullFromCumulative, Windows},
 };
-
-fn tx_count(_: Height, count: StoredU64) -> StoredU64 {
-    count
-}
 
 impl Vecs {
     pub(crate) fn forced_import(
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
-            total: PerBlockFull::forced_import(
+            total: PerBlockFullFromCumulative::forced_import(
                 db,
                 "tx_count",
                 version,
-                &indexes.height.tx_index_count,
-                tx_count,
+                indexes.transaction_count_source(),
                 indexes,
                 cached_starts,
             )?,

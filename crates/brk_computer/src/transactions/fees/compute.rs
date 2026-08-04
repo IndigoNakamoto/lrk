@@ -5,7 +5,7 @@ use brk_types::{
     TxIndex, VSize, linearize,
 };
 use smallvec::SmallVec;
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec, unlikely};
+use vecdb::{AnyStoredVec, AnyVec, Exit, PcoVec, ReadableVec, VecIndex, WritableVec, unlikely};
 
 use super::super::size;
 use super::Vecs;
@@ -16,6 +16,7 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
+        input_values: &PcoVec<TxInIndex, Sats>,
         indexes: &indexes::Vecs,
         size_vecs: &size::Vecs,
         exit: &Exit,
@@ -26,7 +27,7 @@ impl Vecs {
             starting_lengths.tx_index,
             &indexer.vecs.transactions.first_txin_index,
             &indexes.tx_index.input_count,
-            &indexer.vecs.inputs.value,
+            input_values,
             exit,
         )?;
         self.output_value.compute_sum_from_indexes(

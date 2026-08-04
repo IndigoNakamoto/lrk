@@ -21,7 +21,7 @@ impl Vecs {
             (
                 &mut self.min._1w.cents.height,
                 &mut self.max._1w.cents.height,
-                &blocks.lookback._1w.inner,
+                blocks.lookback._1w.lazy(),
             ),
             (
                 &mut self.min._2w.cents.height,
@@ -31,12 +31,12 @@ impl Vecs {
             (
                 &mut self.min._1m.cents.height,
                 &mut self.max._1m.cents.height,
-                &blocks.lookback._1m.inner,
+                blocks.lookback._1m.lazy(),
             ),
             (
                 &mut self.min._1y.cents.height,
                 &mut self.max._1y.cents.height,
-                &blocks.lookback._1y.inner,
+                blocks.lookback._1y.lazy(),
             ),
         ] {
             min_vec.compute_rolling_min_from_starts(starting_height, starts, price, exit)?;

@@ -38,7 +38,7 @@ pub struct Computer<M: StorageMode = Rw> {
     pub constants: Box<constants::Vecs>,
     pub indexes: Box<indexes::Vecs<M>>,
     pub indicators: Box<indicators::Vecs<M>>,
-    pub investing: Box<investing::Vecs<M>>,
+    pub investing: Box<investing::Vecs>,
     pub market: Box<market::Vecs<M>>,
     pub pools: Box<pools::Vecs<M>>,
     pub price: Box<price::Vecs<M>>,
@@ -50,7 +50,7 @@ pub struct Computer<M: StorageMode = Rw> {
     pub op_return: Box<op_return::Vecs<M>>,
 }
 
-const VERSION: Version = Version::new(8);
+const VERSION: Version = Version::new(9);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {
@@ -91,9 +91,8 @@ impl Computer {
 
         let cached_starts = blocks.lookback.cached_window_starts();
 
-        let (inputs, outputs, mining, transactions, pools, frameworks, op_return) = timed(
-            "Imported inputs/outputs/mining/tx/pools/frameworks/op_return",
-            || {
+        let (inputs, outputs, mining, transactions, pools, op_return) =
+            timed("Imported inputs/outputs/mining/tx/pools/op_return", || {
                 thread::scope(|s| -> Result<_> {
                     let inputs_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(inputs::Vecs::forced_import(
@@ -114,22 +113,13 @@ impl Computer {
                     })?;
 
                     let mining_handle = big_thread().spawn_scoped(s, || -> Result<_> {
-                        let mining = Box::new(mining::Vecs::forced_import(
+                        Ok(Box::new(mining::Vecs::forced_import(
                             &computed_path,
                             VERSION,
                             indexer,
                             &indexes,
                             &cached_starts,
-                        )?);
-                        let frameworks = Box::new(frameworks::Vecs::forced_import(
-                            &computed_path,
-                            VERSION,
-                            &indexes,
-                            &cached_starts,
-                            &price,
-                            &mining.rewards.subsidy.cumulative.cents,
-                        )?);
-                        Ok((mining, frameworks))
+                        )?))
                     })?;
 
                     let transactions_handle = big_thread().spawn_scoped(s, || -> Result<_> {
@@ -151,39 +141,32 @@ impl Computer {
                         )?))
                     })?;
 
+                    let mining = mining_handle.join().unwrap()?;
+                    let block_size = blocks.size.size.cached_cumulative();
+                    let chain_fees = mining.rewards.fees.cached_cumulative_sats();
                     let op_return_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(op_return::Vecs::forced_import(
                             &computed_path,
                             VERSION,
                             &indexes,
                             &cached_starts,
+                            block_size,
+                            chain_fees,
                         )?))
                     })?;
-
                     let inputs = inputs_handle.join().unwrap()?;
                     let outputs = outputs_handle.join().unwrap()?;
-                    let (mining, frameworks) = mining_handle.join().unwrap()?;
                     let transactions = transactions_handle.join().unwrap()?;
                     let pools = pools_handle.join().unwrap()?;
                     let op_return = op_return_handle.join().unwrap()?;
 
-                    Ok((
-                        inputs,
-                        outputs,
-                        mining,
-                        transactions,
-                        pools,
-                        frameworks,
-                        op_return,
-                    ))
+                    Ok((inputs, outputs, mining, transactions, pools, op_return))
                 })
-            },
-        )?;
+            })?;
 
-        // Market, indicators, and distribution are independent; import in parallel.
-        // Supply depends on distribution so it runs after.
-        let (distribution, market, indicators, investing) =
-            timed("Imported distribution/market/indicators/investing", || {
+        // Market, investing, and distribution are independent; import in parallel.
+        let (distribution, market, investing) =
+            timed("Imported distribution/market/investing", || {
                 thread::scope(|s| -> Result<_> {
                     let market_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(market::Vecs::forced_import(
@@ -195,21 +178,9 @@ impl Computer {
                         )?))
                     })?;
 
-                    let indicators_handle = big_thread().spawn_scoped(s, || -> Result<_> {
-                        Ok(Box::new(indicators::Vecs::forced_import(
-                            &computed_path,
-                            VERSION,
-                            &indexes,
-                        )?))
-                    })?;
-
                     let investing_handle = big_thread().spawn_scoped(s, || -> Result<_> {
                         Ok(Box::new(investing::Vecs::forced_import(
-                            &computed_path,
-                            VERSION,
-                            &indexes,
-                            &blocks,
-                            &price,
+                            VERSION, &indexes, &blocks, &price,
                         )?))
                     })?;
 
@@ -219,23 +190,57 @@ impl Computer {
                         &indexes,
                         &cached_starts,
                         &price,
+                        &inputs.by_type,
+                        &outputs.by_type,
                     )?);
 
                     let market = market_handle.join().unwrap()?;
-                    let indicators = indicators_handle.join().unwrap()?;
                     let investing = investing_handle.join().unwrap()?;
-                    Ok((distribution, market, indicators, investing))
+                    Ok((distribution, market, investing))
                 })
             })?;
+
+        let all_chain = distribution.all_chain_cache(&price);
+
+        let (frameworks, indicators) = timed("Imported frameworks/indicators", || {
+            thread::scope(|s| -> Result<_> {
+                let frameworks_handle = big_thread().spawn_scoped(s, || -> Result<_> {
+                    Ok(Box::new(frameworks::Vecs::forced_import(
+                        &computed_path,
+                        VERSION,
+                        &indexes,
+                        &cached_starts,
+                        &price,
+                        &mining.rewards.subsidy.cumulative.cents,
+                        &all_chain,
+                    )?))
+                })?;
+                let indicators = Box::new(indicators::Vecs::forced_import(
+                    &computed_path,
+                    VERSION,
+                    &indexes,
+                    &all_chain,
+                    &mining,
+                    &distribution,
+                    &transactions,
+                )?);
+                let frameworks = frameworks_handle.join().unwrap()?;
+                Ok((frameworks, indicators))
+            })
+        })?;
 
         let supply = timed("Imported supply", || -> Result<_> {
             Ok(Box::new(supply::Vecs::forced_import(
                 &computed_path,
                 VERSION,
                 &indexes,
-                &distribution,
-                &frameworks.cointime,
                 &cached_starts,
+                supply::ImportSources::new(
+                    &distribution,
+                    &frameworks.cointime,
+                    &all_chain,
+                    &transactions,
+                ),
             )?))
         })?;
 
@@ -244,6 +249,8 @@ impl Computer {
                 &computed_path,
                 VERSION,
                 &indexes,
+                &distribution,
+                &frameworks,
             )?))
         })?;
 
@@ -284,7 +291,6 @@ impl Computer {
             models::DB_NAME,
             indicators::DB_NAME,
             indexes::DB_NAME,
-            investing::DB_NAME,
             market::DB_NAME,
             pools::DB_NAME,
             price::DB_NAME,
@@ -329,9 +335,7 @@ impl Computer {
         timed("Computed indexes", || self.indexes.compute(indexer, exit))?;
 
         thread::scope(|scope| -> Result<()> {
-            timed("Computed blocks", || {
-                self.blocks.compute(indexer, &self.indexes, exit)
-            })?;
+            timed("Computed blocks", || self.blocks.compute(indexer, exit))?;
 
             let (inputs_result, prices_result) = rayon::join(
                 || {
@@ -339,11 +343,7 @@ impl Computer {
                         self.inputs.compute(indexer, &self.blocks, exit)
                     })
                 },
-                || {
-                    timed("Computed price", || {
-                        self.price.compute(indexer, &self.indexes, exit)
-                    })
-                },
+                || timed("Computed price", || self.price.compute(indexer, exit)),
             );
             inputs_result?;
             prices_result?;
@@ -361,6 +361,7 @@ impl Computer {
                 timed("Computed transactions", || {
                     self.transactions.compute(
                         indexer,
+                        &self.inputs,
                         &self.indexes,
                         &self.blocks,
                         &self.price,
@@ -383,24 +384,14 @@ impl Computer {
                     },
                     || {
                         timed("Computed OP_RETURN", || {
-                            self.op_return.compute(
-                                indexer,
-                                &self.transactions.fees,
-                                &self.blocks,
-                                exit,
-                            )
+                            self.op_return
+                                .compute(indexer, &self.transactions.fees, exit)
                         })
                     },
                 );
                 mining?;
                 op_return?;
-                timed("Computed OP_RETURN fee shares", || {
-                    self.op_return.compute_fee_shares(
-                        &self.mining.rewards.fees.inner,
-                        indexer.safe_lengths().height,
-                        exit,
-                    )
-                })
+                Ok(())
             });
 
             timed("Computed outputs", || {
@@ -413,18 +404,13 @@ impl Computer {
             Ok(())
         })?;
 
+        self.investing.invalidate_cache();
+
         thread::scope(|scope| -> Result<()> {
             let pools = scope.spawn(|| {
                 timed("Computed pools", || {
                     self.pools
                         .compute(indexer, &self.indexes, &self.price, &self.mining, exit)
-                })
-            });
-
-            let investing = scope.spawn(|| {
-                timed("Computed investing", || {
-                    self.investing
-                        .compute(indexer, &self.indexes, &self.price, exit)
                 })
             });
 
@@ -441,7 +427,6 @@ impl Computer {
             })?;
 
             pools.join().unwrap()?;
-            investing.join().unwrap()?;
             Ok(())
         })?;
 
@@ -454,7 +439,6 @@ impl Computer {
                         indexer,
                         &self.mining,
                         &self.distribution,
-                        &self.transactions,
                         &self.market,
                         exit,
                     )
@@ -462,16 +446,8 @@ impl Computer {
             });
 
             timed("Computed supply", || {
-                self.supply.compute(
-                    indexer,
-                    &self.outputs,
-                    &self.blocks,
-                    &self.mining,
-                    &self.transactions,
-                    &self.price,
-                    &self.distribution,
-                    exit,
-                )
+                self.supply
+                    .compute(indexer, &self.outputs, &self.mining, &self.price, exit)
             })?;
 
             timed("Computed frameworks", || {

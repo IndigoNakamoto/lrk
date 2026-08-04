@@ -15,8 +15,8 @@ use super::lazy_cumulative_rolling::lazy_parts;
 use crate::{
     indexes,
     internal::{
-        LazyPreviousDeltaVec, LazyRollingAvgsFromHeight, LazyRollingSumsFromHeight, NumericValue,
-        PerBlock, WindowStartVec, Windows,
+        CachedWindowStartVec, LazyPreviousDeltaVec, LazyRollingAvgsFromHeight,
+        LazyRollingSumsFromHeight, NumericValue, PerBlock, Windows,
     },
 };
 
@@ -42,7 +42,7 @@ where
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let cumulative =
             PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;

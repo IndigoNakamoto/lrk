@@ -1,23 +1,16 @@
 use std::path::Path;
 
-use brk_cohort::{CohortContext, Filter, Filtered};
+use brk_cohort::{Filter, Filtered};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, Height, PartsPerMillionSigned64, Sats, StoredI64, StoredU64, Version};
+use brk_types::{Cents, Height, PartsPerMillionSigned64, StoredI64, StoredU64, Version};
 use rayon::prelude::*;
-use vecdb::{
-    AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode, WritableVec,
-};
+use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
-use crate::{
-    distribution::state::AddrCohortState,
-    indexes,
-    internal::{PerBlockWithDeltas, WindowStartVec, Windows},
-    price,
-};
+use crate::{distribution::state::AddrCohortState, internal::PerBlockWithDeltas, price};
 
-use crate::distribution::metrics::ImportConfig;
+use crate::distribution::metrics::{AllSupplyCache, ImportConfig};
 
 use super::super::traits::{CohortVecs, DynCohortVecs};
 use super::metrics::AddrCohortMetrics;
@@ -37,40 +30,23 @@ pub struct AddrCohortVecs<M: StorageMode = Rw> {
 
 impl AddrCohortVecs {
     pub(crate) fn forced_import(
-        db: &Database,
-        filter: Filter,
-        name: &str,
-        version: Version,
-        indexes: &indexes::Vecs,
+        cfg: &ImportConfig,
         states_path: Option<&Path>,
-        cached_starts: &Windows<&WindowStartVec>,
-        spot_price: &CachedBoxedVec<Height, Cents>,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
-        let full_name = CohortContext::Addr.full_name(&filter, name);
-
-        let cfg = ImportConfig {
-            db,
-            filter: &filter,
-            full_name: &full_name,
-            version,
-            indexes,
-            cached_starts,
-            spot_price,
-        };
-
         let addr_count = PerBlockWithDeltas::forced_import(
-            db,
+            cfg.db,
             &cfg.name("addr_count"),
-            version,
+            cfg.version,
             Version::TWO,
-            indexes,
-            cached_starts,
+            cfg.indexes,
+            cfg.cached_starts,
         )?;
 
         Ok(Self {
             starting_height: None,
-            state: states_path.map(|path| Box::new(AddrCohortState::new(path, &full_name))),
-            metrics: AddrCohortMetrics::forced_import(&cfg)?,
+            state: states_path.map(|path| Box::new(AddrCohortState::new(path, cfg.full_name))),
+            metrics: AddrCohortMetrics::forced_import(cfg, all_supply)?,
             addr_count,
         })
     }
@@ -231,15 +207,5 @@ impl CohortVecs for AddrCohortVecs {
             exit,
         )?;
         Ok(())
-    }
-
-    fn compute_rest_part2(
-        &mut self,
-        starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.metrics
-            .compute_rest_part2(starting_lengths, all_supply_sats, exit)
     }
 }

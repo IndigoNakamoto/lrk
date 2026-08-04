@@ -2,12 +2,12 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats};
-use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::metrics::{
-        ActivityMinimal, ImportConfig, OutputsBase, RealizedMinimal, SupplyBase, UnrealizedMinimal,
+        ActivityMinimal, AllSupplyCache, ImportConfig, OutputsBase, RealizedMinimal, SupplyBase,
+        UnrealizedMinimal,
     },
     price,
 };
@@ -28,13 +28,13 @@ pub struct MinimalCohortMetrics<M: StorageMode = Rw> {
 }
 
 impl MinimalCohortMetrics {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
         let realized = RealizedMinimal::forced_import(cfg)?;
         let unrealized = UnrealizedMinimal::new(cfg, &realized.price.ppm);
 
         Ok(Self {
             filter: cfg.filter.clone(),
-            supply: Box::new(SupplyBase::forced_import(cfg)?),
+            supply: Box::new(SupplyBase::forced_import(cfg, all_supply)?),
             outputs: Box::new(OutputsBase::forced_import(cfg)?),
             activity: Box::new(ActivityMinimal::forced_import(cfg)?),
             realized: Box::new(realized),
@@ -113,7 +113,6 @@ impl MinimalCohortMetrics {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -122,9 +121,6 @@ impl MinimalCohortMetrics {
             &self.supply.total.btc.height,
             exit,
         )?;
-
-        self.supply
-            .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
 
         Ok(())
     }

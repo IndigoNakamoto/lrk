@@ -25,6 +25,24 @@ use crate::{
 };
 use std::fs::File;
 
+#[cfg(feature = "lz4")]
+fn decompress_lz4(raw_data: &[u8], uncompressed_len: usize) -> crate::Result<Slice> {
+    #[expect(
+        unsafe_code,
+        reason = "the builder is frozen only after LZ4 initializes every byte"
+    )]
+    let mut builder = unsafe { Slice::builder_unzeroed(uncompressed_len) };
+
+    let written = lz4_flex::decompress_into(raw_data, &mut builder)
+        .map_err(|_| crate::Error::Decompress(CompressionType::Lz4))?;
+
+    if written != builder.len() {
+        return Err(crate::Error::Decompress(CompressionType::Lz4));
+    }
+
+    Ok(builder.freeze().into())
+}
+
 /// A block on disk
 ///
 /// Consists of a fixed-size header and some bytes (the data/payload).
@@ -105,16 +123,7 @@ impl Block {
             CompressionType::None => raw_data,
 
             #[cfg(feature = "lz4")]
-            CompressionType::Lz4 => {
-                #[warn(unsafe_code)]
-                let mut builder =
-                    unsafe { Slice::builder_unzeroed(header.uncompressed_length as usize) };
-
-                lz4_flex::decompress_into(&raw_data, &mut builder)
-                    .map_err(|_| crate::Error::Decompress(compression))?;
-
-                builder.freeze().into()
-            }
+            CompressionType::Lz4 => decompress_lz4(&raw_data, header.uncompressed_length as usize)?,
         };
 
         debug_assert_eq!(header.uncompressed_length, {
@@ -167,14 +176,7 @@ impl Block {
                 #[expect(clippy::indexing_slicing)]
                 let raw_data = &buf[Header::serialized_len()..];
 
-                #[warn(unsafe_code)]
-                let mut builder =
-                    unsafe { Slice::builder_unzeroed(header.uncompressed_length as usize) };
-
-                lz4_flex::decompress_into(raw_data, &mut builder)
-                    .map_err(|_| crate::Error::Decompress(compression))?;
-
-                builder.freeze().into()
+                decompress_lz4(raw_data, header.uncompressed_length as usize)?
             }
         };
 

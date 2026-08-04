@@ -6,7 +6,9 @@ use vecdb::{CachedBoxedVec, Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{LazyRollingDeltasAmountFromHeight, SpotValuePerBlock, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, LazyRollingDeltasAmountFromHeight, SpotValuePerBlock, Windows,
+    },
 };
 
 #[derive(Deref, DerefMut, Traversable)]
@@ -24,7 +26,7 @@ impl SpotValuePerBlockWithDeltas {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let inner = SpotValuePerBlock::forced_import(db, name, version, indexes, spot_price)?;

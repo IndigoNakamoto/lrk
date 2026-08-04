@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{Bitcoin, Dollars, Height, PartsPerMillion32, StoredF32, StoredI8, Version};
+use brk_types::{Bitcoin, Dollars, Height, PartsPerMillion32, StoredF32, StoredU8, Version};
 use schemars::JsonSchema;
 use vecdb::{
     AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, VecIndex, WritableVec,
@@ -17,10 +17,10 @@ use crate::{
     },
 };
 
-const VERSION: Version = Version::new(4);
+const VERSION: Version = Version::new(6);
 const MIN_HISTORY_BLOCKS: usize = 210_000;
 const WRITE_INTERVAL: usize = 10_000;
-const BANDS: [(f64, i8); 3] = [(0.00025, 3), (0.0005, 2), (0.001, 1)];
+const BANDS: [(f64, u8); 3] = [(0.00025, 3), (0.0005, 2), (0.001, 1)];
 
 #[derive(Clone, Copy)]
 struct Config {
@@ -49,16 +49,18 @@ const SELLER_EXHAUSTION: Config = Config {
 
 /// Historical extremeness of one metric.
 ///
-/// `tail` is the current observation's top- or bottom-tail share, `threshold`
-/// is the highlight boundary, and `rank` is 0 through 3.
+/// `tail` is the current observation's top- or bottom-tail share, the three
+/// `threshold` fields are the highlight boundaries, and `rank` is 0 through 3.
 #[derive(Traversable)]
 pub struct Extreme<T, M: StorageMode = Rw>
 where
     T: NumericValue + JsonSchema,
 {
-    pub threshold: PerBlock<T, M>,
+    pub threshold_pct0_1: PerBlock<T, M>,
+    pub threshold_pct0_05: PerBlock<T, M>,
+    pub threshold_pct0_025: PerBlock<T, M>,
     pub tail: PercentPerBlock<PartsPerMillion32, M>,
-    pub rank: PerBlock<StoredI8, M>,
+    pub rank: PerBlock<StoredU8, M>,
 }
 
 impl<T> Extreme<T>
@@ -72,7 +74,24 @@ where
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         Ok(Self {
-            threshold: PerBlock::forced_import(db, &format!("{name}_threshold"), version, indexes)?,
+            threshold_pct0_1: PerBlock::forced_import(
+                db,
+                &format!("{name}_threshold_pct0_1"),
+                version,
+                indexes,
+            )?,
+            threshold_pct0_05: PerBlock::forced_import(
+                db,
+                &format!("{name}_threshold_pct0_05"),
+                version,
+                indexes,
+            )?,
+            threshold_pct0_025: PerBlock::forced_import(
+                db,
+                &format!("{name}_threshold"),
+                version,
+                indexes,
+            )?,
             tail: PercentPerBlock::forced_import(db, &format!("{name}_tail"), version, indexes)?,
             rank: PerBlock::forced_import(db, &format!("{name}_rank"), version, indexes)?,
         })
@@ -87,7 +106,9 @@ where
     ) -> Result<()> {
         let dependency_version = source.version();
         for output in [
-            &mut self.threshold.height as &mut dyn AnyStoredVec,
+            &mut self.threshold_pct0_1.height as &mut dyn AnyStoredVec,
+            &mut self.threshold_pct0_05.height,
+            &mut self.threshold_pct0_025.height,
             &mut self.tail.ppm.height,
             &mut self.rank.height,
         ] {
@@ -96,7 +117,9 @@ where
 
         let source_end = source.len();
         let start = [
-            self.threshold.height.len(),
+            self.threshold_pct0_1.height.len(),
+            self.threshold_pct0_05.height.len(),
+            self.threshold_pct0_025.height.len(),
             self.tail.ppm.height.len(),
             self.rank.height.len(),
             indexer.safe_lengths().height.to_usize(),
@@ -106,7 +129,15 @@ where
         .min()
         .unwrap_or_default();
 
-        self.threshold.height.any_truncate_if_needed_at(start)?;
+        self.threshold_pct0_1
+            .height
+            .any_truncate_if_needed_at(start)?;
+        self.threshold_pct0_05
+            .height
+            .any_truncate_if_needed_at(start)?;
+        self.threshold_pct0_025
+            .height
+            .any_truncate_if_needed_at(start)?;
         self.tail.ppm.height.any_truncate_if_needed_at(start)?;
         self.rank.height.any_truncate_if_needed_at(start)?;
 
@@ -134,12 +165,20 @@ where
                 EventState::missing()
             };
 
-            self.threshold.height.push(T::from(state.threshold));
+            self.threshold_pct0_1
+                .height
+                .push(T::from(state.thresholds.pct0_1));
+            self.threshold_pct0_05
+                .height
+                .push(T::from(state.thresholds.pct0_05));
+            self.threshold_pct0_025
+                .height
+                .push(T::from(state.thresholds.pct0_025));
             self.tail
                 .ppm
                 .height
                 .push(PartsPerMillion32::from(state.tail));
-            self.rank.height.push(StoredI8::new(state.rank));
+            self.rank.height.push(StoredU8::new(state.rank));
 
             if is_valid(value) {
                 history.add(bucket(&coordinates, value));
@@ -147,7 +186,9 @@ where
 
             if (height_index + 1).is_multiple_of(WRITE_INTERVAL) || height_index + 1 == source_end {
                 let _lock = exit.lock();
-                self.threshold.height.write()?;
+                self.threshold_pct0_1.height.write()?;
+                self.threshold_pct0_05.height.write()?;
+                self.threshold_pct0_025.height.write()?;
                 self.tail.ppm.height.write()?;
                 self.rank.height.write()?;
             }
@@ -280,15 +321,25 @@ impl History {
 }
 
 struct EventState {
-    threshold: f64,
+    thresholds: EventThresholds,
     tail: f64,
-    rank: i8,
+    rank: u8,
+}
+
+struct EventThresholds {
+    pct0_1: f64,
+    pct0_05: f64,
+    pct0_025: f64,
 }
 
 impl EventState {
     fn missing() -> Self {
         Self {
-            threshold: f64::NAN,
+            thresholds: EventThresholds {
+                pct0_1: f64::NAN,
+                pct0_05: f64::NAN,
+                pct0_025: f64::NAN,
+            },
             tail: f64::NAN,
             rank: 0,
         }
@@ -299,22 +350,30 @@ fn event_state(value: f64, coordinates: &[f64], history: &History, config: Confi
     let percentile = |tail: f64| {
         if config.upper_tail { 1.0 - tail } else { tail }
     };
-    let threshold = history.quantile(coordinates, percentile(BANDS[0].0));
-    let rank = BANDS
-        .into_iter()
-        .find_map(|(tail, rank)| {
-            let boundary = history.quantile(coordinates, percentile(tail));
-            let reached = if config.upper_tail {
-                value >= boundary
-            } else {
-                value <= boundary
-            };
-            reached.then_some(rank)
-        })
-        .unwrap_or_default();
+    let boundary = |tail: f64| history.quantile(coordinates, percentile(tail));
+    let thresholds = EventThresholds {
+        pct0_1: boundary(BANDS[2].0),
+        pct0_05: boundary(BANDS[1].0),
+        pct0_025: boundary(BANDS[0].0),
+    };
+    let rank = [
+        (thresholds.pct0_025, BANDS[0].1),
+        (thresholds.pct0_05, BANDS[1].1),
+        (thresholds.pct0_1, BANDS[2].1),
+    ]
+    .into_iter()
+    .find_map(|(boundary, rank)| {
+        let reached = if config.upper_tail {
+            value >= boundary
+        } else {
+            value <= boundary
+        };
+        reached.then_some(rank)
+    })
+    .unwrap_or_default();
 
     EventState {
-        threshold,
+        thresholds,
         tail: history.tail(bucket(coordinates, value), config.upper_tail),
         rank,
     }
@@ -356,7 +415,9 @@ mod tests {
         let state = event_state(101.0, &coordinates, &history, REALIZED);
         assert!((state.tail - 1.0 / 101.0).abs() < f64::EPSILON);
         assert_eq!(state.rank, 3);
-        assert_eq!(state.threshold, 99.0);
+        assert_eq!(state.thresholds.pct0_025, 99.0);
+        assert!(state.thresholds.pct0_1 <= state.thresholds.pct0_05);
+        assert!(state.thresholds.pct0_05 <= state.thresholds.pct0_025);
     }
 
     #[test]
@@ -370,6 +431,8 @@ mod tests {
 
         assert!((state.tail - 1.0 / 101.0).abs() < f64::EPSILON);
         assert_eq!(state.rank, 3);
-        assert_eq!(state.threshold, 1.0);
+        assert_eq!(state.thresholds.pct0_025, 1.0);
+        assert!(state.thresholds.pct0_1 >= state.thresholds.pct0_05);
+        assert!(state.thresholds.pct0_05 >= state.thresholds.pct0_025);
     }
 }

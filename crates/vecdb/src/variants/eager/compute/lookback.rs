@@ -51,7 +51,7 @@ where
                     A::default()
                 };
                 let result = transform(i, current, previous);
-                this.checked_push_at(i, result)?;
+                this.push(result);
                 i += 1;
                 Ok(())
             })
@@ -203,7 +203,7 @@ where
                         let previous = f64::from(values_data[start_usize - min_start].clone());
                         compute(current, previous)
                     };
-                    this.checked_push_at(i, V::T::from(result))?;
+                    this.push(V::T::from(result));
                 }
 
                 Ok(())
@@ -361,10 +361,10 @@ where
                 let min_start = starts_batch[0].to_usize().min(skip);
                 let source_data = source.collect_range_at(min_start, end);
 
-                for (j, start) in starts_batch.into_iter().enumerate() {
+                for start in starts_batch {
                     let start_usize = start.to_usize();
                     let value = source_data[start_usize - min_start].clone();
-                    this.checked_push_at(skip + j, V::T::from(value))?;
+                    this.push(V::T::from(value));
                 }
 
                 Ok(())

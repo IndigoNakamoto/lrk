@@ -22,11 +22,16 @@ impl Vecs {
         self.age_range
             .compute(indexer, indexes, distribution, exit)?;
 
-        // Phase 2: supply, adjusted, and value are independent.
+        // Phase 2: age-weighted aggregates, adjusted, and value are independent.
         let (r1, r2) = rayon::join(
             || {
-                self.supply
-                    .compute(indexer, distribution, &self.activity, &self.age_range, exit)
+                self.aggregate.compute(
+                    indexer,
+                    distribution,
+                    &self.age_range,
+                    &mut self.supply.active_supply_in_loss_share,
+                    exit,
+                )
             },
             || {
                 rayon::join(

@@ -273,18 +273,17 @@ impl AddrsVecs {
         }
     }
 
-    pub fn push_bytes_if_needed(&mut self, index: TypeIndex, bytes: AddrBytes) -> Result<()> {
+    pub fn push_bytes_if_needed(&mut self, index: TypeIndex, bytes: AddrBytes) {
         match bytes {
-            AddrBytes::P2PK65(bytes) => self.p2pk65.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2PK33(bytes) => self.p2pk33.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2PKH(bytes) => self.p2pkh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2SH(bytes) => self.p2sh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2WPKH(bytes) => self.p2wpkh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2WSH(bytes) => self.p2wsh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2TR(bytes) => self.p2tr.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2A(bytes) => self.p2a.bytes.checked_push(index.into(), bytes)?,
+            AddrBytes::P2PK65(bytes) => self.p2pk65.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2PK33(bytes) => self.p2pk33.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2PKH(bytes) => self.p2pkh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2SH(bytes) => self.p2sh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2WPKH(bytes) => self.p2wpkh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2WSH(bytes) => self.p2wsh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2TR(bytes) => self.p2tr.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2A(bytes) => self.p2a.bytes.debug_checked_push(index.into(), bytes),
         };
-        Ok(())
     }
 
     /// Iterate address hashes starting from a given height (for rollback).

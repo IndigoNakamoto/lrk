@@ -87,7 +87,7 @@ pub(super) fn finalize_outputs(
     addr_outpoint_stores: &mut ByAddrType<Store<AddrIndexOutPoint, Unit>>,
     txouts: &mut [ProcessedOutput],
     addresses: &mut BlockAddresses,
-) -> Result<()> {
+) {
     let base_txout_index = lengths.txout_index;
     let mut output_offset = 0;
     for (block_tx_index, tx) in transactions.iter().enumerate() {
@@ -109,10 +109,8 @@ pub(super) fn finalize_outputs(
             let sats = Sats::from(txout.value);
 
             if vout.is_zero() {
-                first_txout_index.checked_push(tx_index, txout_index)?;
+                first_txout_index.debug_checked_push(tx_index, txout_index);
             }
-
-            outputs.tx_index.checked_push(txout_index, tx_index)?;
 
             let type_index = match data {
                 ProcessedOutputData::Address(addr_hash) => {
@@ -130,7 +128,7 @@ pub(super) fn finalize_outputs(
                             .insert(addr_hash, ti);
                         let addr_bytes =
                             AddrBytes::try_from((&txout.script_pubkey, addr_type)).unwrap();
-                        addrs.push_bytes_if_needed(ti, addr_bytes)?;
+                        addrs.push_bytes_if_needed(ti, addr_bytes);
 
                         ti
                     }
@@ -140,39 +138,42 @@ pub(super) fn finalize_outputs(
 
                     op_return_vecs
                         .to_tx_index
-                        .checked_push(lengths.op_return_index, tx_index)?;
+                        .debug_checked_push(lengths.op_return_index, tx_index);
                     op_return_vecs
                         .kind
-                        .checked_push(op_return_index, op_return.kind)?;
+                        .debug_checked_push(op_return_index, op_return.kind);
                     op_return_vecs
                         .post_op_return_bytes
-                        .checked_push(op_return_index, op_return.post_op_return_bytes)?;
+                        .debug_checked_push(op_return_index, op_return.post_op_return_bytes);
                     lengths.op_return_index.copy_then_increment()
                 }
                 ProcessedOutputData::None => match output_type {
                     OutputType::P2MS => {
                         let index = lengths.p2ms_output_index;
-                        scripts.p2ms.to_tx_index.checked_push(index, tx_index)?;
+                        scripts.p2ms.to_tx_index.debug_checked_push(index, tx_index);
                         scripts
                             .p2ms
                             .legacy_sigops
-                            .checked_push(index, legacy_sigops)?;
+                            .debug_checked_push(index, legacy_sigops);
                         lengths.p2ms_output_index.copy_then_increment()
                     }
                     OutputType::Empty => {
                         scripts
                             .empty
                             .to_tx_index
-                            .checked_push(lengths.empty_output_index, tx_index)?;
+                            .debug_checked_push(lengths.empty_output_index, tx_index);
                         lengths.empty_output_index.copy_then_increment()
                     }
                     OutputType::Unknown => {
                         let index = lengths.unknown_output_index;
-                        scripts.unknown.to_tx_index.checked_push(index, tx_index)?;
+                        scripts
+                            .unknown
+                            .to_tx_index
+                            .debug_checked_push(index, tx_index);
                         scripts
                             .unknown
                             .legacy_sigops
-                            .checked_push(index, legacy_sigops)?;
+                            .debug_checked_push(index, legacy_sigops);
                         lengths.unknown_output_index.copy_then_increment()
                     }
                     _ => unreachable!(),
@@ -180,9 +181,13 @@ pub(super) fn finalize_outputs(
                 ProcessedOutputData::Resolved(_) => unreachable!(),
             };
 
-            outputs.value.checked_push(txout_index, sats)?;
-            outputs.output_type.checked_push(txout_index, output_type)?;
-            outputs.type_index.checked_push(txout_index, type_index)?;
+            outputs.value.debug_checked_push(txout_index, sats);
+            outputs
+                .output_type
+                .debug_checked_push(txout_index, output_type);
+            outputs
+                .type_index
+                .debug_checked_push(txout_index, type_index);
             processed.data = ProcessedOutputData::Resolved(type_index);
 
             if likely(output_type.is_addr()) {
@@ -202,6 +207,4 @@ pub(super) fn finalize_outputs(
 
         output_offset = next_output_offset;
     }
-
-    Ok(())
 }

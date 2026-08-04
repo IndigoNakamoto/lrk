@@ -1,37 +1,44 @@
-use brk_error::Result;
-use brk_indexer::Indexer;
 use brk_traversable::Traversable;
 use brk_types::{Height, PartsPerMillion32, PoolSlug, StoredU64};
-use vecdb::{Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode, Version};
+use vecdb::{ReadableCloneableVec, Version};
 
 use crate::{
     indexes,
     internal::{
-        LazyPercentPerBlock, LazyPreviousDeltaVec, LazyRollingSumsFromHeight, PerBlock,
-        WindowStartVec, Windows,
+        CachedWindowStartVec, Identity, LazyPerBlock, LazyPercentPerBlock, LazyPreviousDeltaVec,
+        LazyRollingSumsFromHeight, Windows,
     },
 };
 
-#[derive(Traversable)]
-pub struct BlocksMined<M: StorageMode = Rw> {
+use super::{PoolHeights, pool_heights::PoolCumulativeVec};
+
+#[derive(Clone, Traversable)]
+pub struct BlocksMined {
     pub block: LazyPreviousDeltaVec<Height, StoredU64>,
-    pub cumulative: PerBlock<StoredU64, M>,
+    pub cumulative: LazyPerBlock<StoredU64>,
     pub sum: LazyRollingSumsFromHeight<StoredU64>,
 }
 
 impl BlocksMined {
     fn forced_import(
-        db: &Database,
         name: &str,
+        slug: PoolSlug,
+        pool_heights: PoolHeights,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        let cumulative =
-            PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
+        cached_starts: &Windows<&CachedWindowStartVec>,
+    ) -> Self {
+        let cumulative_name = format!("{name}_cumulative");
+        let cumulative_source = PoolCumulativeVec::new(&cumulative_name, slug, pool_heights);
+        let cumulative = LazyPerBlock::from_uncached_height_source::<Identity<StoredU64>, _>(
+            &cumulative_name,
+            version,
+            cumulative_source,
+            indexes,
+        );
         let block =
             LazyPreviousDeltaVec::new(name, version, cumulative.height.read_only_boxed_clone());
-        let sum = LazyRollingSumsFromHeight::new(
+        let sum = LazyRollingSumsFromHeight::new_uncached(
             &format!("{name}_sum"),
             version,
             &cumulative.height,
@@ -39,11 +46,11 @@ impl BlocksMined {
             indexes,
         );
 
-        Ok(Self {
+        Self {
             block,
             cumulative,
             sum,
-        })
+        }
     }
 }
 
@@ -51,34 +58,32 @@ fn pool_dominance(height: Height, blocks_mined: StoredU64) -> PartsPerMillion32 
     PartsPerMillion32::from(u64::from(blocks_mined) as f64 / (u64::from(height) + 1) as f64)
 }
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
-    #[traversable(skip)]
-    slug: PoolSlug,
-
-    pub blocks_mined: BlocksMined<M>,
+#[derive(Clone, Traversable)]
+pub struct Vecs {
+    pub blocks_mined: BlocksMined,
     pub dominance: LazyPercentPerBlock<PartsPerMillion32>,
 }
 
 impl Vecs {
     pub(crate) fn forced_import(
-        db: &Database,
         slug: PoolSlug,
+        pool_heights: PoolHeights,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
+        cached_starts: &Windows<&CachedWindowStartVec>,
+    ) -> Self {
         let suffix = |s: &str| format!("{}_{s}", slug);
 
         let blocks_mined = BlocksMined::forced_import(
-            db,
             &suffix("blocks_mined"),
+            slug,
+            pool_heights,
             version + Version::ONE,
             indexes,
             cached_starts,
-        )?;
+        );
 
-        let dominance = LazyPercentPerBlock::from_indexed_source(
+        let dominance = LazyPercentPerBlock::from_uncached_indexed_source(
             &suffix("dominance"),
             version,
             &blocks_mined.cumulative.height,
@@ -86,27 +91,10 @@ impl Vecs {
             indexes,
         );
 
-        Ok(Self {
-            slug,
+        Self {
             blocks_mined,
             dominance,
-        })
-    }
-
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        pool: &impl ReadableVec<Height, PoolSlug>,
-        exit: &Exit,
-    ) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-
-        self.blocks_mined
-            .cumulative
-            .height
-            .compute_cumulative_count(starting_height, pool, |id| *id == self.slug, exit)?;
-
-        Ok(())
+        }
     }
 }
 

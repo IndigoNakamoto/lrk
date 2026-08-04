@@ -9,11 +9,11 @@ use vecdb::{BytesVec, BytesVecValue, CachedBoxedVec, Database, ImportableVec};
 use crate::{
     indexes,
     internal::{
-        FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue, PerBlock,
-        PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
+        CachedWindowStartVec, FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue,
+        PerBlock, PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
         PriceWithRatioPerBlock, RatioPerBlock, RollingWindow24hPerBlock, RollingWindows,
         RollingWindowsFrom1w, SpotValuePerBlock, ValuePerBlock, ValuePerBlockCumulative,
-        ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
+        ValuePerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -150,7 +150,7 @@ pub struct ImportConfig<'a> {
     pub full_name: &'a str,
     pub version: Version,
     pub indexes: &'a indexes::Vecs,
-    pub cached_starts: &'a Windows<&'a WindowStartVec>,
+    pub cached_starts: &'a Windows<&'a CachedWindowStartVec>,
     pub spot_price: &'a CachedBoxedVec<Height, Cents>,
 }
 

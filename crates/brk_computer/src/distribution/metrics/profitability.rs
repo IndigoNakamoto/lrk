@@ -8,8 +8,8 @@ use vecdb::{AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, Rw, StorageMod
 use crate::{
     indexes,
     internal::{
-        PerBlock, RatioPerBlock, SpotValuePerBlock, SpotValuePerBlockWithDeltas, WindowStartVec,
-        Windows,
+        CachedWindowStartVec, PerBlock, RatioPerBlock, SpotValuePerBlock,
+        SpotValuePerBlockWithDeltas, Windows,
     },
     price,
 };
@@ -45,7 +45,7 @@ impl ProfitabilityBucket {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
@@ -267,7 +267,7 @@ impl ProfitabilityMetrics {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let range = ProfitabilityRange::try_new(|name| {

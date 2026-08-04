@@ -2,13 +2,13 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
-use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
+use brk_types::Version;
+use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::metrics::{
-        ActivityCore, CohortMetricsBase, ImportConfig, OutputsBase, RealizedCore, SupplyCore,
-        UnrealizedCore,
+        ActivityCore, AllSupplyCache, CohortMetricsBase, ImportConfig, OutputsBase, RealizedCore,
+        SupplyCore, UnrealizedCore,
     },
     price,
 };
@@ -25,13 +25,13 @@ pub struct CoreCohortMetrics<M: StorageMode = Rw> {
 }
 
 impl CoreCohortMetrics {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
         let realized = RealizedCore::forced_import(cfg)?;
         let unrealized = UnrealizedCore::forced_import(cfg, &realized.price.ppm)?;
 
         Ok(Self {
             filter: cfg.filter.clone(),
-            supply: Box::new(SupplyCore::forced_import(cfg)?),
+            supply: Box::new(SupplyCore::forced_import(cfg, all_supply)?),
             outputs: Box::new(OutputsBase::forced_import(cfg)?),
             activity: Box::new(ActivityCore::forced_import(cfg)?),
             realized: Box::new(realized),
@@ -123,7 +123,6 @@ impl CoreCohortMetrics {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -133,9 +132,6 @@ impl CoreCohortMetrics {
             &self.activity.transfer_volume.sum._24h.cents.height,
             exit,
         )?;
-
-        self.supply
-            .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
 
         Ok(())
     }

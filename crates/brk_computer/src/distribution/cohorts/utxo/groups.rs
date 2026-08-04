@@ -7,26 +7,26 @@ use brk_cohort::{
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, CentsSquaredSats, Dollars, Height, Sats, Version};
+use brk_types::{Cents, CentsSquaredSats, Height, Sats, Version};
 use rayon::prelude::*;
 use vecdb::{
-    AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, ReadOnlyClone, ReadableVec, Rw,
-    StorageMode, WritableVec,
+    AnyStoredVec, AnyVec, CachedBoxedVec, Database, Exit, ReadOnlyClone, Rw, StorageMode,
+    WritableVec,
 };
 
 use crate::{
     distribution::{
-        DynCohortVecs,
+        AllChainCache, DynCohortVecs,
         metrics::{
-            AllCohortMetrics, BasicCohortMetrics, CohortMetricsBase, CoreCohortMetrics,
-            ExtendedAdjustedCohortMetrics, ExtendedCohortMetrics, ImportConfig,
+            AllCohortMetrics, AllSupplyCache, BasicCohortMetrics, CohortMetricsBase,
+            CoreCohortMetrics, ExtendedAdjustedCohortMetrics, ExtendedCohortMetrics, ImportConfig,
             MinimalCohortMetrics, ProfitabilityMetrics, RealizedFullAccum, SupplyCore,
             TypeCohortMetrics,
         },
         state::UTXOCohortState,
     },
     indexes,
-    internal::{ValuePerBlockCumulativeRolling, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, ValuePerBlockCumulativeRolling, Windows},
     price,
 };
 
@@ -54,6 +54,8 @@ pub struct UTXOCohorts<M: StorageMode = Rw> {
     pub profitability: ProfitabilityMetrics<M>,
     pub matured: AgeRange<ValuePerBlockCumulativeRolling<M>>,
     #[traversable(skip)]
+    all_supply_cache: AllSupplyCache,
+    #[traversable(skip)]
     pub(super) caches: UTXOCohortsTransientState,
 }
 
@@ -79,7 +81,7 @@ impl UTXOCohorts<Rw> {
         version: Version,
         indexes: &indexes::Vecs,
         states_path: &Path,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let v = version + VERSION;
@@ -95,7 +97,9 @@ impl UTXOCohorts<Rw> {
             cached_starts,
             spot_price,
         };
-        let all_supply = SupplyCore::forced_import(&all_cfg)?;
+        let all_supply = SupplyCore::forced_import_all(&all_cfg)?;
+        let all_supply_cache = AllSupplyCache::new(&all_supply.total.sats.height);
+        let all_chain_cache = AllChainCache::new(&all_supply_cache, spot_price);
 
         // Phase 2: Import separate (stateful) cohorts.
 
@@ -115,7 +119,7 @@ impl UTXOCohorts<Rw> {
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
                     state,
-                    BasicCohortMetrics::forced_import(&cfg)?,
+                    BasicCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -136,7 +140,7 @@ impl UTXOCohorts<Rw> {
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
                     state,
-                    CoreCohortMetrics::forced_import(&cfg)?,
+                    CoreCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -161,7 +165,7 @@ impl UTXOCohorts<Rw> {
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
                     state,
-                    MinimalCohortMetrics::forced_import(&cfg)?,
+                    MinimalCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -182,7 +186,7 @@ impl UTXOCohorts<Rw> {
                 let state = Some(Box::new(UTXOCohortState::new(states_path, &full_name)));
                 Ok(UTXOCohortVecs::new(
                     state,
-                    TypeCohortMetrics::forced_import(&cfg)?,
+                    TypeCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -191,7 +195,7 @@ impl UTXOCohorts<Rw> {
         // Phase 3: Import "all" cohort with pre-imported supply.
         let all = UTXOCohortVecs::new(
             None,
-            AllCohortMetrics::forced_import_with_supply(&all_cfg, all_supply)?,
+            AllCohortMetrics::forced_import_with_supply(&all_cfg, all_supply, &all_chain_cache)?,
         );
 
         // Phase 3b: Import profitability metrics (derived from "all" during k-way merge).
@@ -213,7 +217,14 @@ impl UTXOCohorts<Rw> {
                 cached_starts,
                 spot_price,
             };
-            UTXOCohortVecs::new(None, ExtendedAdjustedCohortMetrics::forced_import(&cfg)?)
+            UTXOCohortVecs::new(
+                None,
+                ExtendedAdjustedCohortMetrics::forced_import(
+                    &cfg,
+                    &all_supply_cache,
+                    &all_chain_cache,
+                )?,
+            )
         };
 
         // lth: ExtendedCohortMetrics
@@ -229,7 +240,10 @@ impl UTXOCohorts<Rw> {
                 cached_starts,
                 spot_price,
             };
-            UTXOCohortVecs::new(None, ExtendedCohortMetrics::forced_import(&cfg)?)
+            UTXOCohortVecs::new(
+                None,
+                ExtendedCohortMetrics::forced_import(&cfg, &all_supply_cache, &all_chain_cache)?,
+            )
         };
 
         // CoreCohortMetrics without state (no state, for aggregate cohorts)
@@ -247,7 +261,7 @@ impl UTXOCohorts<Rw> {
                 };
                 Ok(UTXOCohortVecs::new(
                     None,
-                    CoreCohortMetrics::forced_import(&cfg)?,
+                    CoreCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -271,7 +285,7 @@ impl UTXOCohorts<Rw> {
                 };
                 Ok(UTXOCohortVecs::new(
                     None,
-                    MinimalCohortMetrics::forced_import(&cfg)?,
+                    MinimalCohortMetrics::forced_import(&cfg, &all_supply_cache)?,
                 ))
             };
 
@@ -307,13 +321,19 @@ impl UTXOCohorts<Rw> {
             over_amount,
             profitability,
             matured,
+            all_supply_cache,
             caches: UTXOCohortsTransientState::default(),
         })
     }
 
     /// Reset in-memory caches that become stale after rollback.
     pub(crate) fn reset_caches(&mut self) {
+        self.all_supply_cache.clear();
         self.caches = UTXOCohortsTransientState::default();
+    }
+
+    pub(crate) fn all_supply_cache(&self) -> &AllSupplyCache {
+        &self.all_supply_cache
     }
 
     /// Initialize the Fenwick tree from all age-range BTreeMaps.
@@ -570,7 +590,6 @@ impl UTXOCohorts<Rw> {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        height_to_market_cap: &impl ReadableVec<Height, Dollars>,
         exit: &Exit,
     ) -> Result<()> {
         // Get under_1h value sources for adjusted computation (cloned to avoid borrow conflicts).
@@ -594,18 +613,14 @@ impl UTXOCohorts<Rw> {
             .height
             .read_only_clone();
 
-        // "all" cohort computed first (no all_supply_sats needed).
+        // "all" cohort computed first.
         self.all.metrics.compute_rest_part2(
             prices,
             starting_lengths,
-            height_to_market_cap,
             &under_1h_value_created,
             &under_1h_value_destroyed,
             exit,
         )?;
-
-        // Clone all_supply_sats for non-all cohorts.
-        let all_supply_sats = self.all.metrics.supply.total.sats.height.read_only_clone();
 
         // Destructure to allow parallel mutable access to independent fields.
         let Self {
@@ -628,88 +643,64 @@ impl UTXOCohorts<Rw> {
         // to its field and shares read-only references to common data.
         let vc = &under_1h_value_created;
         let vd = &under_1h_value_destroyed;
-        let ss = &all_supply_sats;
-
         let tasks: Vec<Box<dyn FnOnce() -> Result<()> + Send + '_>> = vec![
             Box::new(|| {
-                sth.metrics.compute_rest_part2(
-                    prices,
-                    starting_lengths,
-                    height_to_market_cap,
-                    vc,
-                    vd,
-                    ss,
-                    exit,
-                )
+                sth.metrics
+                    .compute_rest_part2(prices, starting_lengths, vc, vd, exit)
             }),
             Box::new(|| {
-                lth.metrics.compute_rest_part2(
-                    prices,
-                    starting_lengths,
-                    height_to_market_cap,
-                    ss,
-                    exit,
-                )
+                lth.metrics
+                    .compute_rest_part2(prices, starting_lengths, exit)
             }),
             Box::new(|| {
-                age_range.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                age_range
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                under_age.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                under_age
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                over_age.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                over_age
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                over_amount.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                over_amount
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                epoch.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                epoch
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                class.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                class
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                entry.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                entry
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                amount_range.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                amount_range
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                under_amount.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                under_amount
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
             Box::new(|| {
-                type_.par_iter_mut().try_for_each(|v| {
-                    v.metrics
-                        .compute_rest_part2(prices, starting_lengths, ss, exit)
-                })
+                type_
+                    .par_iter_mut()
+                    .try_for_each(|v| v.metrics.compute_rest_part2(prices, starting_lengths, exit))
             }),
         ];
 

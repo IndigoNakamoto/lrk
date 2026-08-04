@@ -4,7 +4,7 @@ use derive_more::{Deref, DerefMut};
 
 use crate::{
     indexes,
-    internal::{LazyRollingDeltasFromHeight, WindowStartVec, Windows, WithAddrTypes},
+    internal::{CachedWindowStartVec, LazyRollingDeltasFromHeight, Windows, WithAddrTypes},
 };
 
 use super::AddrCountsVecs;
@@ -18,7 +18,7 @@ impl DeltaVecs {
     pub(crate) fn new(
         version: Version,
         addr_count: &AddrCountsVecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let version = version + Version::new(3);

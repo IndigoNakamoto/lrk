@@ -6,7 +6,7 @@ use brk_types::Version;
 use crate::{
     indexes,
     internal::{
-        LazyPerSecondWindows, WindowStartVec, Windows,
+        CachedWindowStartVec, LazyPerSecondWindows, Windows,
         db_utils::{finalize_db, open_db},
     },
 };
@@ -18,7 +18,7 @@ impl Vecs {
         parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let db = open_db(parent_path, super::DB_NAME, 20_000_000)?;
         let version = parent_version;

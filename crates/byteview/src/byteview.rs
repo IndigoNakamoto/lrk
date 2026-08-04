@@ -26,6 +26,17 @@ struct HeapAllocationHeader {
     ref_count: AtomicU64,
 }
 
+fn allocation_layout(data_len: usize) -> std::alloc::Layout {
+    let Some(total_size) = std::mem::size_of::<HeapAllocationHeader>().checked_add(data_len) else {
+        panic!("byte slice too long");
+    };
+    let alignment = std::mem::align_of::<HeapAllocationHeader>();
+    let Ok(layout) = std::alloc::Layout::from_size_align(total_size, alignment) else {
+        unreachable!("heap header alignment is always valid");
+    };
+    layout
+}
+
 #[repr(C)]
 struct ShortRepr {
     len: u32,
@@ -114,11 +125,7 @@ impl Drop for ByteView {
         fence(Ordering::Acquire);
 
         unsafe {
-            let header_size = std::mem::size_of::<HeapAllocationHeader>();
-            let alignment = std::mem::align_of::<HeapAllocationHeader>();
-            let total_size = header_size + self.trailer.long.original_len as usize;
-            let layout = std::alloc::Layout::from_size_align(total_size, alignment).unwrap();
-
+            let layout = allocation_layout(self.trailer.long.original_len as usize);
             let ptr = self.trailer.long.heap.cast_mut();
             std::alloc::dealloc(ptr, layout);
         }
@@ -278,8 +285,9 @@ impl ByteView {
     pub fn fused(left: &[u8], right: &[u8]) -> Self {
         let len = left.len() + right.len();
         let mut builder = unsafe { Self::builder_unzeroed(len) };
-        builder[0..left.len()].copy_from_slice(left);
-        builder[left.len()..].copy_from_slice(right);
+        let (left_target, right_target) = builder.split_at_mut(left.len());
+        left_target.copy_from_slice(left);
+        right_target.copy_from_slice(right);
         builder.freeze()
     }
 
@@ -319,11 +327,7 @@ impl ByteView {
             };
 
             unsafe {
-                const HEADER_SIZE: usize = std::mem::size_of::<HeapAllocationHeader>();
-                const ALIGNMENT: usize = std::mem::align_of::<HeapAllocationHeader>();
-
-                let total_size = HEADER_SIZE + slice_len;
-                let layout = std::alloc::Layout::from_size_align(total_size, ALIGNMENT).unwrap();
+                let layout = allocation_layout(slice_len);
 
                 // IMPORTANT: Zero-allocate the region
                 let heap_ptr = std::alloc::alloc_zeroed(layout);
@@ -332,7 +336,11 @@ impl ByteView {
                 }
 
                 // Set ref count
-                let heap_region = heap_ptr as *const HeapAllocationHeader;
+                #[expect(
+                    clippy::cast_ptr_alignment,
+                    reason = "the allocation uses HeapAllocationHeader alignment"
+                )]
+                let heap_region = heap_ptr.cast::<HeapAllocationHeader>();
                 let heap_region = &*heap_region;
                 heap_region.ref_count.store(1, Ordering::Release);
 
@@ -381,11 +389,7 @@ impl ByteView {
             };
 
             unsafe {
-                const HEADER_SIZE: usize = std::mem::size_of::<HeapAllocationHeader>();
-                const ALIGNMENT: usize = std::mem::align_of::<HeapAllocationHeader>();
-
-                let total_size = HEADER_SIZE + slice_len;
-                let layout = std::alloc::Layout::from_size_align(total_size, ALIGNMENT).unwrap();
+                let layout = allocation_layout(slice_len);
 
                 let heap_ptr = std::alloc::alloc(layout);
                 if heap_ptr.is_null() {
@@ -393,7 +397,11 @@ impl ByteView {
                 }
 
                 // Set ref count
-                let heap_region = heap_ptr as *const HeapAllocationHeader;
+                #[expect(
+                    clippy::cast_ptr_alignment,
+                    reason = "the allocation uses HeapAllocationHeader alignment"
+                )]
+                let heap_region = heap_ptr.cast::<HeapAllocationHeader>();
                 let heap_region = &*heap_region;
                 heap_region.ref_count.store(1, Ordering::Release);
 
@@ -494,6 +502,10 @@ impl ByteView {
 
         unsafe {
             let ptr = self.trailer.long.heap;
+            #[expect(
+                clippy::cast_ptr_alignment,
+                reason = "heap pointers come from a HeapAllocationHeader-aligned allocation"
+            )]
             let heap_region: *const HeapAllocationHeader = ptr.cast::<HeapAllocationHeader>();
             &*heap_region
         }
@@ -541,12 +553,16 @@ impl ByteView {
 
         let begin = match range.start_bound() {
             Bound::Included(&n) => n,
-            Bound::Excluded(&n) => n.checked_add(1).expect("out of range"),
+            Bound::Excluded(&n) => n
+                .checked_add(1)
+                .unwrap_or_else(|| panic!("range start out of bounds")),
             Bound::Unbounded => 0,
         };
 
         let end = match range.end_bound() {
-            Bound::Included(&n) => n.checked_add(1).expect("out of range"),
+            Bound::Included(&n) => n
+                .checked_add(1)
+                .unwrap_or_else(|| panic!("range end out of bounds")),
             Bound::Excluded(&n) => n,
             Bound::Unbounded => self_len,
         };
@@ -561,7 +577,12 @@ impl ByteView {
         );
 
         let new_len = end - begin;
-        let len = u32::try_from(new_len).unwrap();
+        let Ok(len) = u32::try_from(new_len) else {
+            unreachable!("a ByteView range always fits in u32");
+        };
+        let Ok(begin_u32) = u32::try_from(begin) else {
+            unreachable!("a ByteView offset always fits in u32");
+        };
 
         // Target and destination slices are inlined
         // so we just need to memcpy the struct, and replace
@@ -576,7 +597,9 @@ impl ByteView {
                 },
             };
 
-            let slice = &self[begin..end];
+            let Some(slice) = self.get(begin..end) else {
+                unreachable!("range was validated above");
+            };
             debug_assert_eq!(slice.len(), new_len);
 
             let data_ptr = unsafe { &mut (*child.trailer.short).data };
@@ -600,13 +623,15 @@ impl ByteView {
                         len,
                         prefix: [0; PREFIX_SIZE],
                         heap: unsafe { self.trailer.long.heap },
-                        offset: unsafe { self.trailer.long.offset } + begin as u32,
+                        offset: unsafe { self.trailer.long.offset } + begin_u32,
                         original_len: unsafe { self.trailer.long.original_len },
                     }),
                 },
             };
 
-            let prefix = &self[begin..(begin + 4)];
+            let Some(prefix) = self.get(begin..(begin + PREFIX_SIZE)) else {
+                unreachable!("non-inline ranges contain a full prefix");
+            };
             debug_assert_eq!(prefix.len(), 4);
 
             unsafe {
@@ -634,7 +659,8 @@ impl ByteView {
             true
         } else {
             self.get(PREFIX_SIZE..)
-                .is_some_and(|bytes| bytes.starts_with(&needle[PREFIX_SIZE..]))
+                .zip(needle.get(PREFIX_SIZE..))
+                .is_some_and(|(bytes, remaining)| bytes.starts_with(remaining))
         }
     }
 
@@ -907,7 +933,7 @@ mod tests {
         let mut cursor = Cursor::new(str);
 
         let a = ByteView::from_reader(&mut cursor, 6)?;
-        assert!(&*a == b"abcdef");
+        assert_eq!(&*a, b"abcdef");
 
         Ok(())
     }
@@ -926,11 +952,10 @@ mod tests {
         assert_eq!([0, 0, 0, 0], &*slice);
 
         {
-            let mut mutator = slice.get_mut().unwrap();
-            mutator[0] = 1;
-            mutator[1] = 2;
-            mutator[2] = 3;
-            mutator[3] = 4;
+            let Some(mut mutator) = slice.get_mut() else {
+                panic!("new ByteView must be uniquely owned");
+            };
+            mutator.copy_from_slice(&[1, 2, 3, 4]);
         }
 
         assert_eq!(4, slice.len());
@@ -945,11 +970,13 @@ mod tests {
         assert_eq!([0; 30], &*slice);
 
         {
-            let mut mutator = slice.get_mut().unwrap();
-            mutator[0] = 1;
-            mutator[1] = 2;
-            mutator[2] = 3;
-            mutator[3] = 4;
+            let Some(mut mutator) = slice.get_mut() else {
+                panic!("new ByteView must be uniquely owned");
+            };
+            let Some(prefix) = mutator.get_mut(..4) else {
+                panic!("ByteView is expected to contain four bytes");
+            };
+            prefix.copy_from_slice(&[1, 2, 3, 4]);
         }
 
         assert_eq!(30, slice.len());
@@ -1112,7 +1139,7 @@ mod tests {
         {
             let copycopy = copy.slice(0..=4);
             assert_eq!(b"thisi", &*copycopy);
-            assert_eq!(b't', *copycopy.first().unwrap());
+            assert_eq!(Some(b't'), copycopy.first().copied());
         }
 
         assert_eq!(1, slice.ref_count());
@@ -1203,14 +1230,14 @@ mod tests {
     fn tiny_str_eq() {
         let a = ByteView::from("abc");
         let b = ByteView::from("def");
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
     fn long_str_eq() {
         let a = ByteView::from("abcdefabcdefabcdefabcdef");
         let b = ByteView::from("xycdefabcdefabcdefabcdef");
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -1224,7 +1251,7 @@ mod tests {
     fn long_str_eq_2() {
         let a = ByteView::from("abcdefabcdefabcdefabcdef");
         let b = ByteView::from("abcdefabcdefabcdefabcdef");
-        assert!(a == b);
+        assert_eq!(a, b);
     }
 
     #[test]
@@ -1247,7 +1274,7 @@ mod tests {
         let b = ByteView::from([]);
 
         assert!(a > b);
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -1256,7 +1283,7 @@ mod tests {
         let b = ByteView::from([0]);
 
         assert!(a > b);
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -1265,7 +1292,7 @@ mod tests {
         let b = ByteView::from([255, 255, 12, 255]);
 
         assert!(a > b);
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -1278,6 +1305,6 @@ mod tests {
         ]);
 
         assert!(a > b);
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 }

@@ -1,17 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Height, OpReturnKind, PartsPerMillion32, Sats, StoredU64, VSize};
+use brk_types::{OpReturnKind, Sats, VSize};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
-use super::{Breakdown, Vecs, vecs::Totals};
-use crate::{
-    blocks,
-    internal::{
-        PerBlockCumulativeRolling, PercentCumulativeRolling, PercentPerBlock, RatioSats, RatioU64,
-        ValuePerBlockCumulativeRolling,
-    },
-    transactions,
-};
+use super::{Vecs, vecs::Totals};
+use crate::transactions;
 
 const KIND_COUNT: usize = OpReturnKind::Unknown as usize + 1;
 const OLD_STANDARD_MAX_POST_OP_RETURN_BYTES: u64 = 82;
@@ -53,7 +46,6 @@ impl Vecs {
         &mut self,
         indexer: &Indexer,
         fees: &transactions::FeesVecs,
-        blocks: &blocks::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         self.db.sync_bg_tasks()?;
@@ -150,69 +142,6 @@ impl Vecs {
             self.write()?;
         }
 
-        let block_size = &blocks.size.size.cumulative.height;
-        compute_data_share(
-            starting_lengths.height,
-            &mut self.total.chain_share,
-            &self.total.metrics.data_bytes.cumulative.height,
-            block_size,
-            exit,
-        )?;
-        let total_data = &self.total.metrics.data_bytes.cumulative.height;
-        for breakdown in self.by_kind.iter_mut() {
-            compute_breakdown_data_shares(
-                starting_lengths.height,
-                breakdown,
-                total_data,
-                block_size,
-                exit,
-            )?;
-        }
-        for policy in self.policy.iter_mut() {
-            compute_breakdown_data_shares(
-                starting_lengths.height,
-                policy,
-                total_data,
-                block_size,
-                exit,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn compute_fee_shares(
-        &mut self,
-        chain_fees: &ValuePerBlockCumulativeRolling,
-        max_from: Height,
-        exit: &Exit,
-    ) -> Result<()> {
-        compute_fee_share(
-            max_from,
-            &mut self.total.fee_share,
-            &self.total.metrics.fees,
-            chain_fees,
-            exit,
-        )?;
-        for breakdown in self.by_kind.iter_mut() {
-            compute_fee_share(
-                max_from,
-                &mut breakdown.fee_share,
-                &breakdown.metrics.total.fees,
-                chain_fees,
-                exit,
-            )?;
-        }
-        for policy in self.policy.iter_mut() {
-            compute_fee_share(
-                max_from,
-                &mut policy.fee_share,
-                &policy.metrics.total.fees,
-                chain_fees,
-                exit,
-            )?;
-        }
-
         let exit = exit.clone();
         self.db.run_bg(move |db| {
             let _lock = exit.lock();
@@ -220,47 +149,6 @@ impl Vecs {
         });
         Ok(())
     }
-}
-
-fn compute_fee_share(
-    max_from: Height,
-    target: &mut PercentCumulativeRolling<PartsPerMillion32>,
-    numerator: &PerBlockCumulativeRolling<Sats>,
-    denominator: &ValuePerBlockCumulativeRolling,
-    exit: &Exit,
-) -> Result<()> {
-    target.compute_binary::<Sats, Sats, RatioSats<PartsPerMillion32>, _, _, _, _>(
-        max_from,
-        &numerator.cumulative.height,
-        &denominator.cumulative.sats.height,
-        numerator.sum.as_array().map(|w| &w.height),
-        denominator.sum.as_array().map(|w| &w.sats.height),
-        exit,
-    )
-}
-
-fn compute_breakdown_data_shares(
-    max_from: Height,
-    breakdown: &mut Breakdown,
-    total_data: &impl ReadableVec<Height, StoredU64>,
-    block_size: &impl ReadableVec<Height, StoredU64>,
-    exit: &Exit,
-) -> Result<()> {
-    let data = &breakdown.metrics.total.data_bytes.cumulative.height;
-    compute_data_share(max_from, &mut breakdown.chain_share, data, block_size, exit)?;
-    compute_data_share(max_from, &mut breakdown.data_share, data, total_data, exit)
-}
-
-fn compute_data_share(
-    max_from: Height,
-    target: &mut PercentPerBlock<PartsPerMillion32>,
-    data: &impl ReadableVec<Height, StoredU64>,
-    block_size: &impl ReadableVec<Height, StoredU64>,
-    exit: &Exit,
-) -> Result<()> {
-    target.compute_binary::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
-        max_from, data, block_size, exit,
-    )
 }
 
 fn finalize_transaction(

@@ -4,7 +4,7 @@ use derive_more::{Deref, DerefMut};
 
 use crate::{
     indexes,
-    internal::{LazyPerBlockCumulativeRolling, WindowStartVec, Windows, WithAddrTypes},
+    internal::{CachedWindowStartVec, LazyPerBlockCumulativeRolling, Windows, WithAddrTypes},
 };
 
 use super::TotalAddrCountVecs;
@@ -20,7 +20,7 @@ impl NewAddrCountVecs {
         version: Version,
         total: &TotalAddrCountVecs,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Self {
         Self(WithAddrTypes {
             all: LazyPerBlockCumulativeRolling::from_source(

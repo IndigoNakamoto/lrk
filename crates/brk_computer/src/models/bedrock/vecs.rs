@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use brk_traversable::Traversable;
 use brk_types::StoredF64;
 use derive_more::{Deref, DerefMut};
@@ -6,6 +8,18 @@ use vecdb::{Rw, StorageMode};
 use super::{price::Price, urpd_metric::UrpdMetric};
 
 pub(crate) const MODE_COUNT: usize = 10;
+pub(crate) const MODE_NAMES: [&str; MODE_COUNT] = [
+    "raw",
+    "cointime",
+    "coinflow",
+    "coinflow_8y",
+    "coinflow_4y",
+    "coinflow_2y",
+    "coinflow_1y",
+    "coinflow_6m",
+    "coinflow_3m",
+    "coinflow_1m",
+];
 
 #[derive(Traversable)]
 pub struct Percentiles<T> {
@@ -55,16 +69,16 @@ impl<T> Modes<T> {
         mut create: impl FnMut(&'static str) -> Result<T, E>,
     ) -> Result<Self, E> {
         Ok(Self {
-            raw: create("raw")?,
-            cointime: create("cointime")?,
-            coinflow: create("coinflow")?,
-            coinflow_8y: create("coinflow_8y")?,
-            coinflow_4y: create("coinflow_4y")?,
-            coinflow_2y: create("coinflow_2y")?,
-            coinflow_1y: create("coinflow_1y")?,
-            coinflow_6m: create("coinflow_6m")?,
-            coinflow_3m: create("coinflow_3m")?,
-            coinflow_1m: create("coinflow_1m")?,
+            raw: create(MODE_NAMES[0])?,
+            cointime: create(MODE_NAMES[1])?,
+            coinflow: create(MODE_NAMES[2])?,
+            coinflow_8y: create(MODE_NAMES[3])?,
+            coinflow_4y: create(MODE_NAMES[4])?,
+            coinflow_2y: create(MODE_NAMES[5])?,
+            coinflow_1y: create(MODE_NAMES[6])?,
+            coinflow_6m: create(MODE_NAMES[7])?,
+            coinflow_3m: create(MODE_NAMES[8])?,
+            coinflow_1m: create(MODE_NAMES[9])?,
         })
     }
 
@@ -86,6 +100,9 @@ impl<T> Modes<T> {
 
 #[derive(Deref, DerefMut, Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
+    #[traversable(skip)]
+    pub(crate) states_path: PathBuf,
+
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]

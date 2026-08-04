@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use brk_error::Result;
 use brk_types::{StoredF64, Version};
 use vecdb::Database;
@@ -82,11 +84,13 @@ impl Vecs {
         db: &Database,
         parent_version: Version,
         indexes: &indexes::Vecs,
+        states_path: PathBuf,
     ) -> Result<Self> {
         let version = parent_version + VERSION;
         let mappings = UrpdMappings::new(indexes);
 
         Ok(Self {
+            states_path,
             modes: Modes::try_from_fn(|name| {
                 import_mode(db, &format!("bedrock_{name}"), version, &mappings)
             })?,

@@ -5,7 +5,6 @@ use brk_types::{
     Cents, Date, Height, ONE_DAY_IN_SEC, OutputType, Sats, StoredF64, Timestamp, TxIndex, TypeIndex,
 };
 use rayon::prelude::*;
-use rustc_hash::FxHashSet;
 use tracing::{debug, info};
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, unlikely};
 
@@ -13,8 +12,8 @@ use crate::{
     distribution::{
         addr::AddrMetricsState,
         block::{
-            AddrCache, InputsResult, process_inputs, process_outputs, process_received,
-            process_sent,
+            AddrCache, InputsResult, TransferAddressCache, process_inputs, process_outputs,
+            process_received, process_sent,
         },
         compute::write::{process_addr_updates, write},
         state::{BlockState, Transacted},
@@ -136,7 +135,7 @@ pub(crate) fn process_blocks(
 
     // Create reusable iterators and buffers for per-block reads
     let mut txout_iters = TxOutReaders::new(indexer);
-    let mut txin_iters = TxInReaders::new(indexer, tx_index_to_height);
+    let mut txin_iters = TxInReaders::new(indexer, &inputs.value, tx_index_to_height);
     let mut txout_to_tx_index_buf = IndexToTxIndexBuf::new();
     let mut txin_to_tx_index_buf = IndexToTxIndexBuf::new();
 
@@ -216,9 +215,7 @@ pub(crate) fn process_blocks(
             .try_for_each(|v| v.any_truncate_if_needed_at(start))?;
     }
 
-    // Reusable hashsets (avoid per-block allocation)
-    let mut received_addrs = ByAddrType::<FxHashSet<TypeIndex>>::default();
-    let mut seen_senders = ByAddrType::<FxHashSet<TypeIndex>>::default();
+    let mut transfer_addresses = TransferAddressCache::default();
 
     // Track earliest chain_state modification from sends (for incremental supply_state writes)
     let mut min_supply_modified: Option<Height> = None;
@@ -397,15 +394,7 @@ pub(crate) fn process_blocks(
         // Record maturation (sats crossing age boundaries)
         vecs.utxo_cohorts.push_maturation(&matured);
 
-        // Build set of addresses that received this block (for detecting "both" in sent)
-        // Reuse pre-allocated hashsets: clear preserves capacity, avoiding reallocation
-        received_addrs.values_mut().for_each(|set| set.clear());
-        for (output_type, vec) in outputs_result.received_data.iter() {
-            let set = received_addrs.get_mut_unwrap(output_type);
-            for (type_index, _) in vec {
-                set.insert(*type_index);
-            }
-        }
+        transfer_addresses.prepare(&outputs_result.received_data);
 
         // Process UTXO cohorts and Addr cohorts in parallel
         let (_, addr_result) = rayon::join(
@@ -438,9 +427,8 @@ pub(crate) fn process_blocks(
                     &mut lookup,
                     block_price,
                     &mut state,
-                    &received_addrs,
+                    &mut transfer_addresses,
                     height_to_price_vec,
-                    &mut seen_senders,
                 )
             },
         );

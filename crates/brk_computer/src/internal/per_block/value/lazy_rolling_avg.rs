@@ -6,8 +6,8 @@ use vecdb::{DeltaAvg, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneab
 use crate::{
     indexes,
     internal::{
-        AvgCentsToUsd, AvgSatsToBtc, DerivedResolutions, LazyPerBlock, LazyRollingAvgFromHeight,
-        Resolutions, WindowStartVec, Windows,
+        AvgCentsToUsd, AvgSatsToBtc, CachedWindowStartVec, DerivedResolutions, LazyPerBlock,
+        LazyRollingAvgFromHeight, Resolutions, Windows,
     },
 };
 
@@ -31,13 +31,13 @@ impl LazyRollingAvgsAmountFromHeight {
         version: Version,
         cumulative_sats: &(impl ReadableCloneableVec<Height, Sats> + 'static),
         cumulative_cents: &(impl ReadableCloneableVec<Height, Cents> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_sats = cumulative_sats.read_only_boxed_clone();
         let cum_cents = cumulative_cents.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();

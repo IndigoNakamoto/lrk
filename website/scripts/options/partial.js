@@ -25,6 +25,7 @@ import { createNetworkSection } from "./network.js";
 import { createMiningSection } from "./mining.js";
 import { createCointimeSection } from "./frameworks/cointime/index.js";
 import { createCoinflowSection } from "./frameworks/coinflow.js";
+import { createCapitalSentimentSection } from "./models/capital-sentiment.js";
 import { createBedrockSection } from "./models/bedrock.js";
 import { createRarityMeterSection } from "./models/rarity-meter.js";
 import { createInvestingSection } from "./investing.js";
@@ -323,7 +324,11 @@ export function createPartialOptions() {
 
         {
           name: "Models",
-          tree: [createRarityMeterSection(), createBedrockSection()],
+          tree: [
+            createCapitalSentimentSection(),
+            createRarityMeterSection(),
+            createBedrockSection(),
+          ],
         },
       ],
     },

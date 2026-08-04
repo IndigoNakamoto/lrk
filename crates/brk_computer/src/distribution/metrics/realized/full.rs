@@ -2,18 +2,19 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    Bitcoin, Cents, CentsSats, CentsSigned, CentsSquaredSats, Dollars, Height, PartsPerMillion32,
+    Bitcoin, Cents, CentsSats, CentsSigned, CentsSquaredSats, Height, PartsPerMillion32,
     PartsPerMillion64, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::{
+    distribution::AllChainCache,
     distribution::state::{CohortState, CostBasisData, RealizedState, WithCapital},
     internal::{
         FiatPerBlockCumulativeWithSums, LazyPercentPerBlock, PercentPerBlock,
         PercentRollingWindows, PriceWithRatioPerBlock, RatioCents, RatioCents64,
-        RatioCentsSignedCents, RatioCentsSignedDollars, RollingWindows, RollingWindowsFrom1w,
+        RatioCentsSignedCents, RollingWindows, RollingWindowsFrom1w,
         ValuePerBlockCumulativeRolling,
     },
     price,
@@ -28,7 +29,7 @@ pub struct RealizedNetPnl<M: StorageMode = Rw> {
     #[traversable(wrap = "change_1m", rename = "to_rcap")]
     pub change_1m_to_rcap: PercentPerBlock<PartsPerMillionSigned64, M>,
     #[traversable(wrap = "change_1m", rename = "to_mcap")]
-    pub change_1m_to_mcap: PercentPerBlock<PartsPerMillionSigned64, M>,
+    pub change_1m_to_mcap: LazyPercentPerBlock<PartsPerMillionSigned64>,
 }
 
 #[derive(Traversable)]
@@ -47,7 +48,7 @@ pub struct RealizedPeakRegret<M: StorageMode = Rw> {
 pub struct RealizedCapitalized<M: StorageMode = Rw> {
     pub price: PriceWithRatioPerBlock<M>,
     #[traversable(hidden)]
-    pub cap_raw: M::Stored<BytesVec<Height, CentsSquaredSats>>,
+    cap_raw: M::Stored<BytesVec<Height, CentsSquaredSats>>,
 }
 
 #[derive(Deref, DerefMut, Traversable)]
@@ -69,11 +70,11 @@ pub struct RealizedFull<M: StorageMode = Rw> {
     pub profit_to_loss_ratio: RollingWindows<StoredF64, M>,
 
     #[traversable(hidden)]
-    pub cap_raw: M::Stored<BytesVec<Height, CentsSats>>,
+    cap_raw: M::Stored<BytesVec<Height, CentsSats>>,
 }
 
 impl RealizedFull {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_chain: &AllChainCache) -> Result<Self> {
         let v0 = Version::ZERO;
         let v1 = Version::ONE;
 
@@ -92,9 +93,22 @@ impl RealizedFull {
         let sell_side_risk_ratio = cfg.import("sell_side_risk_ratio", Version::new(2))?;
 
         // Net PnL
+        let mcap_name = cfg.name("net_pnl_change_1m_to_mcap");
+        let mcap_version = Version::new(5);
+        let mcap_source = all_chain.with_market_cap(
+            &format!("{mcap_name}_ppm_source"),
+            mcap_version,
+            &core.net_pnl.delta.absolute._1m.cents.height,
+            |_, net_pnl, market_cap| Self::net_pnl_to_market_cap(net_pnl, market_cap),
+        );
         let net_pnl = RealizedNetPnl {
             change_1m_to_rcap: cfg.import("net_pnl_change_1m_to_rcap", Version::new(5))?,
-            change_1m_to_mcap: cfg.import("net_pnl_change_1m_to_mcap", Version::new(5))?,
+            change_1m_to_mcap: LazyPercentPerBlock::from_uncached_height_source(
+                &mcap_name,
+                mcap_version,
+                mcap_source,
+                cfg.indexes,
+            ),
         };
 
         // SOPR
@@ -136,6 +150,15 @@ impl RealizedFull {
             .min(self.cap_raw.len())
             .min(self.capitalized.cap_raw.len())
             .min(self.peak_regret.value.cumulative.cents.height.len())
+    }
+
+    fn net_pnl_to_market_cap(net_pnl: CentsSigned, market_cap: Cents) -> PartsPerMillionSigned64 {
+        let market_cap = f64::from(market_cap);
+        if market_cap > 0.0 {
+            PartsPerMillionSigned64::from(net_pnl.inner() as f64 / market_cap)
+        } else {
+            PartsPerMillionSigned64::default()
+        }
     }
 
     #[inline(always)]
@@ -211,7 +234,6 @@ impl RealizedFull {
         prices: &price::Vecs,
         starting_lengths: &Lengths,
         height_to_supply: &impl ReadableVec<Height, Bitcoin>,
-        height_to_market_cap: &impl ReadableVec<Height, Dollars>,
         activity_transfer_volume: &ValuePerBlockCumulativeRolling,
         exit: &Exit,
     ) -> Result<()> {
@@ -258,19 +280,6 @@ impl RealizedFull {
                 &self.core.minimal.cap.cents.height,
                 exit,
             )?;
-        self.net_pnl
-            .change_1m_to_mcap
-            .compute_binary::<
-                CentsSigned,
-                Dollars,
-                RatioCentsSignedDollars<PartsPerMillionSigned64>,
-            >(
-                starting_lengths.height,
-                &self.core.net_pnl.delta.absolute._1m.cents.height,
-                height_to_market_cap,
-                exit,
-            )?;
-
         // Sell-side risk ratios
         for (ssrr, rv) in self
             .sell_side_risk_ratio

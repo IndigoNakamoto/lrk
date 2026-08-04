@@ -9,8 +9,8 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_store::Store;
 use brk_types::{
-    AddrIndexOutPoint, AddrIndexTxIndex, OutPoint, OutputType, Sats, TxInIndex, TxIndex,
-    TxOutIndex, TypeIndex, Unit, Vin,
+    AddrIndexOutPoint, AddrIndexTxIndex, OutPoint, OutputType, TxInIndex, TxIndex, TxOutIndex,
+    TypeIndex, Unit, Vin,
 };
 use vecdb::{PcoVec, WritableVec, unlikely};
 
@@ -38,7 +38,7 @@ pub(super) fn finalize_inputs(
     addr_outpoint_stores: &mut ByAddrType<Store<AddrIndexOutPoint, Unit>>,
     txins: &[InputSource],
     txouts: &[ProcessedOutput],
-) -> Result<()> {
+) {
     let mut input_offset = 0;
     for (block_tx_index, tx) in transactions.iter().enumerate() {
         let tx_index = base_tx_index + TxIndex::from(block_tx_index);
@@ -48,19 +48,17 @@ pub(super) fn finalize_inputs(
             let block_txin_index = input_offset + vin;
             let txin_index = base_txin_index + TxInIndex::from(block_txin_index);
             let vin = Vin::from(vin);
-            let (outpoint, txout_index, value, output_type, type_index) = match input_source {
+            let (outpoint, txout_index, output_type, type_index) = match input_source {
                 InputSource::PreviousBlock {
                     outpoint,
                     txout_index,
-                    value,
                     output_type,
                     legacy_sigops: _,
                     type_index,
-                } => (*outpoint, *txout_index, *value, *output_type, *type_index),
+                } => (*outpoint, *txout_index, *output_type, *type_index),
                 InputSource::Coinbase => (
                     OutPoint::COINBASE,
                     TxOutIndex::COINBASE,
-                    Sats::MAX,
                     OutputType::Unknown,
                     TypeIndex::COINBASE,
                 ),
@@ -68,13 +66,11 @@ pub(super) fn finalize_inputs(
                     outpoint,
                     txout_offset,
                     txout_index,
-                    value,
                 } => {
                     let output = &txouts[*txout_offset];
                     (
                         *outpoint,
                         *txout_index,
-                        *value,
                         output.output_type,
                         output.resolved_type_index(),
                     )
@@ -82,15 +78,18 @@ pub(super) fn finalize_inputs(
             };
 
             if vin.is_zero() {
-                first_txin_index.checked_push(tx_index, txin_index)?;
+                first_txin_index.debug_checked_push(tx_index, txin_index);
             }
 
-            inputs.tx_index.checked_push(txin_index, tx_index)?;
-            inputs.outpoint.checked_push(txin_index, outpoint)?;
-            inputs.txout_index.checked_push(txin_index, txout_index)?;
-            inputs.value.checked_push(txin_index, value)?;
-            inputs.output_type.checked_push(txin_index, output_type)?;
-            inputs.type_index.checked_push(txin_index, type_index)?;
+            inputs.tx_index.debug_checked_push(txin_index, tx_index);
+            inputs.outpoint.debug_checked_push(txin_index, outpoint);
+            inputs
+                .txout_index
+                .debug_checked_push(txin_index, txout_index);
+            inputs
+                .output_type
+                .debug_checked_push(txin_index, output_type);
+            inputs.type_index.debug_checked_push(txin_index, type_index);
 
             if unlikely(!output_type.is_addr()) {
                 continue;
@@ -109,6 +108,4 @@ pub(super) fn finalize_inputs(
 
         input_offset = next_input_offset;
     }
-
-    Ok(())
 }

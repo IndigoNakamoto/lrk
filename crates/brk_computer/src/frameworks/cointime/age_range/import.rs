@@ -1,17 +1,75 @@
 use brk_cohort::{AgeRange, CohortContext};
 use brk_error::Result;
 use brk_types::{Cents, Height, Version};
-use vecdb::{CachedBoxedVec, Database};
+use vecdb::{CachedBoxedVec, Database, ReadableCloneableVec};
 
-use super::{CohortVecs, Vecs};
+use super::{ActivityVecs, CohortVecs, SupplyVecs, Vecs};
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, LazyPerBlock, OddsF64, OneMinusF64, PerBlock,
+        PerBlockCumulativeRolling, SpotValuePerBlock, Windows,
+    },
 };
 
-use super::super::{SupplyBaseVecs, activity::DerivedVecs as ActivityDerivedVecs};
-
 const VERSION: Version = Version::ONE;
+
+impl ActivityVecs {
+    fn forced_import(
+        db: &Database,
+        name: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+    ) -> Result<Self> {
+        let wakefulness =
+            PerBlock::forced_import(db, &format!("{name}_wakefulness"), version, indexes)?;
+        let dormancy = LazyPerBlock::from_computed::<OneMinusF64>(
+            &format!("{name}_dormancy"),
+            version,
+            wakefulness.height.read_only_boxed_clone(),
+            &wakefulness,
+        );
+        let wakefulness_to_dormancy = LazyPerBlock::from_computed::<OddsF64>(
+            &format!("{name}_wakefulness_to_dormancy"),
+            version,
+            wakefulness.height.read_only_boxed_clone(),
+            &wakefulness,
+        );
+
+        Ok(Self {
+            wakefulness,
+            dormancy,
+            wakefulness_to_dormancy,
+        })
+    }
+}
+
+impl SupplyVecs {
+    fn forced_import(
+        db: &Database,
+        name: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
+    ) -> Result<Self> {
+        Ok(Self {
+            awake: SpotValuePerBlock::forced_import(
+                db,
+                &format!("{name}_awake_supply"),
+                version,
+                indexes,
+                spot_price,
+            )?,
+            dormant: SpotValuePerBlock::forced_import(
+                db,
+                &format!("{name}_dormant_supply"),
+                version,
+                indexes,
+                spot_price,
+            )?,
+        })
+    }
+}
 
 impl CohortVecs {
     fn forced_import(
@@ -19,7 +77,7 @@ impl CohortVecs {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         Ok(Self {
@@ -44,10 +102,8 @@ impl CohortVecs {
                 indexes,
                 cached_starts,
             )?,
-            activity: ActivityDerivedVecs::forced_import_with_prefix(db, name, version, indexes)?,
-            supply: SupplyBaseVecs::forced_import_with_prefix(
-                db, name, version, indexes, spot_price,
-            )?,
+            activity: ActivityVecs::forced_import(db, name, version, indexes)?,
+            supply: SupplyVecs::forced_import(db, name, version, indexes, spot_price)?,
         })
     }
 }
@@ -57,7 +113,7 @@ impl Vecs {
         db: &Database,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
         let version = parent_version + VERSION;

@@ -102,7 +102,7 @@ where
     }
 
     fn len(&self) -> usize {
-        self.source.len()
+        self.source.len().min(self.metadata.len())
     }
 
     fn value_type_to_size_of(&self) -> usize {

@@ -6,7 +6,7 @@ use vecdb::{Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{FixedRatio, LazyRollingDeltasFiatFromHeight, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, FixedRatio, LazyRollingDeltasFiatFromHeight, Windows},
 };
 
 use super::{FiatPerBlockCumulativeWithSums, FiatType};
@@ -37,7 +37,7 @@ where
         version: Version,
         delta_version_offset: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let inner = FiatPerBlockCumulativeWithSums::forced_import(
             db,

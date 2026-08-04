@@ -4,8 +4,8 @@ use vecdb::{Database, Rw, StorageMode};
 
 use super::{burned, velocity};
 use crate::internal::{
-    LazyFiatPerBlock, LazyPercentPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock,
-    RollingWindows,
+    LazyFiatPerBlock, LazyPerBlock, LazyPercentPerBlock, LazyRollingDeltasFiatFromHeight,
+    LazySpotValuePerBlock, LazyValuePerBlock, Windows,
 };
 
 #[derive(Traversable)]
@@ -16,11 +16,11 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub circulating: LazyValuePerBlock,
     pub burned: burned::Vecs<M>,
     pub inflation_rate: LazyPercentPerBlock<PartsPerMillionSigned64>,
-    pub velocity: velocity::Vecs<M>,
+    pub velocity: velocity::Vecs,
     pub market_cap: LazyFiatPerBlock<Cents>,
     #[traversable(wrap = "market_cap", rename = "delta")]
     pub market_cap_delta:
         LazyRollingDeltasFiatFromHeight<Cents, CentsSigned, PartsPerMillionSigned64>,
-    pub market_minus_realized_cap_growth_rate: RollingWindows<PartsPerMillionSigned64, M>,
-    pub hodled_or_lost: LazyValuePerBlock,
+    pub market_minus_realized_cap_growth_rate: Windows<LazyPerBlock<PartsPerMillionSigned64>>,
+    pub hodled_or_lost: LazySpotValuePerBlock,
 }

@@ -31,6 +31,7 @@ pub struct PartsPerMillionSigned32(i32);
 
 impl PartsPerMillionSigned32 {
     pub const ZERO: Self = Self(0);
+    pub const ONE: Self = Self(1_000_000);
     pub const NAN: Self = Self(i32::MIN);
 
     #[inline]
@@ -236,6 +237,7 @@ mod tests {
 
     #[test]
     fn conversions_and_sentinels() {
+        assert_eq!(f64::from(PartsPerMillionSigned32::ONE), 1.0);
         assert_eq!(
             PartsPerMillionSigned32::from(-0.123_456_6).inner(),
             -123_457

@@ -5,9 +5,10 @@ use brk_types::{Cents, Version};
 
 use super::{DB_NAME, Vecs, coinflow, cointime};
 use crate::{
+    distribution::AllChainCache,
     indexes,
     internal::{
-        PerBlock, WindowStartVec, Windows,
+        CachedWindowStartVec, PerBlock, Windows,
         db_utils::{finalize_db, open_db},
     },
     price,
@@ -18,9 +19,10 @@ impl Vecs {
         parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         prices: &price::Vecs,
         subsidy_cents: &PerBlock<Cents>,
+        all_chain: &AllChainCache,
     ) -> Result<Self> {
         let db = open_db(parent_path, DB_NAME, 250_000)?;
         let cointime = cointime::Vecs::forced_import(
@@ -30,6 +32,7 @@ impl Vecs {
             cached_starts,
             prices,
             subsidy_cents,
+            all_chain,
         )?;
         let coinflow = coinflow::Vecs::forced_import(&db, parent_version, indexes, prices)?;
 

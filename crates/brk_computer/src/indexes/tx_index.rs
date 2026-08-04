@@ -1,34 +1,46 @@
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{StoredU64, TxIndex, Txid, Version};
-use vecdb::{
-    Database, EagerVec, ImportableVec, LazyVecFrom1, PcoVec, ReadableCloneableVec, Rw, StorageMode,
-};
+use brk_types::{TxIndex, Txid, Version};
+use vecdb::{LazyVecFrom1, ReadableCloneableVec};
 
-use brk_error::Result;
+use crate::internal::LazyIndexCountVec;
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
+#[derive(Clone, Traversable)]
+pub struct Vecs {
     pub identity: LazyVecFrom1<TxIndex, TxIndex, TxIndex, Txid>,
-    pub input_count: M::Stored<EagerVec<PcoVec<TxIndex, StoredU64>>>,
-    pub output_count: M::Stored<EagerVec<PcoVec<TxIndex, StoredU64>>>,
+    pub input_count: LazyIndexCountVec<TxIndex, brk_types::TxInIndex>,
+    pub output_count: LazyIndexCountVec<TxIndex, brk_types::TxOutIndex>,
 }
 
 impl Vecs {
-    pub(crate) fn forced_import(
-        db: &Database,
-        version: Version,
-        indexer: &Indexer,
-    ) -> Result<Self> {
-        Ok(Self {
+    pub(crate) fn new(version: Version, indexer: &Indexer) -> Self {
+        Self {
             identity: LazyVecFrom1::init(
                 "tx_index",
                 version,
                 indexer.vecs.transactions.txid.read_only_boxed_clone(),
                 |index, _| index,
             ),
-            input_count: EagerVec::forced_import(db, "input_count", version)?,
-            output_count: EagerVec::forced_import(db, "output_count", version)?,
-        })
+            input_count: LazyIndexCountVec::new(
+                "input_count",
+                version,
+                indexer
+                    .vecs
+                    .transactions
+                    .first_txin_index
+                    .read_only_boxed_clone(),
+                indexer.vecs.inputs.outpoint.read_only_boxed_clone(),
+            ),
+            output_count: LazyIndexCountVec::new(
+                "output_count",
+                version,
+                indexer
+                    .vecs
+                    .transactions
+                    .first_txout_index
+                    .read_only_boxed_clone(),
+                indexer.vecs.outputs.value.read_only_boxed_clone(),
+            ),
+        }
     }
 }

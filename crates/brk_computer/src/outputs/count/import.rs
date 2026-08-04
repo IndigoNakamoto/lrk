@@ -5,7 +5,7 @@ use vecdb::Database;
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlockAggregated, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, PerBlockAggregated, Windows},
 };
 
 impl Vecs {
@@ -13,13 +13,14 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             total: PerBlockAggregated::forced_import(
                 db,
                 "output_count",
                 version,
+                indexes.output_count_source(),
                 indexes,
                 cached_starts,
             )?,

@@ -254,8 +254,8 @@ impl RarityMeterInner {
             let spot_batch = spot.collect_range_at(skip, end);
             let b: [Vec<Cents>; 10] = bands.each_ref().map(|v| v.collect_range_at(skip, end));
 
-            for j in 0..(end - skip) {
-                vec.push(StoredI8::new(score_at(spot_batch[j], &b, j)));
+            for (j, price) in spot_batch.into_iter().enumerate() {
+                vec.push(StoredI8::new(score_at(price, &b, j)));
             }
 
             Ok(())
@@ -391,8 +391,7 @@ impl RarityMeterInner {
                 })
                 .collect();
 
-            for j in 0..(end - skip) {
-                let price = spot_batch[j];
+            for (j, price) in spot_batch.into_iter().enumerate() {
                 let mut total: i8 = 0;
 
                 for component in &bands {

@@ -72,6 +72,15 @@ impl CapitalSentimentPhase {
             Self::DeepBear | Self::Bear | Self::EarlyBear => -2,
         }
     }
+
+    /// Whether the BRK Signal strategy exits its long position in this phase.
+    #[inline]
+    pub const fn is_sell(self) -> bool {
+        matches!(
+            self,
+            Self::Limbo | Self::DeepBear | Self::Bear | Self::EarlyBear
+        )
+    }
 }
 
 impl Formattable for CapitalSentimentPhase {
@@ -153,5 +162,15 @@ mod tests {
         assert_eq!(CapitalSentimentPhase::CautiousBull.score(), 1);
         assert_eq!(CapitalSentimentPhase::Limbo.score(), -1);
         assert_eq!(CapitalSentimentPhase::EarlyBear.score(), -2);
+    }
+
+    #[test]
+    fn sell_phases_match_the_signal_strategy() {
+        assert!(!CapitalSentimentPhase::RagingBull.is_sell());
+        assert!(!CapitalSentimentPhase::WeakBull.is_sell());
+        assert!(CapitalSentimentPhase::Limbo.is_sell());
+        assert!(CapitalSentimentPhase::DeepBear.is_sell());
+        assert!(CapitalSentimentPhase::Bear.is_sell());
+        assert!(CapitalSentimentPhase::EarlyBear.is_sell());
     }
 }

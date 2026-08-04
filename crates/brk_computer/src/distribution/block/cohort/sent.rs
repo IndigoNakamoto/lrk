@@ -1,7 +1,6 @@
-use brk_cohort::{AmountBucket, ByAddrType};
+use brk_cohort::AmountBucket;
 use brk_error::Result;
 use brk_types::{Cents, Sats, TypeIndex};
-use rustc_hash::FxHashSet;
 use vecdb::VecIndex;
 
 use crate::distribution::{
@@ -9,7 +8,7 @@ use crate::distribution::{
     cohorts::AddrCohorts,
 };
 
-use super::super::cache::AddrLookup;
+use super::{super::cache::AddrLookup, transfer_address_cache::TransferAddressCache};
 
 /// Process sent UTXOs for address cohort membership and empty-address transitions.
 pub(crate) fn process_sent(
@@ -18,18 +17,14 @@ pub(crate) fn process_sent(
     lookup: &mut AddrLookup<'_>,
     current_price: Cents,
     state: &mut AddrMetricsState,
-    received_addrs: &ByAddrType<FxHashSet<TypeIndex>>,
+    addresses: &mut TransferAddressCache,
     height_to_price: &[Cents],
-    seen_senders: &mut ByAddrType<FxHashSet<TypeIndex>>,
 ) -> Result<()> {
-    seen_senders.values_mut().for_each(|set| set.clear());
-
     for (receive_height, by_type) in sent_data.into_iter() {
         let prev_price = height_to_price[receive_height.to_usize()];
 
         for (output_type, vec) in by_type.unwrap().into_iter() {
-            let type_received = received_addrs.get(output_type);
-            let type_seen = seen_senders.get_mut_unwrap(output_type);
+            let (type_received, type_seen) = addresses.sets_for(output_type);
 
             for (type_index, value) in vec {
                 let addr_data = lookup.get_for_send(output_type, type_index);

@@ -17,8 +17,8 @@ use vecdb::{
 use crate::indexes;
 
 use crate::internal::{
-    LazyPreviousDeltaVec, LazyRollingAvgsFromHeight, NumericValue, StoredU64ToStoredU32,
-    WindowStartVec, Windows,
+    CachedWindowStartVec, LazyPreviousDeltaVec, LazyRollingAvgsFromHeight, NumericValue,
+    StoredU64ToStoredU32, Windows,
 };
 
 /// Cumulative source of truth with lazy exact per-block values and rolling averages.
@@ -31,7 +31,7 @@ where
 {
     pub block: LazyPreviousDeltaVec<Height, C, T, F>,
     #[traversable(hidden)]
-    pub cumulative: M::Stored<EagerVec<PcoVec<Height, C>>>,
+    cumulative: M::Stored<EagerVec<PcoVec<Height, C>>>,
     #[traversable(flatten)]
     pub average: LazyRollingAvgsFromHeight<C>,
     #[traversable(skip)]
@@ -52,7 +52,7 @@ where
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let cumulative_version = version + Version::TWO;
         let cumulative: EagerVec<PcoVec<Height, C>> =
@@ -130,6 +130,10 @@ where
         Ok(())
     }
 
+    pub(crate) fn min_stateful_len(&self) -> usize {
+        self.cumulative.len()
+    }
+
     pub(crate) fn stored_mut(&mut self) -> &mut dyn AnyStoredVec {
         self.last_cumulative = None;
         &mut self.cumulative
@@ -145,7 +149,7 @@ where
 {
     pub block: M::Stored<EagerVec<PcoVec<Height, T>>>,
     #[traversable(hidden)]
-    pub cumulative: M::Stored<EagerVec<PcoVec<Height, C>>>,
+    cumulative: M::Stored<EagerVec<PcoVec<Height, C>>>,
     #[traversable(flatten)]
     pub average: LazyRollingAvgsFromHeight<C>,
 }
@@ -160,7 +164,7 @@ where
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let block: EagerVec<PcoVec<Height, T>> = EagerVec::forced_import(db, name, version)?;
         let cumulative: EagerVec<PcoVec<Height, C>> =

@@ -2,11 +2,16 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::Height;
 use schemars::JsonSchema;
-use vecdb::{Database, EagerVec, Exit, ImportableVec, PcoVec, Rw, StorageMode, Version};
+use vecdb::{
+    Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode, TypedVec, Version,
+};
 
 use crate::{
     indexes,
-    internal::{NumericValue, PerBlock, RollingComplete, WindowStartVec, WindowStarts, Windows},
+    internal::{
+        CachedWindowStartVec, Identity, LazyPerBlock, LazyPreviousDeltaVec, NumericValue,
+        RollingComplete, WindowStarts, Windows,
+    },
 };
 
 #[derive(Traversable)]
@@ -14,8 +19,8 @@ pub struct PerBlockAggregated<T, M: StorageMode = Rw>
 where
     T: NumericValue + JsonSchema,
 {
-    pub sum: M::Stored<EagerVec<PcoVec<Height, T>>>,
-    pub cumulative: PerBlock<T, M>,
+    pub sum: LazyPreviousDeltaVec<Height, T>,
+    pub cumulative: LazyPerBlock<T>,
     pub rolling: RollingComplete<T, M>,
 }
 
@@ -23,16 +28,28 @@ impl<T> PerBlockAggregated<T>
 where
     T: NumericValue + JsonSchema,
 {
-    pub(crate) fn forced_import(
+    pub(crate) fn forced_import<V>(
         db: &Database,
         name: &str,
         version: Version,
+        cumulative_source: V,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        let sum = EagerVec::forced_import(db, &format!("{name}_sum"), version)?;
-        let cumulative =
-            PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
+        cached_starts: &Windows<&CachedWindowStartVec>,
+    ) -> Result<Self>
+    where
+        V: TypedVec<I = Height, T = T> + ReadableVec<Height, T> + Clone + 'static,
+    {
+        let sum = LazyPreviousDeltaVec::new(
+            &format!("{name}_sum"),
+            version,
+            cumulative_source.read_only_boxed_clone(),
+        );
+        let cumulative = LazyPerBlock::from_uncached_height_source::<Identity<T>, _>(
+            &format!("{name}_cumulative"),
+            version,
+            cumulative_source,
+            indexes,
+        );
         let rolling = RollingComplete::forced_import(
             db,
             name,
@@ -59,9 +76,6 @@ where
         T: From<f64> + Default + Copy + Ord,
         f64: From<T>,
     {
-        self.cumulative
-            .height
-            .compute_cumulative(max_from, &self.sum, exit)?;
         self.rolling.compute(max_from, windows, &self.sum, exit)?;
         Ok(())
     }

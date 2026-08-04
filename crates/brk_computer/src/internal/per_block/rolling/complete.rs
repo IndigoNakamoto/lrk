@@ -10,8 +10,8 @@ use vecdb::{Database, Exit, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
 use crate::{
     indexes,
     internal::{
-        LazyRollingAvgsFromHeight, LazyRollingSumsFromHeight, NumericValue, RollingDistribution,
-        WindowStartVec, WindowStarts, Windows,
+        CachedWindowStartVec, LazyRollingAvgsFromHeight, LazyRollingSumsFromHeight, NumericValue,
+        RollingDistribution, WindowStarts, Windows,
     },
 };
 
@@ -37,7 +37,7 @@ where
         version: Version,
         indexes: &indexes::Vecs,
         cumulative: &(impl ReadableCloneableVec<Height, T> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let sum = LazyRollingSumsFromHeight::new(
             &format!("{name}_sum"),

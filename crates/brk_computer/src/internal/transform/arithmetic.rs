@@ -125,10 +125,18 @@ pub struct StoredU64ToStoredU32;
 impl UnaryTransform<StoredU64, StoredU32> for StoredU64ToStoredU32 {
     #[inline(always)]
     fn apply(value: StoredU64) -> StoredU32 {
-        StoredU32::new(
-            u32::try_from(u64::from(value))
-                .expect("per-block value reconstructed from StoredU64 must fit StoredU32"),
-        )
+        let value = u64::from(value);
+        debug_assert!(u32::try_from(value).is_ok());
+        StoredU32::new(value as u32)
+    }
+}
+
+pub struct StoredU16ToStoredU64;
+
+impl UnaryTransform<StoredU16, StoredU64> for StoredU16ToStoredU64 {
+    #[inline(always)]
+    fn apply(value: StoredU16) -> StoredU64 {
+        StoredU64::from(u64::from(*value))
     }
 }
 

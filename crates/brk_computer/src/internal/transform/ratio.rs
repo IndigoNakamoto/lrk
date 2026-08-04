@@ -73,20 +73,6 @@ impl<P: FixedRatio> BinaryTransform<CentsSigned, Cents, P> for RatioCentsSignedC
     }
 }
 
-pub struct RatioCentsSignedDollars<P>(PhantomData<P>);
-
-impl<P: FixedRatio> BinaryTransform<CentsSigned, Dollars, P> for RatioCentsSignedDollars<P> {
-    #[inline(always)]
-    fn apply(numerator: CentsSigned, denominator: Dollars) -> P {
-        let denominator = f64::from(denominator);
-        if denominator > 0.0 {
-            P::from(numerator.inner() as f64 / 100.0 / denominator)
-        } else {
-            P::default()
-        }
-    }
-}
-
 pub struct RatioDiffF32<P>(PhantomData<P>);
 
 impl<P: FixedRatio> BinaryTransform<StoredF32, StoredF32, P> for RatioDiffF32<P> {

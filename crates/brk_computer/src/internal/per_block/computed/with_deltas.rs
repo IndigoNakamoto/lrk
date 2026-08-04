@@ -8,7 +8,8 @@ use vecdb::{Rw, StorageMode};
 use crate::{
     indexes,
     internal::{
-        FixedRatio, LazyRollingDeltasFromHeight, NumericValue, PerBlock, WindowStartVec, Windows,
+        CachedWindowStartVec, FixedRatio, LazyRollingDeltasFromHeight, NumericValue, PerBlock,
+        Windows,
     },
 };
 
@@ -37,7 +38,7 @@ where
         version: Version,
         delta_version_offset: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let base = PerBlock::forced_import(db, name, version, indexes)?;
 

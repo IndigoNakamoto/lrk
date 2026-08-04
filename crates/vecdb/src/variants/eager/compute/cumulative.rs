@@ -38,7 +38,7 @@ where
             let mut i = skip;
             source.try_fold_range_at(skip, end, (), |(), v: S| {
                 cumulative_val += v.into();
-                this.checked_push_at(i, cumulative_val)?;
+                this.push(cumulative_val);
                 i += 1;
                 Ok(())
             })
@@ -114,7 +114,7 @@ where
                 source1.try_fold_range_at(skip, end, (), |(), v1: S1| {
                     let v2 = iter2.next().unwrap();
                     cumulative_val += transform(v1, v2);
-                    this.checked_push_at(i, cumulative_val)?;
+                    this.push(cumulative_val);
                     i += 1;
                     Ok(())
                 })
@@ -194,7 +194,7 @@ where
                     count += 1;
                 }
 
-                this.checked_push_at(i, V::T::from(count))?;
+                this.push(V::T::from(count));
                 i += 1;
                 Ok(())
             })

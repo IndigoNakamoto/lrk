@@ -6,12 +6,12 @@ use vecdb::{ReadableCloneableVec, UnaryTransform};
 use crate::{
     indexes,
     internal::{
-        ComputedVecValue, LazyPerBlock, LazyRollingComplete, NumericValue, PerBlock,
-        RollingComplete, WindowStartVec, Windows,
+        CachedWindowStartVec, ComputedVecValue, LazyPerBlock, LazyRollingComplete, NumericValue,
+        PerBlock, RollingComplete, Windows,
     },
 };
 
-/// Lazy analog of `PerBlockRolling<T>`: lazy cumulative + lazy rolling complete.
+/// Lazy analog of `CachedPerBlockRolling<T>`: lazy cumulative + lazy rolling complete.
 /// Derived by transforming another metric's cumulative and rolling parts.
 /// Zero stored vecs.
 #[derive(Clone, Traversable)]
@@ -35,7 +35,7 @@ where
         version: Version,
         source_cumulative: &PerBlock<S1T>,
         source_rolling: &RollingComplete<S1T>,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cumulative = LazyPerBlock::from_computed::<F>(

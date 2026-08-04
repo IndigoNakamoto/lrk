@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{StoredBool, StoredU64, TxIndex};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use brk_types::{Sats, StoredBool, StoredU64, TxInIndex, TxIndex};
+use vecdb::{AnyStoredVec, AnyVec, Exit, PcoVec, ReadableVec, VecIndex, WritableVec};
 
 use super::{Vecs, coinjoin::Candidate};
 use crate::indexes;
@@ -12,6 +12,7 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
+        input_values: &PcoVec<TxInIndex, Sats>,
         indexes: &indexes::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -21,7 +22,7 @@ impl Vecs {
             + indexer.vecs.transactions.first_tx_index.version()
             + indexer.vecs.transactions.first_txin_index.version()
             + indexer.vecs.transactions.first_txout_index.version()
-            + indexer.vecs.inputs.value.version()
+            + input_values.version()
             + indexer.vecs.inputs.output_type.version()
             + indexer.vecs.inputs.type_index.version()
             + indexer.vecs.outputs.value.version()
@@ -97,7 +98,7 @@ impl Vecs {
 
         let mut input_count = indexes.tx_index.input_count.cursor();
         let mut output_count = indexes.tx_index.output_count.cursor();
-        let mut input_value = indexer.vecs.inputs.value.cursor();
+        let mut input_value = input_values.cursor();
         let mut input_type = indexer.vecs.inputs.output_type.cursor();
         let mut input_type_index = indexer.vecs.inputs.type_index.cursor();
         let mut output_value = indexer.vecs.outputs.value.reader().cursor();

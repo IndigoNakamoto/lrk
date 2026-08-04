@@ -10,47 +10,12 @@ use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, StorageMode, VecIndex, WritableVec};
 
 use super::Vecs;
-use crate::indexes;
 
 impl Vecs {
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        indexes: &indexes::Vecs,
-        exit: &Exit,
-    ) -> Result<()> {
+    pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
-        let starting_lengths = indexer.safe_lengths();
-
         self.compute_prices(indexer, exit)?;
-        self.split.open.cents.compute_first(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.split.high.cents.compute_max(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.split.low.cents.compute_min(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.ohlc.cents.compute_from_split(
-            &starting_lengths,
-            indexes,
-            &self.split.open.cents,
-            &self.split.high.cents,
-            &self.split.low.cents,
-            &self.split.close.cents,
-            exit,
-        )?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

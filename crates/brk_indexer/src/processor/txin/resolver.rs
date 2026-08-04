@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 
 use brk_error::{Error, Result};
 use brk_types::{
-    OutPoint, OutputType, Sats, SigOps, TxIndex, TxOutIndex, Txid, TxidPrefix, TypeIndex, Vout,
+    OutPoint, OutputType, SigOps, TxIndex, TxOutIndex, Txid, TxidPrefix, TypeIndex, Vout,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -58,13 +58,11 @@ impl InputResolver {
                         outpoint,
                         txout_offset,
                         txout_index,
-                        value,
                     } => {
                         *resolved = InputSource::SameBlock {
                             outpoint,
                             txout_offset,
                             txout_index,
-                            value,
                         };
                         Ok(())
                     }
@@ -72,7 +70,7 @@ impl InputResolver {
                         let parent = reads.parent(parent_index);
                         let outpoint = OutPoint::new(parent.tx_index, vout);
                         let txout_index = parent.first_txout_index + vout;
-                        let (value, output_type, type_index) = reads.output(input_index);
+                        let (output_type, type_index) = reads.output(input_index);
 
                         let legacy_sigops = if tracks_executed_legacy_sigops {
                             processor
@@ -87,7 +85,6 @@ impl InputResolver {
                         *resolved = InputSource::PreviousBlock {
                             outpoint,
                             txout_index,
-                            value,
                             output_type,
                             legacy_sigops,
                             type_index,
@@ -139,13 +136,11 @@ impl InputResolver {
                                 usize::from(tx_index) - usize::from(block_first_tx_index);
                             let tx = &txs[block_tx_index];
                             let txout_offset = tx.txout_offset(vout);
-                            let value = Sats::from(tx.tx.output[usize::from(vout)].value);
                             self.inputs.push(UnresolvedInput::SameBlock {
                                 outpoint: OutPoint::new(tx_index, vout),
                                 txout_offset,
                                 txout_index: block_first_txout_index
                                     + TxOutIndex::from(txout_offset),
-                                value,
                             });
                             continue;
                         }
@@ -179,10 +174,8 @@ struct PreviousParentIndex(u32);
 
 impl PreviousParentIndex {
     fn new(index: usize) -> Self {
-        Self(
-            u32::try_from(index)
-                .expect("number of unique previous parents in a block must fit in u32"),
-        )
+        debug_assert!(u32::try_from(index).is_ok());
+        Self(index as u32)
     }
 
     #[inline]
@@ -211,7 +204,6 @@ struct ReadBatch {
     outputs: Vec<OutputRead>,
     output_types: Vec<OutputType>,
     type_indices: Vec<TypeIndex>,
-    values: Vec<Sats>,
 }
 
 impl ReadBatch {
@@ -313,8 +305,6 @@ impl ReadBatch {
         self.output_types.resize(inputs.len(), OutputType::Unknown);
         self.type_indices.clear();
         self.type_indices.resize(inputs.len(), TypeIndex::default());
-        self.values.clear();
-        self.values.resize(inputs.len(), Sats::MAX);
     }
 
     fn read_outputs(&mut self, processor: &BlockProcessor<'_>) -> Result<()> {
@@ -325,56 +315,36 @@ impl ReadBatch {
 
         let output_types = &mut self.output_types;
         let type_indices = &mut self.type_indices;
-        let values = &mut self.values;
 
-        let (values_result, metadata_result) = rayon::join(
-            || -> Result<()> {
-                for read in outputs {
-                    values[read.input_index] = processor
-                        .vecs
-                        .outputs
-                        .value
-                        .get_append_only(read.txout_index, &processor.readers.txout_index_to_value)
-                        .ok_or(Error::Internal("Missing output value"))?;
-                }
-                Ok(())
-            },
-            || -> Result<()> {
-                for read in outputs {
-                    output_types[read.input_index] = processor
-                        .vecs
-                        .outputs
-                        .output_type
-                        .get_append_only(
-                            read.txout_index,
-                            &processor.readers.txout_index_to_output_type,
-                        )
-                        .ok_or(Error::Internal("Missing output_type"))?;
-                    type_indices[read.input_index] = processor
-                        .vecs
-                        .outputs
-                        .type_index
-                        .get_append_only(
-                            read.txout_index,
-                            &processor.readers.txout_index_to_type_index,
-                        )
-                        .ok_or(Error::Internal("Missing type_index"))?;
-                }
-                Ok(())
-            },
-        );
-
-        values_result?;
-        metadata_result
+        for read in outputs {
+            output_types[read.input_index] = processor
+                .vecs
+                .outputs
+                .output_type
+                .get_append_only(
+                    read.txout_index,
+                    &processor.readers.txout_index_to_output_type,
+                )
+                .ok_or(Error::Internal("Missing output_type"))?;
+            type_indices[read.input_index] = processor
+                .vecs
+                .outputs
+                .type_index
+                .get_append_only(
+                    read.txout_index,
+                    &processor.readers.txout_index_to_type_index,
+                )
+                .ok_or(Error::Internal("Missing type_index"))?;
+        }
+        Ok(())
     }
 
     fn parent(&self, original_index: usize) -> ParentRead {
         self.parents[original_index]
     }
 
-    fn output(&self, input_index: usize) -> (Sats, OutputType, TypeIndex) {
+    fn output(&self, input_index: usize) -> (OutputType, TypeIndex) {
         (
-            self.values[input_index],
             self.output_types[input_index],
             self.type_indices[input_index],
         )
@@ -392,6 +362,5 @@ enum UnresolvedInput {
         outpoint: OutPoint,
         txout_offset: usize,
         txout_index: TxOutIndex,
-        value: Sats,
     },
 }

@@ -41,7 +41,8 @@ impl Vecs {
         let volatility = VolatilityVecs::forced_import(version, &returns)?;
         let cached_spot_price = prices.spot.cents.height.read_only_clone();
         let range = RangeVecs::forced_import(&db, version, indexes, &cached_spot_price)?;
-        let moving_average = MovingAverageVecs::forced_import(&db, version, indexes, &spot_price)?;
+        let moving_average =
+            MovingAverageVecs::forced_import(&db, version, indexes, blocks, &spot_price)?;
         let technical =
             TechnicalVecs::forced_import(&db, version, indexes, &returns.periods._24h.ratio)?;
 

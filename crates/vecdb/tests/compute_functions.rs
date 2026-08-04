@@ -47,9 +47,9 @@ where
     let mut vec3: EagerVec<V> = EagerVec::forced_import(&db, "vec3", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (i * 10) as u64)?;
-        vec2.checked_push(i, (i * 5) as u64)?;
-        vec3.checked_push(i, i as u64)?;
+        vec1.push((i * 10) as u64);
+        vec2.push((i * 5) as u64);
+        vec3.push(i as u64);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -84,9 +84,9 @@ where
     let mut vec3: EagerVec<V> = EagerVec::forced_import(&db, "vec3", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (50 + i) as u64)?;
-        vec2.checked_push(i, (10 + i) as u64)?;
-        vec3.checked_push(i, (100 + i) as u64)?;
+        vec1.push((50 + i) as u64);
+        vec2.push((10 + i) as u64);
+        vec3.push((100 + i) as u64);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -121,9 +121,9 @@ where
     let mut vec3: EagerVec<V> = EagerVec::forced_import(&db, "vec3", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (50 + i) as u64)?;
-        vec2.checked_push(i, (10 + i) as u64)?;
-        vec3.checked_push(i, (100 + i) as u64)?;
+        vec1.push((50 + i) as u64);
+        vec2.push((10 + i) as u64);
+        vec3.push((100 + i) as u64);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -157,7 +157,7 @@ where
     let mut source = EagerVec::<VS>::forced_import(&db, "source", Version::ONE)?;
 
     for i in 0..5 {
-        source.checked_push(i, ((i + 1) * 10) as u16)?;
+        source.push(((i + 1) * 10) as u16);
     }
     source.flush()?;
 
@@ -197,8 +197,8 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [10, 20, 25, 30, 50];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -230,8 +230,8 @@ where
     let mut source: EagerVec<VS> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [100, 110, 121, 133];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -265,8 +265,8 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [3, 1, 4, 1, 5, 9, 2, 6];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -297,8 +297,8 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [3, 1, 4, 1, 5, 9, 2, 6];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -329,8 +329,8 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [10, 15, 12, 20, 18, 25, 22];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -361,8 +361,8 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     let values = [10, 5, 12, 3, 18, 2, 22];
-    for (i, &v) in values.iter().enumerate() {
-        source.checked_push(i, v)?;
+    for &v in &values {
+        source.push(v);
     }
     source.flush()?;
 
@@ -393,8 +393,8 @@ where
     let mut percentage_returns: EagerVec<V> =
         EagerVec::forced_import(&db, "returns", Version::ONE)?;
 
-    for i in 0..5 {
-        percentage_returns.checked_push(i, 100.0)?;
+    for _ in 0..5 {
+        percentage_returns.push(100.0);
     }
     percentage_returns.flush()?;
 
@@ -429,9 +429,9 @@ where
     let mut sd: EagerVec<V> = EagerVec::forced_import(&db, "sd", Version::ONE)?;
 
     for i in 0..4 {
-        source.checked_push(i, 10.0 + i as f32 * 2.0)?;
-        sma.checked_push(i, 10.0)?;
-        sd.checked_push(i, 2.0)?;
+        source.push(10.0 + i as f32 * 2.0);
+        sma.push(10.0);
+        sd.push(2.0);
     }
     source.flush()?;
     sma.flush()?;
@@ -467,7 +467,7 @@ where
     let mut result: EagerVec<V> = EagerVec::forced_import(&db, "result", Version::ONE)?;
 
     for i in 0..5 {
-        source.checked_push(i, (i * 10) as u32)?;
+        source.push((i * 10) as u32);
     }
     source.flush()?;
 
@@ -481,7 +481,7 @@ where
     }
 
     for i in 5..10 {
-        source.checked_push(i, (i * 10) as u32)?;
+        source.push((i * 10) as u32);
     }
     source.flush()?;
 
@@ -508,8 +508,8 @@ where
     let mut vec2: EagerVec<V> = EagerVec::forced_import(&db, "vec2", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (i * 10) as u64)?;
-        vec2.checked_push(i, (i * 5) as u64)?;
+        vec1.push((i * 10) as u64);
+        vec2.push((i * 5) as u64);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -538,8 +538,8 @@ where
     let mut vec2: EagerVec<V> = EagerVec::forced_import(&db, "vec2", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (100 + i * 10) as u64)?;
-        vec2.checked_push(i, (i * 5) as u64)?;
+        vec1.push((100 + i * 10) as u64);
+        vec2.push((i * 5) as u64);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -568,8 +568,8 @@ where
     let mut vec2: EagerVec<V> = EagerVec::forced_import(&db, "vec2", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (i + 1) as u32)?;
-        vec2.checked_push(i, (i + 2) as u32)?;
+        vec1.push((i + 1) as u32);
+        vec2.push((i + 2) as u32);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -598,8 +598,8 @@ where
     let mut vec2: EagerVec<V> = EagerVec::forced_import(&db, "vec2", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, 100.0 + i as f32 * 10.0)?;
-        vec2.checked_push(i, i as f32 + 1.0)?;
+        vec1.push(100.0 + i as f32 * 10.0);
+        vec2.push(i as f32 + 1.0);
     }
     vec1.flush()?;
     vec2.flush()?;
@@ -628,7 +628,7 @@ where
 
     for i in 0..10 {
         let value = if i < 5 { i * 10 } else { (9 - i) * 10 };
-        source.checked_push(i, value as u64)?;
+        source.push(value as u64);
     }
     source.flush()?;
 
@@ -660,7 +660,7 @@ where
         } else {
             50 + (i - 5) * 10
         };
-        source.checked_push(i, value as u64)?;
+        source.push(value as u64);
     }
     source.flush()?;
 
@@ -687,7 +687,7 @@ where
     let mut source: EagerVec<V> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     for i in 0..10 {
-        source.checked_push(i, (i + 1) as u64)?;
+        source.push((i + 1) as u64);
     }
     source.flush()?;
 
@@ -716,7 +716,7 @@ where
     let mut source: EagerVec<VS> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
     for i in 0..10 {
-        source.checked_push(i, (i * 10) as u16)?;
+        source.push((i * 10) as u16);
     }
     source.flush()?;
 
@@ -750,8 +750,8 @@ where
 
     let mut source: EagerVec<VS> = EagerVec::forced_import(&db, "source", Version::ONE)?;
 
-    for i in 0..10 {
-        source.checked_push(i, 100)?;
+    for _ in 0..10 {
+        source.push(100);
     }
     source.flush()?;
 
@@ -779,8 +779,8 @@ where
     let mut denominator: EagerVec<VS> = EagerVec::forced_import(&db, "denominator", Version::ONE)?;
 
     for i in 0..10 {
-        numerator.checked_push(i, (i + 1) as u16)?;
-        denominator.checked_push(i, 10)?;
+        numerator.push((i + 1) as u16);
+        denominator.push(10);
     }
     numerator.flush()?;
     denominator.flush()?;
@@ -815,8 +815,8 @@ where
     let mut vec2: EagerVec<VS> = EagerVec::forced_import(&db, "vec2", Version::ONE)?;
 
     for i in 0..10 {
-        vec1.checked_push(i, (100 + i * 10) as u16)?;
-        vec2.checked_push(i, 100)?;
+        vec1.push((100 + i * 10) as u16);
+        vec2.push(100);
     }
     vec1.flush()?;
     vec2.flush()?;

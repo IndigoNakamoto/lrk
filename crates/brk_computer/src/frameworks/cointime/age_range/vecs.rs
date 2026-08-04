@@ -4,9 +4,20 @@ use brk_types::StoredF64;
 use derive_more::{Deref, DerefMut};
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::PerBlockCumulativeRolling;
+use crate::internal::{LazyPerBlock, PerBlock, PerBlockCumulativeRolling, SpotValuePerBlock};
 
-use super::super::{SupplyBaseVecs, activity::DerivedVecs as ActivityDerivedVecs};
+#[derive(Traversable)]
+pub struct ActivityVecs<M: StorageMode = Rw> {
+    pub wakefulness: PerBlock<StoredF64, M>,
+    pub dormancy: LazyPerBlock<StoredF64>,
+    pub wakefulness_to_dormancy: LazyPerBlock<StoredF64>,
+}
+
+#[derive(Traversable)]
+pub struct SupplyVecs<M: StorageMode = Rw> {
+    pub awake: SpotValuePerBlock<M>,
+    pub dormant: SpotValuePerBlock<M>,
+}
 
 #[derive(Deref, DerefMut, Traversable)]
 pub struct CohortVecs<M: StorageMode = Rw> {
@@ -16,8 +27,8 @@ pub struct CohortVecs<M: StorageMode = Rw> {
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
-    pub activity: ActivityDerivedVecs<M>,
-    pub supply: SupplyBaseVecs<M>,
+    pub activity: ActivityVecs<M>,
+    pub supply: SupplyVecs<M>,
 }
 
 #[derive(Deref, DerefMut, Traversable)]

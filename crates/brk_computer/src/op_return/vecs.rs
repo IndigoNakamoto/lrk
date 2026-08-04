@@ -2,18 +2,16 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, PartsPerMillion32, Sats, StoredU64, VSize, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{AnyVec, Database, Rw, StorageMode};
+use vecdb::{AnyVec, CachedBoxedVec, Database, ReadOnlyClone, Rw, StorageMode};
 
 use super::ByKind;
 use crate::{
     indexes,
     internal::{
-        PerBlockCumulativeRolling, PercentCumulativeRolling, PercentPerBlock, WindowStartVec,
-        Windows,
+        CachedPerBlockCumulativeRolling, CachedWindowStartVec, LazyPercentCumulativeRolling,
+        LazyPercentPerBlock, PerBlockCumulativeRolling, RatioSats, RatioU64, Windows,
     },
 };
-
-pub type Series<T, M = Rw> = PerBlockCumulativeRolling<T, M>;
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct Totals {
@@ -26,12 +24,12 @@ pub(super) struct Totals {
 
 #[derive(Traversable)]
 pub struct TotalMetrics<M: StorageMode = Rw> {
-    pub data_bytes: Series<StoredU64, M>,
-    pub tx_count: Series<StoredU64, M>,
-    pub tx_vsize: Series<VSize, M>,
+    pub data_bytes: PerBlockCumulativeRolling<StoredU64, M>,
+    pub tx_count: PerBlockCumulativeRolling<StoredU64, M>,
+    pub tx_vsize: PerBlockCumulativeRolling<VSize, M>,
     /// Full fees paid by carrier transactions. A transaction carrying multiple
     /// kinds contributes its fee to each kind, matching `tx_count` and `tx_vsize`.
-    pub fees: Series<Sats, M>,
+    pub fees: PerBlockCumulativeRolling<Sats, M>,
 }
 
 impl TotalMetrics {
@@ -40,31 +38,31 @@ impl TotalMetrics {
         prefix: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
-            data_bytes: Series::forced_import(
+            data_bytes: PerBlockCumulativeRolling::forced_import(
                 db,
                 &format!("{prefix}_data_bytes"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            tx_count: Series::forced_import(
+            tx_count: PerBlockCumulativeRolling::forced_import(
                 db,
                 &format!("{prefix}_tx_count"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            tx_vsize: Series::forced_import(
+            tx_vsize: PerBlockCumulativeRolling::forced_import(
                 db,
                 &format!("{prefix}_tx_vsize"),
                 version,
                 indexes,
                 cached_starts,
             )?,
-            fees: Series::forced_import(
+            fees: PerBlockCumulativeRolling::forced_import(
                 db,
                 &format!("{prefix}_fees"),
                 version,
@@ -72,6 +70,187 @@ impl TotalMetrics {
                 cached_starts,
             )?,
         })
+    }
+
+    fn len(&self) -> usize {
+        self.data_bytes
+            .block
+            .len()
+            .min(self.tx_count.block.len())
+            .min(self.tx_vsize.block.len())
+            .min(self.fees.block.len())
+    }
+
+    fn lazy_fee_share(
+        &self,
+        prefix: &str,
+        version: Version,
+        chain_fees: CachedBoxedVec<Height, Sats>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        indexes: &indexes::Vecs,
+    ) -> LazyPercentCumulativeRolling<PartsPerMillion32> {
+        LazyPercentCumulativeRolling::from_cumulative_ratio::<
+            Sats,
+            Sats,
+            RatioSats<PartsPerMillion32>,
+        >(
+            &format!("{prefix}_fee_share"),
+            version,
+            &self.fees.cumulative.height,
+            chain_fees,
+            cached_starts,
+            indexes,
+        )
+    }
+
+    pub(super) fn push(&mut self, block: Totals) {
+        self.data_bytes.push_block(block.data_bytes.into());
+        self.tx_count.push_block(block.tx_count.into());
+        self.tx_vsize.push_block(block.tx_vsize);
+        self.fees.push_block(block.fees);
+    }
+
+    fn validate_and_truncate(&mut self, version: Version, height: Height) -> Result<()> {
+        self.data_bytes.validate_and_truncate(version, height)?;
+        self.tx_count.validate_and_truncate(version, height)?;
+        self.tx_vsize.validate_and_truncate(version, height)?;
+        self.fees.validate_and_truncate(version, height)?;
+        Ok(())
+    }
+
+    fn truncate_if_needed_at(&mut self, len: usize) -> Result<()> {
+        self.data_bytes.truncate_if_needed_at(len)?;
+        self.tx_count.truncate_if_needed_at(len)?;
+        self.tx_vsize.truncate_if_needed_at(len)?;
+        self.fees.truncate_if_needed_at(len)?;
+        Ok(())
+    }
+
+    fn write(&mut self) -> Result<()> {
+        self.data_bytes.write()?;
+        self.tx_count.write()?;
+        self.tx_vsize.write()?;
+        self.fees.write()?;
+        Ok(())
+    }
+}
+
+#[derive(Traversable)]
+pub struct Total<M: StorageMode = Rw> {
+    pub data_bytes: CachedPerBlockCumulativeRolling<StoredU64, M>,
+    pub tx_count: PerBlockCumulativeRolling<StoredU64, M>,
+    pub tx_vsize: PerBlockCumulativeRolling<VSize, M>,
+    /// Full fees paid by carrier transactions. A transaction carrying multiple
+    /// kinds contributes its fee to each kind, matching `tx_count` and `tx_vsize`.
+    pub fees: PerBlockCumulativeRolling<Sats, M>,
+    pub chain_share: LazyPercentPerBlock<PartsPerMillion32>,
+    /// Share of all transaction fees, based on cumulative and rolling fee sums.
+    pub fee_share: LazyPercentCumulativeRolling<PartsPerMillion32>,
+}
+
+impl Total {
+    pub(crate) fn forced_import(
+        db: &Database,
+        prefix: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        block_size: &CachedBoxedVec<Height, StoredU64>,
+        chain_fees: &CachedBoxedVec<Height, Sats>,
+    ) -> Result<Self> {
+        let data_bytes = CachedPerBlockCumulativeRolling::forced_import(
+            db,
+            &format!("{prefix}_data_bytes"),
+            version,
+            indexes,
+            cached_starts,
+        )?;
+        let tx_count = PerBlockCumulativeRolling::forced_import(
+            db,
+            &format!("{prefix}_tx_count"),
+            version,
+            indexes,
+            cached_starts,
+        )?;
+        let tx_vsize = PerBlockCumulativeRolling::forced_import(
+            db,
+            &format!("{prefix}_tx_vsize"),
+            version,
+            indexes,
+            cached_starts,
+        )?;
+        let fees = PerBlockCumulativeRolling::forced_import(
+            db,
+            &format!("{prefix}_fees"),
+            version,
+            indexes,
+            cached_starts,
+        )?;
+
+        Ok(Self {
+            chain_share: Self::lazy_chain_share(
+                prefix,
+                version,
+                &data_bytes,
+                block_size.clone(),
+                indexes,
+            ),
+            fee_share: Self::lazy_fee_share(
+                prefix,
+                version,
+                &fees,
+                chain_fees.clone(),
+                cached_starts,
+                indexes,
+            ),
+            data_bytes,
+            tx_count,
+            tx_vsize,
+            fees,
+        })
+    }
+
+    fn lazy_chain_share(
+        prefix: &str,
+        version: Version,
+        data_bytes: &CachedPerBlockCumulativeRolling<StoredU64>,
+        block_size: CachedBoxedVec<Height, StoredU64>,
+        indexes: &indexes::Vecs,
+    ) -> LazyPercentPerBlock<PartsPerMillion32> {
+        let data_bytes = data_bytes.cumulative.height.read_only_clone();
+        LazyPercentPerBlock::from_cached_ratio::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
+            &format!("{prefix}_chain_share"),
+            version,
+            &data_bytes,
+            block_size,
+            indexes,
+        )
+    }
+
+    fn lazy_fee_share(
+        prefix: &str,
+        version: Version,
+        fees: &PerBlockCumulativeRolling<Sats>,
+        chain_fees: CachedBoxedVec<Height, Sats>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        indexes: &indexes::Vecs,
+    ) -> LazyPercentCumulativeRolling<PartsPerMillion32> {
+        LazyPercentCumulativeRolling::from_cumulative_ratio::<
+            Sats,
+            Sats,
+            RatioSats<PartsPerMillion32>,
+        >(
+            &format!("{prefix}_fee_share"),
+            version,
+            &fees.cumulative.height,
+            chain_fees,
+            cached_starts,
+            indexes,
+        )
+    }
+
+    pub(crate) fn cached_data_bytes(&self) -> CachedBoxedVec<Height, StoredU64> {
+        self.data_bytes.cached_cumulative()
     }
 
     fn len(&self) -> usize {
@@ -115,46 +294,9 @@ impl TotalMetrics {
     }
 }
 
-#[derive(Deref, DerefMut, Traversable)]
-pub struct Total<M: StorageMode = Rw> {
-    #[deref]
-    #[deref_mut]
-    #[traversable(flatten)]
-    pub metrics: TotalMetrics<M>,
-    pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
-    /// Share of all transaction fees, based on cumulative and rolling fee sums.
-    pub fee_share: PercentCumulativeRolling<PartsPerMillion32, M>,
-}
-
-impl Total {
-    pub(crate) fn forced_import(
-        db: &Database,
-        prefix: &str,
-        version: Version,
-        indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        Ok(Self {
-            metrics: TotalMetrics::forced_import(db, prefix, version, indexes, cached_starts)?,
-            chain_share: PercentPerBlock::forced_import(
-                db,
-                &format!("{prefix}_chain_share"),
-                version,
-                indexes,
-            )?,
-            fee_share: PercentCumulativeRolling::forced_import(
-                db,
-                &format!("{prefix}_fee_share"),
-                version,
-                indexes,
-            )?,
-        })
-    }
-}
-
 #[derive(Traversable)]
 pub struct Metrics<M: StorageMode = Rw> {
-    pub output_count: Series<StoredU64, M>,
+    pub output_count: PerBlockCumulativeRolling<StoredU64, M>,
     #[traversable(flatten)]
     pub total: TotalMetrics<M>,
 }
@@ -165,10 +307,10 @@ impl Metrics {
         prefix: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
-            output_count: Series::forced_import(
+            output_count: PerBlockCumulativeRolling::forced_import(
                 db,
                 &format!("{prefix}_output_count"),
                 version,
@@ -181,6 +323,22 @@ impl Metrics {
 
     fn len(&self) -> usize {
         self.output_count.block.len().min(self.total.len())
+    }
+
+    fn lazy_data_share(
+        &self,
+        name: &str,
+        version: Version,
+        denominator: CachedBoxedVec<Height, StoredU64>,
+        indexes: &indexes::Vecs,
+    ) -> LazyPercentPerBlock<PartsPerMillion32> {
+        LazyPercentPerBlock::from_cached_ratio::<StoredU64, StoredU64, RatioU64<PartsPerMillion32>>(
+            name,
+            version,
+            &self.total.data_bytes.cumulative.height,
+            denominator,
+            indexes,
+        )
     }
 
     pub(super) fn push(&mut self, block: Totals) {
@@ -213,40 +371,74 @@ pub struct Breakdown<M: StorageMode = Rw> {
     #[deref_mut]
     #[traversable(flatten)]
     pub metrics: Metrics<M>,
-    pub data_share: PercentPerBlock<PartsPerMillion32, M>,
-    pub chain_share: PercentPerBlock<PartsPerMillion32, M>,
+    pub data_share: LazyPercentPerBlock<PartsPerMillion32>,
+    pub chain_share: LazyPercentPerBlock<PartsPerMillion32>,
     /// Share of all transaction fees, based on cumulative and rolling fee sums.
-    pub fee_share: PercentCumulativeRolling<PartsPerMillion32, M>,
+    pub fee_share: LazyPercentCumulativeRolling<PartsPerMillion32>,
 }
 
-impl Breakdown {
-    pub(crate) fn forced_import(
-        db: &Database,
-        prefix: &str,
+pub(super) struct BreakdownImporter<'a> {
+    db: &'a Database,
+    version: Version,
+    indexes: &'a indexes::Vecs,
+    cached_starts: &'a Windows<&'a CachedWindowStartVec>,
+    total_data: &'a CachedBoxedVec<Height, StoredU64>,
+    block_size: &'a CachedBoxedVec<Height, StoredU64>,
+    chain_fees: &'a CachedBoxedVec<Height, Sats>,
+}
+
+impl<'a> BreakdownImporter<'a> {
+    pub(super) fn new(
+        db: &'a Database,
         version: Version,
-        indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        Ok(Self {
-            metrics: Metrics::forced_import(db, prefix, version, indexes, cached_starts)?,
-            data_share: PercentPerBlock::forced_import(
-                db,
+        indexes: &'a indexes::Vecs,
+        cached_starts: &'a Windows<&'a CachedWindowStartVec>,
+        total_data: &'a CachedBoxedVec<Height, StoredU64>,
+        block_size: &'a CachedBoxedVec<Height, StoredU64>,
+        chain_fees: &'a CachedBoxedVec<Height, Sats>,
+    ) -> Self {
+        Self {
+            db,
+            version,
+            indexes,
+            cached_starts,
+            total_data,
+            block_size,
+            chain_fees,
+        }
+    }
+
+    pub(super) fn import(&self, prefix: &str) -> Result<Breakdown> {
+        let metrics = Metrics::forced_import(
+            self.db,
+            prefix,
+            self.version,
+            self.indexes,
+            self.cached_starts,
+        )?;
+        let fee_share = metrics.total.lazy_fee_share(
+            prefix,
+            self.version,
+            self.chain_fees.clone(),
+            self.cached_starts,
+            self.indexes,
+        );
+
+        Ok(Breakdown {
+            data_share: metrics.lazy_data_share(
                 &format!("{prefix}_data_share"),
-                version,
-                indexes,
-            )?,
-            chain_share: PercentPerBlock::forced_import(
-                db,
+                self.version,
+                self.total_data.clone(),
+                self.indexes,
+            ),
+            chain_share: metrics.lazy_data_share(
                 &format!("{prefix}_chain_share"),
-                version,
-                indexes,
-            )?,
-            fee_share: PercentCumulativeRolling::forced_import(
-                db,
-                &format!("{prefix}_fee_share"),
-                version,
-                indexes,
-            )?,
+                self.version,
+                self.block_size.clone(),
+                self.indexes,
+            ),
+            metrics,
+            fee_share,
         })
     }
 }
@@ -260,21 +452,8 @@ pub struct Policy<M: StorageMode = Rw> {
 }
 
 impl Policy {
-    pub(crate) fn forced_import(
-        db: &Database,
-        version: Version,
-        indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        let import = |name| {
-            Breakdown::forced_import(
-                db,
-                &format!("op_return_policy_{name}"),
-                version,
-                indexes,
-                cached_starts,
-            )
-        };
+    pub(super) fn forced_import(importer: &BreakdownImporter<'_>) -> Result<Self> {
+        let import = |name| importer.import(&format!("op_return_policy_{name}"));
 
         Ok(Self {
             pre_v30_standard: import("pre_v30_standard")?,

@@ -1,9 +1,9 @@
-use brk_cohort::{AgeRange, CohortContext};
+use brk_cohort::{AgeRange, CohortContext, TERM_NAMES};
 use brk_error::Result;
 use brk_types::{Cents, Height, StoredF64, Version};
 use vecdb::{CachedBoxedVec, Database, ReadableCloneableVec, UnaryTransform};
 
-use super::{CohortVecs, HorizonVecs, Horizons, Split, Vecs, mobility};
+use super::{AggregateVecs, CohortVecs, HorizonVecs, Horizons, Split, Vecs, mobility};
 use crate::{
     indexes,
     internal::{FiatPerBlock, LazyPerBlock, PerBlock, PriceWithRatioPerBlock, SpotValuePerBlock},
@@ -63,6 +63,63 @@ impl CohortVecs {
     }
 }
 
+impl AggregateVecs {
+    fn forced_import(
+        db: &Database,
+        name: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
+    ) -> Result<Self> {
+        let prefix = if name.is_empty() {
+            String::new()
+        } else {
+            format!("{name}_")
+        };
+
+        Ok(Self {
+            supply: import_split(|side| {
+                SpotValuePerBlock::forced_import(
+                    db,
+                    &format!("{prefix}{side}_supply"),
+                    version,
+                    indexes,
+                    spot_price,
+                )
+            })?,
+            supply_in_loss_share: PerBlock::forced_import(
+                db,
+                &format!("{prefix}coinflow_supply_in_loss_share"),
+                version,
+                indexes,
+            )?,
+            horizon: Horizons::try_from_fn(|horizon, _| -> Result<_> {
+                Ok(HorizonVecs {
+                    supply_in_loss_share: PerBlock::forced_import(
+                        db,
+                        &format!("{prefix}coinflow_{horizon}_supply_in_loss_share"),
+                        version,
+                        indexes,
+                    )?,
+                })
+            })?,
+            cap: FiatPerBlock::forced_import(
+                db,
+                &format!("{prefix}coinflow_cap"),
+                version,
+                indexes,
+            )?,
+            price: PriceWithRatioPerBlock::forced_import(
+                db,
+                &format!("{prefix}coinflow_price"),
+                version,
+                indexes,
+                spot_price,
+            )?,
+        })
+    }
+}
+
 impl Vecs {
     pub(crate) fn forced_import(
         db: &Database,
@@ -71,6 +128,7 @@ impl Vecs {
         prices: &crate::price::Vecs,
     ) -> Result<Self> {
         let version = parent_version + VERSION;
+        let aggregate_version = version + Version::ONE;
         let spot_price = prices.spot.cents.height.read_only_cached_boxed_clone();
 
         let this = Self {
@@ -78,36 +136,18 @@ impl Vecs {
                 let name = CohortContext::Utxo.prefixed(name);
                 CohortVecs::forced_import(db, &name, version, indexes, &spot_price)
             })?,
-            supply: import_split(|side| {
-                SpotValuePerBlock::forced_import(
-                    db,
-                    &format!("{side}_supply"),
-                    version,
-                    indexes,
-                    &spot_price,
-                )
-            })?,
-            supply_in_loss_share: PerBlock::forced_import(
+            all: AggregateVecs::forced_import(db, "", version, indexes, &spot_price)?,
+            sth: AggregateVecs::forced_import(
                 db,
-                "coinflow_supply_in_loss_share",
-                version,
+                TERM_NAMES.short.id,
+                aggregate_version,
                 indexes,
+                &spot_price,
             )?,
-            horizon: Horizons::try_from_fn(|horizon, _| -> Result<_> {
-                Ok(HorizonVecs {
-                    supply_in_loss_share: PerBlock::forced_import(
-                        db,
-                        &format!("coinflow_{horizon}_supply_in_loss_share"),
-                        version,
-                        indexes,
-                    )?,
-                })
-            })?,
-            cap: FiatPerBlock::forced_import(db, "coinflow_cap", version, indexes)?,
-            price: PriceWithRatioPerBlock::forced_import(
+            lth: AggregateVecs::forced_import(
                 db,
-                "coinflow_price",
-                version,
+                TERM_NAMES.long.id,
+                aggregate_version,
                 indexes,
                 &spot_price,
             )?,

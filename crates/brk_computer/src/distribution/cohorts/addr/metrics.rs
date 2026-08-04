@@ -2,12 +2,11 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats};
-use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::metrics::{
-        ActivityMinimal, ImportConfig, OutputsUnspent, RealizedBase, SupplyBase,
+        ActivityMinimal, AllSupplyCache, ImportConfig, OutputsUnspent, RealizedBase, SupplyBase,
     },
     price,
 };
@@ -27,10 +26,10 @@ pub struct AddrCohortMetrics<M: StorageMode = Rw> {
 }
 
 impl AddrCohortMetrics {
-    pub(super) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(super) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
         Ok(Self {
             filter: cfg.filter.clone(),
-            supply: Box::new(SupplyBase::forced_import(cfg)?),
+            supply: Box::new(SupplyBase::forced_import(cfg, all_supply)?),
             outputs: Box::new(OutputsUnspent::forced_import(cfg)?),
             activity: Box::new(ActivityMinimal::forced_import(cfg)?),
             realized: Box::new(RealizedBase::forced_import(cfg)?),
@@ -100,15 +99,5 @@ impl AddrCohortMetrics {
     ) -> Result<()> {
         self.activity
             .compute_rest_part1(prices, starting_lengths, exit)
-    }
-
-    pub(super) fn compute_rest_part2(
-        &mut self,
-        starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.supply
-            .compute_dominance(starting_lengths.height, all_supply_sats, exit)
     }
 }

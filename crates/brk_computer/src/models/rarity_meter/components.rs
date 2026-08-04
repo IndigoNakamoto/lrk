@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::{Indexer, Lengths};
 use brk_traversable::Traversable;
-use brk_types::{Cents, Height, PartsPerMillion32, Version};
+use brk_types::{Cents, Height, PartsPerMillion32, StoredF32, Version};
 use vecdb::{
     AnyStoredVec, AnyVec, Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode, VecIndex,
     WritableVec,
@@ -11,16 +11,19 @@ use crate::{
     distribution,
     frameworks::{coinflow, cointime},
     indexes,
-    internal::{PerBlock, Price, PriceTimesRatio, PriceWithRatioPerBlock, RatioPerBlock},
+    internal::{LazyPerBlock, Price, RatioPerBlock},
 };
 
-use super::percentiles::{BlockDecayPercentiles, START_HEIGHT};
+use super::{
+    cached_component_price::CachedComponentPrice,
+    percentiles::{BlockDecayPercentiles, START_HEIGHT},
+};
 
 #[derive(Traversable)]
 pub struct Band<M: StorageMode = Rw> {
     #[traversable(flatten)]
     pub ratio: RatioPerBlock<PartsPerMillion32, M>,
-    pub price: Price<PerBlock<Cents, M>>,
+    pub price: Price<LazyPerBlock<Cents>>,
 }
 
 #[derive(Traversable)]
@@ -47,9 +50,12 @@ pub struct Component<M: StorageMode = Rw> {
 
     #[traversable(skip)]
     block_decay_pct: BlockDecayPercentiles,
+
+    #[traversable(skip)]
+    cached_price: CachedComponentPrice,
 }
 
-const VERSION: Version = Version::new(8);
+const VERSION: Version = Version::new(9);
 
 impl Component {
     fn forced_import(
@@ -57,8 +63,10 @@ impl Component {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        price_source: &(impl vecdb::ReadableCloneableVec<Height, Cents> + 'static),
     ) -> Result<Self> {
         let version = version + VERSION;
+        let cached_price = CachedComponentPrice::new(name, version, price_source);
 
         macro_rules! import_ratio {
             ($suffix:expr) => {
@@ -71,19 +79,17 @@ impl Component {
             };
         }
 
-        macro_rules! import_price {
-            ($suffix:expr) => {
-                Price::forced_import(db, &format!("{name}_{}", $suffix), version, indexes)?
-            };
-        }
-
         macro_rules! import_band {
-            ($pct:expr) => {
-                Band {
-                    ratio: import_ratio!(concat!("ratio_", $pct)),
-                    price: import_price!($pct),
-                }
-            };
+            ($pct:expr) => {{
+                let ratio = import_ratio!(concat!("ratio_", $pct));
+                let price = cached_price.price_for_ratio(
+                    &format!("{name}_{}", $pct),
+                    version,
+                    &ratio.ppm.height,
+                    indexes,
+                );
+                Band { ratio, price }
+            }};
         }
 
         Ok(Self {
@@ -107,17 +113,19 @@ impl Component {
             pct99_5: import_band!("pct99_5"),
             pct99_9: import_band!("pct99_9"),
             block_decay_pct: BlockDecayPercentiles::default(),
+            cached_price,
         })
     }
 
     fn compute(
         &mut self,
         starting_lengths: &Lengths,
-        source: &PriceWithRatioPerBlock,
+        ratio_source: &impl ReadableVec<Height, StoredF32>,
         exit: &Exit,
     ) -> Result<()> {
-        let ratio_source = &source.ratio.height;
-        let series_price = &source.cents.height;
+        self.cached_price
+            .clear_if_recomputed_from(starting_lengths.height);
+
         let ratio_version = ratio_source.version();
 
         self.mut_pct_vecs().try_for_each(|vec| -> Result<()> {
@@ -195,40 +203,6 @@ impl Component {
                 .try_for_each(|vec| vec.write().map(|_| ()))?;
         }
 
-        macro_rules! compute_price {
-            ($band:ident) => {
-                self.$band
-                    .price
-                    .cents
-                    .compute_binary::<Cents, PartsPerMillion32, PriceTimesRatio<PartsPerMillion32>>(
-                        starting_lengths.height,
-                        series_price,
-                        &self.$band.ratio.ppm.height,
-                        exit,
-                    )?;
-            };
-        }
-
-        compute_price!(pct0_01);
-        compute_price!(pct0_5);
-        compute_price!(pct1);
-        compute_price!(pct2);
-        compute_price!(pct5);
-        compute_price!(pct10);
-        compute_price!(pct20);
-        compute_price!(pct30);
-        compute_price!(pct40);
-        compute_price!(pct50);
-        compute_price!(pct60);
-        compute_price!(pct70);
-        compute_price!(pct80);
-        compute_price!(pct90);
-        compute_price!(pct95);
-        compute_price!(pct98);
-        compute_price!(pct99);
-        compute_price!(pct99_5);
-        compute_price!(pct99_9);
-
         Ok(())
     }
 
@@ -284,25 +258,52 @@ impl Components {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        distribution: &distribution::Vecs,
+        cointime: &cointime::Vecs,
+        coinflow: &coinflow::Vecs,
     ) -> Result<Self> {
-        let import = |name| Component::forced_import(db, name, version, indexes);
+        let utxos = &distribution.utxo_cohorts;
+        let all = &utxos.all.metrics.realized;
+        let sth = &utxos.sth.metrics.realized;
+        let lth = &utxos.lth.metrics.realized;
+
+        macro_rules! import {
+            ($name:expr, $source:expr) => {
+                Component::forced_import(db, $name, version, indexes, &$source.cents.height)?
+            };
+        }
 
         Ok(Self {
-            realized_price: import("realized_price")?,
-            capitalized_price: import("capitalized_price")?,
-            sth_realized_price: import("sth_realized_price")?,
-            sth_capitalized_price: import("sth_capitalized_price")?,
-            lth_realized_price: import("lth_realized_price")?,
-            lth_capitalized_price: import("lth_capitalized_price")?,
-            over_6m_realized_price: import("over_6m_realized_price")?,
-            over_4m_realized_price: import("over_4m_realized_price")?,
-            under_4m_realized_price: import("under_4m_realized_price")?,
-            under_6m_realized_price: import("under_6m_realized_price")?,
-            vaulted_price: import("vaulted_price")?,
-            active_price: import("active_price")?,
-            true_market_mean_price: import("true_market_mean_price")?,
-            cointime_price: import("cointime_price")?,
-            coinflow_price: import("coinflow_price")?,
+            realized_price: import!("realized_price", all.price),
+            capitalized_price: import!("capitalized_price", all.capitalized.price),
+            sth_realized_price: import!("sth_realized_price", sth.price),
+            sth_capitalized_price: import!("sth_capitalized_price", sth.capitalized.price),
+            lth_realized_price: import!("lth_realized_price", lth.price),
+            lth_capitalized_price: import!("lth_capitalized_price", lth.capitalized.price),
+            over_6m_realized_price: import!(
+                "over_6m_realized_price",
+                utxos.over_age._6m.metrics.realized.price
+            ),
+            over_4m_realized_price: import!(
+                "over_4m_realized_price",
+                utxos.over_age._4m.metrics.realized.price
+            ),
+            under_4m_realized_price: import!(
+                "under_4m_realized_price",
+                utxos.under_age._4m.metrics.realized.price
+            ),
+            under_6m_realized_price: import!(
+                "under_6m_realized_price",
+                utxos.under_age._6m.metrics.realized.price
+            ),
+            vaulted_price: import!("vaulted_price", cointime.prices.vaulted),
+            active_price: import!("active_price", cointime.prices.active),
+            true_market_mean_price: import!(
+                "true_market_mean_price",
+                cointime.prices.true_market_mean
+            ),
+            cointime_price: import!("cointime_price", cointime.prices.cointime),
+            coinflow_price: import!("coinflow_price", coinflow.all.price),
         })
     }
 
@@ -322,7 +323,8 @@ impl Components {
 
         macro_rules! compute {
             ($component:ident, $source:expr) => {
-                self.$component.compute(&starting_lengths, $source, exit)?;
+                self.$component
+                    .compute(&starting_lengths, &$source.ratio.height, exit)?;
             };
         }
 
@@ -352,7 +354,7 @@ impl Components {
         compute!(active_price, &cointime.prices.active);
         compute!(true_market_mean_price, &cointime.prices.true_market_mean);
         compute!(cointime_price, &cointime.prices.cointime);
-        compute!(coinflow_price, &coinflow.price);
+        compute!(coinflow_price, &coinflow.all.price);
 
         Ok(())
     }

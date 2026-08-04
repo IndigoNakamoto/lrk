@@ -1,14 +1,13 @@
-use std::path::Path;
-
 use brk_error::{Error, Result};
 use brk_types::{
     Bitcoin, Cents, Date, Day1, Dollars, Height, PartsPerMillionSigned64, Sats, Version,
 };
 use vecdb::{
-    AnyVec, BinaryTransform, CachedBoxedVec, CheckedSub, EagerVec, ImportableVec, PcoVec,
-    ReadableCloneableVec, ReadableVec, TypedVec, VecIndex,
+    BinaryTransform, CachedBoxedVec, CheckedSub, ReadableCloneableVec, ReadableVec, TypedVec,
+    VecIndex,
 };
 
+use super::cached_dca_sats::CachedDcaSats;
 use super::vecs::{ClassVecs, DcaStack, LumpSumStack, PeriodVecs};
 use super::{ByDcaCagr, ByDcaClass, ByDcaPeriod, DCA_AMOUNT, Vecs};
 use crate::{
@@ -17,30 +16,27 @@ use crate::{
         CentsUnsignedToDollars, Identity, LazyIndexedVec, LazyPerBlock, LazyPercentPerBlock,
         LazyPreviousDeltaVec, LazySinceDayVec, LazyWindowVec, Price, RatioDiffCents, SatsToBitcoin,
         SatsToCents,
-        db_utils::{finalize_db, open_db},
     },
     price,
 };
 
 impl Vecs {
     pub(crate) fn forced_import(
-        parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
         blocks: &blocks::Vecs,
         prices: &price::Vecs,
     ) -> Result<Self> {
-        let db = open_db(parent_path, super::DB_NAME, 50_000)?;
         let version = parent_version;
 
-        let sats_cumulative_version = version + prices.split.close.usd.day1.version();
-        let sats_cumulative: EagerVec<PcoVec<Height, Sats>> =
-            ImportableVec::forced_import(&db, "dca_sats_cumulative", sats_cumulative_version)?;
-        let sats_per_day = LazyPreviousDeltaVec::new(
-            "dca_sats_per_day",
-            version,
-            sats_cumulative.read_only_boxed_clone(),
+        let cached_days = indexes.height.day1_cached_boxed_clone();
+        let cached_dca_sats = CachedDcaSats::new(
+            prices.split.close.usd.day1.read_only_boxed_clone(),
+            cached_days.clone(),
         );
+        let sats_cumulative = cached_dca_sats.read_only_boxed_clone();
+        let sats_per_day =
+            LazyPreviousDeltaVec::new("dca_sats_per_day", version, sats_cumulative.clone());
 
         let cached_starts = ByDcaPeriod::try_new(|_, days| {
             Ok::<_, Error>(
@@ -50,7 +46,6 @@ impl Vecs {
                     .read_only_cached_boxed_clone(),
             )
         })?;
-        let cached_days = indexes.height.day1.read_only_cached_boxed_clone();
         let spot_price = prices.spot.cents.height.read_only_cached_boxed_clone();
 
         let dca_stack =
@@ -59,7 +54,7 @@ impl Vecs {
                 let source = LazyWindowVec::<Height, Sats, Sats>::new(
                     &format!("{metric_name}_sats_source"),
                     version,
-                    sats_cumulative.read_only_boxed_clone(),
+                    sats_cumulative.clone(),
                     window_starts.clone(),
                     true,
                     |current, before, _| current.checked_sub(before).unwrap_or_default(),
@@ -84,7 +79,7 @@ impl Vecs {
                     Cents::from(DCA_AMOUNT * num_days / Bitcoin::from(stack_sats))
                 },
             );
-            Ok::<_, Error>(Price::from_height_source(
+            Ok::<_, Error>(Price::from_uncached_height_source(
                 &metric_name,
                 version,
                 source,
@@ -104,7 +99,7 @@ impl Vecs {
                         RatioDiffCents::<PartsPerMillionSigned64>::apply(spot, cost_basis)
                     },
                 );
-                Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
+                Ok::<_, Error>(LazyPercentPerBlock::from_uncached_height_source(
                     &metric_name,
                     version,
                     source,
@@ -146,7 +141,7 @@ impl Vecs {
                         RatioDiffCents::<PartsPerMillionSigned64>::apply(current, past)
                     },
                 );
-                Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
+                Ok::<_, Error>(LazyPercentPerBlock::from_uncached_height_source(
                     &metric_name,
                     version,
                     source,
@@ -159,7 +154,7 @@ impl Vecs {
             let source = LazySinceDayVec::new(
                 &format!("{metric_name}_sats_source"),
                 version,
-                sats_cumulative.read_only_boxed_clone(),
+                sats_cumulative.clone(),
                 cached_days.clone(),
                 day,
                 |current, before| current.checked_sub(before).unwrap_or_default(),
@@ -183,7 +178,7 @@ impl Vecs {
                         Cents::from(DCA_AMOUNT * num_days / Bitcoin::from(stack_sats))
                     },
                 );
-                Ok::<_, Error>(Price::from_height_source(
+                Ok::<_, Error>(Price::from_uncached_height_source(
                     &metric_name,
                     version,
                     source,
@@ -203,7 +198,7 @@ impl Vecs {
                         RatioDiffCents::<PartsPerMillionSigned64>::apply(spot, cost_basis)
                     },
                 );
-                Ok::<_, Error>(LazyPercentPerBlock::from_height_source(
+                Ok::<_, Error>(LazyPercentPerBlock::from_uncached_height_source(
                     &metric_name,
                     version,
                     source,
@@ -211,9 +206,9 @@ impl Vecs {
                 ))
             })?;
 
-        let this = Self {
+        Ok(Self {
+            cached_dca_sats,
             sats_per_day,
-            sats_cumulative,
             period: PeriodVecs {
                 dca_stack,
                 dca_cost_basis,
@@ -227,10 +222,7 @@ impl Vecs {
                 dca_cost_basis: class_cost_basis,
                 dca_return: class_return,
             },
-            db,
-        };
-        finalize_db(&this.db, &this)?;
-        Ok(this)
+        })
     }
 }
 
@@ -244,7 +236,7 @@ fn dca_stack_from_source<V>(
 where
     V: TypedVec<I = Height, T = Sats> + ReadableVec<Height, Sats> + Clone + 'static,
 {
-    let sats = LazyPerBlock::from_height_source::<Identity<Sats>, _>(
+    let sats = LazyPerBlock::from_uncached_height_source::<Identity<Sats>, _>(
         &format!("{name}_sats"),
         version,
         source,
@@ -258,7 +250,7 @@ where
         spot_price.clone(),
         |_, sats, spot| SatsToCents::apply(sats, spot),
     );
-    let cents = LazyPerBlock::from_height_source::<Identity<Cents>, _>(
+    let cents = LazyPerBlock::from_uncached_height_source::<Identity<Cents>, _>(
         &format!("{name}_cents"),
         version,
         cents_source,
@@ -295,7 +287,7 @@ fn lump_sum_stack(
         false,
         move |_, past, _| lump_sum_sats(total_invested, past),
     );
-    let sats = LazyPerBlock::from_height_source::<Identity<Sats>, _>(
+    let sats = LazyPerBlock::from_uncached_height_source::<Identity<Sats>, _>(
         &format!("{name}_sats"),
         version,
         sats_source,
@@ -311,7 +303,7 @@ fn lump_sum_stack(
         false,
         move |current, past, _| SatsToCents::apply(lump_sum_sats(total_invested, past), current),
     );
-    let cents = LazyPerBlock::from_height_source::<Identity<Cents>, _>(
+    let cents = LazyPerBlock::from_uncached_height_source::<Identity<Cents>, _>(
         &format!("{name}_cents"),
         version,
         cents_source,

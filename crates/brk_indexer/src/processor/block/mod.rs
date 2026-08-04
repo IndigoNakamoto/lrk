@@ -22,7 +22,7 @@ impl BlockProcessor<'_> {
             return Err(Error::Internal("BlockHash prefix collision"));
         }
 
-        self.lengths.checked_push(self.vecs)?;
+        self.lengths.push(self.vecs);
 
         self.stores
             .blockhash_prefix_to_height
@@ -32,27 +32,27 @@ impl BlockProcessor<'_> {
             .blocks
             .blockhash
             .inner
-            .checked_push(height, *blockhash)?;
+            .debug_checked_push(height, *blockhash);
         self.vecs
             .blocks
             .coinbase_tag
-            .checked_push(height, self.block.coinbase_tag())?;
+            .debug_checked_push(height, self.block.coinbase_tag());
         self.vecs
             .blocks
             .difficulty
-            .checked_push(height, self.block.header.difficulty_float().into())?;
+            .debug_checked_push(height, self.block.header.difficulty_float().into());
         self.vecs
             .blocks
             .timestamp
             .inner
-            .checked_push(height, Timestamp::from(self.block.header.time))?;
+            .debug_checked_push(height, Timestamp::from(self.block.header.time));
 
         Ok(())
     }
 
     /// Push block total_size and weight, reusing per-tx sizes already computed in ComputedTx.
     /// This avoids redundant tx serialization (base_size + total_size were already computed).
-    pub(crate) fn push_block_size_and_weight(&mut self, txs: &[ComputedTx]) -> Result<()> {
+    pub(crate) fn push_block_size_and_weight(&mut self, txs: &[ComputedTx]) {
         let overhead = bitcoin::block::Header::SIZE + bitcoin::VarInt::from(txs.len()).size();
         let mut total_size = overhead;
         let mut weight = bitcoin::Weight::from_non_witness_data_size(overhead as u64);
@@ -72,11 +72,10 @@ impl BlockProcessor<'_> {
 
         let h = self.height;
         let blocks = &mut self.vecs.blocks;
-        blocks.total.checked_push(h, total_size.into())?;
-        blocks.weight.checked_push(h, weight.into())?;
-        blocks.segwit_txs.checked_push(h, sw_txs.into())?;
-        blocks.segwit_size.checked_push(h, sw_size.into())?;
-        blocks.segwit_weight.checked_push(h, sw_weight.into())?;
-        Ok(())
+        blocks.total.debug_checked_push(h, total_size.into());
+        blocks.weight.debug_checked_push(h, weight.into());
+        blocks.segwit_txs.debug_checked_push(h, sw_txs.into());
+        blocks.segwit_size.debug_checked_push(h, sw_size.into());
+        blocks.segwit_weight.debug_checked_push(h, sw_weight.into());
     }
 }

@@ -117,12 +117,20 @@ pub struct CohortVecs<M: StorageMode = Rw> {
 }
 
 #[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
-    pub age_range: AgeRange<CohortVecs<M>>,
+pub struct AggregateVecs<M: StorageMode = Rw> {
     pub supply: Split<SpotValuePerBlock<M>>,
     #[traversable(wrap = "supply/mobile/in_loss", rename = "share")]
     pub supply_in_loss_share: PerBlock<StoredF64, M>,
     pub horizon: Horizons<HorizonVecs<M>>,
     pub cap: FiatPerBlock<Cents, M>,
     pub price: PriceWithRatioPerBlock<M>,
+}
+
+#[derive(Traversable)]
+pub struct Vecs<M: StorageMode = Rw> {
+    pub age_range: AgeRange<CohortVecs<M>>,
+    #[traversable(flatten)]
+    pub all: AggregateVecs<M>,
+    pub sth: AggregateVecs<M>,
+    pub lth: AggregateVecs<M>,
 }

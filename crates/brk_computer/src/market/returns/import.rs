@@ -46,7 +46,7 @@ impl Vecs {
                 &format!("price_cagr_{name}"),
                 version,
                 (days / 365) as u8,
-                *source,
+                source,
             ))
         })?;
 

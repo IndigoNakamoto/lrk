@@ -339,7 +339,9 @@ fn analyze_fields<'a>(
             continue;
         };
 
-        if !matches!(field.vis, syn::Visibility::Public(_)) {
+        // Hidden fields stay out of the public tree but must remain in
+        // exportable traversal for storage retention.
+        if !hidden && !matches!(field.vis, syn::Visibility::Public(_)) {
             continue;
         }
 

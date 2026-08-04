@@ -1,3 +1,4 @@
+mod cached_component_price;
 mod components;
 mod extremes;
 mod inner;
@@ -35,10 +36,20 @@ impl RarityMeter {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        distribution: &distribution::Vecs,
+        cointime: &cointime::Vecs,
+        coinflow: &coinflow::Vecs,
     ) -> Result<Self> {
         let v = version + VERSION;
         Ok(Self {
-            components: Components::forced_import(db, v, indexes)?,
+            components: Components::forced_import(
+                db,
+                v,
+                indexes,
+                distribution,
+                cointime,
+                coinflow,
+            )?,
             extremes: Extremes::forced_import(db, v, indexes)?,
             full: RarityMeterInner::forced_import(db, "rarity_meter", v, indexes)?,
             local: RarityMeterInner::forced_import(db, "local_rarity_meter", v, indexes)?,

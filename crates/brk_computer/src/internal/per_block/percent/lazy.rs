@@ -1,12 +1,16 @@
 use brk_traversable::Traversable;
 use brk_types::{Height, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{ReadableCloneableVec, ReadableVec, TypedVec, UnaryTransform, VecValue};
+use vecdb::{
+    BinaryTransform, CachedBoxedVec, ReadableCloneableVec, ReadableVec, TypedVec, UnaryTransform,
+    VecValue,
+};
 
 use crate::{
     indexes,
     internal::{
-        Cagr, FixedRatio, Identity, LazyLookbackVec, LazyPerBlock, Percent, PercentPerBlock,
+        Cagr, FixedRatio, Identity, LazyIndexedVec, LazyLookbackVec, LazyPerBlock, NumericValue,
+        Percent,
     },
 };
 
@@ -21,6 +25,75 @@ pub struct LazyPercentPerBlock<B: FixedRatio>(
 );
 
 impl<B: FixedRatio> LazyPercentPerBlock<B> {
+    pub(crate) fn from_cached_ratio<S, D, F>(
+        name: &str,
+        version: Version,
+        numerator: &(impl ReadableCloneableVec<Height, S> + 'static),
+        denominator: CachedBoxedVec<Height, D>,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: NumericValue,
+        D: NumericValue,
+        F: BinaryTransform<S, D, B> + Send + Sync + 'static,
+    {
+        let source = LazyIndexedVec::new(
+            &format!("{name}_{}_source", B::SUFFIX),
+            version,
+            numerator.read_only_boxed_clone(),
+            denominator,
+            |_, numerator, denominator| F::apply(numerator, denominator),
+        );
+        Self::from_height_source(name, version, source, indexes)
+    }
+
+    pub(crate) fn from_cached_ratio_with_denominator_transform<S, D, F>(
+        name: &str,
+        version: Version,
+        numerator: &(impl ReadableCloneableVec<Height, S> + 'static),
+        denominator: CachedBoxedVec<Height, D>,
+        denominator_transform: fn(Height, D) -> D,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: NumericValue,
+        D: NumericValue,
+        F: BinaryTransform<S, D, B> + Send + Sync + 'static,
+    {
+        let source = LazyIndexedVec::new(
+            &format!("{name}_{}_source", B::SUFFIX),
+            version,
+            numerator.read_only_boxed_clone(),
+            denominator,
+            move |height, numerator, denominator| {
+                F::apply(numerator, denominator_transform(height, denominator))
+            },
+        );
+        Self::from_height_source(name, version, source, indexes)
+    }
+
+    pub(crate) fn from_ratio_with_cached_numerator<S, D, F>(
+        name: &str,
+        version: Version,
+        numerator: CachedBoxedVec<Height, S>,
+        denominator: &(impl ReadableCloneableVec<Height, D> + 'static),
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: NumericValue,
+        D: NumericValue,
+        F: BinaryTransform<S, D, B> + Send + Sync + 'static,
+    {
+        let source = LazyIndexedVec::new(
+            &format!("{name}_{}_source", B::SUFFIX),
+            version,
+            denominator.read_only_boxed_clone(),
+            numerator,
+            |_, denominator, numerator| F::apply(numerator, denominator),
+        );
+        Self::from_height_source(name, version, source, indexes)
+    }
+
     pub(crate) fn from_height_source<V>(
         name: &str,
         version: Version,
@@ -33,6 +106,22 @@ impl<B: FixedRatio> LazyPercentPerBlock<B> {
         let ppm_name = format!("{name}_{}", B::SUFFIX);
         let ppm =
             LazyPerBlock::from_height_source::<Identity<B>, _>(&ppm_name, version, source, indexes);
+        Self::from_ppm(name, version, ppm)
+    }
+
+    pub(crate) fn from_uncached_height_source<V>(
+        name: &str,
+        version: Version,
+        source: V,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        V: TypedVec<I = Height, T = B> + ReadableVec<Height, B> + Clone + 'static,
+    {
+        let ppm_name = format!("{name}_{}", B::SUFFIX);
+        let ppm = LazyPerBlock::from_uncached_height_source::<Identity<B>, _>(
+            &ppm_name, version, source, indexes,
+        );
         Self::from_ppm(name, version, ppm)
     }
 
@@ -50,6 +139,26 @@ impl<B: FixedRatio> LazyPercentPerBlock<B> {
     {
         let ppm_name = format!("{name}_{}", B::SUFFIX);
         let ppm = LazyPerBlock::from_indexed_source(&ppm_name, version, source, compute, indexes);
+
+        Self::from_ppm(name, version, ppm)
+    }
+
+    /// Create from one height-indexed in-memory source without adding the
+    /// derived fixed-point ratio to `cache_budget`.
+    pub(crate) fn from_uncached_indexed_source<S>(
+        name: &str,
+        version: Version,
+        source: &(impl ReadableCloneableVec<Height, S> + 'static),
+        compute: fn(Height, S) -> B,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: VecValue,
+    {
+        let ppm_name = format!("{name}_{}", B::SUFFIX);
+        let ppm = LazyPerBlock::from_uncached_indexed_source(
+            &ppm_name, version, source, compute, indexes,
+        );
 
         Self::from_ppm(name, version, ppm)
     }
@@ -76,22 +185,6 @@ impl<B: FixedRatio> LazyPercentPerBlock<B> {
         );
         let ppm =
             LazyPerBlock::from_height_source::<Identity<B>, _>(&ppm_name, version, source, indexes);
-
-        Self::from_ppm(name, version, ppm)
-    }
-
-    /// Create from a stored `PercentPerBlock` source via a same-unit unary transform.
-    pub(crate) fn from_percent<F: UnaryTransform<B, B>>(
-        name: &str,
-        version: Version,
-        source: &PercentPerBlock<B>,
-    ) -> Self {
-        let ppm = LazyPerBlock::from_computed::<F>(
-            &format!("{name}_{}", B::SUFFIX),
-            version,
-            source.ppm.height.read_only_boxed_clone(),
-            &source.ppm,
-        );
 
         Self::from_ppm(name, version, ppm)
     }

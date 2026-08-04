@@ -36,6 +36,10 @@
 //! ```
 
 #![deny(clippy::all, missing_docs, clippy::cargo)]
+#![allow(
+    clippy::cargo_common_metadata,
+    reason = "not every internal workspace package is independently published"
+)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::indexing_slicing)]
 #![warn(

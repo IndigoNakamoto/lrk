@@ -45,7 +45,7 @@ use super::{
     count::AddrCountFundedTotalVecs,
     supply::{AddrSupplyShareVecs, AddrSupplyVecs},
 };
-use crate::indexes;
+use crate::{distribution::metrics::AllSupplyCache, indexes};
 
 mod state;
 
@@ -67,11 +67,18 @@ impl ExposedAddrVecs {
         version: Version,
         indexes: &indexes::Vecs,
         spot_price: &CachedBoxedVec<Height, Cents>,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
+        let count = AddrCountFundedTotalVecs::forced_import(db, "exposed", version, indexes)?;
+        let supply = AddrSupplyVecs::forced_import(db, "exposed", version, indexes, spot_price)?;
+        let supply_share = AddrSupplyShareVecs::forced_import(
+            db, "exposed", version, indexes, &supply, all_supply,
+        )?;
+
         Ok(Self {
-            count: AddrCountFundedTotalVecs::forced_import(db, "exposed", version, indexes)?,
-            supply: AddrSupplyVecs::forced_import(db, "exposed", version, indexes, spot_price)?,
-            supply_share: AddrSupplyShareVecs::forced_import(db, "exposed", version, indexes)?,
+            count,
+            supply,
+            supply_share,
         })
     }
 
@@ -105,7 +112,6 @@ impl ExposedAddrVecs {
     pub(crate) fn compute_rest(
         &mut self,
         starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
     ) -> Result<()> {
@@ -113,7 +119,6 @@ impl ExposedAddrVecs {
         self.supply_share.compute_rest(
             starting_lengths.height,
             &self.supply,
-            all_supply_sats,
             type_supply_sats,
             exit,
         )?;

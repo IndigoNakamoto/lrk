@@ -15,12 +15,6 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
         let window_starts = blocks.lookback.window_starts();
 
-        self.sum.compute_count_from_indexes(
-            starting_height,
-            &indexer.vecs.inputs.first_txin_index,
-            &indexer.vecs.inputs.outpoint,
-            exit,
-        )?;
         self.compute_rest(starting_height, &window_starts, exit)?;
 
         Ok(())

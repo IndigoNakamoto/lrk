@@ -6,7 +6,6 @@ use vecdb::Exit;
 use super::Vecs;
 use crate::{
     inputs,
-    internal::PerBlockCumulativeRolling,
     outputs::{ByTypeVecs, CountVecs},
 };
 
@@ -19,8 +18,7 @@ impl Vecs {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        let op_return: &PerBlockCumulativeRolling<StoredU64> =
-            &by_type.output_count.by_type.unspendable.op_return;
+        let op_return = &by_type.output_count.by_type.unspendable.op_return;
 
         self.count.height.compute_transform3(
             starting_lengths.height,

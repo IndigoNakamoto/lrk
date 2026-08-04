@@ -1,7 +1,13 @@
 import { brk } from "../../utils/client.js";
 import { colors } from "../../utils/colors.js";
 import { Unit } from "../../utils/units.js";
-import { baseline, histogram } from "../series.js";
+import {
+  baseline,
+  dotted,
+  histogram,
+  line,
+  percentRatio,
+} from "../series.js";
 import {
   percentileBands,
   priceBands,
@@ -13,10 +19,47 @@ import {
  * @returns {PartialOptionsGroup}
  */
 export function createRarityMeterSection() {
-  const { rarityMeter } = brk.series.indicators;
+  const { rarityMeter } = brk.series.models;
   const { all, sth, lth, overAge, underAge } = brk.series.cohorts.utxo;
-  const { cointime, coinflow } = brk.series;
+  const { cointime, coinflow } = brk.series.frameworks;
   const components = rarityMeter.components;
+  const extremes = /** @type {const} */ ([
+    {
+      key: "coinsInLoss",
+      name: "Coins in Loss",
+      source: all.supply.inLoss.btc,
+      unit: Unit.btc,
+      color: colors.loss,
+    },
+    {
+      key: "profitTaking",
+      name: "Profit Taking",
+      source: all.realized.profit.sum._24h.usd,
+      unit: Unit.usd,
+      color: colors.bitcoin,
+    },
+    {
+      key: "capitulation",
+      name: "Capitulation",
+      source: all.realized.loss.sum._24h.usd,
+      unit: Unit.usd,
+      color: colors.loss,
+    },
+    {
+      key: "peakRegret",
+      name: "Peak Regret",
+      source: all.realized.peakRegret.sum._24h.usd,
+      unit: Unit.usd,
+      color: colors.regret,
+    },
+    {
+      key: "sellerExhaustion",
+      name: "Seller Exhaustion",
+      source: all.realized.sellSideRiskRatio._24h.percent,
+      unit: Unit.percentage,
+      color: colors.profit,
+    },
+  ]);
 
   return {
     name: "Rarity Meter",
@@ -61,6 +104,75 @@ export function createRarityMeterSection() {
           ],
         };
       }),
+      {
+        name: "Extremes",
+        tree: extremes.map(({ key, name, source, unit, color }) => {
+          const extreme = rarityMeter.extremes[key];
+          return {
+            name,
+            tree: [
+              {
+                name: "Value",
+                title: `Bitcoin Rarity Meter: ${name}`,
+                bottom: [
+                  line({
+                    series: source,
+                    name,
+                    color,
+                    unit,
+                  }),
+                  dotted({
+                    series: extreme.thresholdPct01,
+                    name: "0.1%",
+                    color: colors.ratioPct._95,
+                    unit,
+                  }),
+                  dotted({
+                    series: extreme.thresholdPct005,
+                    name: "0.05%",
+                    color: colors.ratioPct._99,
+                    unit,
+                  }),
+                  dotted({
+                    series: extreme.thresholdPct0025,
+                    name: "0.025%",
+                    color: colors.ratioPct._99_9,
+                    unit,
+                  }),
+                ],
+              },
+              {
+                name: "Tail",
+                title: `Bitcoin Rarity Meter: ${name} Historical Tail`,
+                bottom: percentRatio({
+                  pattern: extreme.tail,
+                  name: "Historical Tail",
+                  color,
+                }),
+              },
+              {
+                name: "Rank",
+                title: `Bitcoin Rarity Meter: ${name} Extreme Rank`,
+                bottom: [
+                  histogram({
+                    series: extreme.rank,
+                    name: "Rank",
+                    unit: Unit.count,
+                    colorFn: (rank) =>
+                      rank >= 3
+                        ? color
+                        : rank === 2
+                          ? colors.ratioPct._99
+                          : rank === 1
+                            ? colors.ratioPct._95
+                            : colors.transparent,
+                  }),
+                ],
+              },
+            ],
+          };
+        }),
+      },
       {
         name: "Components",
         tree: [

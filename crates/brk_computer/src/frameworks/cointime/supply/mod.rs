@@ -1,5 +1,5 @@
-mod compute;
 mod import;
 mod vecs;
 
-pub use vecs::{BaseVecs, Vecs};
+pub(crate) use vecs::LazyBaseVecs;
+pub use vecs::Vecs;

@@ -1,14 +1,14 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{Height, PartsPerMillion32, PoolSlug};
+use brk_types::{PartsPerMillion32, PoolSlug};
 use derive_more::{Deref, DerefMut};
-use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, Version};
+use vecdb::{BinaryTransform, Database, Exit, Rw, StorageMode, Version};
 
 use crate::{
     indexes,
     internal::{
-        LazyPercentRollingWindows, MaskSats, ValuePerBlockCumulativeRolling, WindowStartVec,
+        CachedWindowStartVec, LazyPercentRollingWindows, MaskSats, ValuePerBlockCumulativeRolling,
         Windows,
     },
     mining, price,
@@ -21,7 +21,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
-    pub base: minor::Vecs<M>,
+    pub base: minor::Vecs,
 
     pub rewards: ValuePerBlockCumulativeRolling<M>,
     #[traversable(rename = "dominance")]
@@ -32,13 +32,14 @@ impl Vecs {
     pub(crate) fn forced_import(
         db: &Database,
         slug: PoolSlug,
+        pool_heights: super::PoolHeights,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let suffix = |s: &str| format!("{}_{s}", slug);
 
-        let base = minor::Vecs::forced_import(db, slug, version, indexes, cached_starts)?;
+        let base = minor::Vecs::forced_import(slug, pool_heights, version, indexes, cached_starts);
 
         let rewards = ValuePerBlockCumulativeRolling::forced_import(
             db,
@@ -48,7 +49,7 @@ impl Vecs {
             cached_starts,
         )?;
 
-        let dominance_rolling = LazyPercentRollingWindows::from_cumulative_average(
+        let dominance_rolling = LazyPercentRollingWindows::from_uncached_cumulative_average(
             &suffix("dominance"),
             version,
             &base.blocks_mined.cumulative.height,
@@ -66,14 +67,11 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        pool: &impl ReadableVec<Height, PoolSlug>,
         prices: &price::Vecs,
         mining: &mining::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
-
-        self.base.compute(indexer, pool, exit)?;
 
         self.rewards.compute_from_pair(
             starting_height,

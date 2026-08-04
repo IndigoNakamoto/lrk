@@ -5,18 +5,17 @@ use brk_types::{Height, PartsPerMillionSigned64, Sats, Version};
 use vecdb::ReadableCloneableVec;
 
 use crate::{
-    distribution,
-    frameworks::cointime,
     indexes,
     internal::{
-        LazyFiatPerBlock, LazyPercentPerBlock, LazyRollingDeltasFiatFromHeight, LazyValuePerBlock,
-        LazyWindowVec, RollingWindows, WindowStartVec, Windows,
+        CachedWindowStartVec, Identity, LazyFiatPerBlock, LazyPerBlock, LazyPercentPerBlock,
+        LazyRollingDeltasFiatFromHeight, LazySpotValuePerBlock, LazyValuePerBlock, LazyWindowVec,
+        Windows,
         db_utils::{finalize_db, open_db},
     },
     supply::burned,
 };
 
-use super::Vecs;
+use super::{ImportSources, Vecs};
 
 const VERSION: Version = Version::ONE;
 
@@ -25,14 +24,13 @@ impl Vecs {
         parent: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        distribution: &distribution::Vecs,
-        cointime: &cointime::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        sources: ImportSources<'_>,
     ) -> Result<Self> {
         let db = open_db(parent, super::DB_NAME, 1_000_000)?;
 
         let version = parent_version + VERSION;
-        let supply_metrics = &distribution.utxo_cohorts.all.metrics.supply;
+        let supply_metrics = &sources.distribution().utxo_cohorts.all.metrics.supply;
 
         let circulating =
             LazyValuePerBlock::spot_identity("circulating_supply", &supply_metrics.total, version);
@@ -62,7 +60,12 @@ impl Vecs {
         );
 
         // Velocity
-        let velocity = super::velocity::Vecs::forced_import(&db, version, indexes)?;
+        let velocity = super::velocity::Vecs::forced_import(
+            version,
+            indexes,
+            sources.all_chain(),
+            sources.transactions(),
+        )?;
 
         // Market cap - lazy fiat (cents + usd) from distribution supply
         let market_cap =
@@ -77,17 +80,37 @@ impl Vecs {
             indexes,
         );
 
-        let market_minus_realized_cap_growth_rate = RollingWindows::forced_import(
-            &db,
-            "market_minus_realized_cap_growth_rate",
-            version + Version::new(3),
-            indexes,
-        )?;
+        let growth_version = version + Version::new(3);
+        let realized_cap = &sources
+            .distribution()
+            .utxo_cohorts
+            .all
+            .metrics
+            .realized
+            .cap
+            .cents
+            .height;
+        let market_minus_realized_cap_growth_rate =
+            cached_starts.map_with_suffix(|suffix, starts| {
+                let name = format!("market_minus_realized_cap_growth_rate_{suffix}");
+                let source = sources.all_chain().market_minus_realized_cap_growth(
+                    &format!("{name}_source"),
+                    growth_version,
+                    realized_cap,
+                    starts.read_only_cached_boxed_clone(),
+                );
+                LazyPerBlock::from_uncached_height_source::<Identity<PartsPerMillionSigned64>, _>(
+                    &name,
+                    growth_version,
+                    source,
+                    indexes,
+                )
+            });
 
-        let hodled_or_lost = LazyValuePerBlock::spot_identity(
+        let hodled_or_lost = LazySpotValuePerBlock::identity(
             "hodled_or_lost_supply",
-            &cointime.supply.vaulted,
             version,
+            &sources.cointime().supply.vaulted,
         );
 
         let this = Self {

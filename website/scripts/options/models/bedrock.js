@@ -92,7 +92,9 @@ function modeChart(mode, ath) {
  * @returns {PartialOptionsGroup}
  */
 export function createBedrockSection() {
-  const { bedrock, market, cohorts, cointime, coinflow } = brk.series;
+  const { market, cohorts } = brk.series;
+  const { cointime, coinflow } = brk.series.frameworks;
+  const { bedrock } = brk.series.models;
   const horizonModes = /** @type {const} */ ([
     { key: "coinflow8y", horizon: "_8y", name: "Coinflow 8Y" },
     { key: "coinflow4y", horizon: "_4y", name: "Coinflow 4Y" },

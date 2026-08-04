@@ -23,7 +23,10 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 1_000_000)?;
         let version = parent_version;
 
-        let lookback = LookbackVecs::forced_import(&db, version)?;
+        let lookback = LookbackVecs::new(
+            version,
+            indexes.timestamp.monotonic.read_only_cached_boxed_clone(),
+        );
         let cached_starts = lookback.cached_window_starts();
         let count = CountVecs::new(version, indexer, indexes, &cached_starts);
         let interval = IntervalVecs::forced_import(&db, version, indexes, &cached_starts)?;

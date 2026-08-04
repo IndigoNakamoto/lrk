@@ -232,9 +232,9 @@ export function createMarketSection() {
     cohorts,
     price: prices,
     indicators,
-    cointime,
-    coinflow,
   } = brk.series;
+  const { cointime, coinflow } = brk.series.frameworks;
+  const { rarityMeter } = brk.series.models;
   const {
     movingAverage: ma,
     ath,
@@ -944,7 +944,7 @@ export function createMarketSection() {
                 color: colors.coinflow,
               }),
               price({
-                series: indicators.rarityMeter.cycle.pct50,
+                series: rarityMeter.cycle.pct50,
                 name: "Cycle Rarity Midpoint",
                 color: colors.ratioPct._50,
               }),

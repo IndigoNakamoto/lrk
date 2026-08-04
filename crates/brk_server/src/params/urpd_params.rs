@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use brk_types::{Cohort, Date, UrpdAggregation};
+use brk_types::{Cohort, Date, UrpdAggregation, UrpdWeight};
 
 /// Path parameters for `/api/urpd/{cohort}/{date}`.
 #[derive(Deserialize, JsonSchema)]
@@ -24,4 +24,16 @@ pub struct UrpdQuery {
     /// Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
     #[serde(default, rename = "agg", alias = "bucket")]
     pub aggregation: UrpdAggregation,
+    /// Supply weighting. Default: raw (unweighted).
+    #[serde(default)]
+    pub weight: UrpdWeight,
+}
+
+/// Query parameters for URPD date discovery.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UrpdWeightQuery {
+    /// Supply weighting. Default: raw (unweighted).
+    #[serde(default)]
+    pub weight: UrpdWeight,
 }

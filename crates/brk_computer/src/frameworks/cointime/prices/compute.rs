@@ -21,7 +21,6 @@ impl Vecs {
     ) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
         let all_metrics = &distribution.utxo_cohorts.all.metrics;
-        let circulating_supply = &all_metrics.supply.total.btc.height;
         let realized_price = &all_metrics.realized.price.cents.height;
 
         self.vaulted.cents.height.compute_transform2(
@@ -46,16 +45,6 @@ impl Vecs {
             starting_lengths.height,
             &cap.investor.cents.height,
             &supply.active.btc.height,
-            |(i, cap_cents, supply_btc, ..)| {
-                (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
-            },
-            exit,
-        )?;
-
-        self.cointime.cents.height.compute_transform2(
-            starting_lengths.height,
-            &cap.cointime.cents.height,
-            circulating_supply,
             |(i, cap_cents, supply_btc, ..)| {
                 (i, Cents::from(f64::from(cap_cents) / f64::from(supply_btc)))
             },

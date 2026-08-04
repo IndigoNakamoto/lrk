@@ -1,10 +1,9 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
-use brk_types::StoredU64;
 use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
-use super::{Vecs, WithInputTypes};
-use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
+use super::Vecs;
+use crate::internal::{CoinbasePolicy, walk_blocks};
 
 const WRITE_INTERVAL: usize = 10_000;
 
@@ -61,12 +60,8 @@ impl Vecs {
                     Ok(())
                 },
                 |agg| {
-                    push_block(
-                        &mut self.input_count,
-                        agg.entries_all,
-                        &agg.entries_per_type,
-                    );
-                    push_block(&mut self.tx_count, agg.txs_all, &agg.txs_per_type);
+                    self.input_count.push_block(&agg.entries_per_type);
+                    self.tx_count.push_block(&agg.txs_per_type);
 
                     height += 1;
                     if height.is_multiple_of(WRITE_INTERVAL) {
@@ -85,35 +80,6 @@ impl Vecs {
             }
         }
 
-        for (otype, source) in self.input_count.by_type.iter_typed() {
-            self.input_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.input_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
-
-        for (otype, source) in self.tx_count.by_type.iter_typed() {
-            self.tx_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.tx_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
         Ok(())
-    }
-}
-
-#[inline]
-fn push_block(
-    metric: &mut WithInputTypes<PerBlockCumulativeRolling<StoredU64>>,
-    total: u64,
-    per_type: &[u64; 12],
-) {
-    metric.all.push_block(StoredU64::from(total));
-    for (otype, vec) in metric.by_type.iter_typed_mut() {
-        vec.push_block(StoredU64::from(per_type[otype as usize]));
     }
 }

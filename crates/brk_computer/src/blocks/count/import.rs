@@ -6,7 +6,7 @@ use crate::{
     indexes,
     internal::{
         BlockCountTarget1m, BlockCountTarget1w, BlockCountTarget1y, BlockCountTarget24h,
-        ConstantVecs, LazyPerBlockCumulativeRolling, WindowStartVec, Windows,
+        CachedWindowStartVec, ConstantVecs, LazyPerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -19,7 +19,7 @@ impl Vecs {
         version: Version,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Self {
         Self {
             target: Windows {

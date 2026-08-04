@@ -5,7 +5,7 @@ use brk_types::{Bitcoin, Height, ONE_DAY_IN_SEC_F64, Sats, StoredF64, Timestamp,
 use vecdb::{AnyVec, Exit, ReadableVec};
 
 use super::super::activity;
-use super::{CohortVecs, Vecs};
+use super::{CohortVecs, SupplyVecs, Vecs};
 use crate::{distribution, indexes};
 
 const HOURS_PER_DAY: f64 = 24.0;
@@ -235,18 +235,42 @@ impl Vecs {
                 coindays_created,
                 coindays_consumed,
                 coindays_stored,
-                activity_vecs,
+                &mut activity_vecs.wakefulness,
                 exit,
             )?;
 
             supply.compute_from(
                 starting_height,
                 total_supply,
-                &activity_vecs.liveliness.height,
-                &activity_vecs.vaultedness.height,
+                &activity_vecs.wakefulness.height,
+                &activity_vecs.dormancy.height,
                 exit,
             )?;
         }
+
+        Ok(())
+    }
+}
+
+impl SupplyVecs {
+    fn compute_from(
+        &mut self,
+        starting_height: Height,
+        total_supply: &impl ReadableVec<Height, Sats>,
+        wakefulness: &impl ReadableVec<Height, StoredF64>,
+        dormancy: &impl ReadableVec<Height, StoredF64>,
+        exit: &Exit,
+    ) -> Result<()> {
+        self.awake.sats.height.compute_multiply(
+            starting_height,
+            total_supply,
+            wakefulness,
+            exit,
+        )?;
+        self.dormant
+            .sats
+            .height
+            .compute_multiply(starting_height, total_supply, dormancy, exit)?;
 
         Ok(())
     }

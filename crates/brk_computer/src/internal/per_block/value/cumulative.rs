@@ -2,8 +2,8 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, Sats, Version};
 use vecdb::{
-    AnyVec, BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, VecIndex, VecValue,
-    WritableVec,
+    AnyVec, BinaryTransform, Database, EagerVec, Exit, PcoVec, ReadableVec, Rw, StorageMode,
+    VecIndex, VecValue, WritableVec,
 };
 
 use crate::{
@@ -92,32 +92,6 @@ impl ValuePerBlockCumulative {
         S2: VecValue,
     {
         self.compute_sats_from_pair(max_from, source1, source2, transform, exit)?;
-        self.compute_cents(max_from, prices, exit)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn compute_from_indexes<A, B>(
-        &mut self,
-        max_from: Height,
-        prices: &price::Vecs,
-        first_indexes: &impl ReadableVec<Height, A>,
-        indexes_count: &impl ReadableVec<Height, B>,
-        source: &impl ReadableVec<A, Sats>,
-        exit: &Exit,
-    ) -> Result<()>
-    where
-        A: VecIndex + VecValue,
-        B: VecValue,
-        usize: From<B>,
-    {
-        self.compute_sats_from_indexes(
-            max_from,
-            first_indexes,
-            indexes_count,
-            source,
-            |_| true,
-            exit,
-        )?;
         self.compute_cents(max_from, prices, exit)
     }
 
@@ -218,6 +192,34 @@ impl ValuePerBlockCumulative {
         first_indexes: &impl ReadableVec<Height, A>,
         indexes_count: &impl ReadableVec<Height, B>,
         source: &impl ReadableVec<A, Sats>,
+        filter: impl FnMut(&Sats) -> bool,
+        exit: &Exit,
+    ) -> Result<()>
+    where
+        A: VecIndex + VecValue,
+        B: VecValue,
+        usize: From<B>,
+    {
+        Self::compute_sats_height_from_indexes(
+            &mut self.cumulative.sats.height,
+            max_from,
+            first_indexes,
+            indexes_count,
+            source,
+            filter,
+            exit,
+        )?;
+        self.last_cumulative_sats = None;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn compute_sats_height_from_indexes<A, B>(
+        target: &mut EagerVec<PcoVec<Height, Sats>>,
+        max_from: Height,
+        first_indexes: &impl ReadableVec<Height, A>,
+        indexes_count: &impl ReadableVec<Height, B>,
+        source: &impl ReadableVec<A, Sats>,
         mut filter: impl FnMut(&Sats) -> bool,
         exit: &Exit,
     ) -> Result<()>
@@ -226,7 +228,6 @@ impl ValuePerBlockCumulative {
         B: VecValue,
         usize: From<B>,
     {
-        let target = &mut self.cumulative.sats.height;
         target.validate_computed_version_or_reset(
             first_indexes.version() + indexes_count.version() + source.version(),
         )?;
@@ -281,7 +282,6 @@ impl ValuePerBlockCumulative {
 
             Ok(())
         })?;
-        self.last_cumulative_sats = None;
         Ok(())
     }
 

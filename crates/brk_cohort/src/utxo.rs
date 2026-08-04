@@ -2,9 +2,16 @@ use brk_traversable::Traversable;
 use rayon::prelude::*;
 
 use crate::{
-    AgeRange, AmountRange, ByEntry, ByEpoch, ByTerm, Class, Filter, OverAge, OverAmount,
-    SpendableType, UnderAge, UnderAmount,
+    AgeRange, AmountRange, ByEntry, ByEpoch, ByTerm, Class, CohortName, Filter, OverAge,
+    OverAmount, SpendableType, TERM_NAMES, UnderAge, UnderAmount,
 };
+
+/// Canonical name for the aggregate cohort containing every UTXO.
+pub const UTXO_ALL_NAME: CohortName = CohortName::new("all", "All", "All UTXOs");
+
+/// Canonical names for the aggregate UTXO cohorts.
+pub const UTXO_AGGREGATE_NAMES: [CohortName; 3] =
+    [UTXO_ALL_NAME, TERM_NAMES.short, TERM_NAMES.long];
 
 #[derive(Default, Clone, Traversable)]
 pub struct UTXOGroups<T> {

@@ -22,7 +22,7 @@ pub use pool_heights::PoolHeights;
 use crate::{
     indexes,
     internal::{
-        WindowStartVec, Windows,
+        CachedWindowStartVec, Windows,
         db_utils::{finalize_db, open_db},
     },
     mining, price,
@@ -39,7 +39,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     pub pool_heights: PoolHeights,
     pub major: BTreeMap<PoolSlug, major::Vecs<M>>,
-    pub minor: BTreeMap<PoolSlug, minor::Vecs<M>>,
+    pub minor: BTreeMap<PoolSlug, minor::Vecs>,
 }
 
 impl Vecs {
@@ -47,7 +47,7 @@ impl Vecs {
         parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let db = open_db(parent_path, DB_NAME, 100_000)?;
         let pools = pools();
@@ -57,6 +57,9 @@ impl Vecs {
             + POOL_ATTRIBUTION_VERSION
             + Version::new(pools.len() as u32);
 
+        let pool = BytesVec::forced_import(&db, "pool", version)?;
+        let pool_heights = PoolHeights::build(&pool);
+
         let mut major_map = BTreeMap::new();
         let mut minor_map = BTreeMap::new();
 
@@ -64,18 +67,28 @@ impl Vecs {
             if pool.slug.is_major() {
                 major_map.insert(
                     pool.slug,
-                    major::Vecs::forced_import(&db, pool.slug, version, indexes, cached_starts)?,
+                    major::Vecs::forced_import(
+                        &db,
+                        pool.slug,
+                        pool_heights.clone(),
+                        version,
+                        indexes,
+                        cached_starts,
+                    )?,
                 );
             } else {
                 minor_map.insert(
                     pool.slug,
-                    minor::Vecs::forced_import(&db, pool.slug, version, indexes, cached_starts)?,
+                    minor::Vecs::forced_import(
+                        pool.slug,
+                        pool_heights.clone(),
+                        version,
+                        indexes,
+                        cached_starts,
+                    ),
                 );
             }
         }
-
-        let pool = BytesVec::forced_import(&db, "pool", version)?;
-        let pool_heights = PoolHeights::build(&pool);
 
         let this = Self {
             pool,
@@ -105,11 +118,7 @@ impl Vecs {
 
         self.major
             .par_iter_mut()
-            .try_for_each(|(_, vecs)| vecs.compute(indexer, &self.pool, prices, mining, exit))?;
-
-        self.minor
-            .par_iter_mut()
-            .try_for_each(|(_, vecs)| vecs.compute(indexer, &self.pool, exit))?;
+            .try_for_each(|(_, vecs)| vecs.compute(indexer, prices, mining, exit))?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

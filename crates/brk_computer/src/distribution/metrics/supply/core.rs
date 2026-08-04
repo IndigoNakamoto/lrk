@@ -11,7 +11,7 @@ use crate::internal::{
     HalveCents, HalveDollars, HalveSats, HalveSatsToBitcoin, LazyValuePerBlock, SpotValuePerBlock,
 };
 
-use crate::distribution::metrics::ImportConfig;
+use crate::distribution::metrics::{AllSupplyCache, ImportConfig};
 
 use super::SupplyBase;
 
@@ -29,9 +29,16 @@ pub struct SupplyCore<M: StorageMode = Rw> {
 }
 
 impl SupplyCore {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
+        Self::forced_import_with_base(cfg, SupplyBase::forced_import(cfg, all_supply)?)
+    }
+
+    pub(crate) fn forced_import_all(cfg: &ImportConfig) -> Result<Self> {
+        Self::forced_import_with_base(cfg, SupplyBase::forced_import_all(cfg)?)
+    }
+
+    fn forced_import_with_base(cfg: &ImportConfig, base: SupplyBase) -> Result<Self> {
         let v0 = Version::ZERO;
-        let base = SupplyBase::forced_import(cfg)?;
 
         let half = LazyValuePerBlock::from_spot_block_source::<
             HalveSats,

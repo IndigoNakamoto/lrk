@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{Bitcoin, Cents, Dollars, Height, PartsPerMillionSigned64, Sats};
-use vecdb::{Database, EagerVec, PcoVec, Rw, StorageMode};
 
+use super::cached_dca_sats::CachedDcaSats;
 use super::{ByDcaCagr, ByDcaClass, ByDcaPeriod};
 use crate::internal::{LazyPerBlock, LazyPercentPerBlock, LazyPreviousDeltaVec, Price};
 
@@ -38,13 +38,17 @@ pub struct ClassVecs {
     pub dca_return: ByDcaClass<LazyPercentPerBlock<PartsPerMillionSigned64>>,
 }
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
+#[derive(Clone, Traversable)]
+pub struct Vecs {
     #[traversable(skip)]
-    pub(crate) db: Database,
+    pub(super) cached_dca_sats: CachedDcaSats,
     pub sats_per_day: LazyPreviousDeltaVec<Height, Sats>,
-    #[traversable(hidden)]
-    pub sats_cumulative: M::Stored<EagerVec<PcoVec<Height, Sats>>>,
     pub period: PeriodVecs,
     pub class: ClassVecs,
+}
+
+impl Vecs {
+    pub(crate) fn invalidate_cache(&self) {
+        self.cached_dca_sats.invalidate();
+    }
 }

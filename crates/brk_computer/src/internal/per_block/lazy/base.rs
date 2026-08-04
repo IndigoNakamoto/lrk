@@ -3,8 +3,8 @@ use brk_types::{Height, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    LazyVecFrom1, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, TypedVec,
-    UnaryTransform, VecValue,
+    LazyVecFrom1, PcoVecValue, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec, ReadableVec,
+    TypedVec, UnaryTransform, VecValue,
 };
 
 use crate::{
@@ -38,10 +38,7 @@ where
         version: Version,
         height_source: ReadableBoxedVec<Height, S1T>,
         resolutions: &Resolutions<S1T>,
-    ) -> Self
-    where
-        S1T: NumericValue,
-    {
+    ) -> Self {
         Self {
             height: LazyVecFrom1::transformed::<F>(name, version, height_source),
             resolutions: Box::new(DerivedResolutions::from_derived_computed::<F>(
@@ -59,7 +56,7 @@ where
         source: &PerBlock<S1T>,
     ) -> Self
     where
-        S1T: NumericValue,
+        S1T: PcoVecValue,
     {
         Self::from_resolutions::<F>(name, version, height_source, &source.resolutions)
     }
@@ -97,6 +94,35 @@ where
                 version,
                 height_source,
                 indexes,
+            )),
+        }
+    }
+
+    /// Build from a height source that already reads from compact in-memory
+    /// state, without adding the full derived height vec to `cache_budget`.
+    pub(crate) fn from_uncached_height_source<F: UnaryTransform<S1T, T>, V>(
+        name: &str,
+        version: Version,
+        height_source: V,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S1T: NumericValue,
+        V: TypedVec<I = Height, T = S1T> + ReadableVec<Height, S1T> + Clone + 'static,
+    {
+        let resolutions =
+            Resolutions::forced_import_uncached(name, height_source.clone(), version, indexes);
+
+        Self {
+            height: LazyVecFrom1::transformed::<F>(
+                name,
+                version,
+                height_source.read_only_boxed_clone(),
+            ),
+            resolutions: Box::new(DerivedResolutions::from_derived_computed::<F>(
+                name,
+                version,
+                &resolutions,
             )),
         }
     }
@@ -148,6 +174,27 @@ where
             compute,
         );
         Self::from_height_source::<Identity<T>, _>(name, version, indexed, indexes)
+    }
+
+    /// Derive a per-block metric from one height-indexed in-memory source
+    /// without adding the derived height vec to `cache_budget`.
+    pub(crate) fn from_uncached_indexed_source<S>(
+        name: &str,
+        version: Version,
+        source: &(impl ReadableCloneableVec<Height, S> + 'static),
+        compute: fn(Height, S) -> T,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        S: VecValue,
+    {
+        let indexed = LazyVecFrom1::init(
+            &format!("{name}_source"),
+            version,
+            source.read_only_boxed_clone(),
+            compute,
+        );
+        Self::from_uncached_height_source::<Identity<T>, _>(name, version, indexed, indexes)
     }
 }
 

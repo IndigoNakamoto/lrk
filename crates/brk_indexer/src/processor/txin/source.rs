@@ -1,4 +1,4 @@
-use brk_types::{OutPoint, OutputType, Sats, SigOps, TxOutIndex, TypeIndex};
+use brk_types::{OutPoint, OutputType, SigOps, TxOutIndex, TypeIndex};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum InputSource {
@@ -6,7 +6,6 @@ pub(crate) enum InputSource {
     PreviousBlock {
         outpoint: OutPoint,
         txout_index: TxOutIndex,
-        value: Sats,
         output_type: OutputType,
         legacy_sigops: SigOps,
         type_index: TypeIndex,
@@ -15,6 +14,5 @@ pub(crate) enum InputSource {
         outpoint: OutPoint,
         txout_offset: usize,
         txout_index: TxOutIndex,
-        value: Sats,
     },
 }

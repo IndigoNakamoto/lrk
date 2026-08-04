@@ -209,15 +209,21 @@ function createUrpdHeatmapOption({
 async function fetchUrpdPoints(cohort, date, signal, getValue, onPoints) {
   /** @type {HeatmapPoints | undefined} */
   let points;
-  const urpd = await brk.getUrpdAt(cohort, date, AGGREGATION, {
-    signal,
-    onValue: onPoints
-      ? (urpd) => {
-          points = toPoints(urpd, getValue);
-          onPoints(points);
-        }
-      : undefined,
-  });
+  const urpd = await brk.getUrpdAt(
+    cohort,
+    date,
+    AGGREGATION,
+    undefined,
+    {
+      signal,
+      onValue: onPoints
+        ? (urpd) => {
+            points = toPoints(urpd, getValue);
+            onPoints(points);
+          }
+        : undefined,
+    },
+  );
 
   return points ?? toPoints(urpd, getValue);
 }

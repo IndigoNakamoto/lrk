@@ -3,15 +3,18 @@ use brk_indexer::Indexer;
 use brk_types::{Bitcoin, StoredF64};
 use vecdb::Exit;
 
-use super::{DerivedVecs, Vecs};
-use crate::{distribution, internal::PerBlockCumulativeRolling};
+use super::Vecs;
+use crate::{
+    distribution,
+    internal::{PerBlock, PerBlockCumulativeRolling},
+};
 
 pub(crate) fn compute_rest(
     starting_height: brk_types::Height,
     created: &PerBlockCumulativeRolling<StoredF64>,
     consumed: &PerBlockCumulativeRolling<StoredF64>,
     stored: &mut PerBlockCumulativeRolling<StoredF64>,
-    derived: &mut DerivedVecs,
+    activity: &mut PerBlock<StoredF64>,
     exit: &Exit,
 ) -> Result<()> {
     stored.cumulative.height.compute_subtract(
@@ -21,7 +24,7 @@ pub(crate) fn compute_rest(
         exit,
     )?;
 
-    derived.liveliness.height.compute_divide(
+    activity.height.compute_divide(
         starting_height,
         &consumed.cumulative.height,
         &created.cumulative.height,
@@ -54,7 +57,7 @@ impl Vecs {
             &self.coinblocks_created,
             &distribution.coinblocks_destroyed,
             &mut self.coinblocks_stored,
-            &mut self.derived,
+            &mut self.derived.liveliness,
             exit,
         )
     }

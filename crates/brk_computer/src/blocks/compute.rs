@@ -4,24 +4,17 @@ use brk_error::Result;
 use brk_indexer::Indexer;
 use vecdb::Exit;
 
-use crate::indexes;
-
 use super::Vecs;
 
 impl Vecs {
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        indexes: &indexes::Vecs,
-        exit: &Exit,
-    ) -> Result<()> {
+    pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
-        // lookback depends on indexes.timestamp.monotonic
-        self.lookback.compute(indexer, indexes, exit)?;
+        // Cached lookbacks depend on the monotonic timestamp vec, which may
+        // have changed without changing its final length after a reorg.
+        self.lookback.clear_caches();
 
-        // Interval and size are independent. Size depends on lookback, which
-        // was already computed above.
+        // Interval and size are independent.
         let Vecs {
             lookback,
             interval,

@@ -322,7 +322,7 @@ mod tests {
         {
             let copycopy = copy.slice(0..=4);
             assert_eq!("thisi", &*copycopy);
-            assert_eq!('t', copycopy.chars().next().unwrap());
+            assert_eq!(Some('t'), copycopy.chars().next());
         }
     }
 
@@ -389,14 +389,14 @@ mod tests {
     fn tiny_str_eq() {
         let a = StrView::from("abc");
         let b = StrView::from("def");
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
     fn long_str_eq() {
         let a = StrView::from("abcdefabcdefabcdefabcdef");
         let b = StrView::from("xycdefabcdefabcdefabcdef");
-        assert!(a != b);
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -410,7 +410,7 @@ mod tests {
     fn long_str_eq_2() {
         let a = StrView::from("abcdefabcdefabcdefabcdef");
         let b = StrView::from("abcdefabcdefabcdefabcdef");
-        assert!(a == b);
+        assert_eq!(a, b);
     }
 
     #[test]

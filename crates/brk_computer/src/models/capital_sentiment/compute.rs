@@ -1,6 +1,6 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
-use brk_types::{CapitalSentimentPhase, Cents, Height, StoredI8, Version};
+use brk_types::{CapitalSentimentPhase, Cents, Height, StoredBool, StoredU8, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 
 use super::Vecs;
@@ -59,6 +59,7 @@ impl Vecs {
         .into_iter()
         .sum();
         validate_any_computed_version_or_reset(&mut self.phase_code.height, source_version)?;
+        validate_any_computed_version_or_reset(&mut self.is_long.height, source_version)?;
 
         let source_end = [spot.len(), all.len(), sth.len(), lth.len(), sma_1y.len()]
             .into_iter()
@@ -68,25 +69,51 @@ impl Vecs {
             .phase_code
             .height
             .len()
+            .min(self.is_long.height.len())
             .min(indexer.safe_lengths().height.to_usize())
             .min(source_end);
         self.phase_code.height.any_truncate_if_needed_at(start)?;
+        self.is_long.height.any_truncate_if_needed_at(start)?;
+
+        let mut is_long = start
+            .checked_sub(1)
+            .map(Height::from)
+            .map(|height| self.is_long.height.collect_one(height).data())
+            .transpose()?
+            .is_some_and(|value| value.is_true());
+        let mut previous_price = start
+            .checked_sub(1)
+            .map(Height::from)
+            .map(|height| spot.collect_one(height).data())
+            .transpose()?;
+        let mut previous_sth = start
+            .checked_sub(1)
+            .map(Height::from)
+            .map(|height| sth.collect_one(height).data())
+            .transpose()?;
 
         for height_index in start..source_end {
             let height = Height::from(height_index);
+            let price = spot.collect_one(height).data()?;
+            let sth = sth.collect_one(height).data()?;
             let code = classify_phase_code(
-                spot.collect_one(height).data()?,
+                price,
                 all.collect_one(height).data()?,
-                sth.collect_one(height).data()?,
+                sth,
                 lth.collect_one(height).data()?,
                 sma_1y.collect_one(height).data()?,
             );
+            is_long = next_is_long(is_long, previous_price.zip(previous_sth), price, sth, code);
 
             self.phase_code.height.push(code);
+            self.is_long.height.push(StoredBool::from(is_long));
+            previous_price = Some(price);
+            previous_sth = Some(sth);
 
             if (height_index + 1).is_multiple_of(WRITE_INTERVAL) || height_index + 1 == source_end {
                 let _lock = exit.lock();
                 self.phase_code.height.write()?;
+                self.is_long.height.write()?;
             }
         }
 
@@ -94,12 +121,39 @@ impl Vecs {
     }
 }
 
+/// Advance the stateful cash/long strategy used by BRK Signal.
+fn next_is_long(
+    is_long: bool,
+    previous: Option<(Cents, Cents)>,
+    price: Cents,
+    sth: Cents,
+    phase_code: StoredU8,
+) -> bool {
+    let crossed_above_sth = previous.is_some_and(|(previous_price, previous_sth)| {
+        !is_over_sth(previous_price, previous_sth) && is_over_sth(price, sth)
+    });
+
+    if !is_long && crossed_above_sth {
+        return true;
+    }
+    if is_long && CapitalSentimentPhase::from_code(*phase_code).is_some_and(|phase| phase.is_sell())
+    {
+        return false;
+    }
+    is_long
+}
+
+#[inline]
+fn is_over_sth(price: Cents, sth: Cents) -> bool {
+    !price.is_nan() && !sth.is_nan() && price > Cents::ZERO && sth > Cents::ZERO && price >= sth
+}
+
 /// Code `0` means the model's references are not all available yet.
-fn classify_phase_code(price: Cents, all: Cents, sth: Cents, lth: Cents, sma: Cents) -> StoredI8 {
+fn classify_phase_code(price: Cents, all: Cents, sth: Cents, lth: Cents, sma: Cents) -> StoredU8 {
     if [price, all, sth, lth, sma].into_iter().any(Cents::is_nan) {
-        StoredI8::ZERO
+        StoredU8::ZERO
     } else {
-        StoredI8::new(classify_phase(price, all, sth, lth, sma).code() as i8)
+        StoredU8::new(classify_phase(price, all, sth, lth, sma).code())
     }
 }
 
@@ -233,7 +287,45 @@ mod tests {
     fn missing_reference_has_no_phase() {
         assert_eq!(
             classify_phase_code(cents(100), cents(70), cents(80), Cents::NAN, cents(50)),
-            StoredI8::ZERO
+            StoredU8::ZERO
         );
+    }
+
+    #[test]
+    fn signal_enters_only_on_an_sth_cross_and_exits_on_a_sell_phase() {
+        use CapitalSentimentPhase as Phase;
+
+        let bull = StoredU8::new(Phase::Bull.code());
+        let bear = StoredU8::new(Phase::Bear.code());
+
+        assert!(!next_is_long(false, None, cents(100), cents(80), bull));
+        assert!(next_is_long(
+            false,
+            Some((cents(70), cents(80))),
+            cents(80),
+            cents(80),
+            bull,
+        ));
+        assert!(!next_is_long(
+            false,
+            Some((cents(90), cents(80))),
+            cents(100),
+            cents(80),
+            bull,
+        ));
+        assert!(next_is_long(
+            true,
+            Some((cents(90), cents(80))),
+            cents(100),
+            cents(80),
+            bull,
+        ));
+        assert!(!next_is_long(
+            true,
+            Some((cents(90), cents(80))),
+            cents(100),
+            cents(80),
+            bear,
+        ));
     }
 }

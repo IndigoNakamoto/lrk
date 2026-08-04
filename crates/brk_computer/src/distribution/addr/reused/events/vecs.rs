@@ -1,16 +1,17 @@
-use brk_cohort::ByAddrType;
+use brk_cohort::{ByAddrType, zip2_by_addr_type};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{OutputType, PartsPerMillion32, StoredF32, StoredU32, StoredU64, Version};
+use brk_types::{PartsPerMillion32, StoredF32, StoredU32, StoredU64, Version};
 use rayon::prelude::*;
 use vecdb::{AnyStoredVec, AnyVec, Database, Exit, Rw, StorageMode, WritableVec};
 
 use crate::{
     indexes, inputs,
     internal::{
-        CountPerBlockRollingAverage, PerBlockCumulativeRolling, PerBlockRollingAverage,
-        PercentCumulativeRolling, WindowStartVec, Windows, WithAddrTypes,
+        CachedBlockCountReader, CachedWindowStartVec, CountPerBlockRollingAverage,
+        LazyPercentCumulativeRolling, PerBlockCumulativeRolling, PerBlockRollingAverage, RatioU64,
+        Windows, WithAddrTypes,
     },
     outputs,
 };
@@ -63,13 +64,48 @@ use super::state::AddrTypeToAddrEventCount;
 /// Sums and cumulatives of distinct-address counts would be misleading
 /// because the same address can appear in multiple blocks, so the
 /// cumulative count remains an internal source for the lazy views.
+#[derive(Clone, Traversable)]
+pub struct AddrEventShares {
+    pub all: LazyPercentCumulativeRolling<PartsPerMillion32>,
+    #[traversable(flatten)]
+    pub by_addr_type: ByAddrType<LazyPercentCumulativeRolling<PartsPerMillion32>>,
+}
+
+impl AddrEventShares {
+    fn new(
+        name: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        all: LazyPercentCumulativeRolling<PartsPerMillion32>,
+        numerators: &ByAddrType<PerBlockCumulativeRolling<StoredU64>>,
+        denominators: &ByAddrType<CachedBlockCountReader>,
+    ) -> Result<Self> {
+        let by_addr_type = zip2_by_addr_type(
+            numerators,
+            denominators,
+            |type_name, numerator, denominator| {
+                Ok(LazyPercentCumulativeRolling::from_cached_block_count(
+                    &format!("{type_name}_{name}"),
+                    version,
+                    &numerator.cumulative.height,
+                    denominator.clone(),
+                    cached_starts,
+                    indexes,
+                ))
+            },
+        )?;
+        Ok(Self { all, by_addr_type })
+    }
+}
+
 #[derive(Traversable)]
 pub struct AddrEventsVecs<M: StorageMode = Rw> {
     pub output_to_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
-    pub output_to_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
-    pub spendable_output_to_reused_addr_share: PercentCumulativeRolling<PartsPerMillion32, M>,
+    pub output_to_reused_addr_share: AddrEventShares,
+    pub spendable_output_to_reused_addr_share: LazyPercentCumulativeRolling<PartsPerMillion32>,
     pub input_from_reused_addr_count: WithAddrTypes<PerBlockCumulativeRolling<StoredU64, M>>,
-    pub input_from_reused_addr_share: WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32, M>>,
+    pub input_from_reused_addr_share: AddrEventShares,
     pub active_reused_addr_count: CountPerBlockRollingAverage<M>,
     pub active_reused_addr_share: PerBlockRollingAverage<StoredF32, StoredF32, M>,
 }
@@ -80,7 +116,9 @@ impl AddrEventsVecs {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        outputs_by_type: &outputs::ByTypeVecs,
+        inputs_by_type: &inputs::ByTypeVecs,
     ) -> Result<Self> {
         let import_count = |name: &str| {
             WithAddrTypes::<PerBlockCumulativeRolling<StoredU64>>::forced_import(
@@ -91,32 +129,57 @@ impl AddrEventsVecs {
                 cached_starts,
             )
         };
-        let import_percent =
-            |name: &str| -> Result<WithAddrTypes<PercentCumulativeRolling<PartsPerMillion32>>> {
-                Ok(WithAddrTypes {
-                    all: PercentCumulativeRolling::forced_import(db, name, version, indexes)?,
-                    by_addr_type: ByAddrType::new_with_name(|type_name| {
-                        PercentCumulativeRolling::forced_import(
-                            db,
-                            &format!("{type_name}_{name}"),
-                            version,
-                            indexes,
-                        )
-                    })?,
-                })
-            };
 
         let output_to_reused_addr_count = import_count(&format!("output_to_{name}_addr_count"))?;
-        let output_to_reused_addr_share = import_percent(&format!("output_to_{name}_addr_share"))?;
-        let spendable_output_to_reused_addr_share = PercentCumulativeRolling::forced_import(
-            db,
-            &format!("spendable_output_to_{name}_addr_share"),
+        let output_share_name = format!("output_to_{name}_addr_share");
+        let output_denominators = outputs_by_type.output_count.cached_addr_type_counts();
+        let output_to_reused_addr_share = AddrEventShares::new(
+            &output_share_name,
             version,
             indexes,
+            cached_starts,
+            outputs_by_type.output_count.lazy_share(
+                &output_share_name,
+                version,
+                &output_to_reused_addr_count.all.cumulative.height,
+                cached_starts,
+                indexes,
+            ),
+            &output_to_reused_addr_count.by_addr_type,
+            &output_denominators,
         )?;
+        let spendable_share_name = format!("spendable_output_to_{name}_addr_share");
+        let spendable_output_to_reused_addr_share =
+            LazyPercentCumulativeRolling::from_cumulative_ratio::<
+                StoredU64,
+                StoredU64,
+                RatioU64<PartsPerMillion32>,
+            >(
+                &spendable_share_name,
+                version,
+                &output_to_reused_addr_count.all.cumulative.height,
+                outputs_by_type.spendable_output_count.cached_cumulative(),
+                cached_starts,
+                indexes,
+            );
         let input_from_reused_addr_count = import_count(&format!("input_from_{name}_addr_count"))?;
-        let input_from_reused_addr_share =
-            import_percent(&format!("input_from_{name}_addr_share"))?;
+        let input_share_name = format!("input_from_{name}_addr_share");
+        let input_denominators = inputs_by_type.input_count.cached_addr_type_counts();
+        let input_from_reused_addr_share = AddrEventShares::new(
+            &input_share_name,
+            version,
+            indexes,
+            cached_starts,
+            inputs_by_type.input_count.lazy_share(
+                &input_share_name,
+                version,
+                &input_from_reused_addr_count.all.cumulative.height,
+                cached_starts,
+                indexes,
+            ),
+            &input_from_reused_addr_count.by_addr_type,
+            &input_denominators,
+        )?;
 
         let active_reused_addr_count = CountPerBlockRollingAverage::forced_import(
             db,
@@ -148,7 +211,7 @@ impl AddrEventsVecs {
         self.output_to_reused_addr_count
             .min_stateful_len()
             .min(self.input_from_reused_addr_count.min_stateful_len())
-            .min(self.active_reused_addr_count.cumulative.len())
+            .min(self.active_reused_addr_count.min_stateful_len())
             .min(self.active_reused_addr_share.block.len())
     }
 
@@ -201,59 +264,9 @@ impl AddrEventsVecs {
             .push(StoredF32::from(share));
     }
 
-    pub(crate) fn compute_rest(
-        &mut self,
-        starting_lengths: &Lengths,
-        outputs_by_type: &outputs::ByTypeVecs,
-        inputs_by_type: &inputs::ByTypeVecs,
-        exit: &Exit,
-    ) -> Result<()> {
+    pub(crate) fn compute_rest(&mut self, starting_lengths: &Lengths, exit: &Exit) -> Result<()> {
         self.active_reused_addr_share
             .compute_rest(starting_lengths.height, exit)?;
-
-        self.output_to_reused_addr_share.all.compute_count_ratio(
-            &self.output_to_reused_addr_count.all,
-            &outputs_by_type.output_count.all,
-            starting_lengths.height,
-            exit,
-        )?;
-        self.spendable_output_to_reused_addr_share
-            .compute_count_ratio(
-                &self.output_to_reused_addr_count.all,
-                &outputs_by_type.spendable_output_count,
-                starting_lengths.height,
-                exit,
-            )?;
-        self.input_from_reused_addr_share.all.compute_count_ratio(
-            &self.input_from_reused_addr_count.all,
-            &inputs_by_type.input_count.all,
-            starting_lengths.height,
-            exit,
-        )?;
-        for otype in OutputType::ADDR_TYPES {
-            self.output_to_reused_addr_share
-                .by_addr_type
-                .get_mut_unwrap(otype)
-                .compute_count_ratio(
-                    self.output_to_reused_addr_count
-                        .by_addr_type
-                        .get_unwrap(otype),
-                    outputs_by_type.output_count.by_type.get(otype),
-                    starting_lengths.height,
-                    exit,
-                )?;
-            self.input_from_reused_addr_share
-                .by_addr_type
-                .get_mut_unwrap(otype)
-                .compute_count_ratio(
-                    self.input_from_reused_addr_count
-                        .by_addr_type
-                        .get_unwrap(otype),
-                    inputs_by_type.input_count.by_type.get(otype),
-                    starting_lengths.height,
-                    exit,
-                )?;
-        }
         Ok(())
     }
 }

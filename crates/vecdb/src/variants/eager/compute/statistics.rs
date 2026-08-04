@@ -76,7 +76,7 @@ where
                 update_deque(&mut deque, i, value, window, &should_pop);
 
                 let v = deque.front().unwrap().1.clone();
-                this.checked_push_at(i, V::T::from(v))?;
+                this.push(V::T::from(v));
                 i += 1;
                 Ok(())
             })
@@ -160,7 +160,7 @@ where
                 };
 
                 prev_sum = sum.clone();
-                this.checked_push_at(i, sum)?;
+                this.push(sum);
                 i += 1;
                 Ok(())
             })
@@ -212,8 +212,7 @@ where
                 let starts_batch = window_starts.collect_range_at(skip, end);
                 let values_batch = values.collect_range_at(skip, end);
 
-                for (j, (start, value)) in starts_batch.into_iter().zip(values_batch).enumerate() {
-                    let i = skip + j;
+                for (start, value) in starts_batch.into_iter().zip(values_batch) {
                     running_sum += V::T::from(value);
 
                     if prev_start < start {
@@ -224,7 +223,7 @@ where
                         prev_start = start;
                     }
 
-                    this.checked_push_at(i, running_sum.clone())?;
+                    this.push(running_sum.clone());
                 }
 
                 Ok(())
@@ -293,7 +292,7 @@ where
 
                     let count = i - start.to_usize() + 1;
                     let avg = running_sum / count as f64;
-                    this.checked_push_at(i, V::T::from(avg))?;
+                    this.push(V::T::from(avg));
                 }
 
                 Ok(())
@@ -375,7 +374,7 @@ where
                     let count = (i - start.to_usize() + 1) as f64;
                     let mean_val = f64::from(m);
                     let variance = (running_sum_sq / count - mean_val * mean_val).max(0.0);
-                    this.checked_push_at(i, V::T::from(variance.sqrt()))?;
+                    this.push(V::T::from(variance.sqrt()));
                 }
 
                 Ok(())
@@ -427,7 +426,7 @@ where
                 let count = (i + 1) as f64;
                 let mean_val = f64::from(m);
                 let variance = (running_sum_sq / count - mean_val * mean_val).max(0.0);
-                this.checked_push_at(i, V::T::from(variance.sqrt()))?;
+                this.push(V::T::from(variance.sqrt()));
             }
 
             Ok(())
@@ -512,7 +511,7 @@ where
                     let alpha = alpha_fn(span);
                     let value = f64::from(value);
                     prev = alpha * value + (1.0 - alpha) * prev;
-                    this.checked_push_at(i, V::T::from(prev))?;
+                    this.push(V::T::from(prev));
                 }
 
                 Ok(())
@@ -620,7 +619,7 @@ where
                     }
                     deque.push_back((i, value));
 
-                    this.checked_push_at(i, V::T::from(deque.front().unwrap().1.clone()))?;
+                    this.push(V::T::from(deque.front().unwrap().1.clone()));
                 }
 
                 Ok(())
@@ -700,13 +699,9 @@ where
                 let num_batch = numerator.collect_range_at(skip, end);
                 let denom_batch = denominator.collect_range_at(skip, end);
 
-                for (j, ((start, num_val), denom_val)) in starts_batch
-                    .into_iter()
-                    .zip(num_batch)
-                    .zip(denom_batch)
-                    .enumerate()
+                for ((start, num_val), denom_val) in
+                    starts_batch.into_iter().zip(num_batch).zip(denom_batch)
                 {
-                    let i = skip + j;
                     running_sum += f64::from(num_val);
 
                     if prev_start < start {
@@ -723,7 +718,7 @@ where
                     } else {
                         0.0
                     };
-                    this.checked_push_at(i, V::T::from(ratio))?;
+                    this.push(V::T::from(ratio));
                 }
 
                 Ok(())
@@ -806,9 +801,9 @@ where
                     };
 
                     prev_sma = sma_result;
-                    this.checked_push_at(i, V::T::from(sma_result))?;
+                    this.push(V::T::from(sma_result));
                 } else {
-                    this.checked_push_at(i, V::T::from(f32::NAN))?;
+                    this.push(V::T::from(f32::NAN));
                 }
                 i += 1;
                 Ok(())
@@ -866,14 +861,12 @@ where
             }
 
             let mut scratch = Vec::with_capacity(window.min(1024));
-            let mut i = skip;
             source.try_fold_range_at(skip, end, (), |(), value: A| {
                 buf.push_back(f32::from(value));
                 if buf.len() > window {
                     buf.pop_front();
                 }
-                this.checked_push_at(i, V::T::from(median(&buf, &mut scratch)))?;
-                i += 1;
+                this.push(V::T::from(median(&buf, &mut scratch)));
                 Ok(())
             })
         })
@@ -981,9 +974,9 @@ where
                     };
 
                     prev = result.clone();
-                    this.checked_push_at(index, result)?;
+                    this.push(result);
                 } else {
-                    this.checked_push_at(index, V::T::from(f32::NAN))?;
+                    this.push(V::T::from(f32::NAN));
                 }
 
                 index += 1;

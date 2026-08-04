@@ -1,6 +1,8 @@
-use std::{cmp::Reverse, collections::BinaryHeap, fs, path::Path};
+use std::{cmp::Reverse, collections::BinaryHeap, path::Path};
 
-use brk_cohort::{AGE_RANGE_NAMES, CohortContext, Filtered, PROFITABILITY_RANGE_COUNT, TERM_NAMES};
+use brk_cohort::{
+    AGE_RANGE_NAMES, CohortContext, Filtered, PROFITABILITY_RANGE_COUNT, TERM_NAMES, UTXO_ALL_NAME,
+};
 use brk_error::Result;
 use brk_types::{Cents, CentsCompact, Date, Dollars, PartsPerMillion32, Sats, UrpdRaw};
 use rayon::prelude::*;
@@ -79,7 +81,7 @@ impl UTXOCohorts {
                     }
                 }
                 let full = CohortContext::Utxo.prefixed(name.id);
-                write_distribution(states_path, &full, date, merged)
+                UrpdRaw::write(states_path, &full, date, merged.into_iter())
             })?;
 
         let maps: Vec<_> = self
@@ -110,12 +112,14 @@ impl UTXOCohorts {
         merge_k_way(&maps, &mut targets);
 
         [
-            ("all", targets.all.merged),
+            (UTXO_ALL_NAME.id, targets.all.merged),
             (TERM_NAMES.short.id, targets.sth.merged),
             (TERM_NAMES.long.id, targets.lth.merged),
         ]
         .into_par_iter()
-        .try_for_each(|(name, merged)| write_distribution(states_path, name, date, merged))?;
+        .try_for_each(|(name, merged)| {
+            UrpdRaw::write(states_path, name, date, merged.into_iter())
+        })?;
 
         Ok(())
     }
@@ -151,21 +155,6 @@ fn push_profitability(
             raw_usd_to_dollars(r.sth_usd),
         );
     }
-}
-
-fn write_distribution(
-    states_path: &Path,
-    full_name: &str,
-    date: Date,
-    merged: Vec<(CentsCompact, Sats)>,
-) -> Result<()> {
-    let dir = states_path.join(full_name).join("urpd");
-    fs::create_dir_all(&dir)?;
-    fs::write(
-        dir.join(date.to_string()),
-        UrpdRaw::serialize_iter(merged.into_iter())?,
-    )?;
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------

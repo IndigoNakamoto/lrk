@@ -72,8 +72,7 @@ impl Vecs {
             .first_txin_index
             .collect_range_at(offset, target_height.to_usize() + 2);
 
-        // Validate: computed height must not exceed starting height
-        assert!(
+        debug_assert!(
             min_height <= starting_lengths.height,
             "txouts min_height ({}) exceeds starting_lengths.height ({})",
             min_height,

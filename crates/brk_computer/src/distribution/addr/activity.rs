@@ -16,11 +16,11 @@ use brk_traversable::Traversable;
 use brk_types::Version;
 use derive_more::{Deref, DerefMut};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, AnyVec, Database, Rw, StorageMode};
+use vecdb::{AnyStoredVec, Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{CountPerBlockRollingAverage, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, CountPerBlockRollingAverage, Windows},
 };
 
 /// Per-block activity counts - reset each block.
@@ -87,7 +87,7 @@ impl ActivityCountVecs {
         prefix: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             reactivated: CountPerBlockRollingAverage::forced_import(
@@ -130,12 +130,11 @@ impl ActivityCountVecs {
 
     pub(crate) fn min_stateful_len(&self) -> usize {
         self.reactivated
-            .cumulative
-            .len()
-            .min(self.sending.cumulative.len())
-            .min(self.receiving.cumulative.len())
-            .min(self.bidirectional.cumulative.len())
-            .min(self.active.cumulative.len())
+            .min_stateful_len()
+            .min(self.sending.min_stateful_len())
+            .min(self.receiving.min_stateful_len())
+            .min(self.bidirectional.min_stateful_len())
+            .min(self.active.min_stateful_len())
     }
 
     pub(crate) fn par_iter_height_mut(
@@ -187,7 +186,7 @@ impl AddrTypeToActivityCountVecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self::from(ByAddrType::<ActivityCountVecs>::new_with_name(
             |type_name| {
@@ -252,7 +251,7 @@ impl AddrActivityVecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             all: ActivityCountVecs::forced_import(db, "", version, indexes, cached_starts)?,

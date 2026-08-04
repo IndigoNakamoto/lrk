@@ -1,10 +1,13 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Dollars, Height};
+use brk_types::Height;
 use derive_more::{Deref, DerefMut};
-use vecdb::{Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{Exit, Rw, StorageMode};
 
-use crate::distribution::metrics::{ImportConfig, RealizedFull, SupplyCore, UnrealizedFull};
+use crate::distribution::{
+    AllChainCache,
+    metrics::{ImportConfig, RealizedFull, SupplyCore, UnrealizedFull},
+};
 
 use super::{RelativeExtendedOwnPnl, RelativeFull, RelativeInvestedCapital};
 
@@ -22,9 +25,13 @@ pub struct RelativeForAll<M: StorageMode = Rw> {
 }
 
 impl RelativeForAll {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        unrealized: &UnrealizedFull,
+        all_chain: &AllChainCache,
+    ) -> Result<Self> {
         Ok(Self {
-            base: RelativeFull::forced_import(cfg)?,
+            base: RelativeFull::forced_import(cfg, &unrealized.inner.basic, all_chain)?,
             extended_own_pnl: RelativeExtendedOwnPnl::forced_import(cfg)?,
             invested_capital: RelativeInvestedCapital::forced_import(cfg)?,
         })
@@ -36,11 +43,9 @@ impl RelativeForAll {
         supply: &SupplyCore,
         unrealized: &UnrealizedFull,
         realized: &RealizedFull,
-        market_cap: &impl ReadableVec<Height, Dollars>,
         exit: &Exit,
     ) -> Result<()> {
-        self.base
-            .compute(max_from, supply, &unrealized.inner.basic, market_cap, exit)?;
+        self.base.compute(max_from, supply, exit)?;
         self.extended_own_pnl.compute(
             max_from,
             &unrealized.inner,

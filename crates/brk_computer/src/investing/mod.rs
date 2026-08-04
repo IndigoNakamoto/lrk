@@ -1,6 +1,6 @@
 mod by_class;
 mod by_period;
-mod compute;
+mod cached_dca_sats;
 mod import;
 mod vecs;
 

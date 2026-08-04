@@ -6,8 +6,8 @@ use super::Vecs;
 use crate::{
     indexes,
     internal::{
-        LazyPerSecondWindows, LazyRollingSumsFromHeight, ValuePerBlockCumulativeRolling,
-        WindowStartVec, Windows,
+        CachedWindowStartVec, LazyPerSecondWindows, LazyRollingSumsFromHeight,
+        ValuePerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -16,7 +16,7 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         tx_count_sums: &LazyRollingSumsFromHeight<StoredU64>,
     ) -> Result<Self> {
         let v = version + Version::TWO;

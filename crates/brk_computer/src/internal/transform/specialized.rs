@@ -1,7 +1,7 @@
 use brk_types::{
-    Close, Day1, Day3, Epoch, Halving, Height, High, Hour1, Hour4, Hour12, Low, Minute10, Minute30,
-    Month1, Month3, Month6, OHLCCents, OHLCDollars, OHLCSats, Open, StoredU64, Week1, Year1,
-    Year10,
+    Cents, Close, Day1, Day3, Epoch, Halving, Height, High, Hour1, Hour4, Hour12, Low, Minute10,
+    Minute30, Month1, Month3, Month6, OHLCCents, OHLCDollars, OHLCSats, Open, StoredU64, Week1,
+    Year1, Year10,
 };
 use vecdb::UnaryTransform;
 
@@ -38,6 +38,33 @@ impl UnaryTransform<OHLCCents, OHLCDollars> for OhlcCentsToDollars {
     #[inline(always)]
     fn apply(cents: OHLCCents) -> OHLCDollars {
         OHLCDollars::from(cents)
+    }
+}
+
+pub struct OhlcCentsToOpenCents;
+
+impl UnaryTransform<OHLCCents, Cents> for OhlcCentsToOpenCents {
+    #[inline(always)]
+    fn apply(cents: OHLCCents) -> Cents {
+        *cents.open
+    }
+}
+
+pub struct OhlcCentsToHighCents;
+
+impl UnaryTransform<OHLCCents, Cents> for OhlcCentsToHighCents {
+    #[inline(always)]
+    fn apply(cents: OHLCCents) -> Cents {
+        *cents.high
+    }
+}
+
+pub struct OhlcCentsToLowCents;
+
+impl UnaryTransform<OHLCCents, Cents> for OhlcCentsToLowCents {
+    #[inline(always)]
+    fn apply(cents: OHLCCents) -> Cents {
+        *cents.low
     }
 }
 

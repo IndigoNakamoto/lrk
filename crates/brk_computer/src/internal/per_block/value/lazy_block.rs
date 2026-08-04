@@ -19,17 +19,31 @@ impl LazyValueBlock {
         version: Version,
         cumulative: &ValuePerBlock,
     ) -> Self {
+        Self::from_cumulative_sources(
+            name,
+            version,
+            &cumulative.sats.height,
+            &cumulative.cents.height,
+        )
+    }
+
+    pub(crate) fn from_cumulative_sources(
+        name: &str,
+        version: Version,
+        cumulative_sats: &(impl ReadableCloneableVec<Height, Sats> + 'static),
+        cumulative_cents: &(impl ReadableCloneableVec<Height, Cents> + 'static),
+    ) -> Self {
         let sats = LazyPreviousDeltaVec::new(
             &format!("{name}_sats"),
             version,
-            cumulative.sats.height.read_only_boxed_clone(),
+            cumulative_sats.read_only_boxed_clone(),
         );
         let btc =
             LazyVecFrom1::transformed::<SatsToBitcoin>(name, version, sats.read_only_boxed_clone());
         let cents = LazyPreviousDeltaVec::new(
             &format!("{name}_cents"),
             version,
-            cumulative.cents.height.read_only_boxed_clone(),
+            cumulative_cents.read_only_boxed_clone(),
         );
         let usd = LazyVecFrom1::transformed::<CentsUnsignedToDollars>(
             &format!("{name}_usd"),

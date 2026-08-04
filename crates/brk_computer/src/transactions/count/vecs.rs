@@ -2,9 +2,9 @@ use brk_traversable::Traversable;
 use brk_types::StoredU64;
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::PerBlockFull;
+use crate::internal::PerBlockFullFromCumulative;
 
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
-    pub total: PerBlockFull<StoredU64, StoredU64, M>,
+    pub total: PerBlockFullFromCumulative<StoredU64, M>,
 }

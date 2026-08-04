@@ -8,7 +8,8 @@ mod specialized;
 pub use arithmetic::{
     BlocksToDaysF32, DifficultyToHashF64, HalveCents, HalveDollars, HalveSats, HalveSatsToBitcoin,
     Identity, MaskSats, OddsF64, OneMinusF64, OneMinusPpm, PerSecond, ReturnF32Tenths, ReturnI8,
-    ReturnU16, StoredU64ToStoredU32, ThsToPhsF32, VBytesToWeight, WeightToVSize,
+    ReturnU16, StoredU16ToStoredU64, StoredU64ToStoredU32, ThsToPhsF32, VBytesToWeight,
+    WeightToVSize,
 };
 pub use currency::{
     AvgCentsToUsd, AvgSatsToBtc, CentsSignedToDollars, CentsSubtractToCentsSigned,
@@ -20,10 +21,11 @@ pub use derived::{
 };
 pub use fixed_ratio::{FixedToPercent, FixedToRatio};
 pub use ratio::{
-    RatioCents, RatioCentsSignedCents, RatioCentsSignedDollars, RatioDiffCents, RatioDiffDollars,
-    RatioDiffF32, RatioDollars, RatioSats, RatioU64,
+    RatioCents, RatioCentsSignedCents, RatioDiffCents, RatioDiffDollars, RatioDiffF32,
+    RatioDollars, RatioSats, RatioU64,
 };
 pub use specialized::{
     BlockCountTarget1m, BlockCountTarget1w, BlockCountTarget1y, BlockCountTarget24h,
-    OhlcCentsToDollars, OhlcCentsToSats,
+    OhlcCentsToDollars, OhlcCentsToHighCents, OhlcCentsToLowCents, OhlcCentsToOpenCents,
+    OhlcCentsToSats,
 };

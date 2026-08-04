@@ -6,7 +6,7 @@ use vecdb::{DeltaAvg, LazyDeltaVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
-    internal::{NumericValue, Resolutions, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, NumericValue, Resolutions, Windows},
 };
 
 use super::LazyRollingAvgFromHeight;
@@ -30,7 +30,7 @@ where
         name: &str,
         version: Version,
         cumulative: &(impl ReadableCloneableVec<Height, T> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_source = cumulative.read_only_boxed_clone();

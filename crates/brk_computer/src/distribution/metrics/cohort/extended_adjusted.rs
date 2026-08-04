@@ -1,13 +1,15 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, Dollars, Height, Sats, Version};
+use brk_types::{Cents, Height, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
+    distribution::AllChainCache,
     distribution::metrics::{
-        ActivityFull, AdjustedSopr, CohortMetricsBase, ImportConfig, RealizedFull, UnrealizedFull,
+        ActivityFull, AdjustedSopr, AllSupplyCache, CohortMetricsBase, ImportConfig, RealizedFull,
+        UnrealizedFull,
     },
     price,
 };
@@ -48,8 +50,12 @@ impl CohortMetricsBase for ExtendedAdjustedCohortMetrics {
 }
 
 impl ExtendedAdjustedCohortMetrics {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let inner = ExtendedCohortMetrics::forced_import(cfg)?;
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        all_supply: &AllSupplyCache,
+        all_chain: &AllChainCache,
+    ) -> Result<Self> {
+        let inner = ExtendedCohortMetrics::forced_import(cfg, all_supply, all_chain)?;
         let asopr = AdjustedSopr::forced_import(cfg)?;
         Ok(Self {
             inner,
@@ -62,19 +68,12 @@ impl ExtendedAdjustedCohortMetrics {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        height_to_market_cap: &impl ReadableVec<Height, Dollars>,
         under_1h_value_created: &impl ReadableVec<Height, Cents>,
         under_1h_value_destroyed: &impl ReadableVec<Height, Cents>,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
-        self.inner.compute_rest_part2(
-            prices,
-            starting_lengths,
-            height_to_market_cap,
-            all_supply_sats,
-            exit,
-        )?;
+        self.inner
+            .compute_rest_part2(prices, starting_lengths, exit)?;
 
         self.asopr.compute_rest_part2(
             starting_lengths,

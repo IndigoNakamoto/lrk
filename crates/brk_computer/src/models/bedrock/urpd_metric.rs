@@ -47,7 +47,7 @@ impl UrpdMappings {
         let height = LazyVecFrom1::init(
             "day1",
             Version::ZERO,
-            indexes.height.day1.read_only_boxed_clone(),
+            indexes.height.day1_read_only_boxed_clone(),
             |_, day| day,
         );
 
@@ -466,9 +466,8 @@ where
                 0
             }
         };
-        slots.push(Some(
-            u32::try_from(slot).expect("a Day1 source cannot have more than u32::MAX values"),
-        ));
+        debug_assert!(u32::try_from(slot).is_ok());
+        slots.push(Some(slot as u32));
     }
 
     let values = source.read_sorted_at(&indices);

@@ -63,11 +63,19 @@ function ageRangeSupplyChart(ranges, key, name) {
  * @returns {PartialOptionsGroup}
  */
 export function createCoinflowSection() {
-  const { coinflow } = brk.series;
+  const { coinflow } = brk.series.frameworks;
   const ranges = ageRanges.map(({ key, ...range }) => ({
     ...range,
     tree: coinflow.ageRange[key],
   }));
+  const terms = [
+    { name: "STH", color: colors.term.short, tree: coinflow.sth },
+    { name: "LTH", color: colors.term.long, tree: coinflow.lth },
+  ];
+  const cohorts = [
+    { name: "All", color: colors.loss, tree: coinflow },
+    ...terms,
+  ];
 
   const horizons = /** @type {const} */ ([
     { key: "_8y", name: "8Y" },
@@ -105,29 +113,56 @@ export function createCoinflowSection() {
             ],
           },
           {
-            name: "Mobile in Loss",
-            title: "Mobile Supply in Loss",
-            bottom: [
-              line({
-                series: coinflow.supply.mobile.inLoss.share,
-                name: "Lifetime",
-                color: colors.loss,
-                unit: Unit.ratio,
+            name: "Mobile by Term",
+            title: "Mobile Supply by Holder Term",
+            bottom: terms.flatMap(({ name, color, tree }) =>
+              satsBtcUsd({
+                pattern: tree.supply.mobile,
+                name,
+                color,
               }),
-            ],
+            ),
           },
           {
-            name: "In Loss by Horizon",
-            title: "Mobile Supply in Loss by Horizon",
-            bottom: horizons.map((horizon) =>
+            name: "Immobile by Term",
+            title: "Immobile Supply by Holder Term",
+            bottom: terms.flatMap(({ name, color, tree }) =>
+              satsBtcUsd({
+                pattern: tree.supply.immobile,
+                name,
+                color,
+              }),
+            ),
+          },
+          {
+            name: "Mobile in Loss",
+            title: "Mobile Supply in Loss by Holder Term",
+            bottom: cohorts.map(({ name, color, tree }) =>
               line({
-                series:
-                  coinflow.horizon[horizon.key].supply.inLoss.share,
-                name: horizon.name,
-                color: horizon.color,
+                series: tree.supply.mobile.inLoss.share,
+                name,
+                color,
                 unit: Unit.ratio,
               }),
             ),
+          },
+          {
+            name: "In Loss by Horizon",
+            tree: cohorts.map(({ name, tree }) => ({
+              name,
+              title:
+                name === "All"
+                  ? "Mobile Supply in Loss by Horizon"
+                  : `${name} Mobile Supply in Loss by Horizon`,
+              bottom: horizons.map((horizon) =>
+                line({
+                  series: tree.horizon[horizon.key].supply.inLoss.share,
+                  name: horizon.name,
+                  color: horizon.color,
+                  unit: Unit.ratio,
+                }),
+              ),
+            })),
           },
         ],
       },
@@ -137,10 +172,18 @@ export function createCoinflowSection() {
         bottom: [
           line({
             series: coinflow.cap.usd,
-            name: "Coinflow",
+            name: "All",
             color: colors.coinflow,
             unit: Unit.usd,
           }),
+          ...terms.map(({ name, color, tree }) =>
+            line({
+              series: tree.cap.usd,
+              name,
+              color,
+              unit: Unit.usd,
+            }),
+          ),
         ],
       },
       {
@@ -149,17 +192,32 @@ export function createCoinflowSection() {
         top: [
           price({
             series: coinflow.price,
-            name: "Coinflow",
+            name: "All",
             color: colors.coinflow,
           }),
+          ...terms.map(({ name, color, tree }) =>
+            price({
+              series: tree.price,
+              name,
+              color,
+            }),
+          ),
         ],
         bottom: [
           line({
             series: coinflow.price.ratio,
-            name: "Spot / Coinflow",
+            name: "Spot / All",
             color: colors.coinflow,
             unit: Unit.ratio,
           }),
+          ...terms.map(({ name, color, tree }) =>
+            line({
+              series: tree.price.ratio,
+              name: `Spot / ${name}`,
+              color,
+              unit: Unit.ratio,
+            }),
+          ),
         ],
       },
       {

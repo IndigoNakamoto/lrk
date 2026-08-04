@@ -1,9 +1,13 @@
 use brk_error::Result;
-use brk_types::{Cents, Height, Version};
+use brk_types::{Bitcoin, Cents, Height, Version};
 use vecdb::{CachedBoxedVec, Database};
 
 use super::Vecs;
-use crate::{indexes, internal::PriceWithRatioPerBlock};
+use crate::{
+    distribution::AllChainCache,
+    indexes,
+    internal::{LazyPriceWithRatioPerBlock, PriceWithRatioPerBlock},
+};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -11,6 +15,8 @@ impl Vecs {
         version: Version,
         indexes: &indexes::Vecs,
         spot_price: &CachedBoxedVec<Height, Cents>,
+        all_chain: &AllChainCache,
+        cointime_cap: &(impl vecdb::ReadableCloneableVec<Height, Cents> + 'static),
     ) -> Result<Self> {
         macro_rules! import {
             ($name:expr) => {
@@ -18,11 +24,24 @@ impl Vecs {
             };
         }
 
+        let cointime_source = all_chain.with_supply(
+            "cointime_price_cents_source",
+            version,
+            cointime_cap,
+            |_, cap, supply| Cents::from(f64::from(cap) / f64::from(Bitcoin::from(supply))),
+        );
+
         Ok(Self {
             vaulted: import!("vaulted_price"),
             active: import!("active_price"),
             true_market_mean: import!("true_market_mean"),
-            cointime: import!("cointime_price"),
+            cointime: LazyPriceWithRatioPerBlock::from_uncached_height_source(
+                "cointime_price",
+                version,
+                cointime_source,
+                indexes,
+                spot_price,
+            ),
         })
     }
 }

@@ -1,177 +1,118 @@
-use brk_error::Result;
-use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    Cents, Close, Day1, Day3, Epoch, Halving, High, Hour1, Hour4, Hour12, Low, Minute10, Minute30,
-    Month1, Month3, Month6, OHLCCents, Open, Version, Week1, Year1, Year10,
+    Cents, Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1,
+    Month3, Month6, OHLCCents, Version, Week1, Year1, Year10,
 };
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::{
-    BytesVec, BytesVecValue, Database, EagerVec, Exit, Formattable, ImportableVec, LazyVecFrom1,
-    ReadableCloneableVec, ReadableVec, Rw, StorageMode, UnaryTransform,
+    BytesVecValue, CachedBoxedVec, Formattable, LazyVecFrom1, ReadableCloneableVec, UnaryTransform,
 };
 
 use crate::{
     indexes,
-    internal::{EagerIndexes, PerResolution, Resolutions},
+    internal::{ComputedVecValue, LazyIndexes, PerResolution},
 };
 
-#[derive(Deref, DerefMut, Traversable)]
+use super::lazy_ohlc::LazyOhlcVec;
+
+#[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(merge)]
-pub struct OhlcVecs<T, M: StorageMode = Rw>(
+pub struct LazyOhlcCentsVecs(
     #[allow(clippy::type_complexity)]
     pub  PerResolution<
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Minute10, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Minute30, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Hour1, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Hour4, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Hour12, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Day1, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Day3, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Week1, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Month1, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Month3, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Month6, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Year1, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Year10, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Halving, T>>>,
-        <M as StorageMode>::Stored<EagerVec<BytesVec<Epoch, T>>>,
+        LazyOhlcVec<Minute10>,
+        LazyOhlcVec<Minute30>,
+        LazyOhlcVec<Hour1>,
+        LazyOhlcVec<Hour4>,
+        LazyOhlcVec<Hour12>,
+        LazyOhlcVec<Day1>,
+        LazyOhlcVec<Day3>,
+        LazyOhlcVec<Week1>,
+        LazyOhlcVec<Month1>,
+        LazyOhlcVec<Month3>,
+        LazyOhlcVec<Month6>,
+        LazyOhlcVec<Year1>,
+        LazyOhlcVec<Year10>,
+        LazyOhlcVec<Halving>,
+        LazyOhlcVec<Epoch>,
     >,
-)
-where
-    T: BytesVecValue + Formattable + Serialize + JsonSchema;
+);
 
-const EAGER_VERSION: Version = Version::ONE;
+const COMPUTE_VERSION: Version = Version::TWO;
 
-impl<T> OhlcVecs<T>
-where
-    T: BytesVecValue + Formattable + Serialize + JsonSchema,
-{
-    pub(crate) fn forced_import(db: &Database, name: &str, version: Version) -> Result<Self> {
-        let v = version + EAGER_VERSION;
+impl LazyOhlcCentsVecs {
+    pub(crate) fn new(
+        name: &str,
+        version: Version,
+        indexes: &indexes::Vecs,
+        prices: CachedBoxedVec<Height, Cents>,
+    ) -> Self {
+        let v = version + COMPUTE_VERSION;
 
         macro_rules! per_period {
-            () => {
-                ImportableVec::forced_import(db, name, v)?
+            ($field:ident) => {
+                LazyOhlcVec::new(name, v, prices.clone(), indexes.$field.first_height.clone())
             };
         }
 
-        Ok(Self(PerResolution {
-            minute10: per_period!(),
-            minute30: per_period!(),
-            hour1: per_period!(),
-            hour4: per_period!(),
-            hour12: per_period!(),
-            day1: per_period!(),
-            day3: per_period!(),
-            week1: per_period!(),
-            month1: per_period!(),
-            month3: per_period!(),
-            month6: per_period!(),
-            year1: per_period!(),
-            year10: per_period!(),
-            halving: per_period!(),
-            epoch: per_period!(),
-        }))
+        Self(PerResolution {
+            minute10: per_period!(minute10),
+            minute30: per_period!(minute30),
+            hour1: per_period!(hour1),
+            hour4: per_period!(hour4),
+            hour12: per_period!(hour12),
+            day1: per_period!(day1),
+            day3: per_period!(day3),
+            week1: per_period!(week1),
+            month1: per_period!(month1),
+            month3: per_period!(month3),
+            month6: per_period!(month6),
+            year1: per_period!(year1),
+            year10: per_period!(year10),
+            halving: per_period!(halving),
+            epoch: per_period!(epoch),
+        })
     }
 }
 
-impl OhlcVecs<OHLCCents> {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn compute_from_split(
-        &mut self,
-        starting_lengths: &Lengths,
-        indexes: &indexes::Vecs,
-        open: &EagerIndexes<Cents>,
-        high: &EagerIndexes<Cents>,
-        low: &EagerIndexes<Cents>,
-        close: &Resolutions<Cents>,
-        exit: &Exit,
-    ) -> Result<()> {
-        let prev_height = starting_lengths.height.decremented().unwrap_or_default();
-
+impl<T> LazyIndexes<T, OHLCCents>
+where
+    T: ComputedVecValue + PartialOrd + JsonSchema,
+{
+    pub(crate) fn from_ohlc_indexes<Transform: UnaryTransform<OHLCCents, T>>(
+        name: &str,
+        version: Version,
+        source: &LazyOhlcCentsVecs,
+    ) -> Self {
         macro_rules! period {
-            ($field:ident) => {
-                self.0.$field.compute_transform4(
-                    indexes
-                        .height
-                        .$field
-                        .collect_one(prev_height)
-                        .unwrap_or_default(),
-                    &open.$field,
-                    &high.$field,
-                    &low.$field,
-                    &close.$field,
-                    |(idx, o, h, l, c, this)| {
-                        (
-                            idx,
-                            if let Some(c) = c {
-                                OHLCCents {
-                                    open: Open::new(o),
-                                    high: High::new(h),
-                                    low: Low::new(l),
-                                    close: Close::new(c),
-                                }
-                            } else {
-                                // Empty period (no blocks): flat candle at previous close
-                                let prev_close =
-                                    Close::new(this.collect_last().map_or(o, |prev| *prev.close));
-                                OHLCCents::from(prev_close)
-                            },
-                        )
-                    },
-                    exit,
-                )?;
+            ($idx:ident) => {
+                LazyVecFrom1::transformed::<Transform>(
+                    name,
+                    version,
+                    source.$idx.read_only_boxed_clone(),
+                )
             };
         }
 
-        macro_rules! epoch {
-            ($field:ident) => {
-                self.0.$field.compute_transform4(
-                    indexes
-                        .height
-                        .$field
-                        .collect_one(prev_height)
-                        .unwrap_or_default(),
-                    &open.$field,
-                    &high.$field,
-                    &low.$field,
-                    &close.$field,
-                    |(idx, o, h, l, c, _)| {
-                        (
-                            idx,
-                            OHLCCents {
-                                open: Open::new(o),
-                                high: High::new(h),
-                                low: Low::new(l),
-                                close: Close::new(c),
-                            },
-                        )
-                    },
-                    exit,
-                )?;
-            };
-        }
-
-        period!(minute10);
-        period!(minute30);
-        period!(hour1);
-        period!(hour4);
-        period!(hour12);
-        period!(day1);
-        period!(day3);
-        period!(week1);
-        period!(month1);
-        period!(month3);
-        period!(month6);
-        period!(year1);
-        period!(year10);
-        epoch!(halving);
-        epoch!(epoch);
-
-        Ok(())
+        Self(PerResolution {
+            minute10: period!(minute10),
+            minute30: period!(minute30),
+            hour1: period!(hour1),
+            hour4: period!(hour4),
+            hour12: period!(hour12),
+            day1: period!(day1),
+            day3: period!(day3),
+            week1: period!(week1),
+            month1: period!(month1),
+            month3: period!(month3),
+            month6: period!(month6),
+            year1: period!(year1),
+            year10: period!(year10),
+            halving: period!(halving),
+            epoch: period!(epoch),
+        })
     }
 }
 
@@ -201,15 +142,14 @@ where
     T: BytesVecValue + Formattable + Serialize + JsonSchema,
     S: BytesVecValue;
 
-impl<T, S> LazyOhlcVecs<T, S>
+impl<T> LazyOhlcVecs<T, OHLCCents>
 where
     T: BytesVecValue + Formattable + Serialize + JsonSchema,
-    S: BytesVecValue + Formattable + Serialize + JsonSchema,
 {
-    pub(crate) fn from_eager_ohlc_indexes<Transform: UnaryTransform<S, T>>(
+    pub(crate) fn from_ohlc_indexes<Transform: UnaryTransform<OHLCCents, T>>(
         name: &str,
         version: Version,
-        source: &OhlcVecs<S>,
+        source: &LazyOhlcCentsVecs,
     ) -> Self {
         macro_rules! period {
             ($idx:ident) => {

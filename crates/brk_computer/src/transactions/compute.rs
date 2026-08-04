@@ -3,13 +3,14 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{blocks, indexes, price};
+use crate::{blocks, indexes, inputs, price};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
+        inputs: &inputs::Vecs,
         indexes: &indexes::Vecs,
         blocks: &blocks::Vecs,
         prices: &price::Vecs,
@@ -30,9 +31,11 @@ impl Vecs {
         r2?;
         r3?;
 
-        self.fees.compute(indexer, indexes, &self.size, exit)?;
+        self.fees
+            .compute(indexer, &inputs.value, indexes, &self.size, exit)?;
 
-        self.patterns.compute(indexer, indexes, exit)?;
+        self.patterns
+            .compute(indexer, &inputs.value, indexes, exit)?;
 
         self.policy.compute(indexer, indexes, &self.fees, exit)?;
 

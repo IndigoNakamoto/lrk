@@ -50,7 +50,7 @@ impl PriceWithRatioPerBlock {
     }
 }
 
-fn price_ratio(close: Cents, price: Cents) -> PartsPerMillion64 {
+pub(super) fn price_ratio(close: Cents, price: Cents) -> PartsPerMillion64 {
     if unlikely(price == Cents::ZERO) {
         PartsPerMillion64::NAN
     } else {

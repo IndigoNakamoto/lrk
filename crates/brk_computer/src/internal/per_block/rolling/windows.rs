@@ -1,27 +1,29 @@
 //! RollingWindows - newtype on Windows with PerBlock per window duration.
 //!
-//! Each of the 4 windows (24h, 1w, 1m, 1y) contains a height-level stored vec
-//! plus all 17 LazyAggVec index views.
+//! Each of the 4 windows (24h, 1w, 1m, 1y) contains a height-level vec plus
+//! all 17 LazyAggVec index views.
 
 use brk_error::Result;
 
 use brk_traversable::Traversable;
-use brk_types::{Height, Version};
+use brk_types::Version;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
-use vecdb::{CachedVec, Database, EagerVec, PcoVec, Rw, StorageMode};
+use vecdb::{Database, Rw, StorageMode};
 
 use crate::{
+    blocks::lookback::LazyWindowStartVec,
     indexes,
     internal::{
         ComputedVecValue, NumericValue, PerBlock, RollingWindow24h, Windows, WindowsFrom1w,
     },
 };
 
-pub type WindowStartVec = CachedVec<EagerVec<PcoVec<Height, Height>>>;
+pub use crate::blocks::lookback::CachedWindowStartVec;
 
 /// Rolling window start heights — the 4 height-ago vecs (24h, 1w, 1m, 1y).
-pub type WindowStarts<'a> = Windows<&'a EagerVec<PcoVec<Height, Height>>>;
+#[derive(Deref, DerefMut)]
+pub struct WindowStarts<'a>(pub Windows<&'a LazyWindowStartVec>);
 
 /// 4 rolling window vecs (24h, 1w, 1m, 1y), each with height data + all 17 index views.
 #[derive(Deref, DerefMut, Traversable)]

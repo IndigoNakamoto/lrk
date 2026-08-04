@@ -2,11 +2,12 @@ use std::path::Path;
 
 use brk_error::Result;
 use brk_types::Version;
+use vecdb::{ImportableVec, PcoVec};
 
 use crate::{
     indexes,
     internal::{
-        LazyPerSecondWindows, WindowStartVec, Windows,
+        CachedWindowStartVec, LazyPerSecondWindows, Windows,
         db_utils::{finalize_db, open_db},
     },
 };
@@ -18,17 +19,19 @@ impl Vecs {
         parent_path: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let db = open_db(parent_path, super::DB_NAME, 20_000_000)?;
         let version = parent_version;
 
+        let value = PcoVec::forced_import(&db, "value", version)?;
         let count = CountVecs::forced_import(&db, version, indexes, cached_starts)?;
         let per_sec = LazyPerSecondWindows::new("inputs_per_sec", version, &count.rolling.sum);
         let by_type = ByTypeVecs::forced_import(&db, version, indexes, cached_starts)?;
 
         let this = Self {
             db,
+            value,
             count,
             per_sec,
             by_type,

@@ -89,22 +89,17 @@ macro_rules! define_counts {
                 })
             }
 
-            pub(crate) fn checked_push(
-                &mut self,
-                height: Height,
-                counts: TransactionCounts,
-            ) -> Result<()> {
-                self.v1.checked_push(height, counts.v1.into())?;
-                self.v2.checked_push(height, counts.v2.into())?;
-                self.v3.checked_push(height, counts.v3.into())?;
+            pub(crate) fn push(&mut self, height: Height, counts: TransactionCounts) {
+                self.v1.debug_checked_push(height, counts.v1.into());
+                self.v2.debug_checked_push(height, counts.v2.into());
+                self.v3.debug_checked_push(height, counts.v3.into());
                 self.other_version
-                    .checked_push(height, counts.other_version.into())?;
+                    .debug_checked_push(height, counts.other_version.into());
                 self.explicitly_rbf
-                    .checked_push(height, counts.explicitly_rbf.into())?;
-                self.one_input.checked_push(height, counts.one_input.into())?;
-                self.one_output.checked_push(height, counts.one_output.into())?;
-                $($(self.$count.checked_push(height, counts.$count.into())?;)?) +
-                Ok(())
+                    .debug_checked_push(height, counts.explicitly_rbf.into());
+                self.one_input.debug_checked_push(height, counts.one_input.into());
+                self.one_output.debug_checked_push(height, counts.one_output.into());
+                $($(self.$count.debug_checked_push(height, counts.$count.into());)?) +
             }
 
             pub(crate) fn truncate(&mut self, height: Height, stamp: Stamp) -> Result<()> {

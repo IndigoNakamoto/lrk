@@ -6,7 +6,7 @@ use brk_cohort::AGE_RANGE_BOUNDS;
 
 pub(crate) use brk_cohort::AGE_RANGE_COUNT as AGE_COHORT_COUNT;
 pub(crate) use vecs::HORIZON_DAYS;
-pub use vecs::{CohortVecs, HorizonVecs, Horizons, Split, Vecs};
+pub use vecs::{AggregateVecs, CohortVecs, HorizonVecs, Horizons, Split, Vecs};
 
 pub(crate) const HORIZON_COUNT: usize = 7;
 pub(crate) const HOURS_PER_DAY: f64 = 24.0;

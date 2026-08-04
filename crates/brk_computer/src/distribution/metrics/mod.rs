@@ -134,7 +134,8 @@ pub use realized::{
     RealizedMinimal,
 };
 pub use relative::{RelativeForAll, RelativeWithExtended};
-pub use supply::{AvgAmountMetrics, SupplyBase, SupplyCore};
+pub(crate) use supply::AllSupplyCache;
+pub use supply::{AvgAmountVecs, SupplyBase, SupplyCore};
 pub use unrealized::{
     UnrealizedBasic, UnrealizedCore, UnrealizedFull, UnrealizedLike, UnrealizedMinimal,
 };

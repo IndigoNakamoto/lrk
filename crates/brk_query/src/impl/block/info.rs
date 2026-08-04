@@ -208,7 +208,6 @@ impl Query {
         let computer = self.computer();
         let reader = self.reader();
         let all_pools = pools();
-        let pool_heights = computer.pools.pool_heights.read();
 
         // Bulk read all indexed data
         let blockhashes = indexer.vecs.blocks.blockhash.collect_range_at(begin, end);
@@ -218,6 +217,10 @@ impl Query {
         let weights = indexer.vecs.blocks.weight.collect_range_at(begin, end);
         let positions = indexer.vecs.blocks.position.collect_range_at(begin, end);
         let pool_slugs = computer.pools.pool.collect_range_at(begin, end);
+        let pool_block_numbers = computer
+            .pools
+            .pool_heights
+            .block_numbers(&pool_slugs, Height::from(begin));
 
         // Read one past the last block for its tx-count, capped by the snapshot's
         // exclusive height bound. Tip block falls back to `tx_index_len` in the loop.
@@ -400,10 +403,7 @@ impl Query {
             let pool_slug = pool_slugs[i];
             let pool = all_pools.get(pool_slug);
             let height = begin + i;
-            let block_number = pool_heights
-                .get(&pool_slug)
-                .map(|heights| heights.partition_point(|h| h.to_usize() <= height) as u64)
-                .unwrap_or(0);
+            let block_number = pool_block_numbers[i];
 
             let miner_names = if pool_slug == PoolSlug::Ocean {
                 Self::parse_datum_miner_names(&scriptsig_bytes)

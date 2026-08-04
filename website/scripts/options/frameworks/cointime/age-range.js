@@ -16,16 +16,16 @@ import { satsBtcUsd } from "../../shared.js";
  *   coindaysCreated: CointimeAgeRangeCoindays,
  *   coindaysConsumed: CointimeAgeRangeCoindays,
  *   coindaysStored: CointimeAgeRangeCoindays,
- *   liveliness: AnySeriesPattern,
- *   vaultedness: AnySeriesPattern,
- *   ratio: AnySeriesPattern,
- *   supply: { active: AnyValuePattern, vaulted: AnyValuePattern },
+ *   wakefulness: AnySeriesPattern,
+ *   dormancy: AnySeriesPattern,
+ *   wakefulnessToDormancy: AnySeriesPattern,
+ *   supply: { awake: AnyValuePattern, dormant: AnyValuePattern },
  * }} tree
  */
 
 /**
  * @param {readonly CointimeAgeRange[]} ranges
- * @param {"liveliness" | "vaultedness" | "ratio"} key
+ * @param {"wakefulness" | "dormancy" | "wakefulnessToDormancy"} key
  * @param {string} name
  * @param {string} legend
  * @returns {PartialChartOption}
@@ -47,7 +47,7 @@ function activityChart(ranges, key, name, legend) {
 
 /**
  * @param {readonly CointimeAgeRange[]} ranges
- * @param {"active" | "vaulted"} key
+ * @param {"awake" | "dormant"} key
  * @param {string} name
  * @returns {PartialChartOption}
  */
@@ -132,20 +132,25 @@ export function createCointimeAgeRangeSection(ranges) {
       {
         name: "Supply",
         tree: [
-          supplyChart(ranges, "active", "Active"),
-          supplyChart(ranges, "vaulted", "Vaulted"),
+          supplyChart(ranges, "awake", "Awake"),
+          supplyChart(ranges, "dormant", "Dormant"),
         ],
       },
       {
         name: "Activity",
         tree: [
-          activityChart(ranges, "liveliness", "Liveliness", "Liveliness"),
-          activityChart(ranges, "vaultedness", "Vaultedness", "Vaultedness"),
           activityChart(
             ranges,
-            "ratio",
+            "wakefulness",
+            "Wakefulness",
+            "Wakefulness",
+          ),
+          activityChart(ranges, "dormancy", "Dormancy", "Dormancy"),
+          activityChart(
+            ranges,
+            "wakefulnessToDormancy",
             "Activity Ratio",
-            "Liveliness / Vaultedness",
+            "Wakefulness / Dormancy",
           ),
         ],
       },

@@ -2,9 +2,9 @@ use brk_indexer::Indexer;
 use brk_types::{
     AnyAddrIndex, EmptyAddrData, EmptyAddrIndex, FundedAddrData, FundedAddrIndex, Height, OutPoint,
     OutputType, P2AAddrIndex, P2PK33AddrIndex, P2PK65AddrIndex, P2PKHAddrIndex, P2SHAddrIndex,
-    P2TRAddrIndex, P2WPKHAddrIndex, P2WSHAddrIndex, Sats, StoredU64, TxIndex, TypeIndex,
+    P2TRAddrIndex, P2WPKHAddrIndex, P2WSHAddrIndex, Sats, StoredU64, TxInIndex, TxIndex, TypeIndex,
 };
-use vecdb::{BytesVecReader, ReadableVec, VecIndex};
+use vecdb::{BytesVecReader, PcoVec, ReadableVec, VecIndex};
 
 use crate::distribution::{
     RangeMap,
@@ -81,6 +81,7 @@ impl<'a> TxOutReaders<'a> {
 /// Readers for txin vectors. Reuses all buffers across blocks.
 pub struct TxInReaders<'a> {
     indexer: &'a Indexer,
+    input_values: &'a PcoVec<TxInIndex, Sats>,
     tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     outpoints_buf: Vec<OutPoint>,
     values_buf: Vec<Sats>,
@@ -92,10 +93,12 @@ pub struct TxInReaders<'a> {
 impl<'a> TxInReaders<'a> {
     pub(crate) fn new(
         indexer: &'a Indexer,
+        input_values: &'a PcoVec<TxInIndex, Sats>,
         tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     ) -> Self {
         Self {
             indexer,
+            input_values,
             tx_index_to_height,
             outpoints_buf: Vec::new(),
             values_buf: Vec::new(),
@@ -113,11 +116,8 @@ impl<'a> TxInReaders<'a> {
         current_height: Height,
     ) -> (&[Sats], &[Height], &[OutputType], &[TypeIndex]) {
         let end = first_txin_index + input_count;
-        self.indexer.vecs.inputs.value.collect_range_into_at(
-            first_txin_index,
-            end,
-            &mut self.values_buf,
-        );
+        self.input_values
+            .collect_range_into_at(first_txin_index, end, &mut self.values_buf);
         self.indexer.vecs.inputs.outpoint.collect_range_into_at(
             first_txin_index,
             end,

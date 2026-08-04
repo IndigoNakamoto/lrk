@@ -3,14 +3,19 @@ use brk_indexer::{Indexer, Lengths};
 use brk_types::{Bitcoin, Cents, Height, Sats, StoredF64, Timestamp, Version};
 use vecdb::{AnyStoredVec, Exit, ReadableVec, WritableVec};
 
+use brk_cohort::{AGE_RANGE_FILTERS, ByTerm, TERM_FILTERS};
+
 use super::super::cointime;
 use super::{
-    AGE_COHORT_COUNT, AgeBand, CohortVecs, HORIZON_COUNT, Horizons, MINIMUM_DURATION_DAYS, Vecs,
-    age_bounds_days, horizon_mobility, mobility,
+    AGE_COHORT_COUNT, AgeBand, AggregateVecs, CohortVecs, HORIZON_COUNT, Horizons,
+    MINIMUM_DURATION_DAYS, Vecs, age_bounds_days, horizon_mobility, mobility,
 };
 use crate::{
-    distribution, frameworks::WeightedRatio, indexes,
-    internal::db_utils::validate_any_computed_version_or_reset, price,
+    distribution,
+    frameworks::{WeightedCohortContribution, WeightedCohortState, WeightedRatio, realized_price},
+    indexes,
+    internal::db_utils::validate_any_computed_version_or_reset,
+    price,
 };
 
 const WRITE_INTERVAL: usize = 10_000;
@@ -21,6 +26,59 @@ struct DecayFit {
     tau: f64,
     anchor_age: f64,
     anchor_hazard: f64,
+}
+
+#[derive(Clone, Copy)]
+struct AggregateState {
+    weighted: WeightedCohortState,
+    horizon_supply_in_loss: Horizons<WeightedRatio>,
+}
+
+impl Default for AggregateState {
+    fn default() -> Self {
+        Self {
+            weighted: WeightedCohortState::default(),
+            horizon_supply_in_loss: Horizons::from_fn(|_, _| WeightedRatio::default()),
+        }
+    }
+}
+
+impl AggregateState {
+    fn add(
+        &mut self,
+        total_supply: Sats,
+        loss_supply: Sats,
+        total_cap: Cents,
+        mobility: StoredF64,
+        horizon_mobilities: &Horizons<[f64; AGE_COHORT_COUNT]>,
+        age: usize,
+    ) -> WeightedCohortContribution {
+        let contribution = self
+            .weighted
+            .add(total_supply, loss_supply, total_cap, mobility);
+        let total = total_supply.as_u128() as f64;
+        let loss = loss_supply.as_u128() as f64;
+        for (ratio, weights) in self
+            .horizon_supply_in_loss
+            .iter_mut()
+            .zip(horizon_mobilities.iter())
+        {
+            ratio.add(loss, total, weights[age]);
+        }
+        contribution
+    }
+
+    fn merged(mut self, other: Self) -> Self {
+        self.weighted = self.weighted.merged(other.weighted);
+        for (ratio, other) in self
+            .horizon_supply_in_loss
+            .iter_mut()
+            .zip(other.horizon_supply_in_loss.iter())
+        {
+            ratio.merge(*other);
+        }
+        self
+    }
 }
 
 impl Vecs {
@@ -146,6 +204,9 @@ impl Vecs {
             .collect_one(Height::ZERO)
             .unwrap_or(Timestamp::ZERO);
         let bounds = age_bounds_days();
+        let mut age_filters = AGE_RANGE_FILTERS.iter();
+        let is_sth: [bool; AGE_COHORT_COUNT] =
+            std::array::from_fn(|_| TERM_FILTERS.short.includes(age_filters.next().unwrap()));
 
         let mut chunk_start = start;
         while chunk_start < source_end {
@@ -189,29 +250,27 @@ impl Vecs {
                         std::array::from_fn(|age| horizon_mobility(&hazards, age, horizon, &bounds))
                     });
 
-                let mut mobile_supply = Sats::ZERO;
-                let mut immobile_supply = Sats::ZERO;
-                let mut coinflow_cap = Cents::ZERO;
-                let mut supply_in_loss = WeightedRatio::default();
-                let mut horizon_supply_in_loss = Horizons::from_fn(|_, _| WeightedRatio::default());
+                let mut terms = ByTerm::<AggregateState>::default();
 
                 for (index, cohort) in self.age_range.iter_mut().enumerate() {
                     let mobility = StoredF64::from(mobilities[index]);
                     let total_supply = supply_batches[index][offset];
-                    let cohort_mobile_supply = total_supply * mobility;
-                    let cohort_immobile_supply = total_supply - cohort_mobile_supply;
-
                     let total_cap = cap_batches[index][offset];
-                    let cohort_mobile_cap = total_cap * mobility;
-                    let total = total_supply.as_u128() as f64;
-                    let loss = loss_supply_batches[index][offset].as_u128() as f64;
-                    supply_in_loss.add(loss, total, mobilities[index]);
-                    for (ratio, weights) in horizon_supply_in_loss
-                        .iter_mut()
-                        .zip(horizon_mobilities.iter())
-                    {
-                        ratio.add(loss, total, weights[index]);
-                    }
+                    let loss_supply = loss_supply_batches[index][offset];
+
+                    let term = if is_sth[index] {
+                        &mut terms.short
+                    } else {
+                        &mut terms.long
+                    };
+                    let contribution = term.add(
+                        total_supply,
+                        loss_supply,
+                        total_cap,
+                        mobility,
+                        &horizon_mobilities,
+                        index,
+                    );
 
                     cohort
                         .spending_rate
@@ -221,32 +280,23 @@ impl Vecs {
                         .spending_exposure
                         .height
                         .push(StoredF64::from(exposures[index]));
-                    cohort.supply.mobile.sats.height.push(cohort_mobile_supply);
+                    cohort
+                        .supply
+                        .mobile
+                        .sats
+                        .height
+                        .push(contribution.weighted_supply);
                     cohort
                         .supply
                         .immobile
                         .sats
                         .height
-                        .push(cohort_immobile_supply);
-
-                    mobile_supply += cohort_mobile_supply;
-                    immobile_supply += cohort_immobile_supply;
-                    coinflow_cap += cohort_mobile_cap;
+                        .push(contribution.complement_supply);
                 }
 
-                self.supply.mobile.sats.height.push(mobile_supply);
-                self.supply.immobile.sats.height.push(immobile_supply);
-                self.supply_in_loss_share
-                    .height
-                    .push(supply_in_loss.value());
-                for (output, ratio) in self.horizon.iter_mut().zip(horizon_supply_in_loss.iter()) {
-                    output.supply_in_loss_share.height.push(ratio.value());
-                }
-                self.cap.cents.height.push(coinflow_cap);
-                self.price
-                    .cents
-                    .height
-                    .push(realized_price(coinflow_cap, mobile_supply));
+                self.all.push(terms.short.merged(terms.long));
+                self.sth.push(terms.short);
+                self.lth.push(terms.long);
             }
 
             {
@@ -262,12 +312,50 @@ impl Vecs {
     }
 
     fn primary_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
-        let mut vecs = Vec::with_capacity(AGE_COHORT_COUNT * 4 + 5 + HORIZON_COUNT);
+        let mut vecs = Vec::with_capacity(AGE_COHORT_COUNT * 4 + 3 * (5 + HORIZON_COUNT));
 
         for cohort in self.age_range.iter_mut() {
             vecs.extend(cohort.primary_vecs_mut());
         }
 
+        vecs.extend(self.all.primary_vecs_mut());
+        vecs.extend(self.sth.primary_vecs_mut());
+        vecs.extend(self.lth.primary_vecs_mut());
+        vecs
+    }
+}
+
+impl AggregateVecs {
+    fn push(&mut self, state: AggregateState) {
+        self.supply
+            .mobile
+            .sats
+            .height
+            .push(state.weighted.weighted_supply);
+        self.supply
+            .immobile
+            .sats
+            .height
+            .push(state.weighted.complement_supply);
+        self.supply_in_loss_share
+            .height
+            .push(state.weighted.supply_in_loss.value());
+        for (output, ratio) in self
+            .horizon
+            .iter_mut()
+            .zip(state.horizon_supply_in_loss.iter())
+        {
+            output.supply_in_loss_share.height.push(ratio.value());
+        }
+        self.cap.cents.height.push(state.weighted.weighted_cap);
+        self.price.cents.height.push(realized_price(
+            state.weighted.weighted_cap,
+            state.weighted.weighted_supply,
+        ));
+    }
+
+    fn primary_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
+        let mut vecs = Vec::with_capacity(5 + HORIZON_COUNT);
         vecs.extend([
             &mut self.supply.mobile.sats.height as &mut dyn AnyStoredVec,
             &mut self.supply.immobile.sats.height,
@@ -436,14 +524,6 @@ fn spending_exposure(
     exposure + (continuation_hazard * fit.tau).max(0.0)
 }
 
-#[inline]
-fn realized_price(cap: Cents, supply: Sats) -> Cents {
-    (cap.as_u128() * Sats::ONE_BTC_U128)
-        .checked_div(supply.as_u128())
-        .map(Cents::from)
-        .unwrap_or(Cents::ZERO)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -509,14 +589,90 @@ mod tests {
     }
 
     #[test]
-    fn supply_partitions_and_coinflow_cap_is_bounded() {
+    fn mobile_and_immobile_supply_are_independently_floored() {
         let total_supply = Sats::from(123_456_789_u64);
         let total_cap = Cents::from(987_654_321_u64);
         let mobility = StoredF64::from(0.321);
-        let mobile_supply = total_supply * mobility;
-        let coinflow_cap = total_cap * mobility;
+        let mut state = WeightedCohortState::default();
 
-        assert_eq!(mobile_supply + (total_supply - mobile_supply), total_supply);
-        assert!(coinflow_cap <= total_cap);
+        state.add(total_supply, Sats::ZERO, total_cap, mobility);
+
+        let sum = state.weighted_supply + state.complement_supply;
+        assert!(sum <= total_supply);
+        assert!(total_supply - sum <= Sats::from(1_u64));
+        assert!(state.weighted_cap <= total_cap);
+    }
+
+    #[test]
+    fn term_aggregates_merge_into_all() {
+        let horizons = Horizons::from_fn(|_, _| [0.25; AGE_COHORT_COUNT]);
+        let mut direct = AggregateState::default();
+        direct.add(
+            Sats::from(100_u64),
+            Sats::from(20_u64),
+            Cents::from(1_000_u64),
+            StoredF64::from(0.3),
+            &horizons,
+            0,
+        );
+        direct.add(
+            Sats::from(200_u64),
+            Sats::from(50_u64),
+            Cents::from(3_000_u64),
+            StoredF64::from(0.4),
+            &horizons,
+            1,
+        );
+
+        let mut sth = AggregateState::default();
+        sth.add(
+            Sats::from(100_u64),
+            Sats::from(20_u64),
+            Cents::from(1_000_u64),
+            StoredF64::from(0.3),
+            &horizons,
+            0,
+        );
+        let mut lth = AggregateState::default();
+        lth.add(
+            Sats::from(200_u64),
+            Sats::from(50_u64),
+            Cents::from(3_000_u64),
+            StoredF64::from(0.4),
+            &horizons,
+            1,
+        );
+        let merged = sth.merged(lth);
+
+        assert_eq!(
+            merged.weighted.weighted_supply,
+            direct.weighted.weighted_supply
+        );
+        assert_eq!(
+            merged.weighted.complement_supply,
+            direct.weighted.complement_supply
+        );
+        assert_eq!(merged.weighted.weighted_cap, direct.weighted.weighted_cap);
+        assert_eq!(
+            merged.weighted.supply_in_loss.value(),
+            direct.weighted.supply_in_loss.value()
+        );
+        for (merged, direct) in merged
+            .horizon_supply_in_loss
+            .iter()
+            .zip(direct.horizon_supply_in_loss.iter())
+        {
+            assert_eq!(merged.value(), direct.value());
+        }
+    }
+
+    #[test]
+    fn age_ranges_belong_to_exactly_one_term() {
+        for filter in AGE_RANGE_FILTERS.iter() {
+            assert_ne!(
+                TERM_FILTERS.short.includes(filter),
+                TERM_FILTERS.long.includes(filter)
+            );
+        }
     }
 }

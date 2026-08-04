@@ -2,4 +2,4 @@ mod compute;
 mod import;
 mod vecs;
 
-pub use vecs::{CohortVecs, Vecs};
+pub use vecs::{ActivityVecs, CohortVecs, SupplyVecs, Vecs};

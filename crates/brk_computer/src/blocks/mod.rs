@@ -38,7 +38,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub db: Database,
 
     pub count: CountVecs,
-    pub lookback: LookbackVecs<M>,
+    pub lookback: LookbackVecs,
     pub interval: IntervalVecs<M>,
     #[traversable(flatten)]
     pub size: SizeVecs<M>,

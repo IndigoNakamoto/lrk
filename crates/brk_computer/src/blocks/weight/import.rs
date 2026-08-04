@@ -5,7 +5,9 @@ use super::Vecs;
 use crate::{
     blocks::SizeVecs,
     indexes,
-    internal::{LazyPerBlockRolling, LazyPercentVec, VBytesToWeight, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, LazyPerBlockRolling, LazyPercentVec, VBytesToWeight, Windows,
+    },
 };
 
 fn block_fullness(_: Height, weight: Weight) -> PartsPerMillion32 {
@@ -17,7 +19,7 @@ impl Vecs {
         version: Version,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         size: &SizeVecs,
     ) -> Self {
         let weight = LazyPerBlockRolling::from_full_parts::<VBytesToWeight>(

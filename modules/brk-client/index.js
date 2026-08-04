@@ -1195,6 +1195,7 @@ on serialization otherwise.
  *
  * @typedef {number} StoredU64
  */
+/** @typedef {number} StoredU8 */
 /**
  * Current supply state tracking UTXO count and total value
  *
@@ -1376,6 +1377,7 @@ on serialization otherwise.
  * @typedef {Object} Urpd
  * @property {Cohort} cohort
  * @property {Date} date
+ * @property {UrpdWeight} weight - Weighting applied to the source supply.
  * @property {UrpdAggregation} aggregation - Aggregation strategy applied to the buckets.
  * @property {Dollars} close - Close price on `date`, in USD. Anchor for `unrealized_pnl`.
  * @property {Bitcoin} totalSupply - Sum of `supply` across all buckets, in BTC.
@@ -1415,6 +1417,18 @@ on serialization otherwise.
  *
  * @typedef {Object} UrpdQuery
  * @property {UrpdAggregation=} agg - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+ * @property {UrpdWeight=} weight - Supply weighting. Default: raw (unweighted).
+ */
+/**
+ * Weighting applied to a URPD: raw (unweighted), cointime, or coinflow.
+ *
+ * @typedef {("raw"|"cointime"|"coinflow")} UrpdWeight
+ */
+/**
+ * Query parameters for URPD date discovery.
+ *
+ * @typedef {Object} UrpdWeightQuery
+ * @property {UrpdWeight=} weight - Supply weighting. Default: raw (unweighted).
  */
 /**
  * Unspent transaction output
@@ -3314,6 +3328,35 @@ function create_1m1w1y24hPercentPpmRatioPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} _1m1y2y3m4y6m8yPattern
+ * @property {SupplyPattern} _1m
+ * @property {SupplyPattern} _1y
+ * @property {SupplyPattern} _2y
+ * @property {SupplyPattern} _3m
+ * @property {SupplyPattern} _4y
+ * @property {SupplyPattern} _6m
+ * @property {SupplyPattern} _8y
+ */
+
+/**
+ * Create a _1m1y2y3m4y6m8yPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {_1m1y2y3m4y6m8yPattern}
+ */
+function create_1m1y2y3m4y6m8yPattern(client, acc) {
+  return {
+    _1m: createSupplyPattern(client, _m(acc, '1m_supply_in_loss_share')),
+    _1y: createSupplyPattern(client, _m(acc, '1y_supply_in_loss_share')),
+    _2y: createSupplyPattern(client, _m(acc, '2y_supply_in_loss_share')),
+    _3m: createSupplyPattern(client, _m(acc, '3m_supply_in_loss_share')),
+    _4y: createSupplyPattern(client, _m(acc, '4y_supply_in_loss_share')),
+    _6m: createSupplyPattern(client, _m(acc, '6m_supply_in_loss_share')),
+    _8y: createSupplyPattern(client, _m(acc, '8y_supply_in_loss_share')),
+  };
+}
+
+/**
  * @typedef {Object} ActiveInputOutputSpendablePattern
  * @property {_1m1w1y24hBlockPattern} activeReusedAddrCount
  * @property {_1m1w1y24hBlockPattern2} activeReusedAddrShare
@@ -3354,31 +3397,31 @@ function createCapLossMvrvNetPriceProfitSoprPattern(client, acc) {
 }
 
 /**
- * @typedef {Object} CoindaysLivelinessRatioSupplyVaultednessPattern
+ * @typedef {Object} CoindaysDormancySupplyWakefulnessPattern
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysConsumed
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysCreated
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysStored
- * @property {SeriesPattern1<StoredF64>} liveliness
- * @property {SeriesPattern1<StoredF64>} ratio
- * @property {ActiveVaultedPattern} supply
- * @property {SeriesPattern1<StoredF64>} vaultedness
+ * @property {SeriesPattern1<StoredF64>} dormancy
+ * @property {AwakeDormantPattern} supply
+ * @property {SeriesPattern1<StoredF64>} wakefulness
+ * @property {SeriesPattern1<StoredF64>} wakefulnessToDormancy
  */
 
 /**
- * Create a CoindaysLivelinessRatioSupplyVaultednessPattern pattern node
+ * Create a CoindaysDormancySupplyWakefulnessPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {CoindaysLivelinessRatioSupplyVaultednessPattern}
+ * @returns {CoindaysDormancySupplyWakefulnessPattern}
  */
-function createCoindaysLivelinessRatioSupplyVaultednessPattern(client, acc) {
+function createCoindaysDormancySupplyWakefulnessPattern(client, acc) {
   return {
     coindaysConsumed: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_consumed')),
     coindaysCreated: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_created')),
     coindaysStored: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_stored')),
-    liveliness: createSeriesPattern1(client, _m(acc, 'liveliness')),
-    ratio: createSeriesPattern1(client, _m(acc, 'activity_to_vaultedness')),
-    supply: createActiveVaultedPattern(client, acc),
-    vaultedness: createSeriesPattern1(client, _m(acc, 'vaultedness')),
+    dormancy: createSeriesPattern1(client, _m(acc, 'dormancy')),
+    supply: createAwakeDormantPattern(client, acc),
+    wakefulness: createSeriesPattern1(client, _m(acc, 'wakefulness')),
+    wakefulnessToDormancy: createSeriesPattern1(client, _m(acc, 'wakefulness_to_dormancy')),
   };
 }
 
@@ -3998,6 +4041,31 @@ function createPhsReboundThsPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} RankTailThresholdPattern
+ * @property {SeriesPattern1<StoredU8>} rank
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<Dollars>} thresholdPct0025
+ * @property {SeriesPattern1<Dollars>} thresholdPct005
+ * @property {SeriesPattern1<Dollars>} thresholdPct01
+ */
+
+/**
+ * Create a RankTailThresholdPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {RankTailThresholdPattern}
+ */
+function createRankTailThresholdPattern(client, acc) {
+  return {
+    rank: createSeriesPattern1(client, _m(acc, 'rank')),
+    tail: createPercentPpmRatioPattern2(client, _m(acc, 'tail')),
+    thresholdPct0025: createSeriesPattern1(client, _m(acc, 'threshold')),
+    thresholdPct005: createSeriesPattern1(client, _m(acc, 'threshold_pct0_05')),
+    thresholdPct01: createSeriesPattern1(client, _m(acc, 'threshold_pct0_1')),
+  };
+}
+
+/**
  * @typedef {Object} _1m1w1y24hPattern4
  * @property {BtcCentsSatsUsdPattern} _1m
  * @property {BtcCentsSatsUsdPattern} _1w
@@ -4320,6 +4388,14 @@ function createBtcCentsSatsUsdPattern3(client, acc) {
 }
 
 /**
+ * @typedef {Object} CapHorizonPriceSupplyPattern
+ * @property {CentsUsdPattern3} cap
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {ImmobileMobilePattern2} supply
+ */
+
+/**
  * @typedef {Object} CentsDeltaToUsdPattern
  * @property {SeriesPattern1<Cents>} cents
  * @property {AbsoluteRatePattern2} delta
@@ -4611,6 +4687,13 @@ function createCapLossProfitPattern(client, acc) {
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'profit')),
   };
 }
+
+/**
+ * @typedef {Object} CapPriceSupplyPattern
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {BtcCentsInSatsUsdPattern} supply
+ */
 
 /**
  * @typedef {Object} CentsSatsUsdPattern3
@@ -4915,27 +4998,6 @@ function createPpmPriceRatioPattern(client, acc, disc) {
 }
 
 /**
- * @typedef {Object} RankTailThresholdPattern
- * @property {SeriesPattern1<StoredI8>} rank
- * @property {PercentPpmRatioPattern2} tail
- * @property {SeriesPattern1<Dollars>} threshold
- */
-
-/**
- * Create a RankTailThresholdPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {RankTailThresholdPattern}
- */
-function createRankTailThresholdPattern(client, acc) {
-  return {
-    rank: createSeriesPattern1(client, _m(acc, 'rank')),
-    tail: createPercentPpmRatioPattern2(client, _m(acc, 'tail')),
-    threshold: createSeriesPattern1(client, _m(acc, 'threshold')),
-  };
-}
-
-/**
  * @typedef {Object} RatioTransferValuePattern
  * @property {_1m1w1y24hPattern<StoredF64>} ratio
  * @property {AverageBlockCumulativeSumPattern<Cents>} transferVolume
@@ -5059,25 +5121,6 @@ function createAbsoluteRatePattern3(client, acc) {
 }
 
 /**
- * @typedef {Object} ActiveVaultedPattern
- * @property {BtcCentsSatsUsdPattern} active
- * @property {BtcCentsSatsUsdPattern} vaulted
- */
-
-/**
- * Create a ActiveVaultedPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {ActiveVaultedPattern}
- */
-function createActiveVaultedPattern(client, acc) {
-  return {
-    active: createBtcCentsSatsUsdPattern(client, _m(acc, 'active_supply')),
-    vaulted: createBtcCentsSatsUsdPattern(client, _m(acc, 'vaulted_supply')),
-  };
-}
-
-/**
  * @typedef {Object} AddrUtxoPattern
  * @property {BtcCentsSatsUsdPattern} addr
  * @property {BtcCentsSatsUsdPattern} utxo
@@ -5134,6 +5177,31 @@ function createAllSthPattern(client, acc, disc) {
     sth: createSeriesPattern1(client, _m(_m(acc, 'sth'), disc)),
   };
 }
+
+/**
+ * @typedef {Object} AwakeDormantPattern
+ * @property {BtcCentsSatsUsdPattern} awake
+ * @property {BtcCentsSatsUsdPattern} dormant
+ */
+
+/**
+ * Create a AwakeDormantPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {AwakeDormantPattern}
+ */
+function createAwakeDormantPattern(client, acc) {
+  return {
+    awake: createBtcCentsSatsUsdPattern(client, _m(acc, 'awake_supply')),
+    dormant: createBtcCentsSatsUsdPattern(client, _m(acc, 'dormant_supply')),
+  };
+}
+
+/**
+ * @typedef {Object} AwakeDormantPattern2
+ * @property {CapPriceSupplyPattern} awake
+ * @property {SupplyPattern2} dormant
+ */
 
 /**
  * @typedef {Object} BaseSumPattern
@@ -5343,6 +5411,12 @@ function createFundedTotalPattern(client, acc) {
     total: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4(client, _p('total', acc)),
   };
 }
+
+/**
+ * @typedef {Object} ImmobileMobilePattern2
+ * @property {BtcCentsSatsUsdPattern} immobile
+ * @property {BtcCentsInSatsUsdPattern} mobile
+ */
 
 /**
  * @typedef {Object} ImmobileMobilePattern
@@ -5639,6 +5713,23 @@ function createSharePattern(client, acc) {
 function createSharePattern2(client, acc) {
   return {
     share: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} SupplyPattern2
+ * @property {BtcCentsSatsUsdPattern} supply
+ */
+
+/**
+ * Create a SupplyPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {SupplyPattern2}
+ */
+function createSupplyPattern2(client, acc) {
+  return {
+    supply: createBtcCentsSatsUsdPattern(client, acc),
   };
 }
 
@@ -6009,6 +6100,7 @@ function createUnspentPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Inputs
  * @property {SeriesTree_Inputs_Raw} raw
+ * @property {SeriesPattern20<Sats>} value
  * @property {CumulativeRollingSumPattern} count
  * @property {_1m1w1y24hPattern<StoredF32>} perSec
  * @property {SeriesTree_Inputs_ByType} byType
@@ -6019,7 +6111,6 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesPattern18<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern20<OutPoint>} outpoint
  * @property {SeriesPattern20<TxOutIndex>} txoutIndex
- * @property {SeriesPattern20<Sats>} value
  * @property {SeriesPattern20<TxIndex>} txIndex
  * @property {SeriesPattern20<OutputType>} outputType
  * @property {SeriesPattern20<TypeIndex>} typeIndex
@@ -6097,7 +6188,6 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesPattern21<Sats>} value
  * @property {SeriesPattern21<OutputType>} outputType
  * @property {SeriesPattern21<TypeIndex>} typeIndex
- * @property {SeriesPattern21<TxIndex>} txIndex
  */
 
 /**
@@ -6566,6 +6656,10 @@ function createUnspentPattern(client, acc) {
  * @typedef {Object} SeriesTree_Frameworks_Cointime
  * @property {SeriesTree_Frameworks_Cointime_Activity} activity
  * @property {SeriesTree_Frameworks_Cointime_AgeRange} ageRange
+ * @property {SeriesTree_Frameworks_Cointime_Awake} awake
+ * @property {SupplyPattern2} dormant
+ * @property {SeriesTree_Frameworks_Cointime_Sth} sth
+ * @property {SeriesTree_Frameworks_Cointime_Lth} lth
  * @property {SeriesTree_Frameworks_Cointime_Supply} supply
  * @property {SeriesTree_Frameworks_Cointime_Value} value
  * @property {SeriesTree_Frameworks_Cointime_Cap} cap
@@ -6585,29 +6679,89 @@ function createUnspentPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Frameworks_Cointime_AgeRange
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} under1h
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1hTo1d
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1dTo1w
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1wTo1m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1mTo2m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _2mTo3m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _3mTo4m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _4mTo5m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _5mTo6m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _6mTo9m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _9mTo1y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1yTo18m
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _18mTo2y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _2yTo3y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _3yTo4y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _4yTo5y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _5yTo6y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _6yTo7y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _7yTo8y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _8yTo10y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _10yTo12y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _12yTo15y
- * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} over15y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} under1h
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1hTo1d
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1dTo1w
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1wTo1m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1mTo2m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _2mTo3m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _3mTo4m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _4mTo5m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _5mTo6m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _6mTo9m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _9mTo1y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1yTo18m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _18mTo2y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _2yTo3y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _3yTo4y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _4yTo5y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _5yTo6y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _6yTo7y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _7yTo8y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _8yTo10y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _10yTo12y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _12yTo15y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} over15y
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth
+ * @property {SeriesTree_Frameworks_Cointime_Sth_Awake} awake
+ * @property {SupplyPattern2} dormant
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Sth_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth
+ * @property {SeriesTree_Frameworks_Cointime_Lth_Awake} awake
+ * @property {SupplyPattern2} dormant
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Lth_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
  */
 
 /**
@@ -6669,9 +6823,11 @@ function createUnspentPattern(client, acc) {
  * @typedef {Object} SeriesTree_Frameworks_Coinflow
  * @property {SeriesTree_Frameworks_Coinflow_AgeRange} ageRange
  * @property {SeriesTree_Frameworks_Coinflow_Supply} supply
- * @property {SeriesTree_Frameworks_Coinflow_Horizon} horizon
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
  * @property {CentsUsdPattern3} cap
  * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {SeriesTree_Frameworks_Coinflow_Sth} sth
+ * @property {SeriesTree_Frameworks_Coinflow_Lth} lth
  */
 
 /**
@@ -6717,14 +6873,49 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Frameworks_Coinflow_Horizon
- * @property {SupplyPattern} _8y
- * @property {SupplyPattern} _4y
- * @property {SupplyPattern} _2y
- * @property {SupplyPattern} _1y
- * @property {SupplyPattern} _6m
- * @property {SupplyPattern} _3m
- * @property {SupplyPattern} _1m
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth
+ * @property {SeriesTree_Frameworks_Coinflow_Sth_Supply} supply
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Sth_Supply_Mobile} mobile
+ * @property {BtcCentsSatsUsdPattern} immobile
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth_Supply_Mobile
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth
+ * @property {SeriesTree_Frameworks_Coinflow_Lth_Supply} supply
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile} mobile
+ * @property {BtcCentsSatsUsdPattern} immobile
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
  */
 
 /**
@@ -6750,6 +6941,8 @@ function createUnspentPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Models_CapitalSentiment
+ * @property {SeriesPattern1<StoredBool>} isLong
+ * @property {SeriesPattern1<StoredBool>} isShort
  * @property {SeriesPattern1<CapitalSentimentPhase>} phase
  * @property {SeriesPattern1<StoredI8>} score
  */
@@ -6793,16 +6986,20 @@ function createUnspentPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss
- * @property {SeriesPattern1<Bitcoin>} threshold
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct01
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct005
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct0025
  * @property {PercentPpmRatioPattern2} tail
- * @property {SeriesPattern1<StoredI8>} rank
+ * @property {SeriesPattern1<StoredU8>} rank
  */
 
 /**
  * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion
- * @property {SeriesPattern1<StoredF32>} threshold
+ * @property {SeriesPattern1<StoredF32>} thresholdPct01
+ * @property {SeriesPattern1<StoredF32>} thresholdPct005
+ * @property {SeriesPattern1<StoredF32>} thresholdPct0025
  * @property {PercentPpmRatioPattern2} tail
- * @property {SeriesPattern1<StoredI8>} rank
+ * @property {SeriesPattern1<StoredU8>} rank
  */
 
 /**
@@ -9625,11 +9822,11 @@ class BrkClient extends BrkClientBase {
           firstTxinIndex: createSeriesPattern18(this, 'first_txin_index'),
           outpoint: createSeriesPattern20(this, 'outpoint'),
           txoutIndex: createSeriesPattern20(this, 'txout_index'),
-          value: createSeriesPattern20(this, 'value'),
           txIndex: createSeriesPattern20(this, 'tx_index'),
           outputType: createSeriesPattern20(this, 'output_type'),
           typeIndex: createSeriesPattern20(this, 'type_index'),
         },
+        value: createSeriesPattern20(this, 'value'),
         count: createCumulativeRollingSumPattern(this, 'input_count'),
         perSec: create_1m1w1y24hPattern(this, 'inputs_per_sec'),
         byType: {
@@ -9683,7 +9880,6 @@ class BrkClient extends BrkClientBase {
           value: createSeriesPattern21(this, 'value'),
           outputType: createSeriesPattern21(this, 'output_type'),
           typeIndex: createSeriesPattern21(this, 'type_index'),
-          txIndex: createSeriesPattern21(this, 'tx_index'),
         },
         spent: {
           txinIndex: createSeriesPattern21(this, 'txin_index'),
@@ -10015,29 +10211,69 @@ class BrkClient extends BrkClientBase {
             ratio: createSeriesPattern1(this, 'activity_to_vaultedness'),
           },
           ageRange: {
-            under1h: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_under_1h_old'),
-            _1hTo1d: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1h_to_1d_old'),
-            _1dTo1w: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1d_to_1w_old'),
-            _1wTo1m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1w_to_1m_old'),
-            _1mTo2m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1m_to_2m_old'),
-            _2mTo3m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2m_to_3m_old'),
-            _3mTo4m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3m_to_4m_old'),
-            _4mTo5m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4m_to_5m_old'),
-            _5mTo6m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5m_to_6m_old'),
-            _6mTo9m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6m_to_9m_old'),
-            _9mTo1y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_9m_to_1y_old'),
-            _1yTo18m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1y_to_18m_old'),
-            _18mTo2y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_18m_to_2y_old'),
-            _2yTo3y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2y_to_3y_old'),
-            _3yTo4y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3y_to_4y_old'),
-            _4yTo5y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4y_to_5y_old'),
-            _5yTo6y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5y_to_6y_old'),
-            _6yTo7y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6y_to_7y_old'),
-            _7yTo8y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_7y_to_8y_old'),
-            _8yTo10y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_8y_to_10y_old'),
-            _10yTo12y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_10y_to_12y_old'),
-            _12yTo15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_12y_to_15y_old'),
-            over15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_over_15y_old'),
+            under1h: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_under_1h_old'),
+            _1hTo1d: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1h_to_1d_old'),
+            _1dTo1w: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1d_to_1w_old'),
+            _1wTo1m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1w_to_1m_old'),
+            _1mTo2m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1m_to_2m_old'),
+            _2mTo3m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_2m_to_3m_old'),
+            _3mTo4m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_3m_to_4m_old'),
+            _4mTo5m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_4m_to_5m_old'),
+            _5mTo6m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_5m_to_6m_old'),
+            _6mTo9m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_18m_to_2y_old'),
+            _2yTo3y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_2y_to_3y_old'),
+            _3yTo4y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_3y_to_4y_old'),
+            _4yTo5y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_4y_to_5y_old'),
+            _5yTo6y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_5y_to_6y_old'),
+            _6yTo7y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_6y_to_7y_old'),
+            _7yTo8y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_7y_to_8y_old'),
+            _8yTo10y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_8y_to_10y_old'),
+            _10yTo12y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_10y_to_12y_old'),
+            _12yTo15y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_12y_to_15y_old'),
+            over15y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_over_15y_old'),
+          },
+          awake: {
+            supply: {
+              btc: createSeriesPattern1(this, 'awake_supply'),
+              sats: createSeriesPattern1(this, 'awake_supply_sats'),
+              usd: createSeriesPattern1(this, 'awake_supply_usd'),
+              cents: createSeriesPattern1(this, 'awake_supply_cents'),
+              inLoss: createSharePattern2(this, 'awake_supply_in_loss_share'),
+            },
+            cap: createCentsUsdPattern3(this, 'awake_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'awake_price'),
+          },
+          dormant: createSupplyPattern2(this, 'dormant_supply'),
+          sth: {
+            awake: {
+              supply: {
+                btc: createSeriesPattern1(this, 'sth_awake_supply'),
+                sats: createSeriesPattern1(this, 'sth_awake_supply_sats'),
+                usd: createSeriesPattern1(this, 'sth_awake_supply_usd'),
+                cents: createSeriesPattern1(this, 'sth_awake_supply_cents'),
+                inLoss: createSharePattern2(this, 'sth_awake_supply_in_loss_share'),
+              },
+              cap: createCentsUsdPattern3(this, 'sth_awake_cap'),
+              price: createCentsPpmRatioSatsUsdPattern(this, 'sth_awake_price'),
+            },
+            dormant: createSupplyPattern2(this, 'sth_dormant_supply'),
+          },
+          lth: {
+            awake: {
+              supply: {
+                btc: createSeriesPattern1(this, 'lth_awake_supply'),
+                sats: createSeriesPattern1(this, 'lth_awake_supply_sats'),
+                usd: createSeriesPattern1(this, 'lth_awake_supply_usd'),
+                cents: createSeriesPattern1(this, 'lth_awake_supply_cents'),
+                inLoss: createSharePattern2(this, 'lth_awake_supply_in_loss_share'),
+              },
+              cap: createCentsUsdPattern3(this, 'lth_awake_cap'),
+              price: createCentsPpmRatioSatsUsdPattern(this, 'lth_awake_price'),
+            },
+            dormant: createSupplyPattern2(this, 'lth_dormant_supply'),
           },
           supply: {
             vaulted: createBtcCentsSatsUsdPattern(this, 'vaulted_supply'),
@@ -10116,17 +10352,39 @@ class BrkClient extends BrkClientBase {
             },
             immobile: createBtcCentsSatsUsdPattern(this, 'immobile_supply'),
           },
-          horizon: {
-            _8y: createSupplyPattern(this, 'coinflow_8y_supply_in_loss_share'),
-            _4y: createSupplyPattern(this, 'coinflow_4y_supply_in_loss_share'),
-            _2y: createSupplyPattern(this, 'coinflow_2y_supply_in_loss_share'),
-            _1y: createSupplyPattern(this, 'coinflow_1y_supply_in_loss_share'),
-            _6m: createSupplyPattern(this, 'coinflow_6m_supply_in_loss_share'),
-            _3m: createSupplyPattern(this, 'coinflow_3m_supply_in_loss_share'),
-            _1m: createSupplyPattern(this, 'coinflow_1m_supply_in_loss_share'),
-          },
+          horizon: create_1m1y2y3m4y6m8yPattern(this, 'coinflow'),
           cap: createCentsUsdPattern3(this, 'coinflow_cap'),
           price: createCentsPpmRatioSatsUsdPattern(this, 'coinflow_price'),
+          sth: {
+            supply: {
+              mobile: {
+                btc: createSeriesPattern1(this, 'sth_mobile_supply'),
+                sats: createSeriesPattern1(this, 'sth_mobile_supply_sats'),
+                usd: createSeriesPattern1(this, 'sth_mobile_supply_usd'),
+                cents: createSeriesPattern1(this, 'sth_mobile_supply_cents'),
+                inLoss: createSharePattern2(this, 'sth_coinflow_supply_in_loss_share'),
+              },
+              immobile: createBtcCentsSatsUsdPattern(this, 'sth_immobile_supply'),
+            },
+            horizon: create_1m1y2y3m4y6m8yPattern(this, 'sth_coinflow'),
+            cap: createCentsUsdPattern3(this, 'sth_coinflow_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'sth_coinflow_price'),
+          },
+          lth: {
+            supply: {
+              mobile: {
+                btc: createSeriesPattern1(this, 'lth_mobile_supply'),
+                sats: createSeriesPattern1(this, 'lth_mobile_supply_sats'),
+                usd: createSeriesPattern1(this, 'lth_mobile_supply_usd'),
+                cents: createSeriesPattern1(this, 'lth_mobile_supply_cents'),
+                inLoss: createSharePattern2(this, 'lth_coinflow_supply_in_loss_share'),
+              },
+              immobile: createBtcCentsSatsUsdPattern(this, 'lth_immobile_supply'),
+            },
+            horizon: create_1m1y2y3m4y6m8yPattern(this, 'lth_coinflow'),
+            cap: createCentsUsdPattern3(this, 'lth_coinflow_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'lth_coinflow_price'),
+          },
         },
       },
       models: {
@@ -10143,6 +10401,8 @@ class BrkClient extends BrkClientBase {
           coinflow1m: createFloorLevelLossPattern(this, 'bedrock_coinflow_1m'),
         },
         capitalSentiment: {
+          isLong: createSeriesPattern1(this, 'capital_sentiment_is_long'),
+          isShort: createSeriesPattern1(this, 'capital_sentiment_is_short'),
           phase: createSeriesPattern1(this, 'capital_sentiment_phase'),
           score: createSeriesPattern1(this, 'capital_sentiment_score'),
         },
@@ -10166,7 +10426,9 @@ class BrkClient extends BrkClientBase {
           },
           extremes: {
             coinsInLoss: {
-              threshold: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold'),
+              thresholdPct01: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold_pct0_1'),
+              thresholdPct005: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold_pct0_05'),
+              thresholdPct0025: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold'),
               tail: createPercentPpmRatioPattern2(this, 'rarity_meter_coins_in_loss_tail'),
               rank: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_rank'),
             },
@@ -10174,7 +10436,9 @@ class BrkClient extends BrkClientBase {
             capitulation: createRankTailThresholdPattern(this, 'rarity_meter_capitulation'),
             peakRegret: createRankTailThresholdPattern(this, 'rarity_meter_peak_regret'),
             sellerExhaustion: {
-              threshold: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold'),
+              thresholdPct01: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold_pct0_1'),
+              thresholdPct005: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold_pct0_05'),
+              thresholdPct0025: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold'),
               tail: createPercentPpmRatioPattern2(this, 'rarity_meter_seller_exhaustion_tail'),
               rank: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_rank'),
             },
@@ -11513,16 +11777,20 @@ class BrkClient extends BrkClientBase {
   /**
    * Available URPD dates
    *
-   * Dates for which a URPD snapshot is available for the cohort. One entry per UTC day, sorted ascending.
+   * Dates for which a URPD snapshot is available for the cohort and selected `weight`. One entry per UTC day, sorted ascending.
    *
    * Endpoint: `GET /api/urpd/{cohort}/dates`
    *
    * @param {Cohort} cohort
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Date[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Date[]>}
    */
-  async listUrpdDates(cohort, { signal, onValue, cache, memCache } = {}) {
-    const path = `/api/urpd/${cohort}/dates`;
+  async listUrpdDates(cohort, weight, { signal, onValue, cache, memCache } = {}) {
+    const params = new URLSearchParams();
+    if (weight !== undefined) params.set('weight', String(weight));
+    const query = params.toString();
+    const path = `/api/urpd/${cohort}/dates${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });
   }
 
@@ -11531,18 +11799,20 @@ class BrkClient extends BrkClientBase {
    *
    * URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served.
    *
-   * See the URPD tag description for the response shape and `agg` options.
+   * See the URPD tag description for the response shape, `agg`, and `weight` options.
    *
    * Endpoint: `GET /api/urpd/{cohort}`
    *
    * @param {Cohort} cohort
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpd(cohort, agg, { signal, onValue, cache, memCache } = {}) {
+  async getUrpd(cohort, agg, weight, { signal, onValue, cache, memCache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
+    if (weight !== undefined) params.set('weight', String(weight));
     const query = params.toString();
     const path = `/api/urpd/${cohort}${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });
@@ -11551,21 +11821,23 @@ class BrkClient extends BrkClientBase {
   /**
    * URPD at date
    *
-   * URPD for a (cohort, date) pair. Returns `{ cohort, date, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.
+   * URPD for a (cohort, date) pair. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.
    *
-   * See the URPD tag description for unit conventions and `agg` options.
+   * See the URPD tag description for unit conventions, `agg`, and `weight` options.
    *
    * Endpoint: `GET /api/urpd/{cohort}/{date}`
    *
    * @param {Cohort} cohort
    * @param {string} date
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpdAt(cohort, date, agg, { signal, onValue, cache, memCache } = {}) {
+  async getUrpdAt(cohort, date, agg, weight, { signal, onValue, cache, memCache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
+    if (weight !== undefined) params.set('weight', String(weight));
     const query = params.toString();
     const path = `/api/urpd/${cohort}/${date}${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });

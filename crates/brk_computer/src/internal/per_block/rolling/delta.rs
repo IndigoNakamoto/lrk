@@ -10,8 +10,8 @@ use vecdb::{
 use crate::{
     indexes,
     internal::{
-        AmountType, DerivedResolutions, FiatType, FixedRatio, LazyPerBlock, NumericValue, Percent,
-        Resolutions, WindowStartVec, Windows,
+        AmountType, CachedWindowStartVec, DerivedResolutions, FiatType, FixedRatio, LazyPerBlock,
+        NumericValue, Percent, Resolutions, Windows,
     },
 };
 
@@ -71,12 +71,12 @@ where
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -200,12 +200,12 @@ where
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -345,12 +345,12 @@ where
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();

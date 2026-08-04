@@ -12,7 +12,7 @@ use brk_types::{
 use derive_more::Deref;
 use jiff::Timestamp;
 use serde::Serialize;
-use vecdb::{ReadableVec, VecIndex};
+use vecdb::ReadableVec;
 
 use crate::{CacheParams, CacheStrategy, Error, Website, extended::ResponseExtended};
 
@@ -150,17 +150,11 @@ impl AppState {
     /// pools mine; only invalidates when this pool itself mines.
     pub fn pool_blocks_strategy(&self, version: Version, slug: PoolSlug) -> CacheStrategy {
         self.sync(|q| {
-            let tip = q.height().to_usize();
             let last = q
                 .computer()
                 .pools
                 .pool_heights
-                .read()
-                .get(&slug)
-                .and_then(|heights| {
-                    let pos = heights.partition_point(|h| h.to_usize() <= tip);
-                    pos.checked_sub(1).map(|i| heights[i])
-                });
+                .latest_height(slug, q.height());
             match last.and_then(|h| q.block_hash_by_height(h).ok()) {
                 Some(hash) => CacheStrategy::BlockBound(version, BlockHashPrefix::from(&hash)),
                 None => CacheStrategy::Tip,

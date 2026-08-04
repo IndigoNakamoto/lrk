@@ -21,7 +21,7 @@ where
 
     // Write some data
     for i in 0..1000usize {
-        vec.checked_push_at(i, i as u64 * 100).unwrap();
+        vec.push(i as u64 * 100);
     }
 
     // Flush the vec (writes to mmap)
@@ -62,8 +62,7 @@ where
 
         // Write batch
         for i in 0..100usize {
-            vec.checked_push_at(start + i, (start + i) as u64 * 100)
-                .unwrap();
+            vec.push((start + i) as u64 * 100);
         }
 
         // Flush

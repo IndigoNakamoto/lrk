@@ -284,7 +284,7 @@ impl Indexer {
             processor.process_block_metadata()?;
 
             let txs = processor.compute_txids()?;
-            processor.push_block_size_and_weight(&txs)?;
+            processor.push_block_size_and_weight(&txs);
 
             let (txins_result, txouts_result) = rayon::join(
                 || processor.process_inputs(&txs, &mut buffers.inputs),
@@ -297,12 +297,7 @@ impl Indexer {
             let input_count = txins.len();
             let output_count = txouts.len();
 
-            processor.analyze_and_finalize_transactions(
-                txs,
-                txouts,
-                txins,
-                &mut buffers.addresses,
-            )?;
+            processor.analyze_and_finalize_transactions(txs, txouts, txins, &mut buffers.addresses);
 
             processor
                 .lengths

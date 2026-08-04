@@ -7,20 +7,20 @@ use crate::internal::{LazyPerBlock, PerBlock, PercentPerBlock, RatioPerBlock, Wi
 #[derive(Traversable)]
 pub struct RsiChain<M: StorageMode = Rw> {
     #[traversable(hidden)]
-    pub gains: LazyPerBlock<StoredF32>,
+    pub(super) gains: LazyPerBlock<StoredF32>,
     #[traversable(hidden)]
-    pub losses: LazyPerBlock<StoredF32>,
+    pub(super) losses: LazyPerBlock<StoredF32>,
     #[traversable(hidden)]
-    pub average_gain: PerBlock<StoredF32, M>,
+    pub(super) average_gain: PerBlock<StoredF32, M>,
     #[traversable(hidden)]
-    pub average_loss: PerBlock<StoredF32, M>,
+    pub(super) average_loss: PerBlock<StoredF32, M>,
     pub rsi: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(hidden)]
-    pub rsi_min: PercentPerBlock<PartsPerMillion32, M>,
+    pub(super) rsi_min: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(hidden)]
-    pub rsi_max: PercentPerBlock<PartsPerMillion32, M>,
+    pub(super) rsi_max: PercentPerBlock<PartsPerMillion32, M>,
     #[traversable(hidden)]
-    pub stoch_rsi: PercentPerBlock<PartsPerMillion32, M>,
+    pub(super) stoch_rsi: PercentPerBlock<PartsPerMillion32, M>,
     pub stoch_rsi_k: PercentPerBlock<PartsPerMillion32, M>,
     pub stoch_rsi_d: PercentPerBlock<PartsPerMillion32, M>,
 }

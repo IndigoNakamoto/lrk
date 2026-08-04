@@ -6,8 +6,8 @@ use super::{DerivedVecs, Vecs};
 use crate::{
     indexes,
     internal::{
-        LazyPerBlock, OddsF64, OneMinusF64, PerBlock, PerBlockCumulativeRolling, WindowStartVec,
-        Windows,
+        CachedWindowStartVec, LazyPerBlock, OddsF64, OneMinusF64, PerBlock,
+        PerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -53,7 +53,7 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             coinblocks_created: PerBlockCumulativeRolling::forced_import(

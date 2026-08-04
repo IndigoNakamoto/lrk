@@ -245,18 +245,10 @@ impl Query {
         let heights: Vec<usize> = computer
             .pools
             .pool_heights
-            .read()
-            .get(&slug)
-            .map(|pool_heights| {
-                let pos = pool_heights.partition_point(|h| h.to_usize() <= end);
-                let start = pos.saturating_sub(limit);
-                pool_heights[start..pos]
-                    .iter()
-                    .rev()
-                    .map(|h| h.to_usize())
-                    .collect()
-            })
-            .unwrap_or_default();
+            .latest_heights(slug, Height::from(end), limit)
+            .into_iter()
+            .map(|height| height.to_usize())
+            .collect();
 
         // Group consecutive descending heights into ranges for batch reads.
         let mut blocks = Vec::with_capacity(heights.len());

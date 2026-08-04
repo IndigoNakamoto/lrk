@@ -3,7 +3,7 @@ use std::{fs, path::Path, time::Instant};
 use rustc_hash::FxHashSet;
 
 use brk_cohort::ByAddrType;
-use brk_error::Result;
+use brk_error::{Error, Result};
 use brk_store::{AnyStore, Kind, Mode, Store};
 use brk_types::{
     AddrHash, AddrIndexOutPoint, AddrIndexTxIndex, BlockHashPrefix, Height, OutPoint, OutputType,
@@ -237,7 +237,7 @@ impl Stores {
 
         self.rollback_block_metadata(vecs, starting_lengths)?;
         self.rollback_txids(vecs, starting_lengths);
-        self.rollback_outputs_and_inputs(vecs, starting_lengths);
+        self.rollback_outputs_and_inputs(vecs, starting_lengths)?;
 
         let rollback_height = starting_lengths.height.decremented().unwrap_or_default();
         self.par_iter_any_mut()
@@ -315,7 +315,11 @@ impl Stores {
         self.txid_prefix_to_tx_index.clear_caches();
     }
 
-    fn rollback_outputs_and_inputs(&mut self, vecs: &mut Vecs, starting_lengths: &Lengths) {
+    fn rollback_outputs_and_inputs(
+        &mut self,
+        vecs: &mut Vecs,
+        starting_lengths: &Lengths,
+    ) -> Result<()> {
         let tx_index_to_first_txout_index_reader = vecs.transactions.first_txout_index.reader();
         let txout_index_to_output_type_reader = vecs.outputs.output_type.reader();
         let txout_index_to_type_index_reader = vecs.outputs.type_index.reader();
@@ -326,34 +330,38 @@ impl Stores {
         let rollback_start = starting_lengths.txout_index.to_usize();
         let rollback_end = vecs.outputs.output_type.len();
 
-        let tx_indexes: Vec<TxIndex> = vecs
-            .outputs
-            .tx_index
-            .collect_range_at(rollback_start, rollback_end);
+        let starting_tx_index = starting_lengths.tx_index;
+        let first_txout_indexes = vecs.transactions.first_txout_index.collect_range_at(
+            starting_tx_index.to_usize(),
+            vecs.transactions.first_txout_index.len(),
+        );
 
-        for (i, txout_index) in (rollback_start..rollback_end).enumerate() {
-            let output_type = txout_index_to_output_type_reader.get_at(txout_index);
-            if !output_type.is_addr() {
-                continue;
+        if !valid_rollback_boundaries(&first_txout_indexes, rollback_start, rollback_end) {
+            return Err(Error::Internal("Invalid rollback output boundaries"));
+        }
+
+        for (tx_index, txout_range) in txout_ranges(
+            starting_tx_index,
+            &first_txout_indexes,
+            TxOutIndex::from(rollback_end),
+        ) {
+            for (vout, txout_index) in txout_range.enumerate() {
+                let output_type = txout_index_to_output_type_reader.get_at(txout_index);
+                if !output_type.is_addr() {
+                    continue;
+                }
+
+                let addr_type = output_type;
+                let addr_index = txout_index_to_type_index_reader.get_at(txout_index);
+
+                addr_index_tx_index_to_remove.insert((addr_type, addr_index, tx_index));
+
+                let outpoint = OutPoint::new(tx_index, Vout::from(vout));
+
+                self.addr_type_to_addr_index_and_unspent_outpoint
+                    .get_mut_unwrap(addr_type)
+                    .remove(AddrIndexOutPoint::from((addr_index, outpoint)));
             }
-
-            let addr_type = output_type;
-            let addr_index = txout_index_to_type_index_reader.get_at(txout_index);
-            let tx_index = tx_indexes[i];
-
-            addr_index_tx_index_to_remove.insert((addr_type, addr_index, tx_index));
-
-            let vout = Vout::from(
-                txout_index
-                    - tx_index_to_first_txout_index_reader
-                        .get(tx_index)
-                        .to_usize(),
-            );
-            let outpoint = OutPoint::new(tx_index, vout);
-
-            self.addr_type_to_addr_index_and_unspent_outpoint
-                .get_mut_unwrap(addr_type)
-                .remove(AddrIndexOutPoint::from((addr_index, outpoint)));
         }
 
         let start = starting_lengths.txin_index.to_usize();
@@ -401,5 +409,123 @@ impl Stores {
                 .get_mut_unwrap(addr_type)
                 .remove(AddrIndexTxIndex::from((addr_index, tx_index)));
         }
+
+        Ok(())
+    }
+}
+
+fn valid_rollback_boundaries(
+    first_txout_indexes: &[TxOutIndex],
+    rollback_start: usize,
+    rollback_end: usize,
+) -> bool {
+    if rollback_start > rollback_end {
+        return false;
+    }
+
+    let Some(first) = first_txout_indexes.first() else {
+        return rollback_start == rollback_end;
+    };
+
+    first.to_usize() == rollback_start
+        && first_txout_indexes
+            .windows(2)
+            .all(|pair| pair[0] <= pair[1])
+        && first_txout_indexes
+            .last()
+            .is_some_and(|last| last.to_usize() <= rollback_end)
+}
+
+fn txout_ranges(
+    starting_tx_index: TxIndex,
+    first_txout_indexes: &[TxOutIndex],
+    rollback_end: TxOutIndex,
+) -> impl Iterator<Item = (TxIndex, std::ops::Range<usize>)> + '_ {
+    first_txout_indexes
+        .iter()
+        .copied()
+        .enumerate()
+        .map(move |(offset, first)| {
+            let end = first_txout_indexes
+                .get(offset + 1)
+                .copied()
+                .unwrap_or(rollback_end);
+            (starting_tx_index + offset, first.to_usize()..end.to_usize())
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rollback_output_ranges_reconstruct_tx_indexes_and_vouts() {
+        let first_txout_indexes = [100_usize, 103, 103, 105].map(TxOutIndex::from);
+        let ranges: Vec<_> = txout_ranges(
+            TxIndex::from(40_usize),
+            &first_txout_indexes,
+            TxOutIndex::from(108_usize),
+        )
+        .collect();
+
+        assert_eq!(
+            ranges,
+            [
+                (TxIndex::from(40_usize), 100..103),
+                (TxIndex::from(41_usize), 103..103),
+                (TxIndex::from(42_usize), 103..105),
+                (TxIndex::from(43_usize), 105..108),
+            ]
+        );
+
+        let reconstructed: Vec<_> = ranges
+            .into_iter()
+            .flat_map(|(tx_index, range)| {
+                range
+                    .enumerate()
+                    .map(move |(vout, txout_index)| (txout_index, tx_index, Vout::from(vout)))
+            })
+            .collect();
+
+        assert_eq!(
+            reconstructed,
+            [
+                (100, TxIndex::from(40_usize), Vout::from(0_usize)),
+                (101, TxIndex::from(40_usize), Vout::from(1_usize)),
+                (102, TxIndex::from(40_usize), Vout::from(2_usize)),
+                (103, TxIndex::from(42_usize), Vout::from(0_usize)),
+                (104, TxIndex::from(42_usize), Vout::from(1_usize)),
+                (105, TxIndex::from(43_usize), Vout::from(0_usize)),
+                (106, TxIndex::from(43_usize), Vout::from(1_usize)),
+                (107, TxIndex::from(43_usize), Vout::from(2_usize)),
+            ]
+        );
+    }
+
+    #[test]
+    fn rollback_output_boundaries_are_validated() {
+        assert!(valid_rollback_boundaries(
+            &[TxOutIndex::from(100_usize), TxOutIndex::from(103_usize)],
+            100,
+            105,
+        ));
+        assert!(valid_rollback_boundaries(&[], 100, 100));
+
+        assert!(!valid_rollback_boundaries(
+            &[TxOutIndex::from(99_usize)],
+            100,
+            105,
+        ));
+        assert!(!valid_rollback_boundaries(
+            &[TxOutIndex::from(100_usize), TxOutIndex::from(99_usize)],
+            100,
+            105,
+        ));
+        assert!(!valid_rollback_boundaries(
+            &[TxOutIndex::from(100_usize), TxOutIndex::from(106_usize)],
+            100,
+            105,
+        ));
+        assert!(!valid_rollback_boundaries(&[], 100, 101));
     }
 }

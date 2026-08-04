@@ -106,7 +106,7 @@ impl<'a> BlockProcessor<'a> {
         mut txouts: Vec<ProcessedOutput>,
         txins: &[InputSource],
         addresses: &mut BlockAddresses,
-    ) -> Result<()> {
+    ) {
         let transaction_analyses = self.analyze_transactions(&txs, txins, &txouts);
         let lengths = &mut *self.lengths;
         let base_tx_index = lengths.tx_index;
@@ -130,8 +130,8 @@ impl<'a> BlockProcessor<'a> {
         let addr_outpoint_stores = &mut self.stores.addr_type_to_addr_index_and_unspent_outpoint;
         let txid_prefix_store = &mut self.stores.txid_prefix_to_tx_index;
 
-        let (finalize_result, metadata_result) = rayon::join(
-            || -> Result<()> {
+        rayon::join(
+            || {
                 txout::finalize_outputs(
                     transactions,
                     base_tx_index,
@@ -146,7 +146,7 @@ impl<'a> BlockProcessor<'a> {
                     addr_outpoint_stores,
                     &mut txouts,
                     addresses,
-                )?;
+                );
                 txin::finalize_inputs(
                     transactions,
                     base_tx_index,
@@ -157,7 +157,7 @@ impl<'a> BlockProcessor<'a> {
                     addr_outpoint_stores,
                     txins,
                     &txouts,
-                )
+                );
             },
             || {
                 store_tx_metadata(
@@ -170,10 +170,6 @@ impl<'a> BlockProcessor<'a> {
                 )
             },
         );
-
-        finalize_result?;
-        metadata_result?;
-        Ok(())
     }
 }
 
@@ -184,7 +180,7 @@ fn store_tx_metadata(
     store: &mut Store<TxidPrefix, TxIndex>,
     md: &mut TxMetadataVecs<'_>,
     features: &mut TransactionFeaturesVecs,
-) -> Result<()> {
+) {
     debug_assert_eq!(txs.len(), transaction_analyses.len());
     let mut counts = TransactionCounts::default();
     for (ct, analysis) in txs.into_iter().zip(transaction_analyses) {
@@ -192,17 +188,18 @@ fn store_tx_metadata(
             store.insert(ct.txid_prefix(), ct.tx_index);
         }
         let tx_version = TxVersion::from(ct.tx.version);
-        md.tx_version.checked_push(ct.tx_index, tx_version)?;
-        md.txid.checked_push(ct.tx_index, ct.txid)?;
+        md.tx_version.debug_checked_push(ct.tx_index, tx_version);
+        md.txid.debug_checked_push(ct.tx_index, ct.txid);
         md.raw_locktime
-            .checked_push(ct.tx_index, ct.tx.lock_time.into())?;
-        md.weight.checked_push(ct.tx_index, ct.weight().into())?;
+            .debug_checked_push(ct.tx_index, ct.tx.lock_time.into());
+        md.weight
+            .debug_checked_push(ct.tx_index, ct.weight().into());
         md.total_size
-            .checked_push(ct.tx_index, ct.total_size.into())?;
+            .debug_checked_push(ct.tx_index, ct.total_size.into());
         md.total_sigop_cost
-            .checked_push(ct.tx_index, analysis.total_sigop_cost)?;
+            .debug_checked_push(ct.tx_index, analysis.total_sigop_cost);
         md.is_explicitly_rbf
-            .checked_push(ct.tx_index, StoredBool::from(analysis.explicitly_rbf))?;
+            .debug_checked_push(ct.tx_index, StoredBool::from(analysis.explicitly_rbf));
         counts.add_base(
             ct.tx.input.len(),
             ct.tx.output.len(),
@@ -211,6 +208,5 @@ fn store_tx_metadata(
         );
         features.push_and_count(analysis.features, &mut counts);
     }
-    features.count.checked_push(height, counts)?;
-    Ok(())
+    features.count.push(height, counts);
 }

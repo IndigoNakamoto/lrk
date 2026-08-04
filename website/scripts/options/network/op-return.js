@@ -1,7 +1,13 @@
 import { colors } from "../../utils/colors.js";
 import { brk } from "../../utils/client.js";
 import { Unit } from "../../utils/units.js";
-import { chartsFromCount, line, percentRatio } from "../series.js";
+import {
+  ROLLING_WINDOWS,
+  chartsFromCount,
+  chartsFromPercentCumulative,
+  line,
+  percentRatio,
+} from "../series.js";
 import { groupedWindowsCumulative } from "../shared.js";
 
 const TYPE_DEFINITIONS = /** @type {const} */ ([
@@ -54,6 +60,12 @@ const METRICS = /** @type {const} */ ([
     name: "Transaction vSize",
     title: "Transaction vSize",
     unit: Unit.vb,
+  },
+  {
+    key: "fees",
+    name: "Fees",
+    title: "Transaction Fees",
+    unit: Unit.sats,
   },
 ]);
 
@@ -151,6 +163,65 @@ function createShares({ list, category, subject }) {
 /**
  * @param {Object} args
  * @param {readonly OpReturnEntry[]} args.list
+ * @param {string} args.category
+ * @returns {PartialOptionsGroup}
+ */
+function createFeeShareComparison({ list, category }) {
+  const metric = `OP_RETURN Share of Transaction Fees by ${category}`;
+  return {
+    name: "Fee Share",
+    tree: [
+      ...ROLLING_WINDOWS.map((window) => ({
+        name: window.name,
+        title: `${window.title} ${metric}`,
+        bottom: list.flatMap(
+          ({ name, color, defaultActive, pattern }) =>
+            percentRatio({
+              pattern: pattern.feeShare[window.key],
+              name,
+              color,
+              defaultActive,
+            }),
+        ),
+      })),
+      {
+        name: "Cumulative",
+        title: `Cumulative ${metric}`,
+        bottom: list.flatMap(
+          ({ name, color, defaultActive, pattern }) =>
+            percentRatio({
+              pattern: pattern.feeShare,
+              name,
+              color,
+              defaultActive,
+            }),
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * @param {Object} args
+ * @param {OpReturnMetrics} args.pattern
+ * @param {string} args.name
+ * @param {Color} args.color
+ * @returns {PartialOptionsGroup}
+ */
+function createFeeShare({ pattern, name, color }) {
+  return {
+    name: "Fee Share",
+    tree: chartsFromPercentCumulative({
+      pattern: pattern.feeShare,
+      metric: `OP_RETURN ${name} Share of Transaction Fees`,
+      color,
+    }),
+  };
+}
+
+/**
+ * @param {Object} args
+ * @param {readonly OpReturnEntry[]} args.list
  * @param {string} args.name
  * @param {string} args.category
  * @returns {PartialOptionsGroup}
@@ -163,6 +234,7 @@ function createBreakdown({ name, list, category }) {
         name: "Compare",
         tree: [
           ...createComparisons({ list, category }),
+          createFeeShareComparison({ list, category }),
           ...createShares({ list, category }),
         ],
       },
@@ -170,6 +242,7 @@ function createBreakdown({ name, list, category }) {
         name,
         tree: [
           ...createMetrics({ pattern, name, color }),
+          createFeeShare({ pattern, name, color }),
           ...createShares({
             list: [{ name, color, pattern }],
             category,
@@ -255,6 +328,23 @@ export function createOpReturnSection() {
           pattern: opReturn.total.txVsize,
           metric: "OP_RETURN Transaction vSize",
           unit: Unit.vb,
+          color: colors.scriptType.opReturn,
+        }),
+      },
+      {
+        name: "Fees",
+        tree: chartsFromCount({
+          pattern: opReturn.total.fees,
+          metric: "OP_RETURN Transaction Fees",
+          unit: Unit.sats,
+          color: colors.scriptType.opReturn,
+        }),
+      },
+      {
+        name: "Fee Share",
+        tree: chartsFromPercentCumulative({
+          pattern: opReturn.total.feeShare,
+          metric: "OP_RETURN Share of Transaction Fees",
           color: colors.scriptType.opReturn,
         }),
       },

@@ -1,12 +1,27 @@
 use std::ops::{Add, AddAssign, Div};
 
 use derive_more::Deref;
-use serde::Serialize;
-use vecdb::{CheckedSub, Formattable, PrintableIndex};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
 pub type StoredPhantom = StoredU8;
 
-#[derive(Default, Debug, Deref, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(
+    Default,
+    Debug,
+    Deref,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Pco,
+    JsonSchema,
+)]
 pub struct StoredU8(u8);
 
 impl StoredU8 {

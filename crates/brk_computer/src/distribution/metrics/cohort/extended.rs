@@ -2,14 +2,15 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Dollars, Height, Sats, Version};
+use brk_types::Version;
 use vecdb::AnyStoredVec;
-use vecdb::{Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{Exit, Rw, StorageMode};
 
 use crate::{
+    distribution::AllChainCache,
     distribution::metrics::{
-        ActivityFull, CohortMetricsBase, CostBasis, ImportConfig, OutputsBase, RealizedFull,
-        RelativeWithExtended, SupplyCore, UnrealizedFull,
+        ActivityFull, AllSupplyCache, CohortMetricsBase, CostBasis, ImportConfig, OutputsBase,
+        RealizedFull, RelativeWithExtended, SupplyCore, UnrealizedFull,
     },
     price,
 };
@@ -66,12 +67,16 @@ impl CohortMetricsBase for ExtendedCohortMetrics {
 }
 
 impl ExtendedCohortMetrics {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let supply = SupplyCore::forced_import(cfg)?;
-        let realized = RealizedFull::forced_import(cfg)?;
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        all_supply: &AllSupplyCache,
+        all_chain: &AllChainCache,
+    ) -> Result<Self> {
+        let supply = SupplyCore::forced_import(cfg, all_supply)?;
+        let realized = RealizedFull::forced_import(cfg, all_chain)?;
         let unrealized = UnrealizedFull::forced_import(cfg, &realized.price.ppm)?;
 
-        let relative = RelativeWithExtended::forced_import(cfg, &unrealized)?;
+        let relative = RelativeWithExtended::forced_import(cfg, &unrealized, all_chain)?;
 
         Ok(Self {
             filter: cfg.filter.clone(),
@@ -90,15 +95,12 @@ impl ExtendedCohortMetrics {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        height_to_market_cap: &impl ReadableVec<Height, Dollars>,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
             prices,
             starting_lengths,
             &self.supply.total.btc.height,
-            height_to_market_cap,
             &self.activity.transfer_volume,
             exit,
         )?;
@@ -118,15 +120,11 @@ impl ExtendedCohortMetrics {
         self.unrealized
             .compute_sentiment(starting_lengths, &prices.spot.cents.height, exit)?;
 
-        self.supply
-            .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
-
         self.relative.compute(
             starting_lengths.height,
             &self.supply,
             &self.unrealized,
             &self.realized,
-            height_to_market_cap,
             &self.supply.total.usd.height,
             exit,
         )?;

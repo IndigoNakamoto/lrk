@@ -18,7 +18,8 @@ import { createCointimeAgeRangeSection } from "./age-range.js";
  * @returns {PartialOptionsGroup}
  */
 export function createCointimeSection() {
-  const { cointime, cohorts, supply } = brk.series;
+  const { cohorts, supply, cointime: baseCointime } = brk.series;
+  const { cointime } = brk.series.frameworks;
   const {
     prices: cointimePrices,
     cap,
@@ -33,6 +34,11 @@ export function createCointimeSection() {
     ...range,
     tree: cointime.ageRange[key],
   }));
+  const awakeCohorts = [
+    { name: "All", color: colors.awake, tree: cointime },
+    { name: "STH", color: colors.term.short, tree: cointime.sth },
+    { name: "LTH", color: colors.term.long, tree: cointime.lth },
+  ];
 
   // Reference lines for cap comparisons
   const capReferenceLines = /** @type {const} */ ([
@@ -125,7 +131,7 @@ export function createCointimeSection() {
 
   const coinblocks = /** @type {const} */ ([
     {
-      pattern: activity.coinblocksDestroyed,
+      pattern: baseCointime.activity.coinblocksDestroyed,
       name: "Destroyed",
       title: "Coinblocks Destroyed",
       color: colors.destroyed,
@@ -198,6 +204,25 @@ export function createCointimeSection() {
               ),
             ],
           },
+          {
+            name: "Awake",
+            title: "Awake Price by Holder Term",
+            top: awakeCohorts.map(({ name, color, tree }) =>
+              price({
+                series: tree.awake.price,
+                name,
+                color,
+              }),
+            ),
+            bottom: awakeCohorts.map(({ name, color, tree }) =>
+              line({
+                series: tree.awake.price.ratio,
+                name: `Spot / ${name}`,
+                color,
+                unit: Unit.ratio,
+              }),
+            ),
+          },
           ...prices.map(({ pattern, name, title, color }) => {
             const [chart] = simplePriceRatioTree({
               pattern,
@@ -224,6 +249,18 @@ export function createCointimeSection() {
                 line({ series, name, color, defaultActive, unit: Unit.usd }),
               ),
             ],
+          },
+          {
+            name: "Awake",
+            title: "Awake Cap by Holder Term",
+            bottom: awakeCohorts.map(({ name, color, tree }) =>
+              line({
+                series: tree.awake.cap.usd,
+                name,
+                color,
+                unit: Unit.usd,
+              }),
+            ),
           },
           ...caps.map(({ series, name, color }) => ({
             name,
@@ -264,6 +301,56 @@ export function createCointimeSection() {
                 unit: Unit.ratio,
               }),
             ],
+          },
+          {
+            name: "Awake vs Dormant",
+            title: "Awake vs Dormant Supply",
+            bottom: [
+              ...satsBtcUsd({
+                pattern: cointime.awake.supply,
+                name: "Awake",
+                color: colors.awake,
+              }),
+              ...satsBtcUsd({
+                pattern: cointime.dormant.supply,
+                name: "Dormant",
+                color: colors.dormant,
+              }),
+            ],
+          },
+          {
+            name: "Awake by Term",
+            title: "Awake Supply by Holder Term",
+            bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
+              satsBtcUsd({
+                pattern: tree.awake.supply,
+                name,
+                color,
+              }),
+            ),
+          },
+          {
+            name: "Dormant by Term",
+            title: "Dormant Supply by Holder Term",
+            bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
+              satsBtcUsd({
+                pattern: tree.dormant.supply,
+                name,
+                color,
+              }),
+            ),
+          },
+          {
+            name: "Awake in Loss",
+            title: "Awake Supply in Loss by Holder Term",
+            bottom: awakeCohorts.map(({ name, color, tree }) =>
+              line({
+                series: tree.awake.supply.inLoss.share,
+                name,
+                color,
+                unit: Unit.ratio,
+              }),
+            ),
           },
         ],
       },

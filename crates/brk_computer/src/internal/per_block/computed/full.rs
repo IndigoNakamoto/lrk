@@ -10,7 +10,9 @@ use vecdb::{
 
 use crate::{
     indexes,
-    internal::{NumericValue, PerBlock, RollingComplete, WindowStartVec, WindowStarts, Windows},
+    internal::{
+        CachedWindowStartVec, NumericValue, PerBlock, RollingComplete, WindowStarts, Windows,
+    },
 };
 
 #[derive(Traversable)]
@@ -37,7 +39,7 @@ where
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
         compute_block: fn(Height, S) -> T,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let block =
             LazyVecFrom1::init(name, version, source.read_only_boxed_clone(), compute_block);

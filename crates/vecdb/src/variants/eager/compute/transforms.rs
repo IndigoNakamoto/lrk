@@ -29,7 +29,7 @@ where
 
             for i in from..end {
                 let (idx, val) = t(V::I::from(i));
-                this.checked_push(idx, val)?;
+                this.debug_checked_push(idx, val);
             }
 
             Ok(())
@@ -91,7 +91,8 @@ where
             source.try_fold_range_at(skip, end, (), |(), b: A| {
                 let (idx, v) = t((V::I::from(i), b, &*this));
                 i += 1;
-                this.checked_push(idx, v)
+                this.debug_checked_push(idx, v);
+                Ok(())
             })
         })
     }
@@ -128,7 +129,8 @@ where
                 other1.try_fold_range_at(skip, end, (), |(), b: A| {
                     let (idx, v) = t((V::I::from(i), b, iter2.next().unwrap(), &*this));
                     i += 1;
-                    this.checked_push(idx, v)
+                    this.debug_checked_push(idx, v);
+                    Ok(())
                 })
             },
         )
@@ -197,7 +199,8 @@ where
                         &*this,
                     ));
                     i += 1;
-                    this.checked_push(idx, v)
+                    this.debug_checked_push(idx, v);
+                    Ok(())
                 })
             },
         )
@@ -255,7 +258,8 @@ where
                         &*this,
                     ));
                     i += 1;
-                    this.checked_push(idx, v)
+                    this.debug_checked_push(idx, v);
+                    Ok(())
                 })
             },
         )
@@ -292,7 +296,7 @@ where
 
                 let keys: Vec<A> = source1.collect_range_at(skip, end);
 
-                for (j, key) in keys.into_iter().enumerate() {
+                for key in keys {
                     let key_pos = key.to_usize();
                     let v = if key_pos >= cursor_pos {
                         if key_pos > cursor_pos {
@@ -306,8 +310,7 @@ where
                         last_v.clone().unwrap()
                     };
                     last_v = Some(v.clone());
-                    let idx = V::I::from(skip + j);
-                    this.checked_push(idx, v)?;
+                    this.push(v);
                 }
 
                 Ok(())

@@ -129,6 +129,24 @@ where
         Ok(())
     }
 
+    /// Pushes a value and checks its expected index in debug builds.
+    #[inline]
+    fn debug_checked_push(&mut self, _index: I, value: T) {
+        #[cfg(debug_assertions)]
+        {
+            let index = _index.to_usize();
+            let len = self.len();
+            assert_eq!(
+                index,
+                len,
+                "unexpected index for {}: expected {len}, got {index}",
+                self.name(),
+            );
+        }
+
+        self.push(value);
+    }
+
     /// Truncates the vector to the given index if the current length exceeds it.
     fn truncate_if_needed(&mut self, index: I) -> Result<()> {
         self.truncate_if_needed_at(index.to_usize())
