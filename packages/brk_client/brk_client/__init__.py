@@ -94,6 +94,11 @@ TxVersionRaw = int
 # Reconstruction is a single pass: for each entry, either copy
 # `prior[idx]` or append the inline body.
 BlockTemplateDiffEntry = Union[int, "Transaction"]
+# Investor phase from the Capital Sentiment model.
+# 
+# Codes are explicit because phase values are persisted. Code `0` represents
+# unavailable model inputs and is therefore not a phase.
+CapitalSentimentPhase = Literal["raging_bull", "bull", "cautious_bull", "hopeful_bull", "early_bull", "weak_bull", "limbo", "deep_bear", "bear", "early_bear"]
 # Unsigned cents (u64) - for values that should never be negative.
 # Used for invested capital, realized cap, etc.
 # `u64::MAX` is reserved as a NaN sentinel.
@@ -4068,6 +4073,15 @@ class PpmPriceRatioPattern:
         self.price: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, disc))
         self.ratio: SeriesPattern1[StoredF32] = SeriesPattern1(client, _m(acc, f'ratio_{disc}'))
 
+class RankTailThresholdPattern:
+    """Pattern struct for repeated tree structure."""
+    
+    def __init__(self, client: BrkClient, acc: str):
+        """Create pattern node with accumulated series name."""
+        self.rank: SeriesPattern1[StoredI8] = SeriesPattern1(client, _m(acc, 'rank'))
+        self.tail: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, _m(acc, 'tail'))
+        self.threshold: SeriesPattern1[Dollars] = SeriesPattern1(client, _m(acc, 'threshold'))
+
 class RatioTransferValuePattern:
     """Pattern struct for repeated tree structure."""
     
@@ -4705,16 +4719,11 @@ class SeriesTree_Inputs_Raw:
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.first_txin_index: SeriesPattern18[TxInIndex] = SeriesPattern18(client, 'first_txin_index')
         self.outpoint: SeriesPattern20[OutPoint] = SeriesPattern20(client, 'outpoint')
+        self.txout_index: SeriesPattern20[TxOutIndex] = SeriesPattern20(client, 'txout_index')
+        self.value: SeriesPattern20[Sats] = SeriesPattern20(client, 'value')
         self.tx_index: SeriesPattern20[TxIndex] = SeriesPattern20(client, 'tx_index')
         self.output_type: SeriesPattern20[OutputType] = SeriesPattern20(client, 'output_type')
         self.type_index: SeriesPattern20[TypeIndex] = SeriesPattern20(client, 'type_index')
-
-class SeriesTree_Inputs_Spent:
-    """Series tree node."""
-    
-    def __init__(self, client: BrkClient, base_path: str = ''):
-        self.txout_index: SeriesPattern20[TxOutIndex] = SeriesPattern20(client, 'txout_index')
-        self.value: SeriesPattern20[Sats] = SeriesPattern20(client, 'value')
 
 class SeriesTree_Inputs_ByType_InputCount:
     """Series tree node."""
@@ -4780,7 +4789,6 @@ class SeriesTree_Inputs:
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.raw: SeriesTree_Inputs_Raw = SeriesTree_Inputs_Raw(client)
-        self.spent: SeriesTree_Inputs_Spent = SeriesTree_Inputs_Spent(client)
         self.count: CumulativeRollingSumPattern = CumulativeRollingSumPattern(client, 'input_count')
         self.per_sec: _1m1w1y24hPattern[StoredF32] = _1m1w1y24hPattern(client, 'inputs_per_sec')
         self.by_type: SeriesTree_Inputs_ByType = SeriesTree_Inputs_ByType(client)
@@ -5312,7 +5320,7 @@ class SeriesTree_Mining:
         self.rewards: SeriesTree_Mining_Rewards = SeriesTree_Mining_Rewards(client)
         self.hashrate: SeriesTree_Mining_Hashrate = SeriesTree_Mining_Hashrate(client)
 
-class SeriesTree_Cointime_Activity:
+class SeriesTree_Frameworks_Cointime_Activity:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5321,9 +5329,8 @@ class SeriesTree_Cointime_Activity:
         self.liveliness: SeriesPattern1[StoredF64] = SeriesPattern1(client, 'liveliness')
         self.vaultedness: SeriesPattern1[StoredF64] = SeriesPattern1(client, 'vaultedness')
         self.ratio: SeriesPattern1[StoredF64] = SeriesPattern1(client, 'activity_to_vaultedness')
-        self.coinblocks_destroyed: AverageBlockCumulativeSumPattern[StoredF64] = AverageBlockCumulativeSumPattern(client, 'coinblocks_destroyed')
 
-class SeriesTree_Cointime_AgeRange:
+class SeriesTree_Frameworks_Cointime_AgeRange:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5351,7 +5358,7 @@ class SeriesTree_Cointime_AgeRange:
         self._12y_to_15y: CoindaysLivelinessRatioSupplyVaultednessPattern = CoindaysLivelinessRatioSupplyVaultednessPattern(client, 'utxos_12y_to_15y_old')
         self.over_15y: CoindaysLivelinessRatioSupplyVaultednessPattern = CoindaysLivelinessRatioSupplyVaultednessPattern(client, 'utxos_over_15y_old')
 
-class SeriesTree_Cointime_Supply_Active:
+class SeriesTree_Frameworks_Cointime_Supply_Active:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5361,14 +5368,14 @@ class SeriesTree_Cointime_Supply_Active:
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'active_supply_cents')
         self.in_loss: SharePattern2 = SharePattern2(client, 'cointime_supply_in_loss_share')
 
-class SeriesTree_Cointime_Supply:
+class SeriesTree_Frameworks_Cointime_Supply:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
         self.vaulted: BtcCentsSatsUsdPattern = BtcCentsSatsUsdPattern(client, 'vaulted_supply')
-        self.active: SeriesTree_Cointime_Supply_Active = SeriesTree_Cointime_Supply_Active(client)
+        self.active: SeriesTree_Frameworks_Cointime_Supply_Active = SeriesTree_Frameworks_Cointime_Supply_Active(client)
 
-class SeriesTree_Cointime_Value:
+class SeriesTree_Frameworks_Cointime_Value:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5377,7 +5384,7 @@ class SeriesTree_Cointime_Value:
         self.stored: AverageBlockCumulativeSumPattern[StoredF64] = AverageBlockCumulativeSumPattern(client, 'cointime_value_stored')
         self.vocdd: AverageBlockCumulativeSumPattern[StoredF64] = AverageBlockCumulativeSumPattern(client, 'vocdd')
 
-class SeriesTree_Cointime_Cap:
+class SeriesTree_Frameworks_Cointime_Cap:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5388,7 +5395,7 @@ class SeriesTree_Cointime_Cap:
         self.cointime: CentsUsdPattern3 = CentsUsdPattern3(client, 'cointime_cap')
         self.aviv: PpmRatioPattern2 = PpmRatioPattern2(client, 'aviv_ratio')
 
-class SeriesTree_Cointime_Prices:
+class SeriesTree_Frameworks_Cointime_Prices:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5397,7 +5404,7 @@ class SeriesTree_Cointime_Prices:
         self.true_market_mean: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'true_market_mean')
         self.cointime: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'cointime_price')
 
-class SeriesTree_Cointime_Adjusted:
+class SeriesTree_Frameworks_Cointime_Adjusted:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5405,7 +5412,7 @@ class SeriesTree_Cointime_Adjusted:
         self.tx_velocity_native: SeriesPattern1[StoredF64] = SeriesPattern1(client, 'cointime_adj_tx_velocity_btc')
         self.tx_velocity_fiat: SeriesPattern1[StoredF64] = SeriesPattern1(client, 'cointime_adj_tx_velocity_usd')
 
-class SeriesTree_Cointime_ReserveRisk:
+class SeriesTree_Frameworks_Cointime_ReserveRisk:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5413,20 +5420,20 @@ class SeriesTree_Cointime_ReserveRisk:
         self.vocdd_median_1y: SeriesPattern18[StoredF64] = SeriesPattern18(client, 'vocdd_median_1y')
         self.hodl_bank: SeriesPattern18[StoredF64] = SeriesPattern18(client, 'hodl_bank')
 
-class SeriesTree_Cointime:
+class SeriesTree_Frameworks_Cointime:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.activity: SeriesTree_Cointime_Activity = SeriesTree_Cointime_Activity(client)
-        self.age_range: SeriesTree_Cointime_AgeRange = SeriesTree_Cointime_AgeRange(client)
-        self.supply: SeriesTree_Cointime_Supply = SeriesTree_Cointime_Supply(client)
-        self.value: SeriesTree_Cointime_Value = SeriesTree_Cointime_Value(client)
-        self.cap: SeriesTree_Cointime_Cap = SeriesTree_Cointime_Cap(client)
-        self.prices: SeriesTree_Cointime_Prices = SeriesTree_Cointime_Prices(client)
-        self.adjusted: SeriesTree_Cointime_Adjusted = SeriesTree_Cointime_Adjusted(client)
-        self.reserve_risk: SeriesTree_Cointime_ReserveRisk = SeriesTree_Cointime_ReserveRisk(client)
+        self.activity: SeriesTree_Frameworks_Cointime_Activity = SeriesTree_Frameworks_Cointime_Activity(client)
+        self.age_range: SeriesTree_Frameworks_Cointime_AgeRange = SeriesTree_Frameworks_Cointime_AgeRange(client)
+        self.supply: SeriesTree_Frameworks_Cointime_Supply = SeriesTree_Frameworks_Cointime_Supply(client)
+        self.value: SeriesTree_Frameworks_Cointime_Value = SeriesTree_Frameworks_Cointime_Value(client)
+        self.cap: SeriesTree_Frameworks_Cointime_Cap = SeriesTree_Frameworks_Cointime_Cap(client)
+        self.prices: SeriesTree_Frameworks_Cointime_Prices = SeriesTree_Frameworks_Cointime_Prices(client)
+        self.adjusted: SeriesTree_Frameworks_Cointime_Adjusted = SeriesTree_Frameworks_Cointime_Adjusted(client)
+        self.reserve_risk: SeriesTree_Frameworks_Cointime_ReserveRisk = SeriesTree_Frameworks_Cointime_ReserveRisk(client)
 
-class SeriesTree_Coinflow_AgeRange:
+class SeriesTree_Frameworks_Coinflow_AgeRange:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5454,7 +5461,7 @@ class SeriesTree_Coinflow_AgeRange:
         self._12y_to_15y: MobilitySpendingSupplyPattern = MobilitySpendingSupplyPattern(client, 'utxos_12y_to_15y_old')
         self.over_15y: MobilitySpendingSupplyPattern = MobilitySpendingSupplyPattern(client, 'utxos_over_15y_old')
 
-class SeriesTree_Coinflow_Supply_Mobile:
+class SeriesTree_Frameworks_Coinflow_Supply_Mobile:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5464,14 +5471,14 @@ class SeriesTree_Coinflow_Supply_Mobile:
         self.cents: SeriesPattern1[Cents] = SeriesPattern1(client, 'mobile_supply_cents')
         self.in_loss: SharePattern2 = SharePattern2(client, 'coinflow_supply_in_loss_share')
 
-class SeriesTree_Coinflow_Supply:
+class SeriesTree_Frameworks_Coinflow_Supply:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.mobile: SeriesTree_Coinflow_Supply_Mobile = SeriesTree_Coinflow_Supply_Mobile(client)
+        self.mobile: SeriesTree_Frameworks_Coinflow_Supply_Mobile = SeriesTree_Frameworks_Coinflow_Supply_Mobile(client)
         self.immobile: BtcCentsSatsUsdPattern = BtcCentsSatsUsdPattern(client, 'immobile_supply')
 
-class SeriesTree_Coinflow_Horizon:
+class SeriesTree_Frameworks_Coinflow_Horizon:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5483,17 +5490,24 @@ class SeriesTree_Coinflow_Horizon:
         self._3m: SupplyPattern = SupplyPattern(client, 'coinflow_3m_supply_in_loss_share')
         self._1m: SupplyPattern = SupplyPattern(client, 'coinflow_1m_supply_in_loss_share')
 
-class SeriesTree_Coinflow:
+class SeriesTree_Frameworks_Coinflow:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.age_range: SeriesTree_Coinflow_AgeRange = SeriesTree_Coinflow_AgeRange(client)
-        self.supply: SeriesTree_Coinflow_Supply = SeriesTree_Coinflow_Supply(client)
-        self.horizon: SeriesTree_Coinflow_Horizon = SeriesTree_Coinflow_Horizon(client)
+        self.age_range: SeriesTree_Frameworks_Coinflow_AgeRange = SeriesTree_Frameworks_Coinflow_AgeRange(client)
+        self.supply: SeriesTree_Frameworks_Coinflow_Supply = SeriesTree_Frameworks_Coinflow_Supply(client)
+        self.horizon: SeriesTree_Frameworks_Coinflow_Horizon = SeriesTree_Frameworks_Coinflow_Horizon(client)
         self.cap: CentsUsdPattern3 = CentsUsdPattern3(client, 'coinflow_cap')
         self.price: CentsPpmRatioSatsUsdPattern = CentsPpmRatioSatsUsdPattern(client, 'coinflow_price')
 
-class SeriesTree_Bedrock:
+class SeriesTree_Frameworks:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.cointime: SeriesTree_Frameworks_Cointime = SeriesTree_Frameworks_Cointime(client)
+        self.coinflow: SeriesTree_Frameworks_Coinflow = SeriesTree_Frameworks_Coinflow(client)
+
+class SeriesTree_Models_Bedrock:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
@@ -5507,6 +5521,77 @@ class SeriesTree_Bedrock:
         self.coinflow_6m: FloorLevelLossPattern = FloorLevelLossPattern(client, 'bedrock_coinflow_6m')
         self.coinflow_3m: FloorLevelLossPattern = FloorLevelLossPattern(client, 'bedrock_coinflow_3m')
         self.coinflow_1m: FloorLevelLossPattern = FloorLevelLossPattern(client, 'bedrock_coinflow_1m')
+
+class SeriesTree_Models_CapitalSentiment:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.phase: SeriesPattern1[CapitalSentimentPhase] = SeriesPattern1(client, 'capital_sentiment_phase')
+        self.score: SeriesPattern1[StoredI8] = SeriesPattern1(client, 'capital_sentiment_score')
+
+class SeriesTree_Models_RarityMeter_Components:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'realized_price')
+        self.capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'capitalized_price')
+        self.sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'sth_realized_price')
+        self.sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'sth_capitalized_price')
+        self.lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'lth_realized_price')
+        self.lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'lth_capitalized_price')
+        self.over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'over_6m_realized_price')
+        self.over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'over_4m_realized_price')
+        self.under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'under_4m_realized_price')
+        self.under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'under_6m_realized_price')
+        self.vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'vaulted_price')
+        self.active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'active_price')
+        self.true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'true_market_mean_price')
+        self.cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'cointime_price')
+        self.coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'coinflow_price')
+
+class SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.threshold: SeriesPattern1[Bitcoin] = SeriesPattern1(client, 'rarity_meter_coins_in_loss_threshold')
+        self.tail: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, 'rarity_meter_coins_in_loss_tail')
+        self.rank: SeriesPattern1[StoredI8] = SeriesPattern1(client, 'rarity_meter_coins_in_loss_rank')
+
+class SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.threshold: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'rarity_meter_seller_exhaustion_threshold')
+        self.tail: PercentPpmRatioPattern2 = PercentPpmRatioPattern2(client, 'rarity_meter_seller_exhaustion_tail')
+        self.rank: SeriesPattern1[StoredI8] = SeriesPattern1(client, 'rarity_meter_seller_exhaustion_rank')
+
+class SeriesTree_Models_RarityMeter_Extremes:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.coins_in_loss: SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss = SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss(client)
+        self.profit_taking: RankTailThresholdPattern = RankTailThresholdPattern(client, 'rarity_meter_profit_taking')
+        self.capitulation: RankTailThresholdPattern = RankTailThresholdPattern(client, 'rarity_meter_capitulation')
+        self.peak_regret: RankTailThresholdPattern = RankTailThresholdPattern(client, 'rarity_meter_peak_regret')
+        self.seller_exhaustion: SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion = SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion(client)
+
+class SeriesTree_Models_RarityMeter:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.components: SeriesTree_Models_RarityMeter_Components = SeriesTree_Models_RarityMeter_Components(client)
+        self.extremes: SeriesTree_Models_RarityMeter_Extremes = SeriesTree_Models_RarityMeter_Extremes(client)
+        self.full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'rarity_meter')
+        self.local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'local_rarity_meter')
+        self.cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'cycle_rarity_meter')
+
+class SeriesTree_Models:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.bedrock: SeriesTree_Models_Bedrock = SeriesTree_Models_Bedrock(client)
+        self.capital_sentiment: SeriesTree_Models_CapitalSentiment = SeriesTree_Models_CapitalSentiment(client)
+        self.rarity_meter: SeriesTree_Models_RarityMeter = SeriesTree_Models_RarityMeter(client)
 
 class SeriesTree_Constants:
     """Series tree node."""
@@ -5807,35 +5892,6 @@ class SeriesTree_Indicators_Dormancy:
         self.supply_adj: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'dormancy_supply_adj')
         self.flow: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'dormancy_flow')
 
-class SeriesTree_Indicators_RarityMeter_Components:
-    """Series tree node."""
-    
-    def __init__(self, client: BrkClient, base_path: str = ''):
-        self.realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'realized_price')
-        self.capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'capitalized_price')
-        self.sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'sth_realized_price')
-        self.sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'sth_capitalized_price')
-        self.lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'lth_realized_price')
-        self.lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'lth_capitalized_price')
-        self.over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'over_6m_realized_price')
-        self.over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'over_4m_realized_price')
-        self.under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'under_4m_realized_price')
-        self.under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'under_6m_realized_price')
-        self.vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'vaulted_price')
-        self.active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'active_price')
-        self.true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'true_market_mean_price')
-        self.cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'cointime_price')
-        self.coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern = Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, 'coinflow_price')
-
-class SeriesTree_Indicators_RarityMeter:
-    """Series tree node."""
-    
-    def __init__(self, client: BrkClient, base_path: str = ''):
-        self.components: SeriesTree_Indicators_RarityMeter_Components = SeriesTree_Indicators_RarityMeter_Components(client)
-        self.full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'rarity_meter')
-        self.local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'local_rarity_meter')
-        self.cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern = IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, 'cycle_rarity_meter')
-
 class SeriesTree_Indicators:
     """Series tree node."""
     
@@ -5850,7 +5906,6 @@ class SeriesTree_Indicators:
         self.dormancy: SeriesTree_Indicators_Dormancy = SeriesTree_Indicators_Dormancy(client)
         self.stock_to_flow: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'stock_to_flow')
         self.seller_exhaustion: SeriesPattern1[StoredF32] = SeriesPattern1(client, 'seller_exhaustion')
-        self.rarity_meter: SeriesTree_Indicators_RarityMeter = SeriesTree_Indicators_RarityMeter(client)
 
 class SeriesTree_Investing_Period_DcaCostBasis:
     """Series tree node."""
@@ -6974,6 +7029,18 @@ class SeriesTree_Cohorts:
         self.utxo: SeriesTree_Cohorts_Utxo = SeriesTree_Cohorts_Utxo(client)
         self.addr: SeriesTree_Cohorts_Addr = SeriesTree_Cohorts_Addr(client)
 
+class SeriesTree_Cointime_Activity:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.coinblocks_destroyed: AverageBlockCumulativeSumPattern[StoredF64] = AverageBlockCumulativeSumPattern(client, 'coinblocks_destroyed')
+
+class SeriesTree_Cointime:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.activity: SeriesTree_Cointime_Activity = SeriesTree_Cointime_Activity(client)
+
 class SeriesTree:
     """Series tree node."""
     
@@ -6986,9 +7053,8 @@ class SeriesTree:
         self.scripts: SeriesTree_Scripts = SeriesTree_Scripts(client)
         self.op_return: SeriesTree_OpReturn = SeriesTree_OpReturn(client)
         self.mining: SeriesTree_Mining = SeriesTree_Mining(client)
-        self.cointime: SeriesTree_Cointime = SeriesTree_Cointime(client)
-        self.coinflow: SeriesTree_Coinflow = SeriesTree_Coinflow(client)
-        self.bedrock: SeriesTree_Bedrock = SeriesTree_Bedrock(client)
+        self.frameworks: SeriesTree_Frameworks = SeriesTree_Frameworks(client)
+        self.models: SeriesTree_Models = SeriesTree_Models(client)
         self.constants: SeriesTree_Constants = SeriesTree_Constants(client)
         self.indexes: SeriesTree_Indexes = SeriesTree_Indexes(client)
         self.indicators: SeriesTree_Indicators = SeriesTree_Indicators(client)
@@ -6998,6 +7064,7 @@ class SeriesTree:
         self.price: SeriesTree_Price = SeriesTree_Price(client)
         self.supply: SeriesTree_Supply = SeriesTree_Supply(client)
         self.cohorts: SeriesTree_Cohorts = SeriesTree_Cohorts(client)
+        self.cointime: SeriesTree_Cointime = SeriesTree_Cointime(client)
 
 class BrkClient(BrkClientBase):
     """Main BRK client with series tree and API methods."""

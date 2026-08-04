@@ -50,7 +50,7 @@ pub struct Computer<M: StorageMode = Rw> {
     pub op_return: Box<op_return::Vecs<M>>,
 }
 
-const VERSION: Version = Version::new(7);
+const VERSION: Version = Version::new(8);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {
@@ -363,7 +363,6 @@ impl Computer {
                         indexer,
                         &self.indexes,
                         &self.blocks,
-                        &self.inputs,
                         &self.price,
                         exit,
                     )

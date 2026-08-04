@@ -1,4 +1,5 @@
 mod components;
+mod extremes;
 mod inner;
 mod percentiles;
 
@@ -15,11 +16,13 @@ use crate::{
 };
 
 pub use components::{Component, Components};
+pub use extremes::Extremes;
 pub use inner::RarityMeterInner;
 
 #[derive(Traversable)]
 pub struct RarityMeter<M: StorageMode = Rw> {
     pub components: Components<M>,
+    pub extremes: Extremes<M>,
     pub full: RarityMeterInner<M>,
     pub local: RarityMeterInner<M>,
     pub cycle: RarityMeterInner<M>,
@@ -36,6 +39,7 @@ impl RarityMeter {
         let v = version + VERSION;
         Ok(Self {
             components: Components::forced_import(db, v, indexes)?,
+            extremes: Extremes::forced_import(db, v, indexes)?,
             full: RarityMeterInner::forced_import(db, "rarity_meter", v, indexes)?,
             local: RarityMeterInner::forced_import(db, "local_rarity_meter", v, indexes)?,
             cycle: RarityMeterInner::forced_import(db, "cycle_rarity_meter", v, indexes)?,
@@ -52,9 +56,20 @@ impl RarityMeter {
         exit: &Exit,
     ) -> Result<()> {
         let spot = &prices.spot.cents.height;
+        let all = &distribution.utxo_cohorts.all.metrics;
+        let realized = &all.realized;
 
         self.components
             .compute(indexer, distribution, cointime, coinflow, exit)?;
+        self.extremes.compute(
+            indexer,
+            &all.supply.in_loss.btc.height,
+            &realized.profit.sum._24h.usd.height,
+            &realized.loss.sum._24h.usd.height,
+            &realized.peak_regret.value.sum._24h.usd.height,
+            &realized.sell_side_risk_ratio._24h.percent.height,
+            exit,
+        )?;
 
         // Full: all Rainbow components, 10 models
         self.full.compute(

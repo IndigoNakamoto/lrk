@@ -118,7 +118,7 @@ fn classify_phase(
     let above_sth = price >= sth;
     let above_lth = price >= lth;
     let above_sma = price >= sma;
-    let bull_structure = sth > lth;
+    let bull_structure = sth >= lth;
     let above_slow_refs = above_all && above_lth;
     let references_above_price = [all, sth, lth, sma]
         .into_iter()
@@ -166,6 +166,8 @@ fn classify_phase(
 
 #[cfg(test)]
 mod tests {
+    use std::{cmp::Reverse, collections::BTreeSet};
+
     use super::*;
 
     fn cents(value: u64) -> Cents {
@@ -177,33 +179,54 @@ mod tests {
     }
 
     #[test]
-    fn classifies_all_ten_phases() {
+    fn classifies_all_ten_phases_across_all_eight_reference_orders() {
         use CapitalSentimentPhase as Phase;
 
         let cases = [
-            ((100, 70, 80, 60, 50), Phase::RagingBull),
-            ((100, 50, 70, 40, 60), Phase::Bull),
-            ((50, 40, 30, 60, 70), Phase::CautiousBull),
-            ((50, 70, 60, 80, 40), Phase::HopefulBull),
-            ((40, 20, 30, 50, 10), Phase::EarlyBull),
-            ((100, 50, 110, 60, 70), Phase::WeakBull),
-            ((30, 40, 50, 20, 10), Phase::Limbo),
-            ((10, 20, 30, 40, 50), Phase::DeepBear),
-            ((10, 40, 30, 20, 50), Phase::Bear),
-            ((30, 40, 50, 20, 60), Phase::EarlyBear),
+            ((100, 70, 80, 50, 60), Phase::RagingBull),
+            ((100, 70, 80, 60, 90), Phase::Bull),
+            ((90, 70, 60, 80, 100), Phase::CautiousBull),
+            ((40, 80, 60, 100, 20), Phase::HopefulBull),
+            ((90, 70, 60, 100, 80), Phase::EarlyBull),
+            ((90, 70, 100, 60, 80), Phase::WeakBull),
+            ((70, 80, 100, 60, 40), Phase::Limbo),
+            ((40, 80, 60, 100, 70), Phase::DeepBear),
+            ((40, 80, 100, 60, 50), Phase::Bear),
+            ((60, 80, 100, 50, 70), Phase::EarlyBear),
         ];
 
+        let mut reference_orders = BTreeSet::new();
+
         for ((price, all, sth, lth, sma), expected) in cases {
+            assert!(
+                (sth > all && all > lth) || (lth > all && all > sth),
+                "All capitalized price must be between STH and LTH"
+            );
+
+            let mut references = [("SMA", sma), ("STH", sth), ("All", all), ("LTH", lth)];
+            references.sort_unstable_by_key(|(_, value)| Reverse(*value));
+            reference_orders.insert(references.map(|(name, _)| name));
+
             assert_eq!(classify(price, all, sth, lth, sma), expected);
         }
+
+        assert_eq!(reference_orders.len(), 8);
     }
 
     #[test]
     fn sma_confirms_the_capitalized_price_structure() {
         use CapitalSentimentPhase as Phase;
 
-        assert_eq!(classify(100, 70, 80, 60, 80), Phase::Bull);
+        assert_eq!(classify(100, 70, 80, 60, 90), Phase::Bull);
         assert_eq!(classify(100, 70, 80, 60, 50), Phase::RagingBull);
+    }
+
+    #[test]
+    fn capitalized_crossover_uses_sth_led_tie_break() {
+        assert_eq!(
+            classify(70, 50, 50, 50, 100),
+            CapitalSentimentPhase::EarlyBear
+        );
     }
 
     #[test]

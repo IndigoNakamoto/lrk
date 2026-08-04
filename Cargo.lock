@@ -593,6 +593,7 @@ dependencies = [
  "rustc-hash",
  "schemars",
  "serde",
+ "tempfile",
  "tracing",
  "vecdb",
 ]

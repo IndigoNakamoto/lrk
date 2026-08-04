@@ -136,7 +136,7 @@ pub(crate) fn process_blocks(
 
     // Create reusable iterators and buffers for per-block reads
     let mut txout_iters = TxOutReaders::new(indexer);
-    let mut txin_iters = TxInReaders::new(indexer, inputs, tx_index_to_height);
+    let mut txin_iters = TxInReaders::new(indexer, tx_index_to_height);
     let mut txout_to_tx_index_buf = IndexToTxIndexBuf::new();
     let mut txin_to_tx_index_buf = IndexToTxIndexBuf::new();
 

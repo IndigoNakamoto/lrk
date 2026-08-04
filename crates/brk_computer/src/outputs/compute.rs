@@ -29,7 +29,7 @@ impl Vecs {
             &starting_lengths,
             exit,
         )?;
-        let lock = self.spent.compute(indexer, inputs, exit)?;
+        let lock = self.spent.compute(indexer, exit)?;
         self.db.run_bg(move |db| {
             let _lock = lock;
             db.compact_deferred_default()

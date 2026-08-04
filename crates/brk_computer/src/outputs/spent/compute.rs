@@ -5,20 +5,14 @@ use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, Exit, ExitGuard, ReadableVec, Stamp, VecIndex, WritableVec};
 
 use super::Vecs;
-use crate::inputs;
 
 const HEIGHT_BATCH: u32 = 10_000;
 
 impl Vecs {
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        inputs: &inputs::Vecs,
-        exit: &Exit,
-    ) -> Result<ExitGuard> {
+    pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<ExitGuard> {
         let starting_lengths = indexer.safe_lengths();
 
-        let dep_version = inputs.spent.txout_index.version()
+        let dep_version = indexer.vecs.inputs.txout_index.version()
             + indexer.vecs.outputs.first_txout_index.version()
             + indexer.vecs.inputs.first_txin_index.version()
             + indexer.vecs.outputs.value.version();
@@ -41,7 +35,7 @@ impl Vecs {
         self.txin_index
             .truncate_if_needed(TxOutIndex::from(min_txout_index))?;
 
-        let txin_index_to_txout_index = &inputs.spent.txout_index;
+        let txin_index_to_txout_index = &indexer.vecs.inputs.txout_index;
 
         // Find min_height via binary search (first_txout_index is monotonically non-decreasing)
         let first_txout_index_vec = &indexer.vecs.outputs.first_txout_index;
@@ -105,7 +99,7 @@ impl Vecs {
             let txin_start =
                 first_txin_index_data[batch_start_height.to_usize() - offset].to_usize();
             let txin_end = if batch_end_height >= target_height {
-                inputs.spent.txout_index.len()
+                indexer.vecs.inputs.txout_index.len()
             } else {
                 first_txin_index_data[batch_end_height.to_usize() + 1 - offset].to_usize()
             };

@@ -365,7 +365,7 @@ impl Vecs {
                 indexer.vecs.outputs.value.version(),
                 indexer.vecs.outputs.output_type.version(),
                 indexer.vecs.outputs.type_index.version(),
-                inputs.spent.value.version(),
+                indexer.vecs.inputs.value.version(),
                 indexer.vecs.inputs.outpoint.version(),
                 indexer.vecs.inputs.output_type.version(),
                 indexer.vecs.inputs.type_index.version(),

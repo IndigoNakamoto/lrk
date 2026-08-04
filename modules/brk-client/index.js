@@ -336,6 +336,14 @@ prior template's transactions or a full transaction body.
  * @property {Weight} avgWeight - Rolling 24h median block weight (weight units)
  */
 /**
+ * Investor phase from the Capital Sentiment model.
+ *
+ * Codes are explicit because phase values are persisted. Code `0` represents
+ * unavailable model inputs and is therefore not a phase.
+ *
+ * @typedef {("raging_bull"|"bull"|"cautious_bull"|"hopeful_bull"|"early_bull"|"weak_bull"|"limbo"|"deep_bear"|"bear"|"early_bear")} CapitalSentimentPhase
+ */
+/**
  * Unsigned cents (u64) - for values that should never be negative.
  * Used for invested capital, realized cap, etc.
  * `u64::MAX` is reserved as a NaN sentinel.
@@ -4907,6 +4915,27 @@ function createPpmPriceRatioPattern(client, acc, disc) {
 }
 
 /**
+ * @typedef {Object} RankTailThresholdPattern
+ * @property {SeriesPattern1<StoredI8>} rank
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<Dollars>} threshold
+ */
+
+/**
+ * Create a RankTailThresholdPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {RankTailThresholdPattern}
+ */
+function createRankTailThresholdPattern(client, acc) {
+  return {
+    rank: createSeriesPattern1(client, _m(acc, 'rank')),
+    tail: createPercentPpmRatioPattern2(client, _m(acc, 'tail')),
+    threshold: createSeriesPattern1(client, _m(acc, 'threshold')),
+  };
+}
+
+/**
  * @typedef {Object} RatioTransferValuePattern
  * @property {_1m1w1y24hPattern<StoredF64>} ratio
  * @property {AverageBlockCumulativeSumPattern<Cents>} transferVolume
@@ -5676,9 +5705,8 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesTree_Scripts} scripts
  * @property {SeriesTree_OpReturn} opReturn
  * @property {SeriesTree_Mining} mining
- * @property {SeriesTree_Cointime} cointime
- * @property {SeriesTree_Coinflow} coinflow
- * @property {SeriesTree_Bedrock} bedrock
+ * @property {SeriesTree_Frameworks} frameworks
+ * @property {SeriesTree_Models} models
  * @property {SeriesTree_Constants} constants
  * @property {SeriesTree_Indexes} indexes
  * @property {SeriesTree_Indicators} indicators
@@ -5688,6 +5716,7 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesTree_Price} price
  * @property {SeriesTree_Supply} supply
  * @property {SeriesTree_Cohorts} cohorts
+ * @property {SeriesTree_Cointime} cointime
  */
 
 /**
@@ -5980,7 +6009,6 @@ function createUnspentPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Inputs
  * @property {SeriesTree_Inputs_Raw} raw
- * @property {SeriesTree_Inputs_Spent} spent
  * @property {CumulativeRollingSumPattern} count
  * @property {_1m1w1y24hPattern<StoredF32>} perSec
  * @property {SeriesTree_Inputs_ByType} byType
@@ -5990,15 +6018,11 @@ function createUnspentPattern(client, acc) {
  * @typedef {Object} SeriesTree_Inputs_Raw
  * @property {SeriesPattern18<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern20<OutPoint>} outpoint
+ * @property {SeriesPattern20<TxOutIndex>} txoutIndex
+ * @property {SeriesPattern20<Sats>} value
  * @property {SeriesPattern20<TxIndex>} txIndex
  * @property {SeriesPattern20<OutputType>} outputType
  * @property {SeriesPattern20<TypeIndex>} typeIndex
- */
-
-/**
- * @typedef {Object} SeriesTree_Inputs_Spent
- * @property {SeriesPattern20<TxOutIndex>} txoutIndex
- * @property {SeriesPattern20<Sats>} value
  */
 
 /**
@@ -6533,29 +6557,34 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime
- * @property {SeriesTree_Cointime_Activity} activity
- * @property {SeriesTree_Cointime_AgeRange} ageRange
- * @property {SeriesTree_Cointime_Supply} supply
- * @property {SeriesTree_Cointime_Value} value
- * @property {SeriesTree_Cointime_Cap} cap
- * @property {SeriesTree_Cointime_Prices} prices
- * @property {SeriesTree_Cointime_Adjusted} adjusted
- * @property {SeriesTree_Cointime_ReserveRisk} reserveRisk
+ * @typedef {Object} SeriesTree_Frameworks
+ * @property {SeriesTree_Frameworks_Cointime} cointime
+ * @property {SeriesTree_Frameworks_Coinflow} coinflow
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Activity
+ * @typedef {Object} SeriesTree_Frameworks_Cointime
+ * @property {SeriesTree_Frameworks_Cointime_Activity} activity
+ * @property {SeriesTree_Frameworks_Cointime_AgeRange} ageRange
+ * @property {SeriesTree_Frameworks_Cointime_Supply} supply
+ * @property {SeriesTree_Frameworks_Cointime_Value} value
+ * @property {SeriesTree_Frameworks_Cointime_Cap} cap
+ * @property {SeriesTree_Frameworks_Cointime_Prices} prices
+ * @property {SeriesTree_Frameworks_Cointime_Adjusted} adjusted
+ * @property {SeriesTree_Frameworks_Cointime_ReserveRisk} reserveRisk
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Activity
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksCreated
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksStored
  * @property {SeriesPattern1<StoredF64>} liveliness
  * @property {SeriesPattern1<StoredF64>} vaultedness
  * @property {SeriesPattern1<StoredF64>} ratio
- * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksDestroyed
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_AgeRange
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_AgeRange
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} under1h
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1hTo1d
  * @property {CoindaysLivelinessRatioSupplyVaultednessPattern} _1dTo1w
@@ -6582,13 +6611,13 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Supply
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Supply
  * @property {BtcCentsSatsUsdPattern} vaulted
- * @property {SeriesTree_Cointime_Supply_Active} active
+ * @property {SeriesTree_Frameworks_Cointime_Supply_Active} active
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Supply_Active
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Supply_Active
  * @property {SeriesPattern1<Bitcoin>} btc
  * @property {SeriesPattern1<Sats>} sats
  * @property {SeriesPattern1<Dollars>} usd
@@ -6597,7 +6626,7 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Value
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Value
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} destroyed
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} created
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} stored
@@ -6605,7 +6634,7 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Cap
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Cap
  * @property {CentsUsdPattern3} thermo
  * @property {CentsUsdPattern3} investor
  * @property {CentsUsdPattern3} vaulted
@@ -6615,7 +6644,7 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Prices
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Prices
  * @property {CentsPpmRatioSatsUsdPattern} vaulted
  * @property {CentsPpmRatioSatsUsdPattern} active
  * @property {CentsPpmRatioSatsUsdPattern} trueMarketMean
@@ -6623,30 +6652,30 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Adjusted
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Adjusted
  * @property {PercentPpmRatioPattern} inflationRate
  * @property {SeriesPattern1<StoredF64>} txVelocityNative
  * @property {SeriesPattern1<StoredF64>} txVelocityFiat
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_ReserveRisk
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_ReserveRisk
  * @property {SeriesPattern1<StoredF64>} value
  * @property {SeriesPattern18<StoredF64>} vocddMedian1y
  * @property {SeriesPattern18<StoredF64>} hodlBank
  */
 
 /**
- * @typedef {Object} SeriesTree_Coinflow
- * @property {SeriesTree_Coinflow_AgeRange} ageRange
- * @property {SeriesTree_Coinflow_Supply} supply
- * @property {SeriesTree_Coinflow_Horizon} horizon
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow
+ * @property {SeriesTree_Frameworks_Coinflow_AgeRange} ageRange
+ * @property {SeriesTree_Frameworks_Coinflow_Supply} supply
+ * @property {SeriesTree_Frameworks_Coinflow_Horizon} horizon
  * @property {CentsUsdPattern3} cap
  * @property {CentsPpmRatioSatsUsdPattern} price
  */
 
 /**
- * @typedef {Object} SeriesTree_Coinflow_AgeRange
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_AgeRange
  * @property {MobilitySpendingSupplyPattern} under1h
  * @property {MobilitySpendingSupplyPattern} _1hTo1d
  * @property {MobilitySpendingSupplyPattern} _1dTo1w
@@ -6673,13 +6702,13 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Coinflow_Supply
- * @property {SeriesTree_Coinflow_Supply_Mobile} mobile
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Supply_Mobile} mobile
  * @property {BtcCentsSatsUsdPattern} immobile
  */
 
 /**
- * @typedef {Object} SeriesTree_Coinflow_Supply_Mobile
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Supply_Mobile
  * @property {SeriesPattern1<Bitcoin>} btc
  * @property {SeriesPattern1<Sats>} sats
  * @property {SeriesPattern1<Dollars>} usd
@@ -6688,7 +6717,7 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Coinflow_Horizon
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Horizon
  * @property {SupplyPattern} _8y
  * @property {SupplyPattern} _4y
  * @property {SupplyPattern} _2y
@@ -6699,7 +6728,14 @@ function createUnspentPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Bedrock
+ * @typedef {Object} SeriesTree_Models
+ * @property {SeriesTree_Models_Bedrock} bedrock
+ * @property {SeriesTree_Models_CapitalSentiment} capitalSentiment
+ * @property {SeriesTree_Models_RarityMeter} rarityMeter
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_Bedrock
  * @property {FloorLevelLossPattern} raw
  * @property {FloorLevelLossPattern} cointime
  * @property {FloorLevelLossPattern} coinflow
@@ -6710,6 +6746,63 @@ function createUnspentPattern(client, acc) {
  * @property {FloorLevelLossPattern} coinflow6m
  * @property {FloorLevelLossPattern} coinflow3m
  * @property {FloorLevelLossPattern} coinflow1m
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_CapitalSentiment
+ * @property {SeriesPattern1<CapitalSentimentPhase>} phase
+ * @property {SeriesPattern1<StoredI8>} score
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter
+ * @property {SeriesTree_Models_RarityMeter_Components} components
+ * @property {SeriesTree_Models_RarityMeter_Extremes} extremes
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} full
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} local
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} cycle
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Components
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} realizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} capitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthCapitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthCapitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over6mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over4mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under4mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under6mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} vaultedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} activePrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} trueMarketMeanPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} cointimePrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} coinflowPrice
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes
+ * @property {SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss} coinsInLoss
+ * @property {RankTailThresholdPattern} profitTaking
+ * @property {RankTailThresholdPattern} capitulation
+ * @property {RankTailThresholdPattern} peakRegret
+ * @property {SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion} sellerExhaustion
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss
+ * @property {SeriesPattern1<Bitcoin>} threshold
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<StoredI8>} rank
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion
+ * @property {SeriesPattern1<StoredF32>} threshold
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<StoredI8>} rank
  */
 
 /**
@@ -6981,40 +7074,12 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesTree_Indicators_Dormancy} dormancy
  * @property {SeriesPattern1<StoredF32>} stockToFlow
  * @property {SeriesPattern1<StoredF32>} sellerExhaustion
- * @property {SeriesTree_Indicators_RarityMeter} rarityMeter
  */
 
 /**
  * @typedef {Object} SeriesTree_Indicators_Dormancy
  * @property {SeriesPattern1<StoredF32>} supplyAdj
  * @property {SeriesPattern1<StoredF32>} flow
- */
-
-/**
- * @typedef {Object} SeriesTree_Indicators_RarityMeter
- * @property {SeriesTree_Indicators_RarityMeter_Components} components
- * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} full
- * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} local
- * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} cycle
- */
-
-/**
- * @typedef {Object} SeriesTree_Indicators_RarityMeter_Components
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} realizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} capitalizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthCapitalizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthCapitalizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over6mRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over4mRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under4mRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under6mRealizedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} vaultedPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} activePrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} trueMarketMeanPrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} cointimePrice
- * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} coinflowPrice
  */
 
 /**
@@ -8062,6 +8127,16 @@ function createUnspentPattern(client, acc) {
  * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtc
  * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtc
  * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kBtc
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cointime
+ * @property {SeriesTree_Cointime_Activity} activity
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cointime_Activity
+ * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksDestroyed
  */
 
 /**
@@ -9549,13 +9624,11 @@ class BrkClient extends BrkClientBase {
         raw: {
           firstTxinIndex: createSeriesPattern18(this, 'first_txin_index'),
           outpoint: createSeriesPattern20(this, 'outpoint'),
+          txoutIndex: createSeriesPattern20(this, 'txout_index'),
+          value: createSeriesPattern20(this, 'value'),
           txIndex: createSeriesPattern20(this, 'tx_index'),
           outputType: createSeriesPattern20(this, 'output_type'),
           typeIndex: createSeriesPattern20(this, 'type_index'),
-        },
-        spent: {
-          txoutIndex: createSeriesPattern20(this, 'txout_index'),
-          value: createSeriesPattern20(this, 'value'),
         },
         count: createCumulativeRollingSumPattern(this, 'input_count'),
         perSec: create_1m1w1y24hPattern(this, 'inputs_per_sec'),
@@ -9932,140 +10005,184 @@ class BrkClient extends BrkClientBase {
           value: createPhsReboundThsPattern(this, 'hash_value'),
         },
       },
-      cointime: {
-        activity: {
-          coinblocksCreated: createAverageBlockCumulativeSumPattern(this, 'coinblocks_created'),
-          coinblocksStored: createAverageBlockCumulativeSumPattern(this, 'coinblocks_stored'),
-          liveliness: createSeriesPattern1(this, 'liveliness'),
-          vaultedness: createSeriesPattern1(this, 'vaultedness'),
-          ratio: createSeriesPattern1(this, 'activity_to_vaultedness'),
-          coinblocksDestroyed: createAverageBlockCumulativeSumPattern(this, 'coinblocks_destroyed'),
-        },
-        ageRange: {
-          under1h: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_under_1h_old'),
-          _1hTo1d: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1h_to_1d_old'),
-          _1dTo1w: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1d_to_1w_old'),
-          _1wTo1m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1w_to_1m_old'),
-          _1mTo2m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1m_to_2m_old'),
-          _2mTo3m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2m_to_3m_old'),
-          _3mTo4m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3m_to_4m_old'),
-          _4mTo5m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4m_to_5m_old'),
-          _5mTo6m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5m_to_6m_old'),
-          _6mTo9m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6m_to_9m_old'),
-          _9mTo1y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_9m_to_1y_old'),
-          _1yTo18m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1y_to_18m_old'),
-          _18mTo2y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_18m_to_2y_old'),
-          _2yTo3y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2y_to_3y_old'),
-          _3yTo4y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3y_to_4y_old'),
-          _4yTo5y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4y_to_5y_old'),
-          _5yTo6y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5y_to_6y_old'),
-          _6yTo7y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6y_to_7y_old'),
-          _7yTo8y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_7y_to_8y_old'),
-          _8yTo10y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_8y_to_10y_old'),
-          _10yTo12y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_10y_to_12y_old'),
-          _12yTo15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_12y_to_15y_old'),
-          over15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_over_15y_old'),
-        },
-        supply: {
-          vaulted: createBtcCentsSatsUsdPattern(this, 'vaulted_supply'),
-          active: {
-            btc: createSeriesPattern1(this, 'active_supply'),
-            sats: createSeriesPattern1(this, 'active_supply_sats'),
-            usd: createSeriesPattern1(this, 'active_supply_usd'),
-            cents: createSeriesPattern1(this, 'active_supply_cents'),
-            inLoss: createSharePattern2(this, 'cointime_supply_in_loss_share'),
+      frameworks: {
+        cointime: {
+          activity: {
+            coinblocksCreated: createAverageBlockCumulativeSumPattern(this, 'coinblocks_created'),
+            coinblocksStored: createAverageBlockCumulativeSumPattern(this, 'coinblocks_stored'),
+            liveliness: createSeriesPattern1(this, 'liveliness'),
+            vaultedness: createSeriesPattern1(this, 'vaultedness'),
+            ratio: createSeriesPattern1(this, 'activity_to_vaultedness'),
+          },
+          ageRange: {
+            under1h: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_under_1h_old'),
+            _1hTo1d: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1h_to_1d_old'),
+            _1dTo1w: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1d_to_1w_old'),
+            _1wTo1m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1w_to_1m_old'),
+            _1mTo2m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1m_to_2m_old'),
+            _2mTo3m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2m_to_3m_old'),
+            _3mTo4m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3m_to_4m_old'),
+            _4mTo5m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4m_to_5m_old'),
+            _5mTo6m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5m_to_6m_old'),
+            _6mTo9m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_18m_to_2y_old'),
+            _2yTo3y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_2y_to_3y_old'),
+            _3yTo4y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_3y_to_4y_old'),
+            _4yTo5y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_4y_to_5y_old'),
+            _5yTo6y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_5y_to_6y_old'),
+            _6yTo7y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_6y_to_7y_old'),
+            _7yTo8y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_7y_to_8y_old'),
+            _8yTo10y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_8y_to_10y_old'),
+            _10yTo12y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_10y_to_12y_old'),
+            _12yTo15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_12y_to_15y_old'),
+            over15y: createCoindaysLivelinessRatioSupplyVaultednessPattern(this, 'utxos_over_15y_old'),
+          },
+          supply: {
+            vaulted: createBtcCentsSatsUsdPattern(this, 'vaulted_supply'),
+            active: {
+              btc: createSeriesPattern1(this, 'active_supply'),
+              sats: createSeriesPattern1(this, 'active_supply_sats'),
+              usd: createSeriesPattern1(this, 'active_supply_usd'),
+              cents: createSeriesPattern1(this, 'active_supply_cents'),
+              inLoss: createSharePattern2(this, 'cointime_supply_in_loss_share'),
+            },
+          },
+          value: {
+            destroyed: createAverageBlockCumulativeSumPattern(this, 'cointime_value_destroyed'),
+            created: createAverageBlockCumulativeSumPattern(this, 'cointime_value_created'),
+            stored: createAverageBlockCumulativeSumPattern(this, 'cointime_value_stored'),
+            vocdd: createAverageBlockCumulativeSumPattern(this, 'vocdd'),
+          },
+          cap: {
+            thermo: createCentsUsdPattern3(this, 'thermo_cap'),
+            investor: createCentsUsdPattern3(this, 'investor_cap'),
+            vaulted: createCentsUsdPattern3(this, 'vaulted_cap'),
+            active: createCentsUsdPattern3(this, 'active_cap'),
+            cointime: createCentsUsdPattern3(this, 'cointime_cap'),
+            aviv: createPpmRatioPattern2(this, 'aviv_ratio'),
+          },
+          prices: {
+            vaulted: createCentsPpmRatioSatsUsdPattern(this, 'vaulted_price'),
+            active: createCentsPpmRatioSatsUsdPattern(this, 'active_price'),
+            trueMarketMean: createCentsPpmRatioSatsUsdPattern(this, 'true_market_mean'),
+            cointime: createCentsPpmRatioSatsUsdPattern(this, 'cointime_price'),
+          },
+          adjusted: {
+            inflationRate: createPercentPpmRatioPattern(this, 'cointime_adj_inflation_rate'),
+            txVelocityNative: createSeriesPattern1(this, 'cointime_adj_tx_velocity_btc'),
+            txVelocityFiat: createSeriesPattern1(this, 'cointime_adj_tx_velocity_usd'),
+          },
+          reserveRisk: {
+            value: createSeriesPattern1(this, 'reserve_risk'),
+            vocddMedian1y: createSeriesPattern18(this, 'vocdd_median_1y'),
+            hodlBank: createSeriesPattern18(this, 'hodl_bank'),
           },
         },
-        value: {
-          destroyed: createAverageBlockCumulativeSumPattern(this, 'cointime_value_destroyed'),
-          created: createAverageBlockCumulativeSumPattern(this, 'cointime_value_created'),
-          stored: createAverageBlockCumulativeSumPattern(this, 'cointime_value_stored'),
-          vocdd: createAverageBlockCumulativeSumPattern(this, 'vocdd'),
-        },
-        cap: {
-          thermo: createCentsUsdPattern3(this, 'thermo_cap'),
-          investor: createCentsUsdPattern3(this, 'investor_cap'),
-          vaulted: createCentsUsdPattern3(this, 'vaulted_cap'),
-          active: createCentsUsdPattern3(this, 'active_cap'),
-          cointime: createCentsUsdPattern3(this, 'cointime_cap'),
-          aviv: createPpmRatioPattern2(this, 'aviv_ratio'),
-        },
-        prices: {
-          vaulted: createCentsPpmRatioSatsUsdPattern(this, 'vaulted_price'),
-          active: createCentsPpmRatioSatsUsdPattern(this, 'active_price'),
-          trueMarketMean: createCentsPpmRatioSatsUsdPattern(this, 'true_market_mean'),
-          cointime: createCentsPpmRatioSatsUsdPattern(this, 'cointime_price'),
-        },
-        adjusted: {
-          inflationRate: createPercentPpmRatioPattern(this, 'cointime_adj_inflation_rate'),
-          txVelocityNative: createSeriesPattern1(this, 'cointime_adj_tx_velocity_btc'),
-          txVelocityFiat: createSeriesPattern1(this, 'cointime_adj_tx_velocity_usd'),
-        },
-        reserveRisk: {
-          value: createSeriesPattern1(this, 'reserve_risk'),
-          vocddMedian1y: createSeriesPattern18(this, 'vocdd_median_1y'),
-          hodlBank: createSeriesPattern18(this, 'hodl_bank'),
-        },
-      },
-      coinflow: {
-        ageRange: {
-          under1h: createMobilitySpendingSupplyPattern(this, 'utxos_under_1h_old'),
-          _1hTo1d: createMobilitySpendingSupplyPattern(this, 'utxos_1h_to_1d_old'),
-          _1dTo1w: createMobilitySpendingSupplyPattern(this, 'utxos_1d_to_1w_old'),
-          _1wTo1m: createMobilitySpendingSupplyPattern(this, 'utxos_1w_to_1m_old'),
-          _1mTo2m: createMobilitySpendingSupplyPattern(this, 'utxos_1m_to_2m_old'),
-          _2mTo3m: createMobilitySpendingSupplyPattern(this, 'utxos_2m_to_3m_old'),
-          _3mTo4m: createMobilitySpendingSupplyPattern(this, 'utxos_3m_to_4m_old'),
-          _4mTo5m: createMobilitySpendingSupplyPattern(this, 'utxos_4m_to_5m_old'),
-          _5mTo6m: createMobilitySpendingSupplyPattern(this, 'utxos_5m_to_6m_old'),
-          _6mTo9m: createMobilitySpendingSupplyPattern(this, 'utxos_6m_to_9m_old'),
-          _9mTo1y: createMobilitySpendingSupplyPattern(this, 'utxos_9m_to_1y_old'),
-          _1yTo18m: createMobilitySpendingSupplyPattern(this, 'utxos_1y_to_18m_old'),
-          _18mTo2y: createMobilitySpendingSupplyPattern(this, 'utxos_18m_to_2y_old'),
-          _2yTo3y: createMobilitySpendingSupplyPattern(this, 'utxos_2y_to_3y_old'),
-          _3yTo4y: createMobilitySpendingSupplyPattern(this, 'utxos_3y_to_4y_old'),
-          _4yTo5y: createMobilitySpendingSupplyPattern(this, 'utxos_4y_to_5y_old'),
-          _5yTo6y: createMobilitySpendingSupplyPattern(this, 'utxos_5y_to_6y_old'),
-          _6yTo7y: createMobilitySpendingSupplyPattern(this, 'utxos_6y_to_7y_old'),
-          _7yTo8y: createMobilitySpendingSupplyPattern(this, 'utxos_7y_to_8y_old'),
-          _8yTo10y: createMobilitySpendingSupplyPattern(this, 'utxos_8y_to_10y_old'),
-          _10yTo12y: createMobilitySpendingSupplyPattern(this, 'utxos_10y_to_12y_old'),
-          _12yTo15y: createMobilitySpendingSupplyPattern(this, 'utxos_12y_to_15y_old'),
-          over15y: createMobilitySpendingSupplyPattern(this, 'utxos_over_15y_old'),
-        },
-        supply: {
-          mobile: {
-            btc: createSeriesPattern1(this, 'mobile_supply'),
-            sats: createSeriesPattern1(this, 'mobile_supply_sats'),
-            usd: createSeriesPattern1(this, 'mobile_supply_usd'),
-            cents: createSeriesPattern1(this, 'mobile_supply_cents'),
-            inLoss: createSharePattern2(this, 'coinflow_supply_in_loss_share'),
+        coinflow: {
+          ageRange: {
+            under1h: createMobilitySpendingSupplyPattern(this, 'utxos_under_1h_old'),
+            _1hTo1d: createMobilitySpendingSupplyPattern(this, 'utxos_1h_to_1d_old'),
+            _1dTo1w: createMobilitySpendingSupplyPattern(this, 'utxos_1d_to_1w_old'),
+            _1wTo1m: createMobilitySpendingSupplyPattern(this, 'utxos_1w_to_1m_old'),
+            _1mTo2m: createMobilitySpendingSupplyPattern(this, 'utxos_1m_to_2m_old'),
+            _2mTo3m: createMobilitySpendingSupplyPattern(this, 'utxos_2m_to_3m_old'),
+            _3mTo4m: createMobilitySpendingSupplyPattern(this, 'utxos_3m_to_4m_old'),
+            _4mTo5m: createMobilitySpendingSupplyPattern(this, 'utxos_4m_to_5m_old'),
+            _5mTo6m: createMobilitySpendingSupplyPattern(this, 'utxos_5m_to_6m_old'),
+            _6mTo9m: createMobilitySpendingSupplyPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createMobilitySpendingSupplyPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createMobilitySpendingSupplyPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createMobilitySpendingSupplyPattern(this, 'utxos_18m_to_2y_old'),
+            _2yTo3y: createMobilitySpendingSupplyPattern(this, 'utxos_2y_to_3y_old'),
+            _3yTo4y: createMobilitySpendingSupplyPattern(this, 'utxos_3y_to_4y_old'),
+            _4yTo5y: createMobilitySpendingSupplyPattern(this, 'utxos_4y_to_5y_old'),
+            _5yTo6y: createMobilitySpendingSupplyPattern(this, 'utxos_5y_to_6y_old'),
+            _6yTo7y: createMobilitySpendingSupplyPattern(this, 'utxos_6y_to_7y_old'),
+            _7yTo8y: createMobilitySpendingSupplyPattern(this, 'utxos_7y_to_8y_old'),
+            _8yTo10y: createMobilitySpendingSupplyPattern(this, 'utxos_8y_to_10y_old'),
+            _10yTo12y: createMobilitySpendingSupplyPattern(this, 'utxos_10y_to_12y_old'),
+            _12yTo15y: createMobilitySpendingSupplyPattern(this, 'utxos_12y_to_15y_old'),
+            over15y: createMobilitySpendingSupplyPattern(this, 'utxos_over_15y_old'),
           },
-          immobile: createBtcCentsSatsUsdPattern(this, 'immobile_supply'),
+          supply: {
+            mobile: {
+              btc: createSeriesPattern1(this, 'mobile_supply'),
+              sats: createSeriesPattern1(this, 'mobile_supply_sats'),
+              usd: createSeriesPattern1(this, 'mobile_supply_usd'),
+              cents: createSeriesPattern1(this, 'mobile_supply_cents'),
+              inLoss: createSharePattern2(this, 'coinflow_supply_in_loss_share'),
+            },
+            immobile: createBtcCentsSatsUsdPattern(this, 'immobile_supply'),
+          },
+          horizon: {
+            _8y: createSupplyPattern(this, 'coinflow_8y_supply_in_loss_share'),
+            _4y: createSupplyPattern(this, 'coinflow_4y_supply_in_loss_share'),
+            _2y: createSupplyPattern(this, 'coinflow_2y_supply_in_loss_share'),
+            _1y: createSupplyPattern(this, 'coinflow_1y_supply_in_loss_share'),
+            _6m: createSupplyPattern(this, 'coinflow_6m_supply_in_loss_share'),
+            _3m: createSupplyPattern(this, 'coinflow_3m_supply_in_loss_share'),
+            _1m: createSupplyPattern(this, 'coinflow_1m_supply_in_loss_share'),
+          },
+          cap: createCentsUsdPattern3(this, 'coinflow_cap'),
+          price: createCentsPpmRatioSatsUsdPattern(this, 'coinflow_price'),
         },
-        horizon: {
-          _8y: createSupplyPattern(this, 'coinflow_8y_supply_in_loss_share'),
-          _4y: createSupplyPattern(this, 'coinflow_4y_supply_in_loss_share'),
-          _2y: createSupplyPattern(this, 'coinflow_2y_supply_in_loss_share'),
-          _1y: createSupplyPattern(this, 'coinflow_1y_supply_in_loss_share'),
-          _6m: createSupplyPattern(this, 'coinflow_6m_supply_in_loss_share'),
-          _3m: createSupplyPattern(this, 'coinflow_3m_supply_in_loss_share'),
-          _1m: createSupplyPattern(this, 'coinflow_1m_supply_in_loss_share'),
-        },
-        cap: createCentsUsdPattern3(this, 'coinflow_cap'),
-        price: createCentsPpmRatioSatsUsdPattern(this, 'coinflow_price'),
       },
-      bedrock: {
-        raw: createFloorLevelLossPattern(this, 'bedrock_raw'),
-        cointime: createFloorLevelLossPattern(this, 'bedrock_cointime'),
-        coinflow: createFloorLevelLossPattern(this, 'bedrock_coinflow'),
-        coinflow8y: createFloorLevelLossPattern(this, 'bedrock_coinflow_8y'),
-        coinflow4y: createFloorLevelLossPattern(this, 'bedrock_coinflow_4y'),
-        coinflow2y: createFloorLevelLossPattern(this, 'bedrock_coinflow_2y'),
-        coinflow1y: createFloorLevelLossPattern(this, 'bedrock_coinflow_1y'),
-        coinflow6m: createFloorLevelLossPattern(this, 'bedrock_coinflow_6m'),
-        coinflow3m: createFloorLevelLossPattern(this, 'bedrock_coinflow_3m'),
-        coinflow1m: createFloorLevelLossPattern(this, 'bedrock_coinflow_1m'),
+      models: {
+        bedrock: {
+          raw: createFloorLevelLossPattern(this, 'bedrock_raw'),
+          cointime: createFloorLevelLossPattern(this, 'bedrock_cointime'),
+          coinflow: createFloorLevelLossPattern(this, 'bedrock_coinflow'),
+          coinflow8y: createFloorLevelLossPattern(this, 'bedrock_coinflow_8y'),
+          coinflow4y: createFloorLevelLossPattern(this, 'bedrock_coinflow_4y'),
+          coinflow2y: createFloorLevelLossPattern(this, 'bedrock_coinflow_2y'),
+          coinflow1y: createFloorLevelLossPattern(this, 'bedrock_coinflow_1y'),
+          coinflow6m: createFloorLevelLossPattern(this, 'bedrock_coinflow_6m'),
+          coinflow3m: createFloorLevelLossPattern(this, 'bedrock_coinflow_3m'),
+          coinflow1m: createFloorLevelLossPattern(this, 'bedrock_coinflow_1m'),
+        },
+        capitalSentiment: {
+          phase: createSeriesPattern1(this, 'capital_sentiment_phase'),
+          score: createSeriesPattern1(this, 'capital_sentiment_score'),
+        },
+        rarityMeter: {
+          components: {
+            realizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'realized_price'),
+            capitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'capitalized_price'),
+            sthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_realized_price'),
+            sthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_capitalized_price'),
+            lthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_realized_price'),
+            lthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_capitalized_price'),
+            over6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_6m_realized_price'),
+            over4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_4m_realized_price'),
+            under4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_4m_realized_price'),
+            under6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_6m_realized_price'),
+            vaultedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'vaulted_price'),
+            activePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'active_price'),
+            trueMarketMeanPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'true_market_mean_price'),
+            cointimePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'cointime_price'),
+            coinflowPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'coinflow_price'),
+          },
+          extremes: {
+            coinsInLoss: {
+              threshold: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold'),
+              tail: createPercentPpmRatioPattern2(this, 'rarity_meter_coins_in_loss_tail'),
+              rank: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_rank'),
+            },
+            profitTaking: createRankTailThresholdPattern(this, 'rarity_meter_profit_taking'),
+            capitulation: createRankTailThresholdPattern(this, 'rarity_meter_capitulation'),
+            peakRegret: createRankTailThresholdPattern(this, 'rarity_meter_peak_regret'),
+            sellerExhaustion: {
+              threshold: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold'),
+              tail: createPercentPpmRatioPattern2(this, 'rarity_meter_seller_exhaustion_tail'),
+              rank: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_rank'),
+            },
+          },
+          full: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'rarity_meter'),
+          local: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'local_rarity_meter'),
+          cycle: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'cycle_rarity_meter'),
+        },
       },
       constants: {
         _0: createSeriesPattern1(this, 'constant_0'),
@@ -10235,28 +10352,6 @@ class BrkClient extends BrkClientBase {
         },
         stockToFlow: createSeriesPattern1(this, 'stock_to_flow'),
         sellerExhaustion: createSeriesPattern1(this, 'seller_exhaustion'),
-        rarityMeter: {
-          components: {
-            realizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'realized_price'),
-            capitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'capitalized_price'),
-            sthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_realized_price'),
-            sthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_capitalized_price'),
-            lthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_realized_price'),
-            lthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_capitalized_price'),
-            over6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_6m_realized_price'),
-            over4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_4m_realized_price'),
-            under4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_4m_realized_price'),
-            under6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_6m_realized_price'),
-            vaultedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'vaulted_price'),
-            activePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'active_price'),
-            trueMarketMeanPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'true_market_mean_price'),
-            cointimePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'cointime_price'),
-            coinflowPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'coinflow_price'),
-          },
-          full: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'rarity_meter'),
-          local: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'local_rarity_meter'),
-          cycle: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'cycle_rarity_meter'),
-        },
       },
       investing: {
         satsPerDay: createSeriesPattern18(this, 'dca_sats_per_day'),
@@ -11084,6 +11179,11 @@ class BrkClient extends BrkClientBase {
             _10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10k_btc'),
             _100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100k_btc'),
           },
+        },
+      },
+      cointime: {
+        activity: {
+          coinblocksDestroyed: createAverageBlockCumulativeSumPattern(this, 'coinblocks_destroyed'),
         },
       },
     };

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use super::{ByTypeVecs, CountVecs, SpentVecs, Vecs};
+use super::{ByTypeVecs, CountVecs, Vecs};
 
 impl Vecs {
     pub(crate) fn forced_import(
@@ -23,14 +23,12 @@ impl Vecs {
         let db = open_db(parent_path, super::DB_NAME, 20_000_000)?;
         let version = parent_version;
 
-        let spent = SpentVecs::forced_import(&db, version)?;
         let count = CountVecs::forced_import(&db, version, indexes, cached_starts)?;
         let per_sec = LazyPerSecondWindows::new("inputs_per_sec", version, &count.rolling.sum);
         let by_type = ByTypeVecs::forced_import(&db, version, indexes, cached_starts)?;
 
         let this = Self {
             db,
-            spent,
             count,
             per_sec,
             by_type,

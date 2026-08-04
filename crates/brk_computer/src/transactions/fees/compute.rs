@@ -9,7 +9,7 @@ use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec, unli
 
 use super::super::size;
 use super::Vecs;
-use crate::{indexes, inputs};
+use crate::indexes;
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -17,7 +17,6 @@ impl Vecs {
         &mut self,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
-        spent: &inputs::SpentVecs,
         size_vecs: &size::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -27,7 +26,7 @@ impl Vecs {
             starting_lengths.tx_index,
             &indexer.vecs.transactions.first_txin_index,
             &indexes.tx_index.input_count,
-            &spent.value,
+            &indexer.vecs.inputs.value,
             exit,
         )?;
         self.output_value.compute_sum_from_indexes(

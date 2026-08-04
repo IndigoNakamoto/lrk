@@ -6,12 +6,9 @@ use brk_types::{
 };
 use vecdb::{BytesVecReader, ReadableVec, VecIndex};
 
-use crate::{
-    distribution::{
-        RangeMap,
-        addr::{AddrsDataVecs, AnyAddrIndexesVecs},
-    },
-    inputs,
+use crate::distribution::{
+    RangeMap,
+    addr::{AddrsDataVecs, AnyAddrIndexesVecs},
 };
 
 /// Output data collected from separate vecs.
@@ -84,7 +81,6 @@ impl<'a> TxOutReaders<'a> {
 /// Readers for txin vectors. Reuses all buffers across blocks.
 pub struct TxInReaders<'a> {
     indexer: &'a Indexer,
-    txins: &'a inputs::Vecs,
     tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     outpoints_buf: Vec<OutPoint>,
     values_buf: Vec<Sats>,
@@ -96,12 +92,10 @@ pub struct TxInReaders<'a> {
 impl<'a> TxInReaders<'a> {
     pub(crate) fn new(
         indexer: &'a Indexer,
-        txins: &'a inputs::Vecs,
         tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     ) -> Self {
         Self {
             indexer,
-            txins,
             tx_index_to_height,
             outpoints_buf: Vec::new(),
             values_buf: Vec::new(),
@@ -119,10 +113,11 @@ impl<'a> TxInReaders<'a> {
         current_height: Height,
     ) -> (&[Sats], &[Height], &[OutputType], &[TypeIndex]) {
         let end = first_txin_index + input_count;
-        self.txins
-            .spent
-            .value
-            .collect_range_into_at(first_txin_index, end, &mut self.values_buf);
+        self.indexer.vecs.inputs.value.collect_range_into_at(
+            first_txin_index,
+            end,
+            &mut self.values_buf,
+        );
         self.indexer.vecs.inputs.outpoint.collect_range_into_at(
             first_txin_index,
             end,

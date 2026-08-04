@@ -9,8 +9,8 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_store::Store;
 use brk_types::{
-    AddrIndexOutPoint, AddrIndexTxIndex, OutPoint, OutputType, TxInIndex, TxIndex, TypeIndex, Unit,
-    Vin,
+    AddrIndexOutPoint, AddrIndexTxIndex, OutPoint, OutputType, Sats, TxInIndex, TxIndex,
+    TxOutIndex, TypeIndex, Unit, Vin,
 };
 use vecdb::{PcoVec, WritableVec, unlikely};
 
@@ -48,22 +48,36 @@ pub(super) fn finalize_inputs(
             let block_txin_index = input_offset + vin;
             let txin_index = base_txin_index + TxInIndex::from(block_txin_index);
             let vin = Vin::from(vin);
-            let (outpoint, output_type, type_index) = match input_source {
+            let (outpoint, txout_index, value, output_type, type_index) = match input_source {
                 InputSource::PreviousBlock {
                     outpoint,
+                    txout_index,
+                    value,
                     output_type,
                     legacy_sigops: _,
                     type_index,
-                } => (*outpoint, *output_type, *type_index),
-                InputSource::Coinbase => {
-                    (OutPoint::COINBASE, OutputType::Unknown, TypeIndex::COINBASE)
-                }
+                } => (*outpoint, *txout_index, *value, *output_type, *type_index),
+                InputSource::Coinbase => (
+                    OutPoint::COINBASE,
+                    TxOutIndex::COINBASE,
+                    Sats::MAX,
+                    OutputType::Unknown,
+                    TypeIndex::COINBASE,
+                ),
                 InputSource::SameBlock {
                     outpoint,
                     txout_offset,
+                    txout_index,
+                    value,
                 } => {
                     let output = &txouts[*txout_offset];
-                    (*outpoint, output.output_type, output.resolved_type_index())
+                    (
+                        *outpoint,
+                        *txout_index,
+                        *value,
+                        output.output_type,
+                        output.resolved_type_index(),
+                    )
                 }
             };
 
@@ -73,6 +87,8 @@ pub(super) fn finalize_inputs(
 
             inputs.tx_index.checked_push(txin_index, tx_index)?;
             inputs.outpoint.checked_push(txin_index, outpoint)?;
+            inputs.txout_index.checked_push(txin_index, txout_index)?;
+            inputs.value.checked_push(txin_index, value)?;
             inputs.output_type.checked_push(txin_index, output_type)?;
             inputs.type_index.checked_push(txin_index, type_index)?;
 

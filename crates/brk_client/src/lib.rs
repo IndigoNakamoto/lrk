@@ -3227,6 +3227,24 @@ impl PpmPriceRatioPattern {
 }
 
 /// Pattern struct for repeated tree structure.
+pub struct RankTailThresholdPattern {
+    pub rank: SeriesPattern1<StoredI8>,
+    pub tail: PercentPpmRatioPattern2,
+    pub threshold: SeriesPattern1<Dollars>,
+}
+
+impl RankTailThresholdPattern {
+    /// Create a new pattern node with accumulated series name.
+    pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
+        Self {
+            rank: SeriesPattern1::new(client.clone(), _m(&acc, "rank")),
+            tail: PercentPpmRatioPattern2::new(client.clone(), _m(&acc, "tail")),
+            threshold: SeriesPattern1::new(client.clone(), _m(&acc, "threshold")),
+        }
+    }
+}
+
+/// Pattern struct for repeated tree structure.
 pub struct RatioTransferValuePattern {
     pub ratio: _1m1w1y24hPattern<StoredF64>,
     pub transfer_volume: AverageBlockCumulativeSumPattern<Cents>,
@@ -3872,9 +3890,8 @@ pub struct SeriesTree {
     pub scripts: SeriesTree_Scripts,
     pub op_return: SeriesTree_OpReturn,
     pub mining: SeriesTree_Mining,
-    pub cointime: SeriesTree_Cointime,
-    pub coinflow: SeriesTree_Coinflow,
-    pub bedrock: SeriesTree_Bedrock,
+    pub frameworks: SeriesTree_Frameworks,
+    pub models: SeriesTree_Models,
     pub constants: SeriesTree_Constants,
     pub indexes: SeriesTree_Indexes,
     pub indicators: SeriesTree_Indicators,
@@ -3884,6 +3901,7 @@ pub struct SeriesTree {
     pub price: SeriesTree_Price,
     pub supply: SeriesTree_Supply,
     pub cohorts: SeriesTree_Cohorts,
+    pub cointime: SeriesTree_Cointime,
 }
 
 impl SeriesTree {
@@ -3897,9 +3915,8 @@ impl SeriesTree {
             scripts: SeriesTree_Scripts::new(client.clone(), format!("{base_path}_scripts")),
             op_return: SeriesTree_OpReturn::new(client.clone(), format!("{base_path}_op_return")),
             mining: SeriesTree_Mining::new(client.clone(), format!("{base_path}_mining")),
-            cointime: SeriesTree_Cointime::new(client.clone(), format!("{base_path}_cointime")),
-            coinflow: SeriesTree_Coinflow::new(client.clone(), format!("{base_path}_coinflow")),
-            bedrock: SeriesTree_Bedrock::new(client.clone(), format!("{base_path}_bedrock")),
+            frameworks: SeriesTree_Frameworks::new(client.clone(), format!("{base_path}_frameworks")),
+            models: SeriesTree_Models::new(client.clone(), format!("{base_path}_models")),
             constants: SeriesTree_Constants::new(client.clone(), format!("{base_path}_constants")),
             indexes: SeriesTree_Indexes::new(client.clone(), format!("{base_path}_indexes")),
             indicators: SeriesTree_Indicators::new(client.clone(), format!("{base_path}_indicators")),
@@ -3909,6 +3926,7 @@ impl SeriesTree {
             price: SeriesTree_Price::new(client.clone(), format!("{base_path}_price")),
             supply: SeriesTree_Supply::new(client.clone(), format!("{base_path}_supply")),
             cohorts: SeriesTree_Cohorts::new(client.clone(), format!("{base_path}_cohorts")),
+            cointime: SeriesTree_Cointime::new(client.clone(), format!("{base_path}_cointime")),
         }
     }
 }
@@ -4562,7 +4580,6 @@ impl SeriesTree_Transactions_Volume {
 /// Series tree node.
 pub struct SeriesTree_Inputs {
     pub raw: SeriesTree_Inputs_Raw,
-    pub spent: SeriesTree_Inputs_Spent,
     pub count: CumulativeRollingSumPattern,
     pub per_sec: _1m1w1y24hPattern<StoredF32>,
     pub by_type: SeriesTree_Inputs_ByType,
@@ -4572,7 +4589,6 @@ impl SeriesTree_Inputs {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             raw: SeriesTree_Inputs_Raw::new(client.clone(), format!("{base_path}_raw")),
-            spent: SeriesTree_Inputs_Spent::new(client.clone(), format!("{base_path}_spent")),
             count: CumulativeRollingSumPattern::new(client.clone(), "input_count".to_string()),
             per_sec: _1m1w1y24hPattern::new(client.clone(), "inputs_per_sec".to_string()),
             by_type: SeriesTree_Inputs_ByType::new(client.clone(), format!("{base_path}_by_type")),
@@ -4584,6 +4600,8 @@ impl SeriesTree_Inputs {
 pub struct SeriesTree_Inputs_Raw {
     pub first_txin_index: SeriesPattern18<TxInIndex>,
     pub outpoint: SeriesPattern20<OutPoint>,
+    pub txout_index: SeriesPattern20<TxOutIndex>,
+    pub value: SeriesPattern20<Sats>,
     pub tx_index: SeriesPattern20<TxIndex>,
     pub output_type: SeriesPattern20<OutputType>,
     pub type_index: SeriesPattern20<TypeIndex>,
@@ -4594,24 +4612,11 @@ impl SeriesTree_Inputs_Raw {
         Self {
             first_txin_index: SeriesPattern18::new(client.clone(), "first_txin_index".to_string()),
             outpoint: SeriesPattern20::new(client.clone(), "outpoint".to_string()),
+            txout_index: SeriesPattern20::new(client.clone(), "txout_index".to_string()),
+            value: SeriesPattern20::new(client.clone(), "value".to_string()),
             tx_index: SeriesPattern20::new(client.clone(), "tx_index".to_string()),
             output_type: SeriesPattern20::new(client.clone(), "output_type".to_string()),
             type_index: SeriesPattern20::new(client.clone(), "type_index".to_string()),
-        }
-    }
-}
-
-/// Series tree node.
-pub struct SeriesTree_Inputs_Spent {
-    pub txout_index: SeriesPattern20<TxOutIndex>,
-    pub value: SeriesPattern20<Sats>,
-}
-
-impl SeriesTree_Inputs_Spent {
-    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
-        Self {
-            txout_index: SeriesPattern20::new(client.clone(), "txout_index".to_string()),
-            value: SeriesPattern20::new(client.clone(), "value".to_string()),
         }
     }
 }
@@ -5844,43 +5849,57 @@ impl SeriesTree_Mining_Hashrate_Rate_Sma {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime {
-    pub activity: SeriesTree_Cointime_Activity,
-    pub age_range: SeriesTree_Cointime_AgeRange,
-    pub supply: SeriesTree_Cointime_Supply,
-    pub value: SeriesTree_Cointime_Value,
-    pub cap: SeriesTree_Cointime_Cap,
-    pub prices: SeriesTree_Cointime_Prices,
-    pub adjusted: SeriesTree_Cointime_Adjusted,
-    pub reserve_risk: SeriesTree_Cointime_ReserveRisk,
+pub struct SeriesTree_Frameworks {
+    pub cointime: SeriesTree_Frameworks_Cointime,
+    pub coinflow: SeriesTree_Frameworks_Coinflow,
 }
 
-impl SeriesTree_Cointime {
+impl SeriesTree_Frameworks {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            activity: SeriesTree_Cointime_Activity::new(client.clone(), format!("{base_path}_activity")),
-            age_range: SeriesTree_Cointime_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
-            supply: SeriesTree_Cointime_Supply::new(client.clone(), format!("{base_path}_supply")),
-            value: SeriesTree_Cointime_Value::new(client.clone(), format!("{base_path}_value")),
-            cap: SeriesTree_Cointime_Cap::new(client.clone(), format!("{base_path}_cap")),
-            prices: SeriesTree_Cointime_Prices::new(client.clone(), format!("{base_path}_prices")),
-            adjusted: SeriesTree_Cointime_Adjusted::new(client.clone(), format!("{base_path}_adjusted")),
-            reserve_risk: SeriesTree_Cointime_ReserveRisk::new(client.clone(), format!("{base_path}_reserve_risk")),
+            cointime: SeriesTree_Frameworks_Cointime::new(client.clone(), format!("{base_path}_cointime")),
+            coinflow: SeriesTree_Frameworks_Coinflow::new(client.clone(), format!("{base_path}_coinflow")),
         }
     }
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Activity {
+pub struct SeriesTree_Frameworks_Cointime {
+    pub activity: SeriesTree_Frameworks_Cointime_Activity,
+    pub age_range: SeriesTree_Frameworks_Cointime_AgeRange,
+    pub supply: SeriesTree_Frameworks_Cointime_Supply,
+    pub value: SeriesTree_Frameworks_Cointime_Value,
+    pub cap: SeriesTree_Frameworks_Cointime_Cap,
+    pub prices: SeriesTree_Frameworks_Cointime_Prices,
+    pub adjusted: SeriesTree_Frameworks_Cointime_Adjusted,
+    pub reserve_risk: SeriesTree_Frameworks_Cointime_ReserveRisk,
+}
+
+impl SeriesTree_Frameworks_Cointime {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            activity: SeriesTree_Frameworks_Cointime_Activity::new(client.clone(), format!("{base_path}_activity")),
+            age_range: SeriesTree_Frameworks_Cointime_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
+            supply: SeriesTree_Frameworks_Cointime_Supply::new(client.clone(), format!("{base_path}_supply")),
+            value: SeriesTree_Frameworks_Cointime_Value::new(client.clone(), format!("{base_path}_value")),
+            cap: SeriesTree_Frameworks_Cointime_Cap::new(client.clone(), format!("{base_path}_cap")),
+            prices: SeriesTree_Frameworks_Cointime_Prices::new(client.clone(), format!("{base_path}_prices")),
+            adjusted: SeriesTree_Frameworks_Cointime_Adjusted::new(client.clone(), format!("{base_path}_adjusted")),
+            reserve_risk: SeriesTree_Frameworks_Cointime_ReserveRisk::new(client.clone(), format!("{base_path}_reserve_risk")),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Frameworks_Cointime_Activity {
     pub coinblocks_created: AverageBlockCumulativeSumPattern<StoredF64>,
     pub coinblocks_stored: AverageBlockCumulativeSumPattern<StoredF64>,
     pub liveliness: SeriesPattern1<StoredF64>,
     pub vaultedness: SeriesPattern1<StoredF64>,
     pub ratio: SeriesPattern1<StoredF64>,
-    pub coinblocks_destroyed: AverageBlockCumulativeSumPattern<StoredF64>,
 }
 
-impl SeriesTree_Cointime_Activity {
+impl SeriesTree_Frameworks_Cointime_Activity {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             coinblocks_created: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_created".to_string()),
@@ -5888,13 +5907,12 @@ impl SeriesTree_Cointime_Activity {
             liveliness: SeriesPattern1::new(client.clone(), "liveliness".to_string()),
             vaultedness: SeriesPattern1::new(client.clone(), "vaultedness".to_string()),
             ratio: SeriesPattern1::new(client.clone(), "activity_to_vaultedness".to_string()),
-            coinblocks_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_destroyed".to_string()),
         }
     }
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_AgeRange {
+pub struct SeriesTree_Frameworks_Cointime_AgeRange {
     pub under_1h: CoindaysLivelinessRatioSupplyVaultednessPattern,
     pub _1h_to_1d: CoindaysLivelinessRatioSupplyVaultednessPattern,
     pub _1d_to_1w: CoindaysLivelinessRatioSupplyVaultednessPattern,
@@ -5920,7 +5938,7 @@ pub struct SeriesTree_Cointime_AgeRange {
     pub over_15y: CoindaysLivelinessRatioSupplyVaultednessPattern,
 }
 
-impl SeriesTree_Cointime_AgeRange {
+impl SeriesTree_Frameworks_Cointime_AgeRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             under_1h: CoindaysLivelinessRatioSupplyVaultednessPattern::new(client.clone(), "utxos_under_1h_old".to_string()),
@@ -5951,22 +5969,22 @@ impl SeriesTree_Cointime_AgeRange {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Supply {
+pub struct SeriesTree_Frameworks_Cointime_Supply {
     pub vaulted: BtcCentsSatsUsdPattern,
-    pub active: SeriesTree_Cointime_Supply_Active,
+    pub active: SeriesTree_Frameworks_Cointime_Supply_Active,
 }
 
-impl SeriesTree_Cointime_Supply {
+impl SeriesTree_Frameworks_Cointime_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             vaulted: BtcCentsSatsUsdPattern::new(client.clone(), "vaulted_supply".to_string()),
-            active: SeriesTree_Cointime_Supply_Active::new(client.clone(), format!("{base_path}_active")),
+            active: SeriesTree_Frameworks_Cointime_Supply_Active::new(client.clone(), format!("{base_path}_active")),
         }
     }
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Supply_Active {
+pub struct SeriesTree_Frameworks_Cointime_Supply_Active {
     pub btc: SeriesPattern1<Bitcoin>,
     pub sats: SeriesPattern1<Sats>,
     pub usd: SeriesPattern1<Dollars>,
@@ -5974,7 +5992,7 @@ pub struct SeriesTree_Cointime_Supply_Active {
     pub in_loss: SharePattern2,
 }
 
-impl SeriesTree_Cointime_Supply_Active {
+impl SeriesTree_Frameworks_Cointime_Supply_Active {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             btc: SeriesPattern1::new(client.clone(), "active_supply".to_string()),
@@ -5987,14 +6005,14 @@ impl SeriesTree_Cointime_Supply_Active {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Value {
+pub struct SeriesTree_Frameworks_Cointime_Value {
     pub destroyed: AverageBlockCumulativeSumPattern<StoredF64>,
     pub created: AverageBlockCumulativeSumPattern<StoredF64>,
     pub stored: AverageBlockCumulativeSumPattern<StoredF64>,
     pub vocdd: AverageBlockCumulativeSumPattern<StoredF64>,
 }
 
-impl SeriesTree_Cointime_Value {
+impl SeriesTree_Frameworks_Cointime_Value {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "cointime_value_destroyed".to_string()),
@@ -6006,7 +6024,7 @@ impl SeriesTree_Cointime_Value {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Cap {
+pub struct SeriesTree_Frameworks_Cointime_Cap {
     pub thermo: CentsUsdPattern3,
     pub investor: CentsUsdPattern3,
     pub vaulted: CentsUsdPattern3,
@@ -6015,7 +6033,7 @@ pub struct SeriesTree_Cointime_Cap {
     pub aviv: PpmRatioPattern2,
 }
 
-impl SeriesTree_Cointime_Cap {
+impl SeriesTree_Frameworks_Cointime_Cap {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             thermo: CentsUsdPattern3::new(client.clone(), "thermo_cap".to_string()),
@@ -6029,14 +6047,14 @@ impl SeriesTree_Cointime_Cap {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Prices {
+pub struct SeriesTree_Frameworks_Cointime_Prices {
     pub vaulted: CentsPpmRatioSatsUsdPattern,
     pub active: CentsPpmRatioSatsUsdPattern,
     pub true_market_mean: CentsPpmRatioSatsUsdPattern,
     pub cointime: CentsPpmRatioSatsUsdPattern,
 }
 
-impl SeriesTree_Cointime_Prices {
+impl SeriesTree_Frameworks_Cointime_Prices {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             vaulted: CentsPpmRatioSatsUsdPattern::new(client.clone(), "vaulted_price".to_string()),
@@ -6048,13 +6066,13 @@ impl SeriesTree_Cointime_Prices {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_Adjusted {
+pub struct SeriesTree_Frameworks_Cointime_Adjusted {
     pub inflation_rate: PercentPpmRatioPattern,
     pub tx_velocity_native: SeriesPattern1<StoredF64>,
     pub tx_velocity_fiat: SeriesPattern1<StoredF64>,
 }
 
-impl SeriesTree_Cointime_Adjusted {
+impl SeriesTree_Frameworks_Cointime_Adjusted {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             inflation_rate: PercentPpmRatioPattern::new(client.clone(), "cointime_adj_inflation_rate".to_string()),
@@ -6065,13 +6083,13 @@ impl SeriesTree_Cointime_Adjusted {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Cointime_ReserveRisk {
+pub struct SeriesTree_Frameworks_Cointime_ReserveRisk {
     pub value: SeriesPattern1<StoredF64>,
     pub vocdd_median_1y: SeriesPattern18<StoredF64>,
     pub hodl_bank: SeriesPattern18<StoredF64>,
 }
 
-impl SeriesTree_Cointime_ReserveRisk {
+impl SeriesTree_Frameworks_Cointime_ReserveRisk {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             value: SeriesPattern1::new(client.clone(), "reserve_risk".to_string()),
@@ -6082,20 +6100,20 @@ impl SeriesTree_Cointime_ReserveRisk {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Coinflow {
-    pub age_range: SeriesTree_Coinflow_AgeRange,
-    pub supply: SeriesTree_Coinflow_Supply,
-    pub horizon: SeriesTree_Coinflow_Horizon,
+pub struct SeriesTree_Frameworks_Coinflow {
+    pub age_range: SeriesTree_Frameworks_Coinflow_AgeRange,
+    pub supply: SeriesTree_Frameworks_Coinflow_Supply,
+    pub horizon: SeriesTree_Frameworks_Coinflow_Horizon,
     pub cap: CentsUsdPattern3,
     pub price: CentsPpmRatioSatsUsdPattern,
 }
 
-impl SeriesTree_Coinflow {
+impl SeriesTree_Frameworks_Coinflow {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            age_range: SeriesTree_Coinflow_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
-            supply: SeriesTree_Coinflow_Supply::new(client.clone(), format!("{base_path}_supply")),
-            horizon: SeriesTree_Coinflow_Horizon::new(client.clone(), format!("{base_path}_horizon")),
+            age_range: SeriesTree_Frameworks_Coinflow_AgeRange::new(client.clone(), format!("{base_path}_age_range")),
+            supply: SeriesTree_Frameworks_Coinflow_Supply::new(client.clone(), format!("{base_path}_supply")),
+            horizon: SeriesTree_Frameworks_Coinflow_Horizon::new(client.clone(), format!("{base_path}_horizon")),
             cap: CentsUsdPattern3::new(client.clone(), "coinflow_cap".to_string()),
             price: CentsPpmRatioSatsUsdPattern::new(client.clone(), "coinflow_price".to_string()),
         }
@@ -6103,7 +6121,7 @@ impl SeriesTree_Coinflow {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Coinflow_AgeRange {
+pub struct SeriesTree_Frameworks_Coinflow_AgeRange {
     pub under_1h: MobilitySpendingSupplyPattern,
     pub _1h_to_1d: MobilitySpendingSupplyPattern,
     pub _1d_to_1w: MobilitySpendingSupplyPattern,
@@ -6129,7 +6147,7 @@ pub struct SeriesTree_Coinflow_AgeRange {
     pub over_15y: MobilitySpendingSupplyPattern,
 }
 
-impl SeriesTree_Coinflow_AgeRange {
+impl SeriesTree_Frameworks_Coinflow_AgeRange {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             under_1h: MobilitySpendingSupplyPattern::new(client.clone(), "utxos_under_1h_old".to_string()),
@@ -6160,22 +6178,22 @@ impl SeriesTree_Coinflow_AgeRange {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Coinflow_Supply {
-    pub mobile: SeriesTree_Coinflow_Supply_Mobile,
+pub struct SeriesTree_Frameworks_Coinflow_Supply {
+    pub mobile: SeriesTree_Frameworks_Coinflow_Supply_Mobile,
     pub immobile: BtcCentsSatsUsdPattern,
 }
 
-impl SeriesTree_Coinflow_Supply {
+impl SeriesTree_Frameworks_Coinflow_Supply {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            mobile: SeriesTree_Coinflow_Supply_Mobile::new(client.clone(), format!("{base_path}_mobile")),
+            mobile: SeriesTree_Frameworks_Coinflow_Supply_Mobile::new(client.clone(), format!("{base_path}_mobile")),
             immobile: BtcCentsSatsUsdPattern::new(client.clone(), "immobile_supply".to_string()),
         }
     }
 }
 
 /// Series tree node.
-pub struct SeriesTree_Coinflow_Supply_Mobile {
+pub struct SeriesTree_Frameworks_Coinflow_Supply_Mobile {
     pub btc: SeriesPattern1<Bitcoin>,
     pub sats: SeriesPattern1<Sats>,
     pub usd: SeriesPattern1<Dollars>,
@@ -6183,7 +6201,7 @@ pub struct SeriesTree_Coinflow_Supply_Mobile {
     pub in_loss: SharePattern2,
 }
 
-impl SeriesTree_Coinflow_Supply_Mobile {
+impl SeriesTree_Frameworks_Coinflow_Supply_Mobile {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             btc: SeriesPattern1::new(client.clone(), "mobile_supply".to_string()),
@@ -6196,7 +6214,7 @@ impl SeriesTree_Coinflow_Supply_Mobile {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Coinflow_Horizon {
+pub struct SeriesTree_Frameworks_Coinflow_Horizon {
     pub _8y: SupplyPattern,
     pub _4y: SupplyPattern,
     pub _2y: SupplyPattern,
@@ -6206,7 +6224,7 @@ pub struct SeriesTree_Coinflow_Horizon {
     pub _1m: SupplyPattern,
 }
 
-impl SeriesTree_Coinflow_Horizon {
+impl SeriesTree_Frameworks_Coinflow_Horizon {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             _8y: SupplyPattern::new(client.clone(), "coinflow_8y_supply_in_loss_share".to_string()),
@@ -6221,7 +6239,24 @@ impl SeriesTree_Coinflow_Horizon {
 }
 
 /// Series tree node.
-pub struct SeriesTree_Bedrock {
+pub struct SeriesTree_Models {
+    pub bedrock: SeriesTree_Models_Bedrock,
+    pub capital_sentiment: SeriesTree_Models_CapitalSentiment,
+    pub rarity_meter: SeriesTree_Models_RarityMeter,
+}
+
+impl SeriesTree_Models {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            bedrock: SeriesTree_Models_Bedrock::new(client.clone(), format!("{base_path}_bedrock")),
+            capital_sentiment: SeriesTree_Models_CapitalSentiment::new(client.clone(), format!("{base_path}_capital_sentiment")),
+            rarity_meter: SeriesTree_Models_RarityMeter::new(client.clone(), format!("{base_path}_rarity_meter")),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_Bedrock {
     pub raw: FloorLevelLossPattern,
     pub cointime: FloorLevelLossPattern,
     pub coinflow: FloorLevelLossPattern,
@@ -6234,7 +6269,7 @@ pub struct SeriesTree_Bedrock {
     pub coinflow_1m: FloorLevelLossPattern,
 }
 
-impl SeriesTree_Bedrock {
+impl SeriesTree_Models_Bedrock {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
             raw: FloorLevelLossPattern::new(client.clone(), "bedrock_raw".to_string()),
@@ -6247,6 +6282,138 @@ impl SeriesTree_Bedrock {
             coinflow_6m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_6m".to_string()),
             coinflow_3m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_3m".to_string()),
             coinflow_1m: FloorLevelLossPattern::new(client.clone(), "bedrock_coinflow_1m".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_CapitalSentiment {
+    pub phase: SeriesPattern1<CapitalSentimentPhase>,
+    pub score: SeriesPattern1<StoredI8>,
+}
+
+impl SeriesTree_Models_CapitalSentiment {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            phase: SeriesPattern1::new(client.clone(), "capital_sentiment_phase".to_string()),
+            score: SeriesPattern1::new(client.clone(), "capital_sentiment_score".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_RarityMeter {
+    pub components: SeriesTree_Models_RarityMeter_Components,
+    pub extremes: SeriesTree_Models_RarityMeter_Extremes,
+    pub full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
+    pub local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
+    pub cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
+}
+
+impl SeriesTree_Models_RarityMeter {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            components: SeriesTree_Models_RarityMeter_Components::new(client.clone(), format!("{base_path}_components")),
+            extremes: SeriesTree_Models_RarityMeter_Extremes::new(client.clone(), format!("{base_path}_extremes")),
+            full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "rarity_meter".to_string()),
+            local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "local_rarity_meter".to_string()),
+            cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "cycle_rarity_meter".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_RarityMeter_Components {
+    pub realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+    pub coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
+}
+
+impl SeriesTree_Models_RarityMeter_Components {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "realized_price".to_string()),
+            capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "capitalized_price".to_string()),
+            sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "sth_realized_price".to_string()),
+            sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "sth_capitalized_price".to_string()),
+            lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "lth_realized_price".to_string()),
+            lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "lth_capitalized_price".to_string()),
+            over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "over_6m_realized_price".to_string()),
+            over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "over_4m_realized_price".to_string()),
+            under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "under_4m_realized_price".to_string()),
+            under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "under_6m_realized_price".to_string()),
+            vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "vaulted_price".to_string()),
+            active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "active_price".to_string()),
+            true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "true_market_mean_price".to_string()),
+            cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "cointime_price".to_string()),
+            coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "coinflow_price".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_RarityMeter_Extremes {
+    pub coins_in_loss: SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss,
+    pub profit_taking: RankTailThresholdPattern,
+    pub capitulation: RankTailThresholdPattern,
+    pub peak_regret: RankTailThresholdPattern,
+    pub seller_exhaustion: SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion,
+}
+
+impl SeriesTree_Models_RarityMeter_Extremes {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            coins_in_loss: SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss::new(client.clone(), format!("{base_path}_coins_in_loss")),
+            profit_taking: RankTailThresholdPattern::new(client.clone(), "rarity_meter_profit_taking".to_string()),
+            capitulation: RankTailThresholdPattern::new(client.clone(), "rarity_meter_capitulation".to_string()),
+            peak_regret: RankTailThresholdPattern::new(client.clone(), "rarity_meter_peak_regret".to_string()),
+            seller_exhaustion: SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion::new(client.clone(), format!("{base_path}_seller_exhaustion")),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss {
+    pub threshold: SeriesPattern1<Bitcoin>,
+    pub tail: PercentPpmRatioPattern2,
+    pub rank: SeriesPattern1<StoredI8>,
+}
+
+impl SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            threshold: SeriesPattern1::new(client.clone(), "rarity_meter_coins_in_loss_threshold".to_string()),
+            tail: PercentPpmRatioPattern2::new(client.clone(), "rarity_meter_coins_in_loss_tail".to_string()),
+            rank: SeriesPattern1::new(client.clone(), "rarity_meter_coins_in_loss_rank".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion {
+    pub threshold: SeriesPattern1<StoredF32>,
+    pub tail: PercentPpmRatioPattern2,
+    pub rank: SeriesPattern1<StoredI8>,
+}
+
+impl SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            threshold: SeriesPattern1::new(client.clone(), "rarity_meter_seller_exhaustion_threshold".to_string()),
+            tail: PercentPpmRatioPattern2::new(client.clone(), "rarity_meter_seller_exhaustion_tail".to_string()),
+            rank: SeriesPattern1::new(client.clone(), "rarity_meter_seller_exhaustion_rank".to_string()),
         }
     }
 }
@@ -6882,7 +7049,6 @@ pub struct SeriesTree_Indicators {
     pub dormancy: SeriesTree_Indicators_Dormancy,
     pub stock_to_flow: SeriesPattern1<StoredF32>,
     pub seller_exhaustion: SeriesPattern1<StoredF32>,
-    pub rarity_meter: SeriesTree_Indicators_RarityMeter,
 }
 
 impl SeriesTree_Indicators {
@@ -6898,7 +7064,6 @@ impl SeriesTree_Indicators {
             dormancy: SeriesTree_Indicators_Dormancy::new(client.clone(), format!("{base_path}_dormancy")),
             stock_to_flow: SeriesPattern1::new(client.clone(), "stock_to_flow".to_string()),
             seller_exhaustion: SeriesPattern1::new(client.clone(), "seller_exhaustion".to_string()),
-            rarity_meter: SeriesTree_Indicators_RarityMeter::new(client.clone(), format!("{base_path}_rarity_meter")),
         }
     }
 }
@@ -6914,66 +7079,6 @@ impl SeriesTree_Indicators_Dormancy {
         Self {
             supply_adj: SeriesPattern1::new(client.clone(), "dormancy_supply_adj".to_string()),
             flow: SeriesPattern1::new(client.clone(), "dormancy_flow".to_string()),
-        }
-    }
-}
-
-/// Series tree node.
-pub struct SeriesTree_Indicators_RarityMeter {
-    pub components: SeriesTree_Indicators_RarityMeter_Components,
-    pub full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
-    pub local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
-    pub cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern,
-}
-
-impl SeriesTree_Indicators_RarityMeter {
-    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
-        Self {
-            components: SeriesTree_Indicators_RarityMeter_Components::new(client.clone(), format!("{base_path}_components")),
-            full: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "rarity_meter".to_string()),
-            local: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "local_rarity_meter".to_string()),
-            cycle: IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern::new(client.clone(), "cycle_rarity_meter".to_string()),
-        }
-    }
-}
-
-/// Series tree node.
-pub struct SeriesTree_Indicators_RarityMeter_Components {
-    pub realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-    pub coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern,
-}
-
-impl SeriesTree_Indicators_RarityMeter_Components {
-    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
-        Self {
-            realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "realized_price".to_string()),
-            capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "capitalized_price".to_string()),
-            sth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "sth_realized_price".to_string()),
-            sth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "sth_capitalized_price".to_string()),
-            lth_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "lth_realized_price".to_string()),
-            lth_capitalized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "lth_capitalized_price".to_string()),
-            over_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "over_6m_realized_price".to_string()),
-            over_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "over_4m_realized_price".to_string()),
-            under_4m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "under_4m_realized_price".to_string()),
-            under_6m_realized_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "under_6m_realized_price".to_string()),
-            vaulted_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "vaulted_price".to_string()),
-            active_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "active_price".to_string()),
-            true_market_mean_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "true_market_mean_price".to_string()),
-            cointime_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "cointime_price".to_string()),
-            coinflow_price: Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern::new(client.clone(), "coinflow_price".to_string()),
         }
     }
 }
@@ -9293,6 +9398,32 @@ impl SeriesTree_Cohorts_Addr_UnderAmount {
             _1k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_1k_btc".to_string()),
             _10k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_10k_btc".to_string()),
             _100k_btc: ActivityAddrOutputsRealizedSupplyPattern::new(client.clone(), "addrs_under_100k_btc".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Cointime {
+    pub activity: SeriesTree_Cointime_Activity,
+}
+
+impl SeriesTree_Cointime {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            activity: SeriesTree_Cointime_Activity::new(client.clone(), format!("{base_path}_activity")),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Cointime_Activity {
+    pub coinblocks_destroyed: AverageBlockCumulativeSumPattern<StoredF64>,
+}
+
+impl SeriesTree_Cointime_Activity {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            coinblocks_destroyed: AverageBlockCumulativeSumPattern::new(client.clone(), "coinblocks_destroyed".to_string()),
         }
     }
 }
