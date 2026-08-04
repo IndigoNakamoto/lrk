@@ -8,7 +8,7 @@ use crate::{
     internal::{DailyMappings, DailyMetric, LazyDailyMetric},
 };
 
-const VERSION: Version = Version::new(4);
+const VERSION: Version = Version::new(5);
 
 struct CodeToPhase;
 
@@ -53,12 +53,8 @@ impl Vecs {
         let version = parent_version + VERSION;
         let mappings = DailyMappings::new(indexes);
 
-        let phase_code = DailyMetric::forced_import(
-            db,
-            "capital_sentiment_phase_code",
-            version,
-            &mappings,
-        )?;
+        let phase_code =
+            DailyMetric::forced_import(db, "capital_sentiment_phase_code", version, &mappings)?;
         let is_long = DailyMetric::<StoredBool>::forced_import(
             db,
             "capital_sentiment_is_long",

@@ -1,7 +1,6 @@
 use brk_types::{Cents, CentsCompact, Height, PartsPerMillion32, Version};
 use vecdb::{
-    AnyVec, BinaryTransform, CachedReadableVec, CachedVec, LazyVecFrom1, ReadableCloneableVec,
-    VecIndex,
+    AnyVec, BinaryTransform, CachedReadableVec, CachedVec, LazyVec, ReadableCloneableVec, VecIndex,
 };
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
 
 #[derive(Clone)]
 pub(super) struct CachedComponentPrice {
-    cache: CachedVec<LazyVecFrom1<Height, CentsCompact, Height, Cents>>,
+    cache: CachedVec<LazyVec<Height, CentsCompact, Height, Cents>>,
 }
 
 impl CachedComponentPrice {
@@ -20,7 +19,7 @@ impl CachedComponentPrice {
         version: Version,
         source: &(impl ReadableCloneableVec<Height, Cents> + 'static),
     ) -> Self {
-        let compact = LazyVecFrom1::init(
+        let compact = LazyVec::init(
             &format!("{name}_cached_price"),
             version,
             source.read_only_boxed_clone(),

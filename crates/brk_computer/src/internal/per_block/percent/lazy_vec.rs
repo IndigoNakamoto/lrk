@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{Height, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{LazyVecFrom1, ReadableCloneableVec, VecValue};
+use vecdb::{LazyVec, ReadableCloneableVec, VecValue};
 
 use crate::internal::{FixedRatio, Percent};
 
@@ -10,7 +10,7 @@ use crate::internal::{FixedRatio, Percent};
 #[traversable(transparent)]
 #[allow(clippy::type_complexity)]
 pub struct LazyPercentVec<B: FixedRatio, S: VecValue>(
-    pub Percent<LazyVecFrom1<Height, B, Height, S>, LazyVecFrom1<Height, StoredF32, Height, B>>,
+    pub Percent<LazyVec<Height, B, Height, S>, LazyVec<Height, StoredF32, Height, B>>,
 );
 
 impl<B: FixedRatio, S: VecValue> LazyPercentVec<B, S> {
@@ -20,19 +20,19 @@ impl<B: FixedRatio, S: VecValue> LazyPercentVec<B, S> {
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
         compute: fn(Height, S) -> B,
     ) -> Self {
-        let ppm = LazyVecFrom1::init(
+        let ppm = LazyVec::init(
             &format!("{name}_{}", B::SUFFIX),
             version,
             source.read_only_boxed_clone(),
             compute,
         );
         let ppm_source = ppm.read_only_boxed_clone();
-        let ratio = LazyVecFrom1::transformed::<B::ToRatio>(
+        let ratio = LazyVec::transformed::<B::ToRatio>(
             &format!("{name}_ratio"),
             version,
             ppm_source.clone(),
         );
-        let percent = LazyVecFrom1::transformed::<B::ToPercent>(name, version, ppm_source);
+        let percent = LazyVec::transformed::<B::ToPercent>(name, version, ppm_source);
 
         Self(Percent {
             ppm,

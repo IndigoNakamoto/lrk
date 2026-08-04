@@ -325,9 +325,9 @@ export function createPartialOptions() {
         {
           name: "Models",
           tree: [
-            createCapitalSentimentSection(),
-            createRarityMeterSection(),
             createBedrockSection(),
+            createRarityMeterSection(),
+            createCapitalSentimentSection(),
           ],
         },
       ],

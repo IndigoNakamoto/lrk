@@ -873,12 +873,7 @@ impl Tree {
     #[doc(hidden)]
     pub fn get_exclusive<K: AsRef<[u8]>>(&self, key: K) -> crate::Result<Option<UserValue>> {
         let key = key.as_ref();
-        #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
-        let super_version = self
-            .version_history
-            .read()
-            .expect("lock is poisoned")
-            .latest_version_arc();
+        let super_version = self.latest_version.load();
 
         Self::get_value_from_tables(&super_version.version, key, SeqNo::MAX)
     }
@@ -970,17 +965,19 @@ impl Tree {
         }
 
         let version = Self::recover_levels(&config.path, tree_id, &config)?;
-
         let highest_table_id = version
             .iter_tables()
             .map(Table::id)
             .max()
             .unwrap_or_default();
+        let version_history = SuperVersions::new(version);
+        let latest_version = version_history.latest_version_reader();
         let inner = TreeInner {
             id: tree_id,
             memtable_id_counter: SequenceNumberCounter::new(1),
             table_id_counter: SequenceNumberCounter::new(u64::from(highest_table_id) + 1),
-            version_history: Arc::new(RwLock::new(SuperVersions::new(version))),
+            version_history: Arc::new(RwLock::new(version_history)),
+            latest_version,
             stop_signal: StopSignal::default(),
             config: Arc::new(config),
             major_compaction_lock: RwLock::default(),

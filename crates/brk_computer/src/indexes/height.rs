@@ -3,29 +3,27 @@ use brk_types::{
     Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1, Month3,
     Month6, StoredU64, Timestamp, Version, Week1, Year1, Year10,
 };
-use vecdb::{
-    CachedBoxedVec, CachedReadableVec, CachedVec, LazyVecFrom1, ReadableBoxedVec, VecValue,
-};
+use vecdb::{CachedBoxedVec, CachedReadableVec, CachedVec, LazyVec, ReadableBoxedVec, VecValue};
 
 use crate::internal::LazyPreviousDeltaVec;
 
 #[derive(Clone, Traversable)]
 pub struct Vecs {
-    pub minute10: LazyVecFrom1<Height, Minute10, Height, Timestamp>,
-    pub minute30: LazyVecFrom1<Height, Minute30, Height, Timestamp>,
-    pub hour1: LazyVecFrom1<Height, Hour1, Height, Timestamp>,
-    pub hour4: LazyVecFrom1<Height, Hour4, Height, Timestamp>,
-    pub hour12: LazyVecFrom1<Height, Hour12, Height, Timestamp>,
-    pub day1: CachedVec<LazyVecFrom1<Height, Day1, Height, Timestamp>>,
-    pub day3: LazyVecFrom1<Height, Day3, Height, Timestamp>,
-    pub epoch: LazyVecFrom1<Height, Epoch, Height, Timestamp>,
-    pub halving: LazyVecFrom1<Height, Halving, Height, Timestamp>,
-    pub week1: LazyVecFrom1<Height, Week1, Height, Timestamp>,
-    pub month1: LazyVecFrom1<Height, Month1, Height, Timestamp>,
-    pub month3: LazyVecFrom1<Height, Month3, Height, Timestamp>,
-    pub month6: LazyVecFrom1<Height, Month6, Height, Timestamp>,
-    pub year1: LazyVecFrom1<Height, Year1, Height, Timestamp>,
-    pub year10: LazyVecFrom1<Height, Year10, Height, Timestamp>,
+    pub minute10: LazyVec<Height, Minute10, Height, Timestamp>,
+    pub minute30: LazyVec<Height, Minute30, Height, Timestamp>,
+    pub hour1: LazyVec<Height, Hour1, Height, Timestamp>,
+    pub hour4: LazyVec<Height, Hour4, Height, Timestamp>,
+    pub hour12: LazyVec<Height, Hour12, Height, Timestamp>,
+    pub day1: CachedVec<LazyVec<Height, Day1, Height, Timestamp>>,
+    pub day3: LazyVec<Height, Day3, Height, Timestamp>,
+    pub epoch: LazyVec<Height, Epoch, Height, Timestamp>,
+    pub halving: LazyVec<Height, Halving, Height, Timestamp>,
+    pub week1: LazyVec<Height, Week1, Height, Timestamp>,
+    pub month1: LazyVec<Height, Month1, Height, Timestamp>,
+    pub month3: LazyVec<Height, Month3, Height, Timestamp>,
+    pub month6: LazyVec<Height, Month6, Height, Timestamp>,
+    pub year1: LazyVec<Height, Year1, Height, Timestamp>,
+    pub year10: LazyVec<Height, Year10, Height, Timestamp>,
     pub tx_index_count: LazyPreviousDeltaVec<Height, StoredU64>,
 }
 
@@ -91,8 +89,8 @@ impl Vecs {
         name: &str,
         timestamps: ReadableBoxedVec<Height, Timestamp>,
         compute: fn(Height, Timestamp) -> T,
-    ) -> LazyVecFrom1<Height, T, Height, Timestamp> {
-        LazyVecFrom1::init(name, Version::ZERO, timestamps, compute)
+    ) -> LazyVec<Height, T, Height, Timestamp> {
+        LazyVec::init(name, Version::ZERO, timestamps, compute)
     }
 
     pub(crate) fn day1_from_timestamp(timestamp: Timestamp) -> Day1 {

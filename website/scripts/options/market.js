@@ -81,15 +81,16 @@ function createMaSubSection(label, averages) {
   const more = averages.filter((a) => !includes(commonMaIds, a.id));
 
   /** @param {MaPeriod} a */
-  const toFolder = (a) => ({
-    name: periodIdToName(a.id, true),
-    tree: simplePriceRatioTree({
+  const toChart = (a) => {
+    const name = periodIdToName(a.id, true);
+    const [chart] = simplePriceRatioTree({
       pattern: a.ratio,
-      title: `${periodIdToName(a.id, true)} ${label}`,
+      title: `${name} ${label}`,
       legend: "Average",
       color: a.color,
-    }),
-  });
+    });
+    return { ...chart, name };
+  };
 
   return {
     name: label,
@@ -106,8 +107,8 @@ function createMaSubSection(label, averages) {
           }),
         ),
       },
-      ...common.map(toFolder),
-      { name: "More...", tree: more.map(toFolder) },
+      ...common.map(toChart),
+      { name: "More...", tree: more.map(toChart) },
     ],
   };
 }

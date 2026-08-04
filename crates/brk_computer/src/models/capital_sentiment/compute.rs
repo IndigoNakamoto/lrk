@@ -1,16 +1,14 @@
-use std::collections::VecDeque;
-
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CapitalSentimentPhase, Cents, Day1, StoredBool, StoredU8, Version};
+use brk_types::{CapitalSentimentPhase, Cents, Day1, Height, StoredBool, StoredU8, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
 
 use super::Vecs;
 use crate::{
-    distribution, indexes, internal::db_utils::validate_any_computed_version_or_reset, price,
+    distribution, indexes, internal::db_utils::validate_any_computed_version_or_reset, market,
+    price,
 };
 
-const PRICE_SMA_DAYS: usize = 365;
 const WRITE_INTERVAL_DAYS: usize = 1_000;
 
 impl Vecs {
@@ -20,9 +18,11 @@ impl Vecs {
         indexes: &indexes::Vecs,
         prices: &price::Vecs,
         distribution: &distribution::Vecs,
+        moving_average: &market::MovingAverageVecs,
         exit: &Exit,
     ) -> Result<()> {
-        let close = &prices.split.close.cents.day1;
+        let spot = &prices.spot.cents.height;
+        let sma = &moving_average.sma._1y.cents.height;
         let all = &distribution
             .utxo_cohorts
             .all
@@ -31,7 +31,7 @@ impl Vecs {
             .capitalized
             .price
             .cents
-            .day1;
+            .height;
         let sth = &distribution
             .utxo_cohorts
             .sth
@@ -40,7 +40,7 @@ impl Vecs {
             .capitalized
             .price
             .cents
-            .day1;
+            .height;
         let lth = &distribution
             .utxo_cohorts
             .lth
@@ -49,24 +49,28 @@ impl Vecs {
             .capitalized
             .price
             .cents
-            .day1;
+            .height;
+        let first_height = &indexes.day1.first_height;
 
-        let source_version: Version = [close.version(), all.version(), sth.version(), lth.version()]
+        let source_version: Version = [
+            spot.version(),
+            sma.version(),
+            all.version(),
+            sth.version(),
+            lth.version(),
+            first_height.version(),
+        ]
         .into_iter()
         .sum();
         validate_any_computed_version_or_reset(&mut self.phase_code.day1, source_version)?;
         validate_any_computed_version_or_reset(&mut self.is_long.day1, source_version)?;
 
-        let source_end = [
-            indexes.day1.date.len(),
-            close.len(),
-            all.len(),
-            sth.len(),
-            lth.len(),
-        ]
+        let height_end = [spot.len(), sma.len(), all.len(), sth.len(), lth.len()]
             .into_iter()
             .min()
             .unwrap_or_default();
+        let first_heights = first_height.collect();
+        let source_end = indexes.day1.date.len().min(first_heights.len());
         let recompute_from = recompute_day(indexer, indexes)
             .map(usize::from)
             .unwrap_or_default();
@@ -85,28 +89,24 @@ impl Vecs {
             .map(Day1::from)
             .and_then(|day| self.is_long.day1.collect_one(day))
             .is_some_and(|value| value.is_true());
-        let mut previous_over_sth = start
-            .checked_sub(1)
-            .map(Day1::from)
-            .map(|day| {
-                is_over_sth(
-                    close.collect_one(day).flatten(),
-                    sth.collect_one(day).flatten(),
-                )
-            });
-        let mut sma = RollingSma::from_history(close, start);
-
+        let mut previous_over_sth = start.checked_sub(1).map(|day| {
+            let height = last_height_of_day(&first_heights, day, height_end);
+            is_over_sth(
+                height.and_then(|height| spot.collect_one(height)),
+                height.and_then(|height| sth.collect_one(height)),
+            )
+        });
         for day_index in start..source_end {
-            let day = Day1::from(day_index);
-            let price = close.collect_one(day).flatten();
-            let sth = sth.collect_one(day).flatten();
-            let over_sth = is_over_sth(price, sth);
+            let height = last_height_of_day(&first_heights, day_index, height_end);
+            let price = height.and_then(|height| spot.collect_one(height));
+            let sth_price = height.and_then(|height| sth.collect_one(height));
+            let over_sth = is_over_sth(price, sth_price);
             let code = classify_phase_code(
                 price,
-                all.collect_one(day).flatten(),
-                sth,
-                lth.collect_one(day).flatten(),
-                sma.observe(price),
+                height.and_then(|height| all.collect_one(height)),
+                sth_price,
+                height.and_then(|height| lth.collect_one(height)),
+                height.and_then(|height| sma.collect_one(height)),
             );
             is_long = next_is_long(is_long, previous_over_sth, over_sth, code);
 
@@ -114,9 +114,7 @@ impl Vecs {
             self.is_long.day1.push(StoredBool::from(is_long));
             previous_over_sth = Some(over_sth);
 
-            if (day_index + 1).is_multiple_of(WRITE_INTERVAL_DAYS)
-                || day_index + 1 == source_end
-            {
+            if (day_index + 1).is_multiple_of(WRITE_INTERVAL_DAYS) || day_index + 1 == source_end {
                 let _lock = exit.lock();
                 self.phase_code.day1.write()?;
                 self.is_long.day1.write()?;
@@ -127,36 +125,14 @@ impl Vecs {
     }
 }
 
-#[derive(Default)]
-struct RollingSma {
-    values: VecDeque<u64>,
-    sum: u128,
-}
-
-impl RollingSma {
-    fn from_history(
-        source: &impl ReadableVec<Day1, Option<Cents>>,
-        end: usize,
-    ) -> Self {
-        let mut sma = Self::default();
-        source.for_each_range_at(0, end, |price| {
-            let _ = sma.observe(price);
-        });
-        sma
-    }
-
-    /// Observe one daily close and return the sum of the latest 365 valid closes.
-    fn observe(&mut self, price: Option<Cents>) -> Option<u128> {
-        if let Some(price) = price.filter(|price| is_finite_positive(*price)) {
-            let price = price.inner();
-            self.values.push_back(price);
-            self.sum += u128::from(price);
-            if self.values.len() > PRICE_SMA_DAYS {
-                self.sum -= u128::from(self.values.pop_front().unwrap());
-            }
-        }
-        (self.values.len() == PRICE_SMA_DAYS).then_some(self.sum)
-    }
+fn last_height_of_day(first_heights: &[Height], day: usize, height_end: usize) -> Option<Height> {
+    let first = first_heights.get(day)?.to_usize().min(height_end);
+    let end = first_heights
+        .get(day + 1)
+        .map(|height| height.to_usize())
+        .unwrap_or(height_end)
+        .min(height_end);
+    (first < end).then(|| Height::from(end - 1))
 }
 
 /// Advance the stateful short/long strategy used by BRK Signal.
@@ -166,8 +142,7 @@ fn next_is_long(
     over_sth: bool,
     phase_code: StoredU8,
 ) -> bool {
-    let crossed_above_sth =
-        previous_over_sth.is_some_and(|previous| !previous && over_sth);
+    let crossed_above_sth = previous_over_sth.is_some_and(|previous| !previous && over_sth);
 
     if !is_long && crossed_above_sth {
         return true;
@@ -186,11 +161,9 @@ fn is_finite_positive(value: Cents) -> bool {
 
 #[inline]
 fn is_over_sth(price: Option<Cents>, sth: Option<Cents>) -> bool {
-    price
-        .zip(sth)
-        .is_some_and(|(price, sth)| {
-            is_finite_positive(price) && is_finite_positive(sth) && price >= sth
-        })
+    price.zip(sth).is_some_and(|(price, sth)| {
+        is_finite_positive(price) && is_finite_positive(sth) && price >= sth
+    })
 }
 
 /// Code `0` means the capitalized-price references are not all available yet.
@@ -199,7 +172,7 @@ fn classify_phase_code(
     all: Option<Cents>,
     sth: Option<Cents>,
     lth: Option<Cents>,
-    sma_sum: Option<u128>,
+    sma: Option<Cents>,
 ) -> StoredU8 {
     let Some((price, all, sth, lth)) = price
         .zip(all)
@@ -215,26 +188,24 @@ fn classify_phase_code(
         return StoredU8::ZERO;
     };
 
-    StoredU8::new(classify_phase(price, all, sth, lth, sma_sum).code())
+    StoredU8::new(classify_phase(price, all, sth, lth, sma).code())
 }
 
 /// Classify investor sentiment from the three capitalized-price references,
-/// using the 365-daily-close SMA only as confirmation and disambiguation.
+/// using the one-year price SMA only as confirmation and disambiguation.
 fn classify_phase(
     price: Cents,
     all: Cents,
     sth: Cents,
     lth: Cents,
-    sma_sum: Option<u128>,
+    sma: Option<Cents>,
 ) -> CapitalSentimentPhase {
     use CapitalSentimentPhase as Phase;
 
-    let price_x_days = price.as_u128() * PRICE_SMA_DAYS as u128;
-    let all_x_days = all.as_u128() * PRICE_SMA_DAYS as u128;
     let above_all = price >= all;
     let above_sth = price >= sth;
     let above_lth = price >= lth;
-    let above_sma = sma_sum.is_some_and(|sma| price_x_days >= sma);
+    let above_sma = sma.is_some_and(|sma| price >= sma);
     let bull_structure = sth > lth;
     let above_slow_refs = above_all && above_lth;
     let above_any_slow_ref = above_all || above_lth;
@@ -242,9 +213,9 @@ fn classify_phase(
         .into_iter()
         .filter(|reference| *reference > price)
         .count()
-        + usize::from(sma_sum.is_some_and(|sma| sma > price_x_days));
+        + usize::from(sma.is_some_and(|sma| sma > price));
     let price_in_middle = references_above_price == 2;
-    let core_bull_phase = if sma_sum.is_some_and(|sma| all_x_days > sma) {
+    let core_bull_phase = if sma.is_some_and(|sma| all > sma) {
         Phase::RagingBull
     } else {
         Phase::Bull
@@ -255,7 +226,7 @@ fn classify_phase(
         Phase::Bear
     };
 
-    if sma_sum.is_none() {
+    if sma.is_none() {
         if bull_structure {
             if above_sth {
                 return if above_slow_refs {
@@ -338,13 +309,43 @@ mod tests {
         Cents::new(value)
     }
 
+    #[test]
+    fn samples_each_days_last_available_block() {
+        let first_heights = [0_usize, 2, 2, 5].map(Height::from);
+
+        assert_eq!(
+            last_height_of_day(&first_heights, 0, 7),
+            Some(Height::from(1_usize))
+        );
+        assert_eq!(last_height_of_day(&first_heights, 1, 7), None);
+        assert_eq!(
+            last_height_of_day(&first_heights, 2, 7),
+            Some(Height::from(4_usize))
+        );
+        assert_eq!(
+            last_height_of_day(&first_heights, 3, 7),
+            Some(Height::from(6_usize))
+        );
+    }
+
+    #[test]
+    fn sampling_clamps_the_current_day_to_the_shared_source_length() {
+        let first_heights = [0_usize, 2, 5].map(Height::from);
+
+        assert_eq!(
+            last_height_of_day(&first_heights, 1, 4),
+            Some(Height::from(3_usize))
+        );
+        assert_eq!(last_height_of_day(&first_heights, 2, 4), None);
+    }
+
     fn classify(price: u64, all: u64, sth: u64, lth: u64, sma: u64) -> CapitalSentimentPhase {
         classify_phase(
             cents(price),
             cents(all),
             cents(sth),
             cents(lth),
-            Some(u128::from(sma) * PRICE_SMA_DAYS as u128),
+            Some(cents(sma)),
         )
     }
 
@@ -407,14 +408,14 @@ mod tests {
                 Some(cents(70)),
                 Some(cents(80)),
                 None,
-                Some(u128::from(50_u64) * PRICE_SMA_DAYS as u128),
+                Some(cents(50)),
             ),
             StoredU8::ZERO
         );
     }
 
     #[test]
-    fn phase_is_available_before_the_sma_window_is_full() {
+    fn phase_is_available_without_sma() {
         assert_eq!(
             classify_phase(cents(100), cents(70), cents(80), cents(60), None),
             CapitalSentimentPhase::Bull

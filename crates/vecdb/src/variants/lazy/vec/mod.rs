@@ -10,8 +10,6 @@ pub use transform::*;
 
 use crate::{ReadableBoxedVec, VecIndex, VecValue, Version};
 
-pub type ComputeFrom1<I, T, S1T> = fn(I, S1T) -> T;
-
 /// Lazily computed vector deriving values on-the-fly from one source vector.
 ///
 /// Unlike `EagerVec`, no data is stored on disk. Values are computed during
@@ -22,7 +20,7 @@ pub type ComputeFrom1<I, T, S1T> = fn(I, S1T) -> T;
 ///
 /// For frequently accessed derived data, prefer `EagerVec` for better performance.
 #[derive(Clone)]
-pub struct LazyVecFrom1<I, T, S1I, S1T>
+pub struct LazyVec<I, T, S1I, S1T>
 where
     S1I: VecIndex,
     S1T: VecValue,
@@ -30,10 +28,10 @@ where
     pub(super) name: Arc<str>,
     pub(super) base_version: Version,
     pub(super) source: ReadableBoxedVec<S1I, S1T>,
-    pub(super) compute: ComputeFrom1<I, T, S1T>,
+    pub(super) compute: fn(I, S1T) -> T,
 }
 
-impl<I, T, S1I, S1T> LazyVecFrom1<I, T, S1I, S1T>
+impl<I, T, S1I, S1T> LazyVec<I, T, S1I, S1T>
 where
     I: VecIndex,
     T: VecValue,
@@ -44,12 +42,12 @@ where
         name: &str,
         version: Version,
         source: ReadableBoxedVec<S1I, S1T>,
-        compute: ComputeFrom1<I, T, S1T>,
+        compute: fn(I, S1T) -> T,
     ) -> Self {
         assert_eq!(
             I::to_string(),
             S1I::to_string(),
-            "LazyVecFrom1 index type mismatch: expected {}, got {}",
+            "LazyVec index type mismatch: expected {}, got {}",
             I::to_string(),
             S1I::to_string()
         );
@@ -63,14 +61,14 @@ where
     }
 }
 
-impl<I, T, S1T> LazyVecFrom1<I, T, I, S1T>
+impl<I, T, S1T> LazyVec<I, T, I, S1T>
 where
     I: VecIndex,
     T: VecValue,
     S1T: VecValue,
 {
     /// Create a lazy vec with a generic transform.
-    /// Usage: `LazyVecFrom1::transformed::<Negate>(name, v, source)`
+    /// Usage: `LazyVec::transformed::<Negate>(name, v, source)`
     pub fn transformed<F: UnaryTransform<S1T, T>>(
         name: &str,
         version: Version,

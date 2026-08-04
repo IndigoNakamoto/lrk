@@ -243,9 +243,9 @@ impl Vecs {
 
             txout_cursor.advance(block_first_tx - txout_cursor.position());
             tx_starts.clear();
-            for _ in 0..tx_count {
-                tx_starts.push(txout_cursor.next().unwrap().to_usize());
-            }
+            txout_cursor.for_each(tx_count, |txout_index| {
+                tx_starts.push(txout_index.to_usize());
+            });
             let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
             indexer

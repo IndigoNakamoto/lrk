@@ -8,6 +8,7 @@ use crate::{
     tree::sealed::SealedMemtables,
     version::{Version, persist_version},
 };
+use arc_swap::ArcSwap;
 use std::{collections::VecDeque, path::Path, sync::Arc};
 
 /// A super version is a point-in-time snapshot of memtables and a [`Version`] (list of disk files)
@@ -26,25 +27,30 @@ pub struct SuperVersion {
     pub(crate) seqno: SeqNo,
 }
 
-pub struct SuperVersions(VecDeque<Arc<SuperVersion>>);
+pub struct SuperVersions {
+    versions: VecDeque<Arc<SuperVersion>>,
+    latest: Arc<ArcSwap<SuperVersion>>,
+}
 
 impl SuperVersions {
     pub fn new(version: Version) -> Self {
-        Self(
-            vec![Arc::new(SuperVersion {
-                active_memtable: Arc::new(Memtable::new(0)),
-                sealed_memtables: Arc::default(),
-                version,
-                seqno: 0,
-            })]
-            .into(),
-        )
+        let version = Arc::new(SuperVersion {
+            active_memtable: Arc::new(Memtable::new(0)),
+            sealed_memtables: Arc::default(),
+            version,
+            seqno: 0,
+        });
+
+        Self {
+            versions: vec![version.clone()].into(),
+            latest: Arc::new(ArcSwap::from(version)),
+        }
     }
 
     pub fn memtable_size_sum(&self) -> u64 {
         let mut set = crate::HashMap::default();
 
-        for super_version in &self.0 {
+        for super_version in &self.versions {
             set.entry(super_version.active_memtable.id)
                 .and_modify(|bytes| *bytes += super_version.active_memtable.size())
                 .or_insert_with(|| super_version.active_memtable.size());
@@ -60,7 +66,7 @@ impl SuperVersions {
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.versions.len()
     }
 
     pub fn free_list_len(&self) -> usize {
@@ -78,9 +84,9 @@ impl SuperVersions {
 
         log::trace!("Running manifest GC with watermark={gc_watermark}");
 
-        if let Some(hi_idx) = self.0.iter().rposition(|x| x.seqno < gc_watermark) {
+        if let Some(hi_idx) = self.versions.iter().rposition(|x| x.seqno < gc_watermark) {
             for _ in 0..hi_idx {
-                let Some(head) = self.0.front() else {
+                let Some(head) = self.versions.front() else {
                     break;
                 };
 
@@ -95,11 +101,14 @@ impl SuperVersions {
                     crate::file::retry_transient_io(|| std::fs::remove_file(&path))?;
                 }
 
-                self.0.pop_front();
+                self.versions.pop_front();
             }
         }
 
-        log::trace!("Manifest GC done, version length now {}", self.0.len());
+        log::trace!(
+            "Manifest GC done, version length now {}",
+            self.versions.len()
+        );
 
         Ok(())
     }
@@ -146,43 +155,43 @@ impl SuperVersions {
     }
 
     pub fn append_version(&mut self, version: SuperVersion) {
-        self.0.push_back(Arc::new(version));
+        let version = Arc::new(version);
+        self.versions.push_back(version.clone());
+        self.latest.store(version);
     }
 
     pub fn replace_latest_version(&mut self, version: SuperVersion) {
-        if self.0.pop_back().is_some() {
-            self.0.push_back(Arc::new(version));
+        if let Some(latest) = self.versions.back_mut() {
+            let version = Arc::new(version);
+            *latest = version.clone();
+            self.latest.store(version);
         }
     }
 
     pub fn latest_version(&self) -> SuperVersion {
         #[expect(clippy::expect_used, reason = "SuperVersion is expected to exist")]
-        self.0
+        self.versions
             .back()
             .map(|version| version.as_ref().clone())
             .expect("should always have a SuperVersion")
     }
 
-    pub(crate) fn latest_version_arc(&self) -> Arc<SuperVersion> {
-        #[expect(clippy::expect_used, reason = "SuperVersion is expected to exist")]
-        self.0
-            .back()
-            .cloned()
-            .expect("should always have a SuperVersion")
+    pub(crate) fn latest_version_reader(&self) -> Arc<ArcSwap<SuperVersion>> {
+        self.latest.clone()
     }
 
     pub(crate) fn get_version_arc_for_snapshot(&self, seqno: SeqNo) -> Arc<SuperVersion> {
         if seqno == 0 {
             #[expect(clippy::expect_used, reason = "SuperVersion is expected to exist")]
             return self
-                .0
+                .versions
                 .front()
                 .cloned()
                 .expect("should always find a SuperVersion");
         }
 
         let version = self
-            .0
+            .versions
             .iter()
             .rev()
             .find(|version| version.seqno < seqno)
@@ -192,7 +201,7 @@ impl SuperVersions {
             log::error!("Failed to find a SuperVersion for snapshot with seqno={seqno}");
             log::error!("SuperVersions:");
 
-            for version in self.0.iter().rev() {
+            for version in self.versions.iter().rev() {
                 log::error!("-> {}, seqno={}", version.version.id(), version.seqno);
             }
         }
@@ -207,7 +216,17 @@ impl SuperVersions {
 
     #[cfg(test)]
     fn from_versions(versions: VecDeque<SuperVersion>) -> Self {
-        Self(versions.into_iter().map(Arc::new).collect())
+        let versions: VecDeque<_> = versions.into_iter().map(Arc::new).collect();
+        #[expect(clippy::expect_used, reason = "test histories are non-empty")]
+        let latest = versions
+            .back()
+            .cloned()
+            .expect("history should not be empty");
+
+        Self {
+            versions,
+            latest: Arc::new(ArcSwap::from(latest)),
+        }
     }
 }
 
@@ -215,6 +234,26 @@ impl SuperVersions {
 mod tests {
     use super::*;
     use test_log::test;
+
+    #[test]
+    fn latest_reader_tracks_publications() {
+        let mut history = SuperVersions::new(Version::new(0));
+        let reader = history.latest_version_reader();
+        let original = reader.load_full();
+
+        let mut appended = history.latest_version();
+        appended.version = Version::new(1);
+        history.append_version(appended);
+
+        assert_eq!(original.version.id(), 0);
+        assert_eq!(reader.load().version.id(), 1);
+
+        let mut replacement = history.latest_version();
+        replacement.version = Version::new(2);
+        history.replace_latest_version(replacement);
+
+        assert_eq!(reader.load().version.id(), 2);
+    }
 
     #[test]
     fn super_version_gc_above_watermark() -> crate::Result<()> {

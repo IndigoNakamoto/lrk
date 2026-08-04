@@ -469,6 +469,7 @@ impl Computer {
                     &self.price,
                     &self.distribution,
                     &self.frameworks,
+                    &self.market.moving_average,
                     exit,
                 )
             })?;

@@ -29,7 +29,7 @@ All vecdb vector types implement `Traversable`:
 - `BytesVec`, `EagerVec`, `PcoVec` (with `pco` feature)
 - `ZeroCopyVec` (with `zerocopy` feature)
 - `LZ4Vec`, `ZstdVec` (with respective features)
-- `LazyVecFrom1/2/3` for derived vectors
+- `LazyVec` for single-source derived vectors
 
 ## Feature Flags
 

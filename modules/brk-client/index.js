@@ -493,10 +493,10 @@ ancestors and no descendants (matches mempool.space).
  * Detailed series count with per-database breakdown
  *
  * @typedef {Object} DetailedSeriesCount
- * @property {number} distinctSeries - Number of unique series available (e.g., realized_price, market_cap)
- * @property {number} totalEndpoints - Total number of series-index combinations across all timeframes
- * @property {number} lazyEndpoints - Number of lazy (computed on-the-fly) series-index combinations
- * @property {number} storedEndpoints - Number of eager (stored on disk) series-index combinations
+ * @property {number} distinct - Number of unique series available (e.g., realized_price, market_cap)
+ * @property {number} total - Total number of series-index combinations across all timeframes
+ * @property {number} lazy - Number of lazy (computed on-the-fly) series-index combinations
+ * @property {number} stored - Number of eager (stored on disk) series-index combinations
  * @property {{ [key: string]: SeriesCount }} byDb - Per-database breakdown of counts
  */
 /**
@@ -1092,13 +1092,13 @@ on serialization otherwise.
  * @property {Limit=} limit - Maximum number of results
  */
 /**
- * Series count statistics - distinct series and total series-index combinations
+ * Series count statistics
  *
  * @typedef {Object} SeriesCount
- * @property {number} distinctSeries - Number of unique series available (e.g., realized_price, market_cap)
- * @property {number} totalEndpoints - Total number of series-index combinations across all timeframes
- * @property {number} lazyEndpoints - Number of lazy (computed on-the-fly) series-index combinations
- * @property {number} storedEndpoints - Number of eager (stored on disk) series-index combinations
+ * @property {number} distinct - Number of unique series available (e.g., realized_price, market_cap)
+ * @property {number} total - Total number of series-index combinations across all timeframes
+ * @property {number} lazy - Number of lazy (computed on-the-fly) series-index combinations
+ * @property {number} stored - Number of eager (stored on disk) series-index combinations
  */
 /**
  * Metadata about a series

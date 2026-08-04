@@ -1,7 +1,7 @@
 import { brk } from "../../utils/client.js";
 import { colors } from "../../utils/colors.js";
 import { Unit } from "../../utils/units.js";
-import { histogram } from "../series.js";
+import { histogram, price } from "../series.js";
 
 /**
  * Create Capital Sentiment model section.
@@ -9,6 +9,30 @@ import { histogram } from "../series.js";
  */
 export function createCapitalSentimentSection() {
   const { capitalSentiment } = brk.series.models;
+  const { all, sth, lth } = brk.series.cohorts.utxo;
+  const sma = brk.series.market.movingAverage.sma._1y;
+  const references = () => [
+    price({
+      series: all.realized.capitalized.price,
+      name: "All",
+      color: colors.capitalized,
+    }),
+    price({
+      series: sth.realized.capitalized.price,
+      name: "STH",
+      color: colors.term.short,
+    }),
+    price({
+      series: lth.realized.capitalized.price,
+      name: "LTH",
+      color: colors.term.long,
+    }),
+    price({
+      series: sma,
+      name: "1Y SMA",
+      color: colors.time._1y,
+    }),
+  ];
 
   return {
     name: "Capital Sentiment",
@@ -16,6 +40,7 @@ export function createCapitalSentimentSection() {
       {
         name: "Score",
         title: "Capital Sentiment Score",
+        top: references(),
         bottom: [
           histogram({
             series: capitalSentiment.score,
@@ -35,6 +60,7 @@ export function createCapitalSentimentSection() {
       {
         name: "Position",
         title: "Capital Sentiment Position",
+        top: references(),
         bottom: [
           histogram({
             series: capitalSentiment.isLong,

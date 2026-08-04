@@ -9,15 +9,15 @@ use brk_types::{
 use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::{
-    AnyExportableVec, AnyVec, Database, EagerVec, Formattable, ImportableVec, LazyVecFrom1,
-    PcoVec, PcoVecValue, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
-    TypedVec, UnaryTransform, VecIndex, VecValue, short_type_name,
+    AnyExportableVec, AnyVec, Database, EagerVec, Formattable, ImportableVec, LazyVec, PcoVec,
+    PcoVecValue, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode, TypedVec,
+    UnaryTransform, VecIndex, VecValue, short_type_name,
 };
 
 use crate::indexes;
 
 type StoredDay<T, M> = <M as StorageMode>::Stored<EagerVec<PcoVec<Day1, T>>>;
-type DayMapping<I, T> = LazyVecFrom1<I, Day1, I, T>;
+type DayMapping<I, T> = LazyVec<I, Day1, I, T>;
 type Repeated<I, T> = DailyView<I, T, RepeatDay>;
 type Last<I, T> = DailyView<I, T, LastDay>;
 
@@ -49,7 +49,7 @@ pub(crate) struct DailyMappings {
 
 impl DailyMappings {
     pub(crate) fn new(indexes: &indexes::Vecs) -> Self {
-        let height = LazyVecFrom1::init(
+        let height = LazyVec::init(
             "day1",
             Version::ZERO,
             indexes.height.day1_read_only_boxed_clone(),
@@ -79,13 +79,13 @@ impl DailyMappings {
 fn timestamp_mapping<I: VecIndex>(
     source: ReadableBoxedVec<I, Timestamp>,
 ) -> DayMapping<I, Timestamp> {
-    LazyVecFrom1::init("day1", Version::ZERO, source, |_, timestamp| {
+    LazyVec::init("day1", Version::ZERO, source, |_, timestamp| {
         Day1::try_from(Date::from(timestamp)).unwrap_or_default()
     })
 }
 
 fn date_mapping<I: VecIndex>(source: ReadableBoxedVec<I, Date>) -> DayMapping<I, Date> {
-    LazyVecFrom1::init("day1", Version::ZERO, source, |_, date| {
+    LazyVec::init("day1", Version::ZERO, source, |_, date| {
         Day1::try_from(date).unwrap_or_default()
     })
 }
@@ -172,7 +172,7 @@ where
     }
 }
 
-type LazyDay<T, S> = LazyVecFrom1<Day1, T, Day1, S>;
+type LazyDay<T, S> = LazyVec<Day1, T, Day1, S>;
 
 #[derive(Clone, Traversable)]
 #[traversable(merge)]
@@ -200,7 +200,7 @@ where
     where
         F: UnaryTransform<S, T>,
     {
-        let day1 = LazyVecFrom1::transformed::<F>(name, version, source);
+        let day1 = LazyVec::transformed::<F>(name, version, source);
         let views = Box::new(DailyViews::new(
             name,
             day1.read_only_boxed_clone(),
@@ -540,7 +540,7 @@ fn last_source_index(mapping: &[Day1], index: usize, source_len: usize) -> Optio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brk_types::StoredF64;
+    use brk_types::{StoredBool, StoredF64};
     use vecdb::{AnyStoredVec, WritableVec};
 
     #[test]
@@ -602,6 +602,52 @@ mod tests {
                 Some(StoredF64::from(20.0)),
                 Some(StoredF64::from(30.0)),
                 None,
+            ]
+        );
+
+        drop(view);
+        drop(mapping);
+        drop(source);
+        drop(db);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn repeated_view_supports_stored_booleans() {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path =
+            std::env::temp_dir().join(format!("brk-daily-bool-{}-{suffix}", std::process::id()));
+        let db = Database::open(&path).unwrap();
+
+        let mut source: EagerVec<PcoVec<Day1, StoredBool>> =
+            EagerVec::forced_import(&db, "source", Version::ONE).unwrap();
+        let mut mapping: EagerVec<PcoVec<Height, Day1>> =
+            EagerVec::forced_import(&db, "mapping", Version::ONE).unwrap();
+        source.push(StoredBool::FALSE);
+        source.push(StoredBool::TRUE);
+        for day in [0, 0, 1, 1] {
+            mapping.push(Day1::from(day));
+        }
+        source.write().unwrap();
+        mapping.write().unwrap();
+
+        let view = DailyView::<Height, StoredBool, RepeatDay>::new(
+            "test",
+            Version::ONE,
+            source.read_only_boxed_clone(),
+            mapping.read_only_boxed_clone(),
+        );
+
+        assert_eq!(
+            view.collect_range_at(0, 4),
+            vec![
+                Some(StoredBool::FALSE),
+                Some(StoredBool::FALSE),
+                Some(StoredBool::TRUE),
+                Some(StoredBool::TRUE),
             ]
         );
 

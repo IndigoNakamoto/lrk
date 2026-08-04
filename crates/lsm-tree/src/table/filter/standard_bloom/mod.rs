@@ -77,14 +77,21 @@ impl<'a> StandardBloomFilterReader<'a> {
         )]
         let offset = reader.position() as usize;
 
-        #[expect(
-            clippy::expect_used,
-            reason = "offset is expected to be with slice bounds"
-        )]
+        let bytes = slice
+            .get(offset..)
+            .ok_or(crate::Error::InvalidHeader("BloomFilter"))?;
+        let bit_len = bytes
+            .len()
+            .checked_mul(8)
+            .ok_or(crate::Error::InvalidHeader("BloomFilter"))?;
+        if m == 0 || m != bit_len {
+            return Err(crate::Error::InvalidHeader("BloomFilter"));
+        }
+
         Ok(Self {
             k,
             m,
-            inner: BitArrayReader::new(slice.get(offset..).expect("should be in bounds")),
+            inner: BitArrayReader::new(bytes),
         })
     }
 
@@ -130,7 +137,11 @@ impl<'a> StandardBloomFilterReader<'a> {
 
     /// Returns `true` if the bit at `idx` is `1`.
     fn has_bit(&self, idx: usize) -> bool {
-        self.inner.get(idx)
+        debug_assert!(idx < self.m);
+
+        // SAFETY: construction validates that `m` matches the bit array, and
+        // callers derive `idx` modulo `m`.
+        unsafe { self.inner.get_unchecked(idx) }
     }
 
     /// Gets the hash of a key.
@@ -167,6 +178,18 @@ mod tests {
         assert!(!filter_copy.contains(b"cxycxycxy"));
 
         Ok(())
+    }
+
+    #[test]
+    fn filter_bloom_standard_rejects_truncated_bits() {
+        let filter = Builder::with_fp_rate(10, 0.0001);
+        let mut filter_bytes = filter.build();
+        filter_bytes.pop();
+
+        assert!(matches!(
+            StandardBloomFilterReader::new(&filter_bytes),
+            Err(crate::Error::InvalidHeader("BloomFilter"))
+        ));
     }
 
     #[test]

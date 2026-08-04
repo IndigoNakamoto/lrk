@@ -8,8 +8,9 @@ use crate::{
     config::Config,
     stop_signal::StopSignal,
     table::next_table_id,
-    version::{SuperVersions, Version, persist_version},
+    version::{SuperVersion, SuperVersions, Version, persist_version},
 };
+use arc_swap::ArcSwap;
 use std::sync::{Arc, Mutex, RwLock, atomic::AtomicU64};
 
 /// Unique tree ID
@@ -45,6 +46,8 @@ pub struct TreeInner {
 
     pub(crate) version_history: Arc<RwLock<SuperVersions>>,
 
+    pub(crate) latest_version: Arc<ArcSwap<SuperVersion>>,
+
     pub(crate) compaction_state: Arc<Mutex<CompactionState>>,
 
     /// Tree configuration
@@ -68,13 +71,16 @@ impl TreeInner {
     pub(crate) fn create_new(config: Config) -> crate::Result<Self> {
         let version = Version::new(0);
         persist_version(&config.path, &version)?;
+        let version_history = SuperVersions::new(version);
+        let latest_version = version_history.latest_version_reader();
 
         Ok(Self {
             id: get_next_tree_id(),
             memtable_id_counter: SequenceNumberCounter::new(1),
             table_id_counter: SequenceNumberCounter::default(),
             config: Arc::new(config),
-            version_history: Arc::new(RwLock::new(SuperVersions::new(version))),
+            version_history: Arc::new(RwLock::new(version_history)),
+            latest_version,
             stop_signal: StopSignal::default(),
             major_compaction_lock: RwLock::default(),
             flush_lock: Mutex::default(),

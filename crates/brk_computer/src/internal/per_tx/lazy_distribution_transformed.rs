@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{TxIndex, Version};
 use schemars::JsonSchema;
-use vecdb::{LazyVecFrom1, UnaryTransform};
+use vecdb::{LazyVec, UnaryTransform};
 
 use crate::internal::{ComputedVecValue, LazyTxDerivedDistribution, TxDerivedDistribution};
 
@@ -13,7 +13,7 @@ where
     S: ComputedVecValue,
     DSource: ComputedVecValue,
 {
-    pub tx_index: LazyVecFrom1<TxIndex, T, TxIndex, S>,
+    pub tx_index: LazyVec<TxIndex, T, TxIndex, S>,
     #[traversable(flatten)]
     pub distribution: LazyTxDerivedDistribution<T, DSource>,
 }
@@ -27,7 +27,7 @@ where
     pub(crate) fn new<F: UnaryTransform<DSource, T>>(
         name: &str,
         version: Version,
-        tx_index: LazyVecFrom1<TxIndex, T, TxIndex, S>,
+        tx_index: LazyVec<TxIndex, T, TxIndex, S>,
         source_distribution: &TxDerivedDistribution<DSource>,
     ) -> Self {
         let distribution =

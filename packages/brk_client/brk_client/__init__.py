@@ -944,34 +944,34 @@ class DataRangeFormat(TypedDict):
 
 class SeriesCount(TypedDict):
     """
-    Series count statistics - distinct series and total series-index combinations
+    Series count statistics
 
     Attributes:
-        distinct_series: Number of unique series available (e.g., realized_price, market_cap)
-        total_endpoints: Total number of series-index combinations across all timeframes
-        lazy_endpoints: Number of lazy (computed on-the-fly) series-index combinations
-        stored_endpoints: Number of eager (stored on disk) series-index combinations
+        distinct: Number of unique series available (e.g., realized_price, market_cap)
+        total: Total number of series-index combinations across all timeframes
+        lazy: Number of lazy (computed on-the-fly) series-index combinations
+        stored: Number of eager (stored on disk) series-index combinations
     """
-    distinct_series: int
-    total_endpoints: int
-    lazy_endpoints: int
-    stored_endpoints: int
+    distinct: int
+    total: int
+    lazy: int
+    stored: int
 
 class DetailedSeriesCount(TypedDict):
     """
     Detailed series count with per-database breakdown
 
     Attributes:
-        distinct_series: Number of unique series available (e.g., realized_price, market_cap)
-        total_endpoints: Total number of series-index combinations across all timeframes
-        lazy_endpoints: Number of lazy (computed on-the-fly) series-index combinations
-        stored_endpoints: Number of eager (stored on disk) series-index combinations
+        distinct: Number of unique series available (e.g., realized_price, market_cap)
+        total: Total number of series-index combinations across all timeframes
+        lazy: Number of lazy (computed on-the-fly) series-index combinations
+        stored: Number of eager (stored on disk) series-index combinations
         by_db: Per-database breakdown of counts
     """
-    distinct_series: int
-    total_endpoints: int
-    lazy_endpoints: int
-    stored_endpoints: int
+    distinct: int
+    total: int
+    lazy: int
+    stored: int
     by_db: dict[str, SeriesCount]
 
 class DifficultyAdjustment(TypedDict):

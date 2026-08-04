@@ -27,12 +27,9 @@ pub fn main() -> Result<()> {
     );
     println!("Time for BytesVec write_json: {:?}", start.elapsed());
 
-    // Test empty_addr_index (LazyVecFrom1 wrapper) - computed access
+    // Test empty_addr_index (LazyVec wrapper) - computed access
     let empty_index = &computer.distribution.addrs.empty_index;
-    println!(
-        "\nempty_addr_index (LazyVecFrom1) len: {}",
-        empty_index.len()
-    );
+    println!("\nempty_addr_index (LazyVec) len: {}", empty_index.len());
 
     let start = Instant::now();
     let mut buf = Vec::new();
@@ -45,7 +42,7 @@ pub fn main() -> Result<()> {
         "empty_addr_index last item JSON: {}",
         String::from_utf8_lossy(&buf)
     );
-    println!("Time for LazyVecFrom1 write_json: {:?}", start.elapsed());
+    println!("Time for LazyVec write_json: {:?}", start.elapsed());
 
     // Compare with funded versions
     let funded_data = &computer.distribution.addrs_data.funded;

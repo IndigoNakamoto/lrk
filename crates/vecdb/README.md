@@ -8,7 +8,7 @@ High-performance mutable persistent vectors built on [`rawdb`](../rawdb/README.m
 - **Multiple storage formats**:
   - **Raw**: `BytesVec`, `ZeroCopyVec` (uncompressed)
   - **Compressed**: `PcoVec`, `LZ4Vec`, `ZstdVec`
-- **Computed vectors**: `EagerVec` (stored computations), `LazyVecFrom1/2/3` (on-the-fly computation)
+- **Computed vectors**: `EagerVec` (stored computations), `LazyVec` (single-source on-the-fly computation)
 - **Rollback support**: Time-travel via stamped change deltas without full snapshots
 - **Sparse deletions**: Delete elements leaving holes, no reindexing required
 - **Thread-safe**: Concurrent reads with exclusive writes
@@ -144,14 +144,14 @@ let mut derived: EagerVec<BytesVec<usize, f64>> =
 // derived.compute_sma(&source, 20)?;
 ```
 
-**`LazyVecFrom1/2/3<...>`** - Lazily computed vectors from 1-3 source vectors
+**`LazyVec<...>`** - Lazily computed vector from one source vector
 
 Values computed on-the-fly during iteration, nothing stored on disk. Use for temporary views or simple transformations.
 
 ```rust,ignore
-use vecdb::LazyVecFrom1;
+use vecdb::LazyVec;
 
-let lazy = LazyVecFrom1::init(
+let lazy = LazyVec::init(
     "computed",
     Version::TWO,
     Box::new(source.clone()),  // ScannableBoxedVec

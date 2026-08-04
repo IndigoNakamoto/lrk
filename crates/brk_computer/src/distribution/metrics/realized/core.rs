@@ -5,7 +5,7 @@ use brk_types::{
     Bitcoin, Cents, CentsSigned, Dollars, Height, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
-use vecdb::{AnyStoredVec, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, Exit, LazyVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
 
 use crate::{
     distribution::state::{CohortState, CostBasisOps, RealizedOps},
@@ -23,7 +23,7 @@ use super::RealizedMinimal;
 #[derive(Clone, Traversable)]
 pub struct NegRealizedLoss {
     #[traversable(flatten)]
-    pub base: LazyVecFrom1<Height, Dollars, Height, Cents>,
+    pub base: LazyVec<Height, Dollars, Height, Cents>,
     pub sum: Windows<LazyPerBlock<Dollars, Cents>>,
 }
 
@@ -57,7 +57,7 @@ impl RealizedCore {
 
         let minimal = RealizedMinimal::forced_import(cfg)?;
 
-        let neg_loss_base = LazyVecFrom1::transformed::<NegCentsUnsignedToDollars>(
+        let neg_loss_base = LazyVec::transformed::<NegCentsUnsignedToDollars>(
             &cfg.name("realized_loss_neg"),
             cfg.version + Version::ONE,
             minimal.loss.block.cents.read_only_boxed_clone(),

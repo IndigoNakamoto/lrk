@@ -3,7 +3,7 @@ use brk_types::{Height, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    LazyVecFrom1, PcoVecValue, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec, ReadableVec,
+    LazyVec, PcoVecValue, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec, ReadableVec,
     TypedVec, UnaryTransform, VecValue,
 };
 
@@ -21,7 +21,7 @@ where
     T: VecValue + PartialOrd + JsonSchema,
     S1T: VecValue,
 {
-    pub height: LazyVecFrom1<Height, T, Height, S1T>,
+    pub height: LazyVec<Height, T, Height, S1T>,
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
@@ -40,7 +40,7 @@ where
         resolutions: &Resolutions<S1T>,
     ) -> Self {
         Self {
-            height: LazyVecFrom1::transformed::<F>(name, version, height_source),
+            height: LazyVec::transformed::<F>(name, version, height_source),
             resolutions: Box::new(DerivedResolutions::from_derived_computed::<F>(
                 name,
                 version,
@@ -84,11 +84,7 @@ where
         V: TypedVec<I = Height, T = S1T> + ReadableVec<Height, S1T> + Clone + 'static,
     {
         Self {
-            height: LazyVecFrom1::transformed::<F>(
-                name,
-                version,
-                height_source.read_only_boxed_clone(),
-            ),
+            height: LazyVec::transformed::<F>(name, version, height_source.read_only_boxed_clone()),
             resolutions: Box::new(DerivedResolutions::from_height_source::<F, V>(
                 name,
                 version,
@@ -114,11 +110,7 @@ where
             Resolutions::forced_import_uncached(name, height_source.clone(), version, indexes);
 
         Self {
-            height: LazyVecFrom1::transformed::<F>(
-                name,
-                version,
-                height_source.read_only_boxed_clone(),
-            ),
+            height: LazyVec::transformed::<F>(name, version, height_source.read_only_boxed_clone()),
             resolutions: Box::new(DerivedResolutions::from_derived_computed::<F>(
                 name,
                 version,
@@ -138,11 +130,7 @@ where
         S2T: ComputedVecValue + JsonSchema,
     {
         Self {
-            height: LazyVecFrom1::transformed::<F>(
-                name,
-                version,
-                source.height.read_only_boxed_clone(),
-            ),
+            height: LazyVec::transformed::<F>(name, version, source.height.read_only_boxed_clone()),
             resolutions: Box::new(DerivedResolutions::from_lazy::<F, S2T>(
                 name,
                 version,
@@ -167,7 +155,7 @@ where
     where
         S: VecValue,
     {
-        let indexed = LazyVecFrom1::init(
+        let indexed = LazyVec::init(
             &format!("{name}_source"),
             version,
             source.read_only_boxed_clone(),
@@ -188,7 +176,7 @@ where
     where
         S: VecValue,
     {
-        let indexed = LazyVecFrom1::init(
+        let indexed = LazyVec::init(
             &format!("{name}_source"),
             version,
             source.read_only_boxed_clone(),

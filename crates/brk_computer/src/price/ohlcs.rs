@@ -7,7 +7,7 @@ use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::{
-    BytesVecValue, CachedBoxedVec, Formattable, LazyVecFrom1, ReadableCloneableVec, UnaryTransform,
+    BytesVecValue, CachedBoxedVec, Formattable, LazyVec, ReadableCloneableVec, UnaryTransform,
 };
 
 use crate::{
@@ -88,7 +88,7 @@ where
     ) -> Self {
         macro_rules! period {
             ($idx:ident) => {
-                LazyVecFrom1::transformed::<Transform>(
+                LazyVec::transformed::<Transform>(
                     name,
                     version,
                     source.$idx.read_only_boxed_clone(),
@@ -121,21 +121,21 @@ where
 pub struct LazyOhlcVecs<T, S>(
     #[allow(clippy::type_complexity)]
     pub  PerResolution<
-        LazyVecFrom1<Minute10, T, Minute10, S>,
-        LazyVecFrom1<Minute30, T, Minute30, S>,
-        LazyVecFrom1<Hour1, T, Hour1, S>,
-        LazyVecFrom1<Hour4, T, Hour4, S>,
-        LazyVecFrom1<Hour12, T, Hour12, S>,
-        LazyVecFrom1<Day1, T, Day1, S>,
-        LazyVecFrom1<Day3, T, Day3, S>,
-        LazyVecFrom1<Week1, T, Week1, S>,
-        LazyVecFrom1<Month1, T, Month1, S>,
-        LazyVecFrom1<Month3, T, Month3, S>,
-        LazyVecFrom1<Month6, T, Month6, S>,
-        LazyVecFrom1<Year1, T, Year1, S>,
-        LazyVecFrom1<Year10, T, Year10, S>,
-        LazyVecFrom1<Halving, T, Halving, S>,
-        LazyVecFrom1<Epoch, T, Epoch, S>,
+        LazyVec<Minute10, T, Minute10, S>,
+        LazyVec<Minute30, T, Minute30, S>,
+        LazyVec<Hour1, T, Hour1, S>,
+        LazyVec<Hour4, T, Hour4, S>,
+        LazyVec<Hour12, T, Hour12, S>,
+        LazyVec<Day1, T, Day1, S>,
+        LazyVec<Day3, T, Day3, S>,
+        LazyVec<Week1, T, Week1, S>,
+        LazyVec<Month1, T, Month1, S>,
+        LazyVec<Month3, T, Month3, S>,
+        LazyVec<Month6, T, Month6, S>,
+        LazyVec<Year1, T, Year1, S>,
+        LazyVec<Year10, T, Year10, S>,
+        LazyVec<Halving, T, Halving, S>,
+        LazyVec<Epoch, T, Epoch, S>,
     >,
 )
 where
@@ -153,7 +153,7 @@ where
     ) -> Self {
         macro_rules! period {
             ($idx:ident) => {
-                LazyVecFrom1::transformed::<Transform>(
+                LazyVec::transformed::<Transform>(
                     name,
                     version,
                     source.$idx.read_only_boxed_clone(),

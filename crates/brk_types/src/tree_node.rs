@@ -936,10 +936,10 @@ mod tests {
 
     // ========== Case 7: LazyBlockValue ==========
     // LazyBlockValue (no merge):
-    //   - sats: LazyVecFrom1 with wrap="sats"
+    //   - sats: LazyVec with wrap="sats"
     //   - rest: LazyDerivedBlockValue with flatten
-    //     - bitcoin: LazyVecFrom1 (plain field)
-    //     - dollars: Option<LazyVecFrom2> (plain field)
+    //     - bitcoin: LazyVec (plain field)
+    //     - dollars: optional derived vector (plain field)
 
     #[test]
     fn case7_lazy_block_value() {

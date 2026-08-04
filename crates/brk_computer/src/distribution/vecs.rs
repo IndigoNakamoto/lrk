@@ -11,7 +11,7 @@ use brk_types::{
 use rayon::prelude::*;
 use tracing::{debug, info};
 use vecdb::{
-    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportOptions, ImportableVec, LazyVecFrom1,
+    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportOptions, ImportableVec, LazyVec,
     ReadableCloneableVec, ReadableVec, Rw, Stamp, StorageMode, WritableVec,
 };
 
@@ -55,10 +55,9 @@ pub struct AddrMetricsVecs<M: StorageMode = Rw> {
     pub delta: DeltaVecs,
     pub avg_amount: AvgAmountVecs<M>,
     #[traversable(wrap = "indexes", rename = "funded")]
-    pub funded_index:
-        LazyVecFrom1<FundedAddrIndex, FundedAddrIndex, FundedAddrIndex, FundedAddrData>,
+    pub funded_index: LazyVec<FundedAddrIndex, FundedAddrIndex, FundedAddrIndex, FundedAddrData>,
     #[traversable(wrap = "indexes", rename = "empty")]
-    pub empty_index: LazyVecFrom1<EmptyAddrIndex, EmptyAddrIndex, EmptyAddrIndex, EmptyAddrData>,
+    pub empty_index: LazyVec<EmptyAddrIndex, EmptyAddrIndex, EmptyAddrIndex, EmptyAddrData>,
 }
 
 impl AddrMetricsVecs {
@@ -230,13 +229,13 @@ impl Vecs {
         )?;
 
         // Identity mappings for traversable
-        let funded_addr_index = LazyVecFrom1::init(
+        let funded_addr_index = LazyVec::init(
             "funded_addr_index",
             funded_addr_data_version,
             funded_addr_index_to_funded_addr_data.read_only_boxed_clone(),
             |index, _| index,
         );
-        let empty_addr_index = LazyVecFrom1::init(
+        let empty_addr_index = LazyVec::init(
             "empty_addr_index",
             version,
             empty_addr_index_to_empty_addr_data.read_only_boxed_clone(),

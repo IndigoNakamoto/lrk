@@ -20,7 +20,7 @@ where
     ) -> Result<()>
     where
         O: ReadableVec<V::I, V::T>,
-        F: Fn(&[Vec<V::T>], usize) -> V::T,
+        F: Fn(&mut V::T, V::T),
     {
         if others.is_empty() {
             return Err(Error::InvalidArgument(
@@ -40,13 +40,18 @@ where
                     return Ok(());
                 }
 
-                let batches: Vec<Vec<V::T>> = others
-                    .iter()
-                    .map(|v| v.collect_range_at(skip, end))
-                    .collect();
+                let mut batches = others.iter().map(|v| v.collect_range_at(skip, end));
+                let mut aggregated = batches.next().unwrap();
 
-                for j in 0..(end - skip) {
-                    this.push(aggregate(&batches, j));
+                for batch in batches {
+                    debug_assert_eq!(aggregated.len(), batch.len());
+                    for (value, other) in aggregated.iter_mut().zip(batch) {
+                        aggregate(value, other);
+                    }
+                }
+
+                for value in aggregated {
+                    this.push(value);
                 }
 
                 Ok(())
@@ -64,12 +69,8 @@ where
         O: ReadableVec<V::I, V::T>,
         V::T: Add<V::T, Output = V::T>,
     {
-        self.compute_aggregate_of_others(max_from, others, exit, |batches, j| {
-            batches
-                .iter()
-                .map(|b| b[j].clone())
-                .reduce(|sum, v| sum + v)
-                .unwrap()
+        self.compute_aggregate_of_others(max_from, others, exit, |sum, value| {
+            *sum = sum.clone() + value;
         })
     }
 
@@ -83,8 +84,10 @@ where
         O: ReadableVec<V::I, V::T>,
         V::T: Add<V::T, Output = V::T> + Ord,
     {
-        self.compute_aggregate_of_others(max_from, others, exit, |batches, j| {
-            batches.iter().map(|b| &b[j]).min().unwrap().clone()
+        self.compute_aggregate_of_others(max_from, others, exit, |min, value| {
+            if value.lt(min) {
+                *min = value;
+            }
         })
     }
 
@@ -98,8 +101,10 @@ where
         O: ReadableVec<V::I, V::T>,
         V::T: Add<V::T, Output = V::T> + Ord,
     {
-        self.compute_aggregate_of_others(max_from, others, exit, |batches, j| {
-            batches.iter().map(|b| &b[j]).max().unwrap().clone()
+        self.compute_aggregate_of_others(max_from, others, exit, |max, value| {
+            if value.gt(max) {
+                *max = value;
+            }
         })
     }
 

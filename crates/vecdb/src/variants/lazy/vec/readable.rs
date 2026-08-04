@@ -1,8 +1,8 @@
 use crate::{AnyVec, ReadableVec, VecIndex, VecValue};
 
-use super::LazyVecFrom1;
+use super::LazyVec;
 
-impl<I, T, S1I, S1T> ReadableVec<I, T> for LazyVecFrom1<I, T, S1I, S1T>
+impl<I, T, S1I, S1T> ReadableVec<I, T> for LazyVec<I, T, S1I, S1T>
 where
     I: VecIndex,
     T: VecValue,

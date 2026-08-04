@@ -27,13 +27,16 @@ impl<'a> BitArrayReader<'a> {
         self.0
     }
 
-    /// Gets the i-th bit.
+    /// Gets the i-th bit without checking the byte index.
+    ///
+    /// # Safety
+    ///
+    /// `idx` must be less than the number of bits in this array.
     #[must_use]
-    pub fn get(&self, idx: usize) -> bool {
+    pub unsafe fn get_unchecked(&self, idx: usize) -> bool {
         let byte_idx = idx / 8;
-
-        #[expect(clippy::expect_used, reason = "we trust the caller")]
-        let byte = self.0.get(byte_idx).expect("should be in bounds");
+        debug_assert!(byte_idx < self.0.len());
+        let byte = unsafe { self.0.get_unchecked(byte_idx) };
 
         let bit_idx = idx % 8;
         get_bit(*byte, bit_idx)

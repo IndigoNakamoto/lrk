@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{Dollars, Height, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{DeltaSub, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec};
+use vecdb::{DeltaSub, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
@@ -55,7 +55,7 @@ impl<C: FiatType> LazyRollingSumsFiatFromHeight<C> {
             };
 
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToDollars>(
+                height: LazyVec::transformed::<C::ToDollars>(
                     &full_name,
                     version,
                     cents.height.read_only_boxed_clone(),

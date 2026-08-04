@@ -8,8 +8,8 @@ use brk_types::{
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{
-    AnyVec, CachedVec, Database, EagerVec, Exit, ImportableVec, LazyVecFrom1, PcoVec,
-    ReadableBoxedVec, ReadableVec, Rw, StorageMode, Version,
+    AnyVec, CachedVec, Database, EagerVec, Exit, ImportableVec, LazyVec, PcoVec, ReadableBoxedVec,
+    ReadableVec, Rw, StorageMode, Version,
 };
 
 use crate::internal::PerResolution;
@@ -30,19 +30,19 @@ pub struct Timestamps<M: StorageMode = Rw> {
     #[traversable(flatten)]
     #[allow(clippy::type_complexity)]
     pub resolutions: PerResolution<
-        LazyVecFrom1<Minute10, Timestamp, Minute10, Height>,
-        LazyVecFrom1<Minute30, Timestamp, Minute30, Height>,
-        LazyVecFrom1<Hour1, Timestamp, Hour1, Height>,
-        LazyVecFrom1<Hour4, Timestamp, Hour4, Height>,
-        LazyVecFrom1<Hour12, Timestamp, Hour12, Height>,
-        LazyVecFrom1<Day1, Timestamp, Day1, Height>,
-        LazyVecFrom1<Day3, Timestamp, Day3, Height>,
-        LazyVecFrom1<Week1, Timestamp, Week1, Height>,
-        LazyVecFrom1<Month1, Timestamp, Month1, Height>,
-        LazyVecFrom1<Month3, Timestamp, Month3, Height>,
-        LazyVecFrom1<Month6, Timestamp, Month6, Height>,
-        LazyVecFrom1<Year1, Timestamp, Year1, Height>,
-        LazyVecFrom1<Year10, Timestamp, Year10, Height>,
+        LazyVec<Minute10, Timestamp, Minute10, Height>,
+        LazyVec<Minute30, Timestamp, Minute30, Height>,
+        LazyVec<Hour1, Timestamp, Hour1, Height>,
+        LazyVec<Hour4, Timestamp, Hour4, Height>,
+        LazyVec<Hour12, Timestamp, Hour12, Height>,
+        LazyVec<Day1, Timestamp, Day1, Height>,
+        LazyVec<Day3, Timestamp, Day3, Height>,
+        LazyVec<Week1, Timestamp, Week1, Height>,
+        LazyVec<Month1, Timestamp, Month1, Height>,
+        LazyVec<Month3, Timestamp, Month3, Height>,
+        LazyVec<Month6, Timestamp, Month6, Height>,
+        LazyVec<Year1, Timestamp, Year1, Height>,
+        LazyVec<Year10, Timestamp, Year10, Height>,
         BoundaryTimestampVec<Halving>,
         BoundaryTimestampVec<Epoch>,
     >,
@@ -81,7 +81,7 @@ impl Timestamps {
     ) -> Self {
         macro_rules! period {
             ($field:ident) => {
-                LazyVecFrom1::init(
+                LazyVec::init(
                     "timestamp",
                     version,
                     $field.first_height.read_only_boxed_clone(),

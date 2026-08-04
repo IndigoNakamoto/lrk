@@ -1,18 +1,16 @@
 use crate::{AnyVec, VecIndex, VecValue, Version, short_type_name};
 
-use super::LazyVecFrom2;
+use super::LazyVec;
 
-impl<I, T, S1I, S1T, S2I, S2T> AnyVec for LazyVecFrom2<I, T, S1I, S1T, S2I, S2T>
+impl<I, T, S1I, S1T> AnyVec for LazyVec<I, T, S1I, S1T>
 where
     I: VecIndex,
     T: VecValue,
     S1I: VecIndex,
     S1T: VecValue,
-    S2I: VecIndex,
-    S2T: VecValue,
 {
     fn version(&self) -> Version {
-        self.base_version + self.source1.version() + self.source2.version()
+        self.base_version + self.source.version()
     }
 
     fn name(&self) -> &str {
@@ -24,17 +22,7 @@ where
     }
 
     fn len(&self) -> usize {
-        let len1 = if self.s1_counts {
-            self.source1.len()
-        } else {
-            usize::MAX
-        };
-        let len2 = if self.s2_counts {
-            self.source2.len()
-        } else {
-            usize::MAX
-        };
-        len1.min(len2)
+        self.source.len()
     }
 
     #[inline]

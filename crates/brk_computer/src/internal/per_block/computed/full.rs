@@ -5,7 +5,7 @@ use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use schemars::JsonSchema;
 use vecdb::{
-    Database, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode, VecValue,
+    Database, Exit, LazyVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode, VecValue,
 };
 
 use crate::{
@@ -21,7 +21,7 @@ where
     T: NumericValue + JsonSchema,
     S: VecValue,
 {
-    pub block: LazyVecFrom1<Height, T, Height, S>,
+    pub block: LazyVec<Height, T, Height, S>,
     pub cumulative: PerBlock<T, M>,
     #[traversable(flatten)]
     pub rolling: RollingComplete<T, M>,
@@ -41,8 +41,7 @@ where
         indexes: &indexes::Vecs,
         cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
-        let block =
-            LazyVecFrom1::init(name, version, source.read_only_boxed_clone(), compute_block);
+        let block = LazyVec::init(name, version, source.read_only_boxed_clone(), compute_block);
         let cumulative =
             PerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
         let rolling = RollingComplete::forced_import(

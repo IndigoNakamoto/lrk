@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, StoredU16, StoredU64, Version};
 use vecdb::{
-    AnyStoredVec, AnyVec, CachedVec, Database, EagerVec, ImportableVec, LazyVecFrom1, PcoVec, Rw,
+    AnyStoredVec, AnyVec, CachedVec, Database, EagerVec, ImportableVec, LazyVec, PcoVec, Rw,
     StorageMode, WritableVec,
 };
 
@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Traversable)]
 pub struct CachedCountPerBlockCumulativeRolling<M: StorageMode = Rw> {
-    pub block: LazyVecFrom1<Height, StoredU64, Height, StoredU16>,
+    pub block: LazyVec<Height, StoredU64, Height, StoredU16>,
     pub cumulative: LazyPerBlock<StoredU64>,
     pub sum: LazyRollingSumsFromHeight<StoredU64>,
     pub average: LazyRollingAvgsFromHeight<StoredU64>,
@@ -36,7 +36,7 @@ impl CachedCountPerBlockCumulativeRolling {
     ) -> Result<Self> {
         let source = CachedVec::wrap(EagerVec::forced_import(db, name, version)?);
         let cached_cumulative = CachedBlockCountReader::new(source.read_only_cached_boxed_clone());
-        let block = LazyVecFrom1::transformed::<StoredU16ToStoredU64>(
+        let block = LazyVec::transformed::<StoredU16ToStoredU64>(
             name,
             version,
             source.read_only_boxed_clone(),

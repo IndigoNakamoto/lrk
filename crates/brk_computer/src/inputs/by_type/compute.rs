@@ -53,10 +53,9 @@ impl Vecs {
                     };
 
                     itype_cursor.advance(fi_in - itype_cursor.position());
-                    for _ in fi_in..next_fi_in {
-                        let otype = itype_cursor.next().unwrap();
+                    itype_cursor.for_each(next_fi_in - fi_in, |otype| {
                         per_tx[otype as usize] += 1;
-                    }
+                    });
                     Ok(())
                 },
                 |agg| {

@@ -3,8 +3,7 @@ use brk_types::{Bitcoin, Dollars, Height, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    DeltaChange, DeltaRate, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec,
-    VecValue,
+    DeltaChange, DeltaRate, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec, VecValue,
 };
 
 use crate::{
@@ -117,7 +116,7 @@ where
 
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
                     ppm.height.read_only_boxed_clone(),
@@ -131,7 +130,7 @@ where
 
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
                     ppm.height.read_only_boxed_clone(),
@@ -231,7 +230,7 @@ where
 
             // Absolute change (btc): lazy from sats delta
             let btc = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToBitcoin>(
+                height: LazyVec::transformed::<C::ToBitcoin>(
                     &full_name,
                     version,
                     sats.height.read_only_boxed_clone(),
@@ -263,7 +262,7 @@ where
 
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
                     ppm.height.read_only_boxed_clone(),
@@ -277,7 +276,7 @@ where
 
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
                     ppm.height.read_only_boxed_clone(),
@@ -376,7 +375,7 @@ where
 
             // Absolute change (usd): lazy from cents delta
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToDollars>(
+                height: LazyVec::transformed::<C::ToDollars>(
                     &full_name,
                     version,
                     cents.height.read_only_boxed_clone(),
@@ -408,7 +407,7 @@ where
 
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
                     ppm.height.read_only_boxed_clone(),
@@ -422,7 +421,7 @@ where
 
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
                     ppm.height.read_only_boxed_clone(),

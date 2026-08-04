@@ -3,21 +3,21 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Series count statistics - distinct series and total series-index combinations
+/// Series count statistics
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SeriesCount {
     /// Number of unique series available (e.g., realized_price, market_cap)
     #[schemars(example = 3141)]
-    pub distinct_series: usize,
+    pub distinct: usize,
     /// Total number of series-index combinations across all timeframes
     #[schemars(example = 21000)]
-    pub total_endpoints: usize,
+    pub total: usize,
     /// Number of lazy (computed on-the-fly) series-index combinations
     #[schemars(example = 5000)]
-    pub lazy_endpoints: usize,
+    pub lazy: usize,
     /// Number of eager (stored on disk) series-index combinations
     #[schemars(example = 16000)]
-    pub stored_endpoints: usize,
+    pub stored: usize,
 }
 
 /// Detailed series count with per-database breakdown

@@ -186,9 +186,7 @@ impl Query {
 }
 
 fn is_aggregate_cohort(cohort: &Cohort) -> bool {
-    UTXO_AGGREGATE_NAMES
-        .iter()
-        .any(|name| name.id == &**cohort)
+    UTXO_AGGREGATE_NAMES.iter().any(|name| name.id == &**cohort)
 }
 
 fn dates_in_dir(dir: &Path) -> Result<Vec<Date>> {

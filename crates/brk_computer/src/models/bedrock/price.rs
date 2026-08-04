@@ -4,8 +4,8 @@
 //! custom daily repeat/last-day views: cents are stored, USD is derived from cents,
 //! and sats are derived from USD.
 
-use brk_types::{Cents, Day1, Dollars, SatsFract, Version};
 use brk_traversable::Traversable;
+use brk_types::{Cents, Dollars, SatsFract, Version};
 use vecdb::{ReadableCloneableVec, Rw, StorageMode};
 
 use crate::internal::{

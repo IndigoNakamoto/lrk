@@ -1,7 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{Bitcoin, Cents, Dollars, Height, Sats, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{DeltaSub, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec};
+use vecdb::{DeltaSub, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
@@ -66,7 +66,7 @@ impl LazyRollingSumsAmountFromHeight {
 
             // Btc lazy from sats
             let btc = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<SatsToBitcoin>(
+                height: LazyVec::transformed::<SatsToBitcoin>(
                     &full_name,
                     version,
                     sats.height.read_only_boxed_clone(),
@@ -99,7 +99,7 @@ impl LazyRollingSumsAmountFromHeight {
 
             // Usd lazy from cents
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<CentsUnsignedToDollars>(
+                height: LazyVec::transformed::<CentsUnsignedToDollars>(
                     &format!("{full_name}_usd"),
                     version,
                     cents.height.read_only_boxed_clone(),

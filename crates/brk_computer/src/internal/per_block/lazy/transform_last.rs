@@ -1,13 +1,13 @@
 use brk_traversable::Traversable;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
-use vecdb::{LazyVecFrom1, ReadableBoxedVec, UnaryTransform, VecIndex, VecValue};
+use vecdb::{LazyVec, ReadableBoxedVec, UnaryTransform, VecIndex, VecValue};
 
 use brk_types::Version;
 
 #[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
-pub struct LazyTransformLast<I, T, S1T = T>(pub LazyVecFrom1<I, T, I, S1T>)
+pub struct LazyTransformLast<I, T, S1T = T>(pub LazyVec<I, T, I, S1T>)
 where
     I: VecIndex,
     T: VecValue + PartialOrd + JsonSchema,
@@ -24,6 +24,6 @@ where
         version: Version,
         source: ReadableBoxedVec<I, S1T>,
     ) -> Self {
-        Self(LazyVecFrom1::transformed::<F>(name, version, source))
+        Self(LazyVec::transformed::<F>(name, version, source))
     }
 }
