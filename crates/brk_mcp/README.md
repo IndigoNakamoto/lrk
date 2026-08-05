@@ -4,6 +4,10 @@
 exposes the generated OpenAPI operations as MCP tools and forwards every tool
 call to the configured public REST origin as a `GET` request.
 
+The official public endpoint is
+[mcp.bitview.space](https://mcp.bitview.space/). It is stateless, read-only, and
+requires no authentication.
+
 ## Caching model
 
 `brk_mcp` does not cache API responses or retain MCP sessions. Point it at the
@@ -14,7 +18,7 @@ existing Cloudflare cache:
 MCP client -> brk_mcp -> Cloudflare-cached REST API -> BRK server
 ```
 
-Cloudflare does not need to cache the `/mcp` endpoint. The MCP catalog TTL is
+Cloudflare does not need to cache the MCP endpoint. The MCP catalog TTL is
 only a standard client-side cache hint for the static discovery and tool-list
 metadata.
 
@@ -39,7 +43,7 @@ fails at the transport layer. An explicit origin uses only that origin:
 brk_mcp http://127.0.0.1:3110
 ```
 
-The Streamable HTTP endpoint is `http://127.0.0.1:3111/mcp` by default. If that
+The Streamable HTTP endpoint is `http://127.0.0.1:3111/` by default. If that
 port is unavailable, the server tries each port through `3211`. The server
 supports MCP protocol version `2026-07-28`.
 

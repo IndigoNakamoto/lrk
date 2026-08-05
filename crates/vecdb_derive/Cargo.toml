@@ -18,5 +18,5 @@ syn = "3.0"
 quote = "1.0"
 
 [dev-dependencies]
-vecdb = { workspace = true, features = ["derive", "pco"] }
+vecdb = { path = "../vecdb", features = ["derive", "pco"] }
 tempfile = { workspace = true }

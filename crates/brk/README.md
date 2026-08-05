@@ -57,6 +57,10 @@ brk = { version = "0.1", features = ["full"] }
 |-------|-------------|
 | [brk_client](https://docs.rs/brk_client) | Generated Rust API client |
 | [brk_bindgen](https://docs.rs/brk_bindgen) | Generate typed clients (Rust, JavaScript, Python) |
+| [brk_mcp](https://crates.io/crates/brk_mcp) | Stateless, read-only MCP adapter for the BRK API |
+
+The official MCP endpoint is
+[mcp.bitview.space](https://mcp.bitview.space/). It requires no authentication.
 
 **Internal**
 

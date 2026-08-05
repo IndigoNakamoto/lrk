@@ -17,6 +17,7 @@ use super::write_if_changed;
 mod manifest;
 
 const BASE_URL: &str = "https://bitview.space";
+const MCP_URL: &str = "https://mcp.bitview.space/";
 
 pub fn generate_llm_clients(
     metadata: &ClientMetadata,
@@ -86,6 +87,11 @@ fn render_llms(title: &str, version: &str, metric_count: usize, endpoints: &[&En
 - [Series catalog]({BASE_URL}/api/series)\n\
 - [Interactive documentation]({BASE_URL}/api)\n\n\
 Use OpenAPI for tool construction, `/api/series` for complete series metadata, and `llms-full.txt` for a readable reference.\n\n\
+## MCP\n\n\
+- Endpoint: {MCP_URL}\n\
+- Transport: Streamable HTTP\n\
+- Authentication: None\n\n\
+The MCP server is stateless and read-only. Its tools are generated from these OpenAPI operations.\n\n\
 ## Clients\n\n\
 - [JavaScript](https://www.npmjs.com/package/brk-client)\n\
 - [Python](https://pypi.org/project/brk-client/)\n\
@@ -113,6 +119,7 @@ fn render_llms_full(
     .unwrap();
     writeln!(output, "- Version: `{version}`").unwrap();
     writeln!(output, "- Base URL: {BASE_URL}").unwrap();
+    writeln!(output, "- MCP endpoint: {MCP_URL}").unwrap();
     writeln!(output, "- Metrics: {metric_count}").unwrap();
     writeln!(output, "- Operations: {}\n", endpoints.len()).unwrap();
     writeln!(
@@ -476,7 +483,19 @@ mod tests {
                 .count(),
             1
         );
+        assert!(output.contains("- MCP endpoint: https://mcp.bitview.space/"));
         assert!(output.contains("curl -s \"https://bitview.space/api/thing/<id>\""));
+    }
+
+    #[test]
+    fn discovery_lists_the_official_mcp_endpoint() {
+        let first = endpoint("/api/thing/{id}", "GET");
+        let endpoints = [&first];
+        let output = render_llms("BRK", "v1", 12, &endpoints);
+
+        assert!(output.contains("- Endpoint: https://mcp.bitview.space/"));
+        assert!(output.contains("- Transport: Streamable HTTP"));
+        assert!(output.contains("- Authentication: None"));
     }
 
     #[test]

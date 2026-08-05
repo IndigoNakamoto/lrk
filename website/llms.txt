@@ -14,6 +14,14 @@
 
 Use OpenAPI for tool construction, `/api/series` for complete series metadata, and `llms-full.txt` for a readable reference.
 
+## MCP
+
+- Endpoint: https://mcp.bitview.space/
+- Transport: Streamable HTTP
+- Authentication: None
+
+The MCP server is stateless and read-only. Its tools are generated from these OpenAPI operations.
+
 ## Clients
 
 - [JavaScript](https://www.npmjs.com/package/brk-client)

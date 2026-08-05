@@ -111,7 +111,7 @@ pub fn router(api_bases: Vec<String>, catalog: Catalog) -> Router {
     );
 
     Router::new()
-        .route_service("/mcp", service)
+        .route_service("/", service)
         .layer(middleware::from_fn_with_state(state, gateway_guard))
 }
 

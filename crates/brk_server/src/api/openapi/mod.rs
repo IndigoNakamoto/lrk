@@ -32,6 +32,7 @@ pub fn create_openapi() -> OpenApi {
 - **Series**: Thousands of on-chain time-series across multiple indexes (date, block height, etc.)
 - **Multiple formats**: JSON and CSV output
 - **LLM-optimized**: [`/llms.txt`](/llms.txt) for discovery, [`/api.json`](/api.json) compact OpenAPI spec for tool use (full spec at [`/openapi.json`](/openapi.json))
+- **MCP**: Stateless, read-only access to these operations at [mcp.bitview.space](https://mcp.bitview.space/), with no authentication required
 
 ### Quick start
 
@@ -67,6 +68,7 @@ All errors return structured JSON with a consistent format:
 - [JavaScript](https://www.npmjs.com/package/brk-client)
 - [Python](https://pypi.org/project/brk-client/)
 - [Rust](https://crates.io/crates/brk_client)
+- [MCP](https://mcp.bitview.space/)
 
 ### Links
 

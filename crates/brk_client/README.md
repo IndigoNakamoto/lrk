@@ -4,6 +4,10 @@ Rust client for the [Bitcoin Research Kit](https://github.com/bitcoinresearchkit
 
 [crates.io](https://crates.io/crates/brk_client) | [docs.rs](https://docs.rs/brk_client)
 
+AI clients can use the same API through the official stateless, read-only MCP
+endpoint at [mcp.bitview.space](https://mcp.bitview.space/). No authentication
+is required.
+
 ## Installation
 
 ```toml

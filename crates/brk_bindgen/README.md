@@ -4,11 +4,14 @@ Code generation for BRK client libraries.
 
 ## What It Enables
 
-Generate clients for Rust, JavaScript, Python, and LLMs from the OpenAPI specification and metric tree. Keeps every consumer in sync with available metrics and API endpoints without manual maintenance.
+Generate clients for Rust, JavaScript, Python, LLMs, and MCP from the OpenAPI
+specification and metric tree. Keeps every consumer in sync with available
+metrics and API endpoints without manual maintenance.
 
 ## Key Features
 
 - **Multi-client**: Generates Rust, JavaScript, Python, and LLM clients
+- **MCP catalog**: Generates the MCP tool manifest from the same OpenAPI operations
 - **OpenAPI-driven**: Extracts endpoints and schemas from the OpenAPI spec
 - **Metric catalog**: Includes all metric IDs and their supported indexes
 - **Type definitions**: Generates types/interfaces from JSON Schema
@@ -24,7 +27,8 @@ let paths = ClientOutputPaths::new()
     .javascript("modules/brk-client/index.js")
     .python("packages/brk_client/brk_client/__init__.py")
     .llm("website")
-    .llm("website_next");
+    .llm("website_next")
+    .llm_manifest("crates/brk_mcp/generated/manifest.json");
 
 generate_clients(&vecs, &openapi_json, &paths)?;
 ```
@@ -36,7 +40,7 @@ generate_clients(&vecs, &openapi_json, &paths)?;
 | Rust | Typed API client using `brk_types`, metric catalog |
 | JavaScript | ES module with JSDoc types, metric catalog, fetch helpers |
 | Python | Typed client with dataclasses, metric catalog |
-| LLM | Concise discovery and complete plain-text API references |
+| LLM/MCP | Plain-text API references and the MCP tool manifest |
 
 Language clients include:
 - All REST API endpoints as typed functions
@@ -45,6 +49,8 @@ Language clients include:
 
 The LLM client emits the standard discovery files and links to the live
 OpenAPI and series endpoints instead of duplicating their catalogs.
+The official generated MCP catalog is served through the stateless, read-only
+endpoint at [mcp.bitview.space](https://mcp.bitview.space/).
 
 ## Built On
 

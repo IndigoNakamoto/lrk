@@ -13,6 +13,8 @@
 Open-source Bitcoin data toolkit that can parse blocks, index the chain, compute metrics, serve data and render it, all from a Bitcoin Core node. It combines what [Glassnode](https://glassnode.com) and [mempool.space](https://mempool.space) do separately into a single self-hostable package, with a built-in price oracle inspired by [UTXO Oracle](https://utxo.live/oracle/).
 
 [Bitview](https://bitview.space) is the official free hosted instance of BRK.
+Stateless, read-only MCP access is available at
+[mcp.bitview.space](https://mcp.bitview.space/), with no authentication required.
 
 ## Data
 
@@ -41,6 +43,17 @@ curl https://bitview.space/api/mempool/price
 Query metrics and blockchain data in JSON or CSV. No rate limit.
 
 [Documentation](https://bitview.space/api) · [JavaScript](https://www.npmjs.com/package/brk-client) · [Python](https://pypi.org/project/brk-client) · [Rust](https://crates.io/crates/brk_client) · [llms.txt](https://bitview.space/llms.txt) · [LLM-friendly schema](https://bitview.space/api.json)
+
+### MCP
+
+Connect any Streamable HTTP MCP client to:
+
+```text
+https://mcp.bitview.space/
+```
+
+The server is stateless, read-only, and requires no authentication. Its tools
+are generated from the same OpenAPI operations as the typed clients.
 
 ### Self-host
 
