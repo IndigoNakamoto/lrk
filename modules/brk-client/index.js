@@ -8341,7 +8341,7 @@ function createUnspentPattern(client, acc) {
  * @extends BrkClientBase
  */
 class BrkClient extends BrkClientBase {
-  VERSION = "v0.3.6";
+  VERSION = "v0.11.0";
 
   INDEXES = /** @type {const} */ ([
     "minute10",
