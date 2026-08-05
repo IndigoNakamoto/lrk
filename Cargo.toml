@@ -101,3 +101,7 @@ tag-name = "v{{version}}"
 pre-release-commit-message = "release: v{{version}}"
 tag-message = "release: v{{version}}"
 allow-branch = ["main", "next"]
+
+[workspace.metadata.release.rate-limit]
+new-packages = 5
+existing-packages = 64
