@@ -94,9 +94,11 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                         .summary("Latest URPD")
                         .description(
                             "URPD for the most recent available date in the cohort. \
-                            The response's `date` field echoes which date was served.\n\n\
-                            See the URPD tag description for the response shape, `agg`, and \
-                            `weight` options.",
+                            The response's `date` field echoes which date was served. Returns \
+                            `{ cohort, date, weight, aggregation, close, total_supply, buckets }`. \
+                            `close` and each bucket's `price_floor`, `realized_cap`, and \
+                            `unrealized_pnl` are USD; `total_supply` and bucket `supply` are BTC. \
+                            `unrealized_pnl` can be negative.",
                         )
                         .json_response::<Urpd>()
                         .not_modified()
@@ -132,9 +134,9 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                         .description(
                             "URPD for a (cohort, date) pair. Returns \
                             `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where \
-                            each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.\n\n\
-                            See the URPD tag description for unit conventions, `agg`, and \
-                            `weight` options.",
+                            each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`. \
+                            `close`, `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; \
+                            `total_supply` and `supply` are BTC. `unrealized_pnl` can be negative.",
                         )
                         .json_response::<Urpd>()
                         .not_modified()

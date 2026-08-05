@@ -12,12 +12,49 @@ use crate::distribution::{
 use super::super::cohort::{WithAddrDataSource, update_tx_counts};
 use super::lookup::AddrLookup;
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+struct BlockAddress(u64);
+
+impl BlockAddress {
+    const TYPE_SHIFT: u32 = u32::BITS;
+
+    #[inline(always)]
+    fn new(addr_type: OutputType, type_index: TypeIndex) -> Self {
+        debug_assert!(addr_type.is_addr());
+
+        Self((u64::from(addr_type as u8) << Self::TYPE_SHIFT) | u64::from(u32::from(type_index)))
+    }
+
+    #[inline(always)]
+    fn addr_type(self) -> OutputType {
+        match (self.0 >> Self::TYPE_SHIFT) as u8 {
+            value if value == OutputType::P2PK65 as u8 => OutputType::P2PK65,
+            value if value == OutputType::P2PK33 as u8 => OutputType::P2PK33,
+            value if value == OutputType::P2PKH as u8 => OutputType::P2PKH,
+            value if value == OutputType::P2SH as u8 => OutputType::P2SH,
+            value if value == OutputType::P2WPKH as u8 => OutputType::P2WPKH,
+            value if value == OutputType::P2WSH as u8 => OutputType::P2WSH,
+            value if value == OutputType::P2TR as u8 => OutputType::P2TR,
+            value if value == OutputType::P2A as u8 => OutputType::P2A,
+            _ => unreachable!("BlockAddress only stores address output types"),
+        }
+    }
+
+    #[inline(always)]
+    fn type_index(self) -> TypeIndex {
+        TypeIndex::from(self.0 as u32)
+    }
+}
+
 /// Cache for address data within a flush interval.
 pub struct AddrCache {
     /// Addrs with non-zero balance
     funded: AddrTypeToTypeIndexMap<WithAddrDataSource<FundedAddrData>>,
     /// Addrs that became empty (zero balance)
     empty: AddrTypeToTypeIndexMap<WithAddrDataSource<EmptyAddrData>>,
+    /// Reusable scratch space for the unique addresses touched by one block.
+    block_addresses: Vec<BlockAddress>,
 }
 
 impl Default for AddrCache {
@@ -31,6 +68,7 @@ impl AddrCache {
         Self {
             funded: AddrTypeToTypeIndexMap::default(),
             empty: AddrTypeToTypeIndexMap::default(),
+            block_addresses: Vec::new(),
         }
     }
 
@@ -46,13 +84,50 @@ impl AddrCache {
                 .is_some_and(|m| m.contains_key(&type_index))
     }
 
-    /// Merge address data into funded cache.
-    #[inline]
-    pub(crate) fn merge_funded(
+    /// Load each address touched by the block once.
+    pub(crate) fn load_block_addresses(
         &mut self,
-        data: AddrTypeToTypeIndexMap<WithAddrDataSource<FundedAddrData>>,
+        addresses: impl Iterator<Item = (OutputType, TypeIndex)>,
+        first_addr_indexes: &ByAddrType<TypeIndex>,
+        vr: &VecsReaders,
+        any_addr_indexes: &AnyAddrIndexesVecs,
+        addrs_data: &AddrsDataVecs,
     ) {
-        self.funded.merge_mut(data);
+        self.block_addresses.clear();
+        for (addr_type, type_index) in addresses {
+            if addr_type.is_addr() && !self.contains(addr_type, type_index) {
+                self.block_addresses
+                    .push(BlockAddress::new(addr_type, type_index));
+            }
+        }
+        self.block_addresses.sort_unstable();
+        self.block_addresses.dedup();
+
+        for index in 0..self.block_addresses.len() {
+            let address = self.block_addresses[index];
+            let addr_type = address.addr_type();
+            let type_index = address.type_index();
+            let first = *first_addr_indexes.get(addr_type).unwrap();
+
+            let source = if first <= type_index {
+                WithAddrDataSource::New(FundedAddrData::default())
+            } else {
+                let any_addr_index = vr.any_addr_index(any_addr_indexes, addr_type, type_index);
+
+                match any_addr_index.to_enum() {
+                    AnyAddrDataIndexEnum::Funded(funded_index) => {
+                        let funded_data = vr.funded_data(addrs_data, funded_index);
+                        WithAddrDataSource::FromFunded(funded_index, funded_data)
+                    }
+                    AnyAddrDataIndexEnum::Empty(empty_index) => {
+                        let empty_data = vr.empty_data(addrs_data, empty_index);
+                        WithAddrDataSource::FromEmpty(empty_index, empty_data.into())
+                    }
+                }
+            };
+
+            self.funded.insert_for_type(addr_type, type_index, source);
+        }
     }
 
     /// Create an AddrLookup view into this cache.
@@ -86,41 +161,19 @@ impl AddrCache {
     }
 }
 
-/// Load address data from storage or create new.
-///
-/// Returns None if address is already in cache (funded or empty).
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn load_uncached_addr_data(
-    addr_type: OutputType,
-    type_index: TypeIndex,
-    first_addr_indexes: &ByAddrType<TypeIndex>,
-    cache: &AddrCache,
-    vr: &VecsReaders,
-    any_addr_indexes: &AnyAddrIndexesVecs,
-    addrs_data: &AddrsDataVecs,
-) -> Option<WithAddrDataSource<FundedAddrData>> {
-    // Check if this is a new address (type_index >= first for this height)
-    let first = *first_addr_indexes.get(addr_type).unwrap();
-    if first <= type_index {
-        return Some(WithAddrDataSource::New(FundedAddrData::default()));
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // Skip if already in cache
-    if cache.contains(addr_type, type_index) {
-        return None;
-    }
+    #[test]
+    fn block_address_round_trips_every_address_type() {
+        for addr_type in OutputType::ADDR_TYPES {
+            for type_index in [TypeIndex::from(0_u32), TypeIndex::from(u32::MAX)] {
+                let address = BlockAddress::new(addr_type, type_index);
 
-    // Read from storage
-    let any_addr_index = vr.any_addr_index(any_addr_indexes, addr_type, type_index);
-
-    Some(match any_addr_index.to_enum() {
-        AnyAddrDataIndexEnum::Funded(funded_index) => {
-            let funded_data = vr.funded_data(addrs_data, funded_index);
-            WithAddrDataSource::FromFunded(funded_index, funded_data)
+                assert_eq!(address.addr_type(), addr_type);
+                assert_eq!(address.type_index(), type_index);
+            }
         }
-        AnyAddrDataIndexEnum::Empty(empty_index) => {
-            let empty_data = vr.empty_data(addrs_data, empty_index);
-            WithAddrDataSource::FromEmpty(empty_index, empty_data.into())
-        }
-    })
+    }
 }

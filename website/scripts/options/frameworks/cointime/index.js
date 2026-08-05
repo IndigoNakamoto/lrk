@@ -11,7 +11,10 @@ import {
 } from "../../series.js";
 import { ageRanges } from "../../age-ranges.js";
 import { satsBtcUsd, simplePriceRatioTree } from "../../shared.js";
-import { createCointimeAgeRangeSection } from "./age-range.js";
+import {
+  createCointimeAgeRangeActivitySection,
+  createCointimeAgeRangeSupplySection,
+} from "./age-range.js";
 
 /**
  * Create Cointime section
@@ -42,7 +45,6 @@ export function createCointimeSection() {
 
   // Reference lines for cap comparisons
   const capReferenceLines = /** @type {const} */ ([
-    { series: supply.marketCap.usd, name: "Market", color: colors.default },
     {
       series: all.realized.cap.usd,
       name: "Realized",
@@ -183,7 +185,7 @@ export function createCointimeSection() {
     name: "Cointime",
     tree: [
       {
-        name: "Prices",
+        name: "Price",
         tree: [
           {
             name: "Compare",
@@ -202,26 +204,14 @@ export function createCointimeSection() {
               ...prices.map(({ pattern, name, color, defaultActive }) =>
                 price({ series: pattern, name, color, defaultActive }),
               ),
+              ...awakeCohorts.map(({ name, color, tree }) =>
+                price({
+                  series: tree.awake.price,
+                  name: name === "All" ? "Awake" : `${name} Awake`,
+                  color,
+                }),
+              ),
             ],
-          },
-          {
-            name: "Awake",
-            title: "Awake Price by Holder Term",
-            top: awakeCohorts.map(({ name, color, tree }) =>
-              price({
-                series: tree.awake.price,
-                name,
-                color,
-              }),
-            ),
-            bottom: awakeCohorts.map(({ name, color, tree }) =>
-              line({
-                series: tree.awake.price.ratio,
-                name: `Spot / ${name}`,
-                color,
-                unit: Unit.ratio,
-              }),
-            ),
           },
           ...prices.map(({ pattern, name, title, color }) => {
             const [chart] = simplePriceRatioTree({
@@ -232,11 +222,21 @@ export function createCointimeSection() {
             });
             return { ...chart, name };
           }),
+          ...awakeCohorts.map(({ name, color, tree }) => {
+            const awakeName = name === "All" ? "Awake" : `${name} Awake`;
+            const [chart] = simplePriceRatioTree({
+              pattern: tree.awake.price,
+              title: `${awakeName} Price`,
+              legend: awakeName,
+              color,
+            });
+            return { ...chart, name: awakeName };
+          }),
         ],
       },
 
       {
-        name: "Caps",
+        name: "Capitalization",
         tree: [
           {
             name: "Compare",
@@ -248,19 +248,15 @@ export function createCointimeSection() {
               ...caps.map(({ series, name, color, defaultActive }) =>
                 line({ series, name, color, defaultActive, unit: Unit.usd }),
               ),
+              ...awakeCohorts.map(({ name, color, tree }) =>
+                line({
+                  series: tree.awake.cap.usd,
+                  name: name === "All" ? "Awake" : `${name} Awake`,
+                  color,
+                  unit: Unit.usd,
+                }),
+              ),
             ],
-          },
-          {
-            name: "Awake",
-            title: "Awake Cap by Holder Term",
-            bottom: awakeCohorts.map(({ name, color, tree }) =>
-              line({
-                series: tree.awake.cap.usd,
-                name,
-                color,
-                unit: Unit.usd,
-              }),
-            ),
           },
           ...caps.map(({ series, name, color }) => ({
             name,
@@ -277,6 +273,29 @@ export function createCointimeSection() {
               ),
             ],
           })),
+          ...awakeCohorts.map(({ name, color, tree }) => {
+            const awakeName = name === "All" ? "Awake" : `${name} Awake`;
+            return {
+              name: awakeName,
+              title: `${awakeName} Cap`,
+              bottom: [
+                line({
+                  series: tree.awake.cap.usd,
+                  name: awakeName,
+                  color,
+                  unit: Unit.usd,
+                }),
+                ...capReferenceLines.map((ref) =>
+                  line({
+                    series: ref.series,
+                    name: ref.name,
+                    color: ref.color,
+                    unit: Unit.usd,
+                  }),
+                ),
+              ],
+            };
+          }),
         ],
       },
 
@@ -284,264 +303,296 @@ export function createCointimeSection() {
         name: "Supply",
         tree: [
           {
-            name: "Breakdown",
-            title: "Active vs Vaulted Supply",
-            bottom: supplyBreakdown.flatMap(({ pattern, name, color }) =>
-              satsBtcUsd({ pattern, name, color }),
-            ),
-          },
-          {
-            name: "Active in Loss",
-            title: "Active Supply in Loss",
-            bottom: [
-              line({
-                series: cointimeSupply.active.inLoss.share,
-                name: "Share",
-                color: colors.loss,
-                unit: Unit.ratio,
-              }),
+            name: "Overview",
+            tree: [
+              {
+                name: "Active vs Vaulted",
+                title: "Active vs Vaulted Supply",
+                bottom: supplyBreakdown.flatMap(({ pattern, name, color }) =>
+                  satsBtcUsd({ pattern, name, color }),
+                ),
+              },
+              {
+                name: "Awake vs Dormant",
+                title: "Awake vs Dormant Supply",
+                bottom: [
+                  ...satsBtcUsd({
+                    pattern: cointime.awake.supply,
+                    name: "Awake",
+                    color: colors.awake,
+                  }),
+                  ...satsBtcUsd({
+                    pattern: cointime.dormant.supply,
+                    name: "Dormant",
+                    color: colors.dormant,
+                  }),
+                ],
+              },
             ],
           },
           {
-            name: "Awake vs Dormant",
-            title: "Awake vs Dormant Supply",
-            bottom: [
-              ...satsBtcUsd({
-                pattern: cointime.awake.supply,
+            name: "By Holder Term",
+            tree: [
+              {
                 name: "Awake",
-                color: colors.awake,
-              }),
-              ...satsBtcUsd({
-                pattern: cointime.dormant.supply,
+                title: "Awake Supply by Holder Term",
+                bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
+                  satsBtcUsd({
+                    pattern: tree.awake.supply,
+                    name,
+                    color,
+                  }),
+                ),
+              },
+              {
                 name: "Dormant",
-                color: colors.dormant,
-              }),
+                title: "Dormant Supply by Holder Term",
+                bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
+                  satsBtcUsd({
+                    pattern: tree.dormant.supply,
+                    name,
+                    color,
+                  }),
+                ),
+              },
             ],
           },
+          createCointimeAgeRangeSupplySection(cointimeAgeRanges),
           {
-            name: "Awake by Term",
-            title: "Awake Supply by Holder Term",
-            bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
-              satsBtcUsd({
-                pattern: tree.awake.supply,
-                name,
-                color,
-              }),
-            ),
-          },
-          {
-            name: "Dormant by Term",
-            title: "Dormant Supply by Holder Term",
-            bottom: awakeCohorts.flatMap(({ name, color, tree }) =>
-              satsBtcUsd({
-                pattern: tree.dormant.supply,
-                name,
-                color,
-              }),
-            ),
-          },
-          {
-            name: "Awake in Loss",
-            title: "Awake Supply in Loss by Holder Term",
-            bottom: awakeCohorts.map(({ name, color, tree }) =>
-              line({
-                series: tree.awake.supply.inLoss.share,
-                name,
-                color,
-                unit: Unit.ratio,
-              }),
-            ),
+            name: "In Loss",
+            tree: [
+              {
+                name: "Active",
+                title: "Active Supply in Loss",
+                bottom: [
+                  line({
+                    series: cointimeSupply.active.inLoss.share,
+                    name: "Share",
+                    color: colors.loss,
+                    unit: Unit.ratio,
+                  }),
+                ],
+              },
+              {
+                name: "Awake by Holder Term",
+                title: "Awake Supply in Loss by Holder Term",
+                bottom: awakeCohorts.map(({ name, color, tree }) =>
+                  line({
+                    series: tree.awake.supply.inLoss.share,
+                    name,
+                    color,
+                    unit: Unit.ratio,
+                  }),
+                ),
+              },
+            ],
           },
         ],
       },
-
-      createCointimeAgeRangeSection(cointimeAgeRanges),
 
       {
         name: "Activity",
-        title: "Liveliness & Vaultedness",
-        bottom: [
-          line({
-            series: activity.liveliness,
-            name: "Liveliness",
-            color: colors.liveliness,
-            unit: Unit.ratio,
-          }),
-          line({
-            series: activity.vaultedness,
-            name: "Vaultedness",
-            color: colors.vaulted,
-            unit: Unit.ratio,
-          }),
-          line({
-            series: activity.ratio,
-            name: "Liveliness / Vaultedness",
-            color: colors.activity,
-            unit: Unit.ratio,
-            defaultActive: false,
-          }),
-        ],
-      },
-
-      {
-        name: "Coinblocks",
-        tree: [
-          ...multiSeriesTree({
-            entries: coinblocks.map(({ pattern, name, color }) => ({
-              name,
-              color,
-              average: pattern.average,
-              sum: pattern.sum,
-              cumulative: pattern.cumulative,
-            })),
-            metric: "Coinblocks",
-            unit: Unit.coinblocks,
-          }),
-          ...coinblocks.map(({ pattern, name, title: metric, color }) => ({
-            name,
-            tree: sumsAndAveragesCumulative({
-              sum: pattern.sum,
-              average: pattern.average,
-              cumulative: pattern.cumulative,
-              metric,
-              unit: Unit.coinblocks,
-              color,
-            }),
-          })),
-        ],
-      },
-
-      {
-        name: "Value",
-        tree: [
-          ...multiSeriesTree({
-            entries: [
-              ...cointimeValues.map(({ pattern, name, color }) => ({
-                name,
-                color,
-                average: pattern.average,
-                sum: pattern.sum,
-                cumulative: pattern.cumulative,
-              })),
-              {
-                name: vocdd.name,
-                color: vocdd.color,
-                average: vocdd.pattern.average,
-                sum: vocdd.pattern.sum,
-                cumulative: vocdd.pattern.cumulative,
-              },
-            ],
-            metric: "Cointime Value",
-            unit: Unit.usd,
-          }),
-          ...cointimeValues.map(({ pattern, name, title: metric, color }) => ({
-            name,
-            tree: sumsAndAveragesCumulative({
-              sum: pattern.sum,
-              average: pattern.average,
-              cumulative: pattern.cumulative,
-              metric,
-              unit: Unit.usd,
-              color,
-            }),
-          })),
-          {
-            name: vocdd.name,
-            tree: sumsAndAveragesCumulative({
-              sum: vocdd.pattern.sum,
-              average: vocdd.pattern.average,
-              cumulative: vocdd.pattern.cumulative,
-              metric: vocdd.title,
-              unit: Unit.usd,
-              color: vocdd.color,
-            }),
-          },
-        ],
-      },
-
-      {
-        name: "Indicators",
         tree: [
           {
-            name: "AVIV",
-            title: "AVIV Ratio",
+            name: "Overview",
+            title: "Liveliness & Vaultedness",
             bottom: [
               line({
-                series: cap.aviv.ratio,
-                name: "AVIV",
-                unit: Unit.ratio,
-              }),
-            ],
-          },
-          {
-            name: "Reserve Risk",
-            title: "Reserve Risk",
-            bottom: [
-              line({
-                series: reserveRisk.value,
-                name: "Ratio",
-                color: colors.reserveRisk,
-                unit: Unit.ratio,
-              }),
-            ],
-          },
-        ],
-      },
-
-      {
-        name: "Adjusted",
-        tree: [
-          {
-            name: "Inflation",
-            title: "Cointime-Adjusted Inflation",
-            bottom: [
-              dots({
-                series: supply.inflationRate.percent,
-                name: "Base",
-                color: colors.base,
-                unit: Unit.percentage,
-              }),
-              ...percentRatioDots({
-                pattern: adjusted.inflationRate,
-                name: "Cointime-Adjusted",
-                color: colors.adjusted,
-              }),
-            ],
-          },
-          {
-            name: "BTC Velocity",
-            title: "Cointime-Adjusted BTC Velocity",
-            bottom: [
-              line({
-                series: supply.velocity.native,
-                name: "Base",
-                color: colors.base,
+                series: activity.liveliness,
+                name: "Liveliness",
+                color: colors.liveliness,
                 unit: Unit.ratio,
               }),
               line({
-                series: adjusted.txVelocityNative,
-                name: "Cointime-Adjusted",
-                color: colors.adjusted,
-                unit: Unit.ratio,
-              }),
-            ],
-          },
-          {
-            name: "USD Velocity",
-            title: "Cointime-Adjusted USD Velocity",
-            bottom: [
-              line({
-                series: supply.velocity.fiat,
-                name: "Base",
-                color: colors.thermo,
-                unit: Unit.ratio,
-              }),
-              line({
-                series: adjusted.txVelocityFiat,
-                name: "Cointime-Adjusted",
+                series: activity.vaultedness,
+                name: "Vaultedness",
                 color: colors.vaulted,
                 unit: Unit.ratio,
               }),
+              line({
+                series: activity.ratio,
+                name: "Liveliness / Vaultedness",
+                color: colors.activity,
+                unit: Unit.ratio,
+                defaultActive: false,
+              }),
+            ],
+          },
+          {
+            name: "Coinblocks",
+            tree: [
+              {
+                name: "Compare",
+                tree: multiSeriesTree({
+                  entries: coinblocks.map(({ pattern, name, color }) => ({
+                    name,
+                    color,
+                    average: pattern.average,
+                    sum: pattern.sum,
+                    cumulative: pattern.cumulative,
+                  })),
+                  metric: "Coinblocks",
+                  unit: Unit.coinblocks,
+                }),
+              },
+              ...coinblocks.map(
+                ({ pattern, name, title: metric, color }) => ({
+                  name,
+                  tree: sumsAndAveragesCumulative({
+                    sum: pattern.sum,
+                    average: pattern.average,
+                    cumulative: pattern.cumulative,
+                    metric,
+                    unit: Unit.coinblocks,
+                    color,
+                  }),
+                }),
+              ),
+            ],
+          },
+          createCointimeAgeRangeActivitySection(cointimeAgeRanges),
+        ],
+      },
+
+      {
+        name: "Economics",
+        tree: [
+          {
+            name: "Cointime Value",
+            tree: [
+              {
+                name: "Compare",
+                tree: multiSeriesTree({
+                  entries: [
+                    ...cointimeValues.map(({ pattern, name, color }) => ({
+                      name,
+                      color,
+                      average: pattern.average,
+                      sum: pattern.sum,
+                      cumulative: pattern.cumulative,
+                    })),
+                    {
+                      name: vocdd.name,
+                      color: vocdd.color,
+                      average: vocdd.pattern.average,
+                      sum: vocdd.pattern.sum,
+                      cumulative: vocdd.pattern.cumulative,
+                    },
+                  ],
+                  metric: "Cointime Value",
+                  unit: Unit.usd,
+                }),
+              },
+              ...cointimeValues.map(
+                ({ pattern, name, title: metric, color }) => ({
+                  name,
+                  tree: sumsAndAveragesCumulative({
+                    sum: pattern.sum,
+                    average: pattern.average,
+                    cumulative: pattern.cumulative,
+                    metric,
+                    unit: Unit.usd,
+                    color,
+                  }),
+                }),
+              ),
+              {
+                name: vocdd.name,
+                tree: sumsAndAveragesCumulative({
+                  sum: vocdd.pattern.sum,
+                  average: vocdd.pattern.average,
+                  cumulative: vocdd.pattern.cumulative,
+                  metric: vocdd.title,
+                  unit: Unit.usd,
+                  color: vocdd.color,
+                }),
+              },
+            ],
+          },
+          {
+            name: "Indicators",
+            tree: [
+              {
+                name: "AVIV",
+                title: "AVIV Ratio",
+                bottom: [
+                  line({
+                    series: cap.aviv.ratio,
+                    name: "AVIV",
+                    unit: Unit.ratio,
+                  }),
+                ],
+              },
+              {
+                name: "Reserve Risk",
+                title: "Reserve Risk",
+                bottom: [
+                  line({
+                    series: reserveRisk.value,
+                    name: "Ratio",
+                    color: colors.reserveRisk,
+                    unit: Unit.ratio,
+                  }),
+                ],
+              },
+            ],
+          },
+          {
+            name: "Adjustments",
+            tree: [
+              {
+                name: "Inflation",
+                title: "Cointime-Adjusted Inflation",
+                bottom: [
+                  dots({
+                    series: supply.inflationRate.percent,
+                    name: "Base",
+                    color: colors.base,
+                    unit: Unit.percentage,
+                  }),
+                  ...percentRatioDots({
+                    pattern: adjusted.inflationRate,
+                    name: "Cointime-Adjusted",
+                    color: colors.adjusted,
+                  }),
+                ],
+              },
+              {
+                name: "BTC Velocity",
+                title: "Cointime-Adjusted BTC Velocity",
+                bottom: [
+                  line({
+                    series: supply.velocity.native,
+                    name: "Base",
+                    color: colors.base,
+                    unit: Unit.ratio,
+                  }),
+                  line({
+                    series: adjusted.txVelocityNative,
+                    name: "Cointime-Adjusted",
+                    color: colors.adjusted,
+                    unit: Unit.ratio,
+                  }),
+                ],
+              },
+              {
+                name: "USD Velocity",
+                title: "Cointime-Adjusted USD Velocity",
+                bottom: [
+                  line({
+                    series: supply.velocity.fiat,
+                    name: "Base",
+                    color: colors.thermo,
+                    unit: Unit.ratio,
+                  }),
+                  line({
+                    series: adjusted.txVelocityFiat,
+                    name: "Cointime-Adjusted",
+                    color: colors.vaulted,
+                    unit: Unit.ratio,
+                  }),
+                ],
+              },
             ],
           },
         ],

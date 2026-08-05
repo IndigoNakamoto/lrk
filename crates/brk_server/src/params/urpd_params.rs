@@ -7,6 +7,7 @@ use brk_types::{Cohort, Date, UrpdAggregation, UrpdWeight};
 #[derive(Deserialize, JsonSchema)]
 pub struct UrpdParams {
     pub cohort: Cohort,
+    /// Calendar date of the URPD snapshot in `YYYY-MM-DD` format.
     #[schemars(with = "String", example = &"2024-01-01")]
     pub date: Date,
 }

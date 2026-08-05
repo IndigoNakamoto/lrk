@@ -14,6 +14,8 @@ use crate::{ClientMetadata, Endpoint, ResponseKind, TypeSchemas};
 
 use super::write_if_changed;
 
+mod manifest;
+
 const BASE_URL: &str = "https://bitview.space";
 
 pub fn generate_llm_clients(
@@ -22,6 +24,7 @@ pub fn generate_llm_clients(
     endpoints: &[Endpoint],
     schemas: &TypeSchemas,
     roots: &[PathBuf],
+    manifest_path: Option<&Path>,
 ) -> io::Result<()> {
     let metric_count = count_metrics(&metadata.catalog);
     let generated = endpoints
@@ -46,6 +49,12 @@ pub fn generate_llm_clients(
         create_dir_all(root)?;
         write_output(&root.join("llms.txt"), &llms)?;
         write_output(&root.join("llms-full.txt"), &llms_full)?;
+    }
+    if let Some(path) = manifest_path {
+        if let Some(parent) = path.parent() {
+            create_dir_all(parent)?;
+        }
+        manifest::generate_tool_manifest(endpoints, schemas, path)?;
     }
     Ok(())
 }
@@ -440,10 +449,14 @@ mod tests {
                 required: true,
                 param_type: "string".to_owned(),
                 description: Some("Thing identifier".to_owned()),
+                schema: serde_json::json!({ "type": "string" }),
             }],
             query_params: Vec::new(),
             request_body: None,
             response_kind: ResponseKind::Json("Thing".to_owned()),
+            json_response_schema: Some(serde_json::json!({
+                "$ref": "#/components/schemas/Thing"
+            })),
             deprecated: false,
             supports_csv: false,
         }

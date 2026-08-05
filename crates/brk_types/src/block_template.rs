@@ -9,8 +9,7 @@ use crate::{MempoolBlock, NextBlockHash, Transaction};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockTemplate {
-    /// Pass back as `<hash>` on
-    /// `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
+    /// Pass to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
     pub hash: NextBlockHash,
 
     /// Aggregate stats for this block (size, vsize, fee range, ...).

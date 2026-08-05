@@ -39,6 +39,28 @@ impl UTXOCohorts {
         Ok(())
     }
 
+    /// Iterate over the current in-memory age-cohort URPD entries.
+    ///
+    /// Prices use the same rounding as the persisted daily distributions, so
+    /// consumers can avoid writing and immediately rereading the current day.
+    pub(crate) fn age_range_urpd_entries(
+        &self,
+    ) -> impl Iterator<Item = (usize, bool, CentsCompact, Sats)> + '_ {
+        let sth_filter = &self.sth.metrics.filter;
+        self.age_range
+            .iter()
+            .enumerate()
+            .flat_map(move |(age, cohort)| {
+                let is_sth = sth_filter.includes(cohort.filter());
+                cohort.state.iter().flat_map(move |state| {
+                    state
+                        .cost_basis_map()
+                        .iter()
+                        .map(move |(&price, &sats)| (age, is_sth, rounded_urpd_price(price), sats))
+                })
+            })
+    }
+
     /// Push all Fenwick-derived per-block results: percentiles, density, profitability.
     fn push_fenwick_results(&mut self, spot_price: Cents) {
         let (all_d, sth_d, lth_d) = self.caches.fenwick.density(spot_price);
@@ -71,7 +93,7 @@ impl UTXOCohorts {
                 };
                 let mut merged: Vec<(CentsCompact, Sats)> = Vec::new();
                 for (&price, &sats) in state.cost_basis_map().iter() {
-                    let rounded = price.round_to_dollar(COST_BASIS_PRICE_DIGITS);
+                    let rounded = rounded_urpd_price(price);
                     if let Some(last) = merged.last_mut()
                         && last.0 == rounded
                     {
@@ -123,6 +145,11 @@ impl UTXOCohorts {
 
         Ok(())
     }
+}
+
+#[inline]
+fn rounded_urpd_price(price: CentsCompact) -> CentsCompact {
+    price.round_to_dollar(COST_BASIS_PRICE_DIGITS)
 }
 
 /// Push percentiles + density to cost basis vecs.
@@ -198,9 +225,9 @@ impl MergeTarget {
         self.price_sats += amount;
     }
 
-    fn finalize_price(&mut self, price: Cents) {
+    fn finalize_price(&mut self, price: CentsCompact) {
         if self.price_sats > 0 {
-            let rounded: CentsCompact = price.round_to_dollar(COST_BASIS_PRICE_DIGITS).into();
+            let rounded = rounded_urpd_price(price);
             if let Some((lp, ls)) = self.merged.last_mut()
                 && *lp == rounded
             {
@@ -242,7 +269,7 @@ fn merge_k_way(
         if let Some(prev) = current_price
             && prev != price
         {
-            targets.for_each_mut(|t| t.finalize_price(prev.into()));
+            targets.for_each_mut(|t| t.finalize_price(prev));
         }
 
         current_price = Some(price);
@@ -255,6 +282,6 @@ fn merge_k_way(
     }
 
     if let Some(price) = current_price {
-        targets.for_each_mut(|t| t.finalize_price(price.into()));
+        targets.for_each_mut(|t| t.finalize_price(price));
     }
 }

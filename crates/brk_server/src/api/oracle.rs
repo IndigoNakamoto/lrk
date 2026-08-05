@@ -33,8 +33,8 @@ impl OracleRoutes for ApiRouter<AppState> {
                         .summary("Live BTC/USD price")
                         .description(
                             "Current BTC/USD price in dollars. Same value as \
-                            `/api/mempool/price`. Confirmed per-height history is available at \
-                            `/api/vecs/height-to-price`.",
+                            `GET /api/mempool/price`. Confirmed per-height history is available at \
+                            `GET /api/series/price/height`.",
                         )
                         .json_response::<Dollars>()
                         .not_modified()

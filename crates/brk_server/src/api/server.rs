@@ -51,7 +51,7 @@ impl ServerRoutes for ApiRouter<AppState> {
                     op.id("get_health")
                         .server_tag()
                         .summary("Health check")
-                        .description("Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.")
+                        .description("Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, request `GET /api/server/sync`.")
                         .json_response::<Health>()
                 },
             ),

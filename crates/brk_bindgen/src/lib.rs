@@ -16,6 +16,7 @@ use brk_query::Vecs;
 ///     .rust("crates/brk_client/src/lib.rs")
 ///     .javascript("modules/brk-client/index.js")
 ///     .python("packages/brk_client/__init__.py")
+///     .llm_manifest("crates/brk_mcp/generated/manifest.json")
 ///     .llm("website")
 ///     .llm("website_next");
 /// ```
@@ -29,6 +30,8 @@ pub struct ClientOutputPaths {
     pub python: Option<PathBuf>,
     /// Root directories for generated LLM client bundles.
     pub llm: Vec<PathBuf>,
+    /// Full path to the machine-readable tool manifest in the LLM bundle.
+    pub llm_manifest: Option<PathBuf>,
 }
 
 impl ClientOutputPaths {
@@ -53,6 +56,11 @@ impl ClientOutputPaths {
 
     pub fn llm(mut self, root: impl Into<PathBuf>) -> Self {
         self.llm.push(root.into());
+        self
+    }
+
+    pub fn llm_manifest(mut self, path: impl Into<PathBuf>) -> Self {
+        self.llm_manifest = Some(path.into());
         self
     }
 }
@@ -86,6 +94,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///     .rust("crates/brk_client/src/lib.rs")
 ///     .javascript("modules/brk-client/index.js")
 ///     .python("packages/brk_client/__init__.py")
+///     .llm_manifest("crates/brk_mcp/generated/manifest.json")
 ///     .llm("website")
 ///     .llm("website_next");
 ///
@@ -137,7 +146,14 @@ pub fn generate_clients(
         generate_python_client(&metadata, &endpoints, &schemas, python_path)?;
     }
 
-    generate_llm_clients(&metadata, &spec, &endpoints, &schemas, &output_paths.llm)?;
+    generate_llm_clients(
+        &metadata,
+        &spec,
+        &endpoints,
+        &schemas,
+        &output_paths.llm,
+        output_paths.llm_manifest.as_deref(),
+    )?;
 
     Ok(())
 }

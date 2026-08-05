@@ -34,10 +34,9 @@ import {
   oraclePaymentsHeatmapOption,
 } from "../../src/heatmap/oracle.js";
 import {
-  urpdAgeBandHeatmapFolders,
-  urpdAllHeatmapOptions,
-  urpdLthHeatmapOptions,
-  urpdSthHeatmapOptions,
+  coinflowWeightedUrpdHeatmapTree,
+  cointimeWeightedUrpdHeatmapTree,
+  rawUrpdHeatmapTree,
 } from "../../src/heatmap/urpd.js";
 
 // Re-export types for external consumers
@@ -343,10 +342,15 @@ export function createPartialOptions() {
         {
           name: "Price Distributions",
           tree: [
-            ...urpdAllHeatmapOptions,
-            { name: "STH", tree: urpdSthHeatmapOptions },
-            { name: "LTH", tree: urpdLthHeatmapOptions },
-            { name: "Age Bands", tree: urpdAgeBandHeatmapFolders },
+            ...rawUrpdHeatmapTree,
+            {
+              name: "Cointime Weighted",
+              tree: cointimeWeightedUrpdHeatmapTree,
+            },
+            {
+              name: "Coinflow Weighted",
+              tree: coinflowWeightedUrpdHeatmapTree,
+            },
           ],
         },
       ],

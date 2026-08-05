@@ -40,7 +40,8 @@
 /**
  * @typedef {Object} AddrHashPrefixParam
  * @property {OutputType} addrType
- * @property {string} prefix
+ * @property {string} prefix - First 1–16 hexadecimal nibbles of the RapidHash v3 hash over the raw
+address payload bytes.
  */
 /**
  * Address statistics in the mempool (unconfirmed transactions only)
@@ -271,8 +272,7 @@ Matches mempool.space/bitcoin-cli behavior.
  * `GET /api/v1/mempool/block-template`.
  *
  * @typedef {Object} BlockTemplate
- * @property {NextBlockHash} hash - Pass back as `<hash>` on
-`/api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
+ * @property {NextBlockHash} hash - Pass to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
  * @property {MempoolBlock} stats - Aggregate stats for this block (size, vsize, fee range, ...).
  * @property {Transaction[]} transactions - Full transaction bodies in `getblocktemplate` order.
  */
@@ -646,7 +646,8 @@ ancestors and no descendants (matches mempool.space).
  * per-day variant, choosing the matching cache strategy.
  *
  * @typedef {Object} HeightOrDateParam
- * @property {string} point
+ * @property {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
  */
 /**
  * Block height path parameter
@@ -764,13 +765,12 @@ ancestors and no descendants (matches mempool.space).
 /**
  * Content hash of the projected next block (block 0 of the mempool
  * snapshot). Same value as the mempool ETag. Opaque token: pass back
- * as `since` on `/api/v1/mempool/block-template/diff/{hash}` to fetch
- * deltas.
+ * to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
  *
  * @typedef {number} NextBlockHash
  */
 /**
- * `since` hash for `/api/v1/mempool/block-template/diff/{hash}`.
+ * Prior-template hash for `GET /api/v1/mempool/block-template/diff/{hash}`.
  *
  * @typedef {Object} NextBlockHashParam
  * @property {NextBlockHash} hash
@@ -1410,7 +1410,7 @@ on serialization otherwise.
  *
  * @typedef {Object} UrpdParams
  * @property {Cohort} cohort
- * @property {string} date
+ * @property {string} date - Calendar date of the URPD snapshot in `YYYY-MM-DD` format.
  */
 /**
  * Query parameters for URPD endpoints.
@@ -11470,7 +11470,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Health check
    *
-   * Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.
+   * Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, request `GET /api/server/sync`.
    *
    * Endpoint: `GET /health`
    * @param {{ signal?: AbortSignal, onValue?: (value: Health) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -11654,7 +11654,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Get raw series data
    *
-   * Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as the standard endpoint.
+   * Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as `GET /api/series/{series}/{index}`.
    *
    * Endpoint: `GET /api/series/{series}/{index}/data`
    *
@@ -11797,9 +11797,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Latest URPD
    *
-   * URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served.
-   *
-   * See the URPD tag description for the response shape, `agg`, and `weight` options.
+   * URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }`. `close` and each bucket's `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and bucket `supply` are BTC. `unrealized_pnl` can be negative.
    *
    * Endpoint: `GET /api/urpd/{cohort}`
    *
@@ -11821,14 +11819,12 @@ class BrkClient extends BrkClientBase {
   /**
    * URPD at date
    *
-   * URPD for a (cohort, date) pair. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.
-   *
-   * See the URPD tag description for unit conventions, `agg`, and `weight` options.
+   * URPD for a (cohort, date) pair. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`. `close`, `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and `supply` are BTC. `unrealized_pnl` can be negative.
    *
    * Endpoint: `GET /api/urpd/{cohort}/{date}`
    *
    * @param {Cohort} cohort
-   * @param {string} date
+   * @param {string} date - Calendar date of the URPD snapshot in `YYYY-MM-DD` format.
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
    * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -11899,12 +11895,13 @@ class BrkClient extends BrkClientBase {
   /**
    * Address hash-prefix matches
    *
-   * Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata for the returned addresses through `/api/address/{address}`.
+   * Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata with `GET /api/address/{address}`.
    *
    * Endpoint: `GET /api/address/hash-prefix/{addr_type}/{prefix}`
    *
    * @param {OutputType} addr_type
-   * @param {string} prefix
+   * @param {string} prefix - First 1–16 hexadecimal nibbles of the RapidHash v3 hash over the raw
+address payload bytes.
    * @param {{ signal?: AbortSignal, onValue?: (value: AddrHashPrefixMatches) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<AddrHashPrefixMatches>}
    */
@@ -11934,7 +11931,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address transactions
    *
-   * Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, use `/address/{address}/txs/chain/{last_seen_txid}`.
+   * Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions)*
    *
@@ -11952,7 +11949,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address confirmed transactions
    *
-   * Get the first 25 confirmed transactions for an address. For pagination, use the path-style form `/txs/chain/{last_seen_txid}`.
+   * Get the first 25 confirmed transactions for an address. For pagination, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions-chain)*
    *
@@ -12768,7 +12765,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Recent full-RBF replacements
    *
-   * Like `/api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
+   * Same response shape as `GET /api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-fullrbf-replacements)*
    *
@@ -12784,7 +12781,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Projected next block template
    *
-   * Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+   * Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
    *
    * Endpoint: `GET /api/v1/mempool/block-template`
    * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplate) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -12798,7 +12795,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Block template diff since hash
    *
-   * Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `/api/v1/mempool/block-template`.
+   * Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `GET /api/v1/mempool/block-template`.
    *
    * Endpoint: `GET /api/v1/mempool/block-template/diff/{hash}`
    *
@@ -12828,7 +12825,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Live BTC/USD price
    *
-   * Current BTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
+   * Current BTC/USD price in dollars. Same value as `GET /api/mempool/price`. Confirmed per-height history is available at `GET /api/series/price/height`.
    *
    * Endpoint: `GET /api/oracle/price`
    * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -12860,7 +12857,8 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/oracle/histogram/payments/{point}`
    *
-   * @param {string} point
+   * @param {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
    * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<number[]>}
    */
@@ -12890,7 +12888,8 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/oracle/histogram/outputs/{point}`
    *
-   * @param {string} point
+   * @param {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
    * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<number[]>}
    */
@@ -13152,7 +13151,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Compact OpenAPI specification
    *
-   * Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. Full spec available at `/openapi.json`.
+   * Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. The full specification is available at `GET /openapi.json`.
    *
    * Endpoint: `GET /api.json`
    * @param {{ signal?: AbortSignal, onValue?: (value: *) => void, cache?: boolean, memCache?: boolean }} [options]

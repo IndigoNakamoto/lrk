@@ -129,6 +129,7 @@ fn extract_endpoint(
     let query_params = extract_parameters(operation, ParameterIn::Query);
 
     let response_kind = extract_response_kind(operation, spec);
+    let json_response_schema = extract_json_response_schema(operation);
     let request_body = extract_request_body(operation);
     let supports_csv = check_csv_support(operation);
 
@@ -142,9 +143,27 @@ fn extract_endpoint(
         query_params,
         request_body,
         response_kind,
+        json_response_schema,
         deprecated: operation.deprecated.unwrap_or(false),
         supports_csv,
     })
+}
+
+/// Preserve the complete JSON response schema for MCP output schema
+/// generation. The regular clients only need [`ResponseKind`], while MCP
+/// clients benefit from the exact self-contained response shape.
+fn extract_json_response_schema(operation: &Operation) -> Option<Value> {
+    let response =
+        operation
+            .responses
+            .as_ref()?
+            .get("200")
+            .and_then(|response| match response {
+                ObjectOrReference::Object(response) => Some(response),
+                ObjectOrReference::Ref { .. } => None,
+            })?;
+    let schema = response.content.get("application/json")?.schema.as_ref()?;
+    serde_json::to_value(schema).ok()
 }
 
 /// Extract the request body shape, if any.
@@ -225,6 +244,11 @@ fn extract_parameters(operation: &Operation, location: ParameterIn) -> Vec<Param
                     required: param.required.unwrap_or(false),
                     param_type,
                     description: param.description.clone(),
+                    schema: param
+                        .schema
+                        .as_ref()
+                        .and_then(|schema| serde_json::to_value(schema).ok())
+                        .unwrap_or_else(|| Value::Object(serde_json::Map::new())),
                 })
             }
             _ => None,

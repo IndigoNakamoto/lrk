@@ -12,8 +12,8 @@ use crate::{
     distribution::{
         addr::AddrMetricsState,
         block::{
-            AddrCache, InputsResult, TransferAddressCache, process_inputs, process_outputs,
-            process_received, process_sent,
+            AddrCache, TransferAddressCache, process_inputs, process_outputs, process_received,
+            process_sent,
         },
         compute::write::{process_addr_updates, write},
         state::{BlockState, Transacted},
@@ -259,17 +259,23 @@ pub(crate) fn process_blocks(
 
         state.reset_per_block();
 
-        // Process outputs, inputs, and tick-tock in parallel via rayon::join.
-        // Collection (build tx_index mappings + bulk mmap reads) is merged into the
-        // processing closures so outputs and inputs collection overlap each other
-        // and tick-tock, instead of running sequentially before the join.
+        debug_assert!(input_count > 0);
+
+        // Keep tick-tock concurrent with the block reads and address processing.
         let (matured, (outputs_result, inputs_result)) = rayon::join(
             || {
                 vecs.utxo_cohorts
                     .tick_tock_next_block(chain_state, timestamp)
             },
             || {
-                rayon::join(
+                // Collect both sides concurrently, then load their shared addresses once.
+                let (
+                    (txout_index_to_tx_index, txout_data_vec),
+                    (
+                        txin_index_to_tx_index,
+                        (input_values, input_prev_heights, input_output_types, input_type_indexes),
+                    ),
+                ) = rayon::join(
                     || {
                         let txout_index_to_tx_index = txout_to_tx_index_buf.build(
                             first_tx_index,
@@ -278,62 +284,53 @@ pub(crate) fn process_blocks(
                         );
                         let txout_data_vec =
                             txout_iters.collect_block_outputs(first_txout_index, output_count);
-                        process_outputs(
-                            txout_index_to_tx_index,
-                            txout_data_vec,
-                            &first_addr_indexes,
-                            &cache,
-                            &vr,
-                            &vecs.any_addr_indexes,
-                            &vecs.addrs_data,
-                        )
+                        (txout_index_to_tx_index, txout_data_vec)
                     },
                     || {
-                        if input_count > 1 {
-                            let txin_index_to_tx_index = txin_to_tx_index_buf.build(
-                                first_tx_index,
-                                tx_count,
-                                tx_index_to_input_count,
-                            );
-                            let (
-                                input_values,
-                                input_prev_heights,
-                                input_output_types,
-                                input_type_indexes,
-                            ) = txin_iters.collect_block_inputs(
-                                first_txin_index + 1,
-                                input_count - 1,
-                                height,
-                            );
-                            process_inputs(
-                                input_count - 1,
-                                &txin_index_to_tx_index[1..],
-                                input_values,
-                                input_output_types,
-                                input_type_indexes,
-                                input_prev_heights,
-                                &first_addr_indexes,
-                                &cache,
-                                &vr,
-                                &vecs.any_addr_indexes,
-                                &vecs.addrs_data,
-                            )
-                        } else {
-                            InputsResult {
-                                height_to_sent: Default::default(),
-                                sent_data: Default::default(),
-                                addr_data: Default::default(),
-                                tx_index_vecs: Default::default(),
-                            }
-                        }
+                        let txin_index_to_tx_index = txin_to_tx_index_buf.build(
+                            first_tx_index,
+                            tx_count,
+                            tx_index_to_input_count,
+                        );
+                        let input_data = txin_iters.collect_block_inputs(
+                            first_txin_index + 1,
+                            input_count - 1,
+                            height,
+                        );
+                        (txin_index_to_tx_index, input_data)
+                    },
+                );
+
+                cache.load_block_addresses(
+                    txout_data_vec
+                        .iter()
+                        .map(|data| (data.output_type, data.type_index))
+                        .chain(
+                            input_output_types
+                                .iter()
+                                .copied()
+                                .zip(input_type_indexes.iter().copied()),
+                        ),
+                    &first_addr_indexes,
+                    &vr,
+                    &vecs.any_addr_indexes,
+                    &vecs.addrs_data,
+                );
+
+                rayon::join(
+                    || process_outputs(txout_index_to_tx_index, txout_data_vec),
+                    || {
+                        process_inputs(
+                            &txin_index_to_tx_index[1..],
+                            input_values,
+                            input_output_types,
+                            input_type_indexes,
+                            input_prev_heights,
+                        )
                     },
                 )
             },
         );
-
-        // Merge new address data into current cache
-        cache.merge_funded(outputs_result.addr_data);
-        cache.merge_funded(inputs_result.addr_data);
 
         // Combine tx_index_vecs from outputs and inputs, then update tx_count
         let combined_tx_index_vecs = outputs_result

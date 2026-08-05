@@ -940,6 +940,11 @@ export function createMarketSection() {
                 color: colors.trueMarketMean,
               }),
               price({
+                series: cointime.awake.price,
+                name: "Awake Price",
+                color: colors.awake,
+              }),
+              price({
                 series: coinflow.price,
                 name: "Coinflow Price",
                 color: colors.coinflow,

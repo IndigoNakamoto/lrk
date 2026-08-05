@@ -336,7 +336,6 @@ impl Vecs {
             let needs_rebuild = !weighted_urpd_is_current || day_index >= recompute_from;
             if let Some(date) = indexes.day1.date.collect_one(day)
                 && (needs_rebuild || needs_evaluation)
-                && UrpdRaw::path(&distribution.states_path, UTXO_ALL_NAME.id, date).try_exists()?
             {
                 let weights = mode_weights(
                     day,
@@ -346,17 +345,31 @@ impl Vecs {
                     &coinflow_spending_rate,
                     &bounds,
                 );
-                let urpds = build_day_urpds(&distribution.states_path, date, &weights)?;
-                if needs_rebuild {
-                    write_weighted_day_urpds(
-                        &self.states_path,
-                        &weighted_urpd_names,
-                        date,
-                        &urpds,
-                    )?;
-                }
-                if needs_evaluation {
-                    evaluate_day(&urpds, &thresholds, &mut result);
+                let urpds = if day_index + 1 == source_end {
+                    Some(build_current_day_urpds(
+                        &distribution.utxo_cohorts,
+                        &weights,
+                    ))
+                } else if UrpdRaw::path(&distribution.states_path, UTXO_ALL_NAME.id, date)
+                    .try_exists()?
+                {
+                    Some(read_day_urpds(&distribution.states_path, date, &weights)?)
+                } else {
+                    None
+                };
+
+                if let Some(urpds) = urpds {
+                    if needs_rebuild {
+                        write_weighted_day_urpds(
+                            &self.states_path,
+                            &weighted_urpd_names,
+                            date,
+                            &urpds,
+                        )?;
+                    }
+                    if needs_evaluation {
+                        evaluate_day(&urpds, &thresholds, &mut result);
+                    }
                 }
             }
             calibration.observe(loss_shares);
@@ -553,7 +566,7 @@ fn remove_urpd_dir(states_path: &Path, name: &str) -> Result<()> {
     }
 }
 
-fn build_day_urpds(
+fn read_day_urpds(
     distribution_states_path: &Path,
     date: Date,
     weights: &ModeWeights,
@@ -575,21 +588,52 @@ fn build_day_urpds(
         };
 
         for (price, sats) in source.map {
-            let mass = u64::from(sats) as f64;
-            let bucket = weighted.entry(price).or_default();
-            for (mode, (all, weights)) in bucket.all.iter_mut().zip(&weights[1..]).enumerate() {
-                if let Some(weights) = weights {
-                    let weighted_mass = mass * weights[age];
-                    *all += weighted_mass;
-                    if mode < STORED_WEIGHT_COUNT {
-                        bucket.terms[term][mode] += weighted_mass;
-                    }
-                }
-            }
+            add_weighted_entry(&mut weighted, price, sats, age, term, weights);
         }
     }
 
     Ok(finalize_day_urpds(raw, weighted))
+}
+
+fn build_current_day_urpds(utxos: &distribution::UTXOCohorts, weights: &ModeWeights) -> DayUrpds {
+    build_urpds_from_age_entries(utxos.age_range_urpd_entries(), weights)
+}
+
+fn build_urpds_from_age_entries(
+    entries: impl IntoIterator<Item = (usize, bool, CentsCompact, Sats)>,
+    weights: &ModeWeights,
+) -> DayUrpds {
+    let mut raw = UrpdRaw::default();
+    let mut weighted = WeightedUrpd::new();
+
+    for (age, is_sth, price, sats) in entries {
+        *raw.map.entry(price).or_default() += sats;
+        let term = if is_sth { STH_TERM } else { LTH_TERM };
+        add_weighted_entry(&mut weighted, price, sats, age, term, weights);
+    }
+
+    finalize_day_urpds(raw, weighted)
+}
+
+fn add_weighted_entry(
+    weighted: &mut WeightedUrpd,
+    price: CentsCompact,
+    sats: Sats,
+    age: usize,
+    term: usize,
+    weights: &ModeWeights,
+) {
+    let mass = u64::from(sats) as f64;
+    let bucket = weighted.entry(price).or_default();
+    for (mode, (all, weights)) in bucket.all.iter_mut().zip(&weights[1..]).enumerate() {
+        if let Some(weights) = weights {
+            let weighted_mass = mass * weights[age];
+            *all += weighted_mass;
+            if mode < STORED_WEIGHT_COUNT {
+                bucket.terms[term][mode] += weighted_mass;
+            }
+        }
+    }
 }
 
 fn finalize_day_urpds(raw: UrpdRaw, weighted: WeightedUrpd) -> DayUrpds {
@@ -883,6 +927,30 @@ mod tests {
             !urpds.terms[STH_TERM][COINTIME_MODE - 1]
                 .map
                 .contains_key(&CentsCompact::new(100))
+        );
+    }
+
+    #[test]
+    fn current_day_entries_build_raw_and_weighted_urpds() {
+        let weights: ModeWeights = std::array::from_fn(|_| Some([0.5; AGE_COHORT_COUNT]));
+        let price = CentsCompact::new(100);
+        let urpds = build_urpds_from_age_entries(
+            [
+                (0, true, price, Sats::from(3_u64)),
+                (1, false, price, Sats::from(5_u64)),
+            ],
+            &weights,
+        );
+
+        assert_eq!(urpds.raw.map[&price], Sats::from(8_u64));
+        assert_eq!(urpds.all[COINTIME_MODE - 1].map[&price], Sats::from(4_u64));
+        assert_eq!(
+            urpds.terms[STH_TERM][COINTIME_MODE - 1].map[&price],
+            Sats::from(1_u64)
+        );
+        assert_eq!(
+            urpds.terms[LTH_TERM][COINTIME_MODE - 1].map[&price],
+            Sats::from(2_u64)
         );
     }
 

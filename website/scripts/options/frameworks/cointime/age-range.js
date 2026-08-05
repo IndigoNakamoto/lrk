@@ -75,36 +75,26 @@ function coindaysTree(ranges, key, name) {
   return {
     name,
     tree: [
-      {
-        name: "Average",
-        tree: ROLLING_WINDOWS.map((window) => ({
-          name: window.name,
-          title: `${window.title} Average ${name} by UTXO Age`,
-          bottom: ranges.map((range) =>
-            line({
-              series: range.tree[key].average[window.key],
-              name: range.name,
-              color: range.color,
-              unit: Unit.coindays,
-            }),
-          ),
-        })),
-      },
-      {
-        name: "Sum",
-        tree: ROLLING_WINDOWS.map((window) => ({
-          name: window.name,
-          title: `${window.title} ${name} by UTXO Age`,
-          bottom: ranges.map((range) =>
-            line({
-              series: range.tree[key].sum[window.key],
-              name: range.name,
-              color: range.color,
-              unit: Unit.coindays,
-            }),
-          ),
-        })),
-      },
+      ...ROLLING_WINDOWS.map((window) => ({
+        name: window.name,
+        title: `${window.title} ${name} by UTXO Age`,
+        bottom: ranges.flatMap((range) => [
+          line({
+            series: range.tree[key].sum[window.key],
+            name: range.name,
+            color: range.color,
+            unit: Unit.coindays,
+          }),
+          line({
+            series: range.tree[key].average[window.key],
+            name: `${range.name} Avg`,
+            color: range.color,
+            unit: Unit.coindays,
+            defaultActive: false,
+            style: 1,
+          }),
+        ]),
+      })),
       {
         name: "Cumulative",
         title: `Cumulative ${name} by UTXO Age`,
@@ -125,35 +115,37 @@ function coindaysTree(ranges, key, name) {
  * @param {readonly CointimeAgeRange[]} ranges
  * @returns {PartialOptionsGroup}
  */
-export function createCointimeAgeRangeSection(ranges) {
+export function createCointimeAgeRangeSupplySection(ranges) {
   return {
-    name: "Age Range",
+    name: "By UTXO Age",
     tree: [
-      {
-        name: "Supply",
-        tree: [
-          supplyChart(ranges, "awake", "Awake"),
-          supplyChart(ranges, "dormant", "Dormant"),
-        ],
-      },
-      {
-        name: "Activity",
-        tree: [
-          activityChart(
-            ranges,
-            "wakefulness",
-            "Wakefulness",
-            "Wakefulness",
-          ),
-          activityChart(ranges, "dormancy", "Dormancy", "Dormancy"),
-          activityChart(
-            ranges,
-            "wakefulnessToDormancy",
-            "Activity Ratio",
-            "Wakefulness / Dormancy",
-          ),
-        ],
-      },
+      supplyChart(ranges, "awake", "Awake"),
+      supplyChart(ranges, "dormant", "Dormant"),
+    ],
+  };
+}
+
+/**
+ * @param {readonly CointimeAgeRange[]} ranges
+ * @returns {PartialOptionsGroup}
+ */
+export function createCointimeAgeRangeActivitySection(ranges) {
+  return {
+    name: "By UTXO Age",
+    tree: [
+      activityChart(
+        ranges,
+        "wakefulness",
+        "Wakefulness",
+        "Wakefulness",
+      ),
+      activityChart(ranges, "dormancy", "Dormancy", "Dormancy"),
+      activityChart(
+        ranges,
+        "wakefulnessToDormancy",
+        "Activity Ratio",
+        "Wakefulness / Dormancy",
+      ),
       {
         name: "Coindays",
         tree: [
