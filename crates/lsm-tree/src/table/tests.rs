@@ -32,11 +32,10 @@ fn test_with_table(
         }
 
         for (idx, item) in items.iter().enumerate() {
-            if let Some(rotate) = rotate_every {
-                if idx % rotate == 0 {
+            if let Some(rotate) = rotate_every
+                && idx % rotate == 0 {
                     writer.spill_block()?;
                 }
-            }
             writer.write(item.clone())?;
         }
         let (_, checksum) = writer.finish()?.unwrap();
@@ -175,11 +174,10 @@ fn test_with_table(
         }
 
         for (idx, item) in items.iter().enumerate() {
-            if let Some(rotate) = rotate_every {
-                if idx % rotate == 0 {
+            if let Some(rotate) = rotate_every
+                && idx % rotate == 0 {
                     writer.spill_block()?;
                 }
-            }
             writer.write(item.clone())?;
         }
         let (_, checksum) = writer.finish()?.unwrap();
@@ -198,7 +196,7 @@ fn test_with_table(
 
             assert_eq!(0, table.id());
             assert_eq!(items.len(), table.metadata.item_count as usize);
-            assert!(table.regions.index.is_some(), "should use two-level index",);
+            assert!(table.regions.index.is_some(), "should use two-level index");
             assert_eq!(0, table.pinned_filter_size(), "should not pin filter");
             assert!(matches!(
                 table.file_accessor,
@@ -222,7 +220,7 @@ fn test_with_table(
 
             assert_eq!(0, table.id());
             assert_eq!(items.len(), table.metadata.item_count as usize);
-            assert!(table.regions.index.is_some(), "should use two-level index",);
+            assert!(table.regions.index.is_some(), "should use two-level index");
             // assert!(table.pinned_filter_size() > 0, "should pin filter");
             assert!(matches!(
                 table.file_accessor,
@@ -246,7 +244,7 @@ fn test_with_table(
 
             assert_eq!(0, table.id());
             assert_eq!(items.len(), table.metadata.item_count as usize);
-            assert!(table.regions.index.is_some(), "should use two-level index",);
+            assert!(table.regions.index.is_some(), "should use two-level index");
             assert!(table.pinned_block_index_size() > 0, "should pin index");
             // assert_eq!(0, table.pinned_filter_size(), "should not pin filter");
             assert!(matches!(
@@ -271,7 +269,7 @@ fn test_with_table(
 
             assert_eq!(0, table.id());
             assert_eq!(items.len(), table.metadata.item_count as usize);
-            assert!(table.regions.index.is_some(), "should use two-level index",);
+            assert!(table.regions.index.is_some(), "should use two-level index");
             assert!(table.pinned_block_index_size() > 0, "should pin index");
             // assert!(table.pinned_filter_size() > 0, "should pin filter");
             assert!(matches!(
@@ -296,7 +294,7 @@ fn test_with_table(
 
             assert_eq!(0, table.id());
             assert_eq!(items.len(), table.metadata.item_count as usize);
-            assert!(table.regions.index.is_some(), "should use two-level index",);
+            assert!(table.regions.index.is_some(), "should use two-level index");
             assert!(table.pinned_block_index_size() > 0, "should pin index");
             // assert!(table.pinned_filter_size() > 0, "should pin filter");
             assert!(matches!(table.file_accessor, FileAccessor::File(..)));

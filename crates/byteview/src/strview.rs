@@ -147,14 +147,13 @@ mod serde {
     use serde::de::{self, Visitor};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
-    use std::ops::Deref;
 
     impl Serialize for StrView {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
-            serializer.serialize_str(self.deref())
+            serializer.serialize_str(self.as_ref())
         }
     }
 
@@ -165,7 +164,7 @@ mod serde {
         {
             struct StrViewVisitor;
 
-            impl<'de> Visitor<'de> for StrViewVisitor {
+            impl Visitor<'_> for StrViewVisitor {
                 type Value = StrView;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -192,10 +191,11 @@ mod tests {
 
     #[cfg(feature = "serde")]
     #[test]
-    fn serde_roundtrip() {
+    fn serde_roundtrip() -> serde_json::Result<()> {
         let a = StrView::from("abcdef");
-        let b: StrView = serde_json::from_slice(&serde_json::to_vec(&a).unwrap()).unwrap();
+        let b: StrView = serde_json::from_slice(&serde_json::to_vec(&a)?)?;
         assert_eq!(a, b);
+        Ok(())
     }
 
     #[test]

@@ -114,8 +114,8 @@ impl WriteBatch {
 
         journal_writer.write_batch(self.data.iter(), self.data.len(), batch_seqno)?;
 
-        if let Some(mode) = self.durability {
-            if let Err(e) = journal_writer.persist(mode) {
+        if let Some(mode) = self.durability
+            && let Err(e) = journal_writer.persist(mode) {
                 self.db.is_poisoned.poison();
 
                 log::error!(
@@ -124,7 +124,6 @@ impl WriteBatch {
 
                 return Err(crate::Error::Poisoned);
             }
-        }
 
         // TODO: maybe we can use a stack alloc hashset/vec here, such as smallset
         #[expect(clippy::mutable_key_type)]

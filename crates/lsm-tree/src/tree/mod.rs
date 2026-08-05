@@ -99,6 +99,10 @@ impl AbstractTree for Tree {
     }
 
     fn next_table_id(&self) -> TableId {
+        #[expect(
+            clippy::expect_used,
+            reason = "exhausting the complete u32 table ID space is unrecoverable"
+        )]
         self.0
             .table_id_counter
             .get()
@@ -1132,7 +1136,7 @@ impl Tree {
 
         log::debug!("Successfully recovered {} tables", tables.len());
 
-        let version = Version::from_recovery(recovery, &tables)?;
+        let version = Version::from_recovery(&recovery, &tables)?;
 
         // NOTE: Cleanup old versions
         // But only after we definitely recovered the latest version

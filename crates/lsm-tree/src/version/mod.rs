@@ -185,7 +185,7 @@ impl Version {
         }
     }
 
-    pub(crate) fn from_recovery(recovery: Recovery, tables: &[Table]) -> crate::Result<Self> {
+    pub(crate) fn from_recovery(recovery: &Recovery, tables: &[Table]) -> crate::Result<Self> {
         let version_levels = recovery
             .table_ids
             .iter()
@@ -306,6 +306,10 @@ impl Version {
     /// Returns a new version with a list of tables removed.
     ///
     /// The table files are not immediately deleted, this is handled by the version system's free list.
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "preserves the fallible version-transformation API"
+    )]
     pub fn with_dropped(&self, ids: &[TableId]) -> crate::Result<Self> {
         let id = self.id + 1;
 
@@ -353,11 +357,10 @@ impl Version {
                 .filter(|x| !x.is_empty())
                 .collect::<Vec<_>>();
 
-            if level_idx == dest_level {
-                if let Some(run) = Run::new(new_tables.to_vec()) {
+            if level_idx == dest_level
+                && let Some(run) = Run::new(new_tables.to_vec()) {
                     runs.insert(0, run);
                 }
-            }
 
             let runs = optimize_runs(runs);
 
@@ -395,11 +398,10 @@ impl Version {
                 .filter(|x| !x.is_empty())
                 .collect::<Vec<_>>();
 
-            if level_idx == dest_level {
-                if let Some(run) = Run::new(affected_tables.clone()) {
+            if level_idx == dest_level
+                && let Some(run) = Run::new(affected_tables.clone()) {
                     runs.insert(0, run);
                 }
-            }
 
             let runs = optimize_runs(runs);
 

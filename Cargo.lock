@@ -492,6 +492,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "brk_byteview"
+version = "0.3.6"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "brk_cli"
 version = "0.3.6"
 dependencies = [
@@ -574,7 +582,7 @@ name = "brk_error"
 version = "0.3.6"
 dependencies = [
  "bitcoin",
- "fjall",
+ "brk_fjall",
  "jiff",
  "jsonrpc",
  "pco",
@@ -598,6 +606,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "brk_fjall"
+version = "0.3.6"
+dependencies = [
+ "brk_byteview",
+ "brk_lsm_tree",
+ "byteorder-lite",
+ "dashmap",
+ "flume",
+ "log",
+ "lz4_flex",
+ "nanoid",
+ "tempfile",
+ "test-log",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "brk_indexer"
 version = "0.3.6"
 dependencies = [
@@ -606,6 +631,7 @@ dependencies = [
  "brk_bencher",
  "brk_cohort",
  "brk_error",
+ "brk_fjall",
  "brk_logger",
  "brk_reader",
  "brk_rpc",
@@ -613,7 +639,6 @@ dependencies = [
  "brk_traversable",
  "brk_types",
  "color-eyre",
- "fjall",
  "parking_lot",
  "rayon",
  "rustc-hash",
@@ -644,6 +669,32 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "brk_lsm_tree"
+version = "0.3.6"
+dependencies = [
+ "arc-swap",
+ "brk_byteview",
+ "byteorder-lite",
+ "criterion",
+ "crossbeam-skiplist",
+ "fs_extra",
+ "interval-heap",
+ "log",
+ "lz4_flex",
+ "nanoid",
+ "quick_cache",
+ "rand 0.10.2",
+ "rustc-hash",
+ "self_cell",
+ "sfa",
+ "strum",
+ "tempfile",
+ "test-log",
+ "varint-rs",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -783,10 +834,10 @@ dependencies = [
 name = "brk_store"
 version = "0.3.6"
 dependencies = [
+ "brk_byteview",
  "brk_error",
+ "brk_fjall",
  "brk_types",
- "byteview",
- "fjall",
  "rustc-hash",
  "tempfile",
 ]
@@ -818,8 +869,8 @@ name = "brk_types"
 version = "0.3.6"
 dependencies = [
  "bitcoin",
+ "brk_byteview",
  "brk_error",
- "byteview",
  "derive_more",
  "indexmap",
  "itoa",
@@ -901,14 +952,6 @@ name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
-
-[[package]]
-name = "byteview"
-version = "0.3.6"
-dependencies = [
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "cast"
@@ -1588,23 +1631,6 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
-
-[[package]]
-name = "fjall"
-version = "0.3.6"
-dependencies = [
- "byteorder-lite",
- "byteview",
- "dashmap",
- "flume",
- "log",
- "lsm-tree",
- "lz4_flex",
- "nanoid",
- "tempfile",
- "test-log",
- "xxhash-rust",
-]
 
 [[package]]
 name = "flate2"
@@ -2403,32 +2429,6 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
-
-[[package]]
-name = "lsm-tree"
-version = "0.3.6"
-dependencies = [
- "arc-swap",
- "byteorder-lite",
- "byteview",
- "criterion",
- "crossbeam-skiplist",
- "fs_extra",
- "interval-heap",
- "log",
- "lz4_flex",
- "nanoid",
- "quick_cache",
- "rand 0.10.2",
- "rustc-hash",
- "self_cell",
- "sfa",
- "strum",
- "tempfile",
- "test-log",
- "varint-rs",
- "xxhash-rust",
-]
 
 [[package]]
 name = "lz4_flex"

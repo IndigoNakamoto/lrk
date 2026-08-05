@@ -99,15 +99,12 @@ impl ParsedMeta {
 
         let block = DataBlock::new(block);
 
-        #[expect(clippy::indexing_slicing)]
-        {
-            let table_version = block
-                .point_read(b"table_version", SeqNo::MAX)
-                .expect("Table version should exist")
-                .value;
+        let table_version = block
+            .point_read(b"table_version", SeqNo::MAX)
+            .expect("Table version should exist")
+            .value;
 
-            assert_eq!(&*table_version, [5], "unsupported table version");
-        }
+        assert_eq!(&*table_version, [5], "unsupported table version");
 
         {
             let hash_type = block

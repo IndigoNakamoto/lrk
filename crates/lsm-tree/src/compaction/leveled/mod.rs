@@ -237,7 +237,12 @@ impl CompactionStrategy for Strategy {
         NAME
     }
 
-    #[expect(clippy::too_many_lines)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::expect_used,
+        clippy::too_many_lines,
+        reason = "the asserted seven-level invariant guarantees every level exists and its index fits in u8"
+    )]
     fn choose(&self, version: &Version, _: &Config, state: &CompactionState) -> Choice {
         assert!(version.level_count() == 7, "should have exactly 7 levels");
 

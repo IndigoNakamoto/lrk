@@ -43,7 +43,7 @@ fn mvcc_stream(c: &mut Criterion) {
         c.bench_function(&format!("MVCC stream {num} versions"), |b| {
             let memtables = (0..num)
                 .map(|id| {
-                    let table = Memtable::new(id as u64);
+                    let table = Memtable::new(id);
 
                     for key in 'a'..='z' {
                         table.insert(InternalValue::from_components(

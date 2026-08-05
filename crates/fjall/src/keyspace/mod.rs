@@ -771,10 +771,11 @@ impl Keyspace {
                 .expect("lock is poisoned")
                 .values()
             {
-                if let Err(e) = keyspace.tree.get_version_history_lock().maintenance(
+                let maintenance_result = keyspace.tree.get_version_history_lock().maintenance(
                     keyspace.path(),
                     self.supervisor.snapshot_tracker.get_seqno_safe_to_gc(),
-                ) {
+                );
+                if let Err(e) = maintenance_result {
                     log::warn!(
                         "Version history GC failed for keyspace {:?}: {e:?}",
                         keyspace.name,

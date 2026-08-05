@@ -210,7 +210,7 @@ fn tree_get_pairs(c: &mut Criterion) {
             }
 
             group.bench_function(
-                &format!("Tree::first_key_value (disjoint), {segment_count} segments"),
+                format!("Tree::first_key_value (disjoint), {segment_count} segments"),
                 |b| {
                     b.iter(|| {
                         assert!(tree.first_key_value(SeqNo::MAX, None).is_some());
@@ -219,7 +219,7 @@ fn tree_get_pairs(c: &mut Criterion) {
             );
 
             group.bench_function(
-                &format!("Tree::last_key_value (disjoint), {segment_count} segments"),
+                format!("Tree::last_key_value (disjoint), {segment_count} segments"),
                 |b| {
                     b.iter(|| {
                         assert!(tree.last_key_value(SeqNo::MAX, None).is_some());
@@ -250,7 +250,7 @@ fn tree_get_pairs(c: &mut Criterion) {
             }
 
             group.bench_function(
-                &format!("Tree::first_key_value (non-disjoint), {segment_count} segments"),
+                format!("Tree::first_key_value (non-disjoint), {segment_count} segments"),
                 |b| {
                     b.iter(|| {
                         assert!(tree.first_key_value(SeqNo::MAX, None).is_some());
@@ -259,7 +259,7 @@ fn tree_get_pairs(c: &mut Criterion) {
             );
 
             group.bench_function(
-                &format!("Tree::last_key_value (non-disjoint), {segment_count} segments"),
+                format!("Tree::last_key_value (non-disjoint), {segment_count} segments"),
                 |b| {
                     b.iter(|| {
                         assert!(tree.last_key_value(SeqNo::MAX, None).is_some());

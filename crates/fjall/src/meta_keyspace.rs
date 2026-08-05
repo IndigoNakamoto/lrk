@@ -243,7 +243,7 @@ mod tests {
                 None,
                 db.meta_keyspace
                     .inner
-                    .get(&['n' as u8, 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
+                    .get([b'n', 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
                     .as_deref(),
             );
 
@@ -253,7 +253,7 @@ mod tests {
                 Some(b"items".as_slice()),
                 db.meta_keyspace
                     .inner
-                    .get(&['n' as u8, 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
+                    .get([b'n', 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
                     .as_deref(),
             );
             assert_eq!(
@@ -261,9 +261,9 @@ mod tests {
                 db.meta_keyspace
                     .inner
                     .get(
-                        &[
-                            'c' as u8, 0, 0, 0, 0, 0, 0, 0, 1, 'v' as u8, 'e' as u8, 'r' as u8,
-                            's' as u8, 'i' as u8, 'o' as u8, 'n' as u8
+                        [
+                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r',
+                            b's', b'i', b'o', b'n'
                         ],
                         SeqNo::MAX
                     )?
@@ -279,7 +279,7 @@ mod tests {
                 Some(b"items".as_slice()),
                 db.meta_keyspace
                     .inner
-                    .get(&['n' as u8, 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
+                    .get([b'n', 0, 0, 0, 0, 0, 0, 0, 1], SeqNo::MAX)?
                     .as_deref(),
             );
             assert_eq!(
@@ -287,9 +287,9 @@ mod tests {
                 db.meta_keyspace
                     .inner
                     .get(
-                        &[
-                            'c' as u8, 0, 0, 0, 0, 0, 0, 0, 1, 'v' as u8, 'e' as u8, 'r' as u8,
-                            's' as u8, 'i' as u8, 'o' as u8, 'n' as u8
+                        [
+                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r',
+                            b's', b'i', b'o', b'n'
                         ],
                         SeqNo::MAX
                     )?

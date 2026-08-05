@@ -24,6 +24,10 @@ pub type TreeId = u32;
 pub type MemtableId = u64;
 
 /// Hands out a unique (monotonically increasing) tree ID.
+#[expect(
+    clippy::expect_used,
+    reason = "exhausting the complete u32 tree ID space is unrecoverable"
+)]
 pub fn get_next_tree_id() -> TreeId {
     static TREE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
     TREE_ID_COUNTER

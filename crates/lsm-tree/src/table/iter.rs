@@ -160,8 +160,8 @@ impl Iterator for Iter {
     fn next(&mut self) -> Option<Self::Item> {
         // Always try to keep iterating inside the already-materialized low data block first; this
         // lets callers consume multiple entries without touching the index or cache again.
-        if let Some(block) = &mut self.lo_data_block {
-            if let Some(item) = block
+        if let Some(block) = &mut self.lo_data_block
+            && let Some(item) = block
                 .next()
                 .map(|mut v| {
                     v.key.seqno += self.global_seqno;
@@ -171,7 +171,6 @@ impl Iterator for Iter {
             {
                 return Some(item);
             }
-        }
 
         if !self.index_initialized {
             // Lazily initialize the index iterator here (not in `new`) so callers can set bounds
@@ -214,8 +213,8 @@ impl Iterator for Iter {
             let Some(handle) = self.index_iter.next() else {
                 // No more block handles coming from the index.  Flush any pending items buffered on
                 // the high side (used by reverse iteration) before signalling completion.
-                if let Some(block) = &mut self.hi_data_block {
-                    if let Some(item) = block
+                if let Some(block) = &mut self.hi_data_block
+                    && let Some(item) = block
                         .next()
                         .map(|mut v| {
                             v.key.seqno += self.global_seqno;
@@ -225,7 +224,6 @@ impl Iterator for Iter {
                     {
                         return Some(item);
                     }
-                }
 
                 // Nothing left to serve; drop both buffers so the iterator can be reused safely.
                 self.lo_data_block = None;
@@ -284,8 +282,8 @@ impl DoubleEndedIterator for Iter {
     fn next_back(&mut self) -> Option<Self::Item> {
         // Mirror the forward iterator: prefer consuming buffered items from the high data block to
         // avoid touching the index once a block has been materialized.
-        if let Some(block) = &mut self.hi_data_block {
-            if let Some(item) = block
+        if let Some(block) = &mut self.hi_data_block
+            && let Some(item) = block
                 .next_back()
                 .map(|mut v| {
                     v.key.seqno += self.global_seqno;
@@ -295,7 +293,6 @@ impl DoubleEndedIterator for Iter {
             {
                 return Some(item);
             }
-        }
 
         if !self.index_initialized {
             // Mirror forward iteration: initialize lazily so bounds can be applied up-front. The
@@ -310,14 +307,13 @@ impl DoubleEndedIterator for Iter {
                 true
             };
 
-            if ok {
-                if let Some(bound) = &self.range.1 {
+            if ok
+                && let Some(bound) = &self.range.1 {
                     let key = match bound {
                         Bound::Included(k) | Bound::Excluded(k) => k,
                     };
                     ok = self.index_iter.seek_upper(key, u64::MAX);
                 }
-            }
 
             self.index_initialized = true;
 
@@ -333,8 +329,8 @@ impl DoubleEndedIterator for Iter {
             let Some(handle) = self.index_iter.next_back() else {
                 // Once we exhaust the index in reverse order, flush any items that were buffered on
                 // the low side (set when iterating forward first) before signalling completion.
-                if let Some(block) = &mut self.lo_data_block {
-                    if let Some(item) = block
+                if let Some(block) = &mut self.lo_data_block
+                    && let Some(item) = block
                         .next_back()
                         .map(|mut v| {
                             v.key.seqno += self.global_seqno;
@@ -344,7 +340,6 @@ impl DoubleEndedIterator for Iter {
                     {
                         return Some(item);
                     }
-                }
 
                 // Nothing left to produce; reset both buffers to keep the iterator reusable.
                 self.lo_data_block = None;

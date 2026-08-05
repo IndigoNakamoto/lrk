@@ -198,6 +198,7 @@ fn move_tables(
         log::error!("Manifest maintenance failed: {e:?}");
         return Err(e);
     }
+    drop(version_history_lock);
 
     Ok(())
 }

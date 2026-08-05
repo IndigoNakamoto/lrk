@@ -89,16 +89,16 @@ pub fn recover(folder: &Path) -> crate::Result<Recovery> {
     }
 
     let tree_type = {
-        let byte = toc
+        
+
+        toc
             .section(b"tree_type")
             .ok_or(crate::Error::Unrecoverable)
             .inspect_err(|_| {
                 log::error!("tree_type section not found in version #{curr_version_id} - maybe the file is corrupted?");
             })?
             .buf_reader(&version_file_path)?
-            .read_u8()?;
-
-        byte
+            .read_u8()?
     };
 
     if tree_type != 0 {

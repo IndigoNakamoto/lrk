@@ -1,10 +1,12 @@
-# byteview
+# brk_byteview
 
 [![CI](https://github.com/fjall-rs/byteview/actions/workflows/test.yml/badge.svg)](https://github.com/fjall-rs/byteview/actions/workflows/test.yml)
 [![CI](https://github.com/fjall-rs/byteview/actions/workflows/miri.yml/badge.svg)](https://github.com/fjall-rs/byteview/actions/workflows/miri.yml)
-[![docs.rs](https://img.shields.io/docsrs/byteview?color=green)](https://docs.rs/byteview)
-[![Crates.io](https://img.shields.io/crates/v/byteview?color=blue)](https://crates.io/crates/byteview)
+[![docs.rs](https://img.shields.io/docsrs/brk_byteview?color=green)](https://docs.rs/brk_byteview)
+[![Crates.io](https://img.shields.io/crates/v/brk_byteview?color=blue)](https://crates.io/crates/brk_byteview)
 ![MSRV](https://img.shields.io/badge/MSRV-1.87-blue)
+
+BRK-maintained fork of [`byteview`](https://github.com/fjall-rs/byteview), published separately for use by the [Bitcoin Research Kit](https://bitcoinresearchkit.org). Its Rust library name remains `byteview`.
 
 An immutable byte slice that may be inlined, and can be partially cloned without heap allocation.
 

@@ -194,6 +194,10 @@ impl<'a> Ingestion<'a> {
     /// # Errors
     ///
     /// Will return `Err` if an IO error occurs.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, panics if the version-history lock is poisoned.
     #[allow(clippy::significant_drop_tightening)]
     pub fn finish_exclusive(self) -> crate::Result<()> {
         #[cfg(debug_assertions)]
@@ -265,7 +269,7 @@ impl<'a> Ingestion<'a> {
         // compaction state lock and version history lock to safely modify
         // the tree's version.
         #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
-        let mut _compaction_state = self.tree.compaction_state.lock().expect("lock is poisoned");
+        let compaction_state = self.tree.compaction_state.lock().expect("lock is poisoned");
 
         #[expect(clippy::expect_used, reason = "lock is expected to not be poisoned")]
         let mut version_lock = self.tree.version_history.write().expect("lock is poisoned");
@@ -321,6 +325,8 @@ impl<'a> Ingestion<'a> {
         if let Err(e) = version_lock.maintenance(&self.tree.config.path, 0) {
             log::warn!("Version GC failed: {e:?}");
         }
+        drop(version_lock);
+        drop(compaction_state);
 
         Ok(())
     }

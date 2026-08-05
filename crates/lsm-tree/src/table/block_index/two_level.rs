@@ -66,16 +66,14 @@ impl Iter {
     fn init_tli(&mut self) -> bool {
         let mut iter = OwnedIndexBlockIter::new(self.tli_block.clone(), IndexBlock::iter);
 
-        if let Some((lo_key, lo_seqno)) = &self.lo {
-            if !iter.seek_lower(lo_key, *lo_seqno) {
+        if let Some((lo_key, lo_seqno)) = &self.lo
+            && !iter.seek_lower(lo_key, *lo_seqno) {
                 return false;
             }
-        }
-        if let Some((hi_key, hi_seqno)) = &self.hi {
-            if !iter.seek_upper(hi_key, *hi_seqno) {
+        if let Some((hi_key, hi_seqno)) = &self.hi
+            && !iter.seek_upper(hi_key, *hi_seqno) {
                 return false;
             }
-        }
 
         self.tli = Some(iter);
 
@@ -99,11 +97,10 @@ impl Iterator for Iter {
     type Item = crate::Result<KeyedBlockHandle>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(lo_block) = &mut self.lo_consumer {
-            if let Some(item) = lo_block.next() {
+        if let Some(lo_block) = &mut self.lo_consumer
+            && let Some(item) = lo_block.next() {
                 return Some(Ok(item));
             }
-        }
 
         if self.tli.is_none() && !self.init_tli() {
             return None;
@@ -126,16 +123,14 @@ impl Iterator for Iter {
 
                 let mut iter = OwnedIndexBlockIter::new(index_block, IndexBlock::iter);
 
-                if let Some((lo_key, lo_seqno)) = &self.lo {
-                    if !iter.seek_lower(lo_key, *lo_seqno) {
+                if let Some((lo_key, lo_seqno)) = &self.lo
+                    && !iter.seek_lower(lo_key, *lo_seqno) {
                         return None;
                     }
-                }
-                if let Some((hi_key, hi_seqno)) = &self.hi {
-                    if !iter.seek_upper(hi_key, *hi_seqno) {
+                if let Some((hi_key, hi_seqno)) = &self.hi
+                    && !iter.seek_upper(hi_key, *hi_seqno) {
                         return None;
                     }
-                }
 
                 let next_item = iter.next().map(Ok);
 
@@ -148,11 +143,10 @@ impl Iterator for Iter {
         }
 
         // Nothing more found, consume from hi consumer
-        if let Some(hi_block) = &mut self.hi_consumer {
-            if let Some(item) = hi_block.next() {
+        if let Some(hi_block) = &mut self.hi_consumer
+            && let Some(item) = hi_block.next() {
                 return Some(Ok(item));
             }
-        }
 
         None
     }
@@ -160,11 +154,10 @@ impl Iterator for Iter {
 
 impl DoubleEndedIterator for Iter {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(hi_block) = &mut self.hi_consumer {
-            if let Some(item) = hi_block.next_back() {
+        if let Some(hi_block) = &mut self.hi_consumer
+            && let Some(item) = hi_block.next_back() {
                 return Some(Ok(item));
             }
-        }
 
         if self.tli.is_none() && !self.init_tli() {
             return None;
@@ -187,16 +180,14 @@ impl DoubleEndedIterator for Iter {
 
                 let mut iter = OwnedIndexBlockIter::new(index_block, IndexBlock::iter);
 
-                if let Some((lo_key, lo_seqno)) = &self.lo {
-                    if !iter.seek_lower(lo_key, *lo_seqno) {
+                if let Some((lo_key, lo_seqno)) = &self.lo
+                    && !iter.seek_lower(lo_key, *lo_seqno) {
                         return None;
                     }
-                }
-                if let Some((hi_key, hi_seqno)) = &self.hi {
-                    if !iter.seek_upper(hi_key, *hi_seqno) {
+                if let Some((hi_key, hi_seqno)) = &self.hi
+                    && !iter.seek_upper(hi_key, *hi_seqno) {
                         return None;
                     }
-                }
 
                 let next_item = iter.next_back().map(Ok);
 
@@ -209,11 +200,10 @@ impl DoubleEndedIterator for Iter {
         }
 
         // Nothing more found, consume from lo consumer
-        if let Some(lo_block) = &mut self.lo_consumer {
-            if let Some(item) = lo_block.next_back() {
+        if let Some(lo_block) = &mut self.lo_consumer
+            && let Some(item) = lo_block.next_back() {
                 return Some(Ok(item));
             }
-        }
 
         None
     }

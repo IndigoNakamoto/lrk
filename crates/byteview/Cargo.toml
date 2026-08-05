@@ -1,6 +1,6 @@
 [package]
-name = "byteview"
-description = "Thin, immutable zero-copy slice type"
+name = "brk_byteview"
+description = "BRK-maintained fork of byteview, a thin immutable zero-copy byte slice"
 license = "MIT OR Apache-2.0"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,10 @@ repository.workspace = true
 homepage.workspace = true
 categories = ["data-structures"]
 keywords = ["german-string", "string-view", "byte-slice"]
+
+[lib]
+name = "byteview"
+path = "src/lib.rs"
 
 [features]
 default = []

@@ -48,7 +48,9 @@ impl BloomConstructionPolicy {
 
         #[expect(
             clippy::cast_precision_loss,
-            reason = "truncation is fine because this is an estimation"
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "this positive estimate intentionally floors to a whole number of bytes"
         )]
         match self {
             Self::BitsPerKey(bpk) => (*bpk * (n as f32)) as usize / 8,

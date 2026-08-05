@@ -614,7 +614,7 @@ mod tests {
                             !seqno,
                         )
                         .unwrap();
-                    cursor.write_u8(if tomb { 1 } else { 0 }).unwrap();
+                    cursor.write_u8(u8::from(tomb)).unwrap();
 
                     debug_assert_eq!(len, cursor.position() as usize);
 
@@ -630,7 +630,7 @@ mod tests {
             /// The previous user key
             ///
             /// Note that the user key is NOT the full KV key
-            /// because we embed MVCC information into the key (user_key#seqno#type).
+            /// because we embed MVCC information into the key (`user_key#seqno#type`).
             prev_user_key: Option<UserKey>,
 
             /// MVCC watermark we can safely delete if an item < watermark
@@ -645,30 +645,27 @@ mod tests {
                 // User key len
                 let ukl = l - TRAILER_SIZE;
 
-                match &self.prev_user_key {
-                    Some(prev) => {
-                        let user_key = &value.key.user_key[..ukl];
+                if let Some(prev) = &self.prev_user_key {
+                    let user_key = &value.key.user_key[..ukl];
 
-                        if prev == &user_key {
-                            // We found another, older version of the previous key
-                            let mut seqno = &value.key.user_key[(ukl + 1)..l - 1];
-                            debug_assert_eq!(8, seqno.len());
+                    if prev == &user_key {
+                        // We found another, older version of the previous key
+                        let mut seqno = &value.key.user_key[(ukl + 1)..l - 1];
+                        debug_assert_eq!(8, seqno.len());
 
-                            // IMPORTANT: Invert the seqno back to normal value
-                            let seqno = !seqno.read_u64::<BE>().unwrap();
+                        // IMPORTANT: Invert the seqno back to normal value
+                        let seqno = !seqno.read_u64::<BE>().unwrap();
 
-                            if seqno < self.mvcc_watermark {
-                                return Ok(StreamFilterVerdict::Drop);
-                            }
-                        } else {
-                            let user_key = &value.key.user_key.slice(..ukl);
-                            self.prev_user_key = Some(user_key.clone());
+                        if seqno < self.mvcc_watermark {
+                            return Ok(StreamFilterVerdict::Drop);
                         }
-                    }
-                    None => {
+                    } else {
                         let user_key = &value.key.user_key.slice(..ukl);
                         self.prev_user_key = Some(user_key.clone());
                     }
+                } else {
+                    let user_key = &value.key.user_key.slice(..ukl);
+                    self.prev_user_key = Some(user_key.clone());
                 }
 
                 Ok(StreamFilterVerdict::Keep)
@@ -677,11 +674,9 @@ mod tests {
 
         #[test]
         fn compaction_filter_custom_mvcc() {
-            let vec = vec![
-                kv(b"abc", 4, b"c", false),
+            let vec = [kv(b"abc", 4, b"c", false),
                 kv(b"abc", 3, b"b", false),
-                kv(b"abc", 2, b"a", false),
-            ];
+                kv(b"abc", 2, b"a", false)];
 
             let iter = vec.iter().cloned().map(Ok);
             let iter = CompactionStream::new(iter, 995).with_filter(Filter {

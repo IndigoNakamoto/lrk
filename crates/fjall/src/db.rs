@@ -295,6 +295,10 @@ impl Database {
     /// #
     /// # Ok::<(), fjall::Error>(())
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if journal disk usage cannot be read.
     pub fn disk_space(&self) -> crate::Result<u64> {
         let journal_size = self.journal_disk_space()?;
 

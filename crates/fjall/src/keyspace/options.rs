@@ -134,7 +134,7 @@ impl CreateOptions {
         self
     }
 
-    #[expect(clippy::expect_used, clippy::too_many_lines)]
+    #[expect(clippy::expect_used)]
     pub(crate) fn from_kvs(
         keyspace_id: InternalKeyspaceId,
         meta_keyspace: &MetaKeyspace,
@@ -245,7 +245,6 @@ impl CreateOptions {
         })
     }
 
-    #[expect(clippy::too_many_lines)]
     pub(crate) fn encode_kvs(&self, keyspace_id: InternalKeyspaceId) -> Vec<KvPair> {
         use crate::keyspace::config::EncodeConfig;
 
@@ -507,7 +506,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::unwrap_used)]
     #[cfg(feature = "lz4")]
     fn keyspace_opts_compression_default() {
         use CompressionType::{Lz4, None as Uncompressed};

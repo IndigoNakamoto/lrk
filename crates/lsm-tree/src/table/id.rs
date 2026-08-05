@@ -27,7 +27,11 @@ impl From<(TreeId, TableId)> for GlobalTableId {
     }
 }
 
-pub(crate) fn next_table_id(counter: &SequenceNumberCounter) -> TableId {
+#[expect(
+    clippy::expect_used,
+    reason = "exhausting the complete u32 table ID space is unrecoverable"
+)]
+pub fn next_table_id(counter: &SequenceNumberCounter) -> TableId {
     counter.next().try_into().expect("ran out of table IDs")
 }
 

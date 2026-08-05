@@ -376,7 +376,7 @@ mod tests {
 
         let big = 100u64;
         map.publish(big);
-        assert!(map.get() == (big + 1));
+        assert_eq!(map.get(), (big + 1));
 
         let before = map.get();
         map.publish(1);

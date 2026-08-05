@@ -79,9 +79,24 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::indexing_slicing)]
 #![warn(clippy::pedantic, clippy::nursery)]
-#![warn(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::missing_panics_doc,
+    reason = "poisoned locks and violated persisted-data invariants are unrecoverable"
+)]
 #![allow(clippy::missing_const_for_fn, clippy::significant_drop_tightening)]
-#![warn(clippy::multiple_crate_versions)]
+#![allow(
+    clippy::multiple_crate_versions,
+    reason = "transitive dependencies currently require distinct hashbrown versions"
+)]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::items_after_statements,
+        clippy::unwrap_used,
+        reason = "test fixtures favor direct assertions and local helper imports"
+    )
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 macro_rules! fail_iter {

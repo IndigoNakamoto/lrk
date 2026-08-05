@@ -34,9 +34,7 @@ impl std::fmt::Debug for Journal {
         write!(
             f,
             "{}",
-            self.path()
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|_| String::from("<failed to read path>"))
+            self.path().map_or_else(|_| String::from("<failed to read path>"), |p| p.display().to_string())
         )
     }
 }

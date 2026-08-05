@@ -3,7 +3,7 @@ mod manifest;
 mod server;
 mod upstream;
 
-use std::{env, error::Error, io};
+use std::{env, error::Error, io, process};
 
 use config::api_bases;
 use manifest::Catalog;
@@ -19,11 +19,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut arguments = env::args();
     let _program = arguments.next();
-    let api_base = arguments
-        .next()
-        .ok_or_else(|| io::Error::other("usage: brk_mcp <REST_API_URL_OR_HOST>"))?;
+    let Some(api_base) = arguments.next() else {
+        usage();
+    };
     if arguments.next().is_some() {
-        return Err(io::Error::other("usage: brk_mcp <REST_API_URL_OR_HOST>").into());
+        usage();
     }
     let api_bases = api_bases(&api_base).map_err(io::Error::other)?;
     let catalog = Catalog::embedded().map_err(io::Error::other)?;
@@ -34,6 +34,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!(%bind, tool_count, "Starting stateless BRK MCP server");
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn usage() -> ! {
+    eprintln!("Usage: brk_mcp <REST_API_URL_OR_HOST>");
+    process::exit(2);
 }
 
 async fn bind_available(
