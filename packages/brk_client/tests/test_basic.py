@@ -13,7 +13,7 @@ def test_client_creation():
 def test_tree_exists():
     client = BrkClient("http://localhost:3110")
     assert hasattr(client, "series")
-    assert hasattr(client.series, "prices")
+    assert hasattr(client.series, "price")
     assert hasattr(client.series, "blocks")
 
 
@@ -41,7 +41,7 @@ def test_fetch_typed_series():
     print(a)
     b = client.series.outputs.unspent.count.by.height().tail(10).fetch()
     print(b)
-    c = client.series.prices.split.close.usd.by.day1().tail(10).fetch()
+    c = client.series.price.split.close.usd.by.day1().tail(10).fetch()
     print(c)
     d = (
         client.series.investing.period.lump_sum_stack._10y.usd.by.day1()
@@ -55,19 +55,19 @@ def test_fetch_typed_series():
         .fetch()
     )
     print(e)
-    f = client.series.prices.ohlc.usd.by.day1().tail(10).fetch()
+    f = client.series.price.ohlc.usd.by.day1().tail(10).fetch()
     print(f)
 
 
 def test_endpoint_len():
     client = BrkClient("http://localhost:3110")
-    n = client.series.prices.split.close.usd.by.day1().len()
+    n = client.series.price.split.close.usd.by.day1().len()
     assert isinstance(n, int)
     assert n > 0
 
 
 def test_endpoint_version():
     client = BrkClient("http://localhost:3110")
-    v = client.series.prices.split.close.usd.by.day1().version()
+    v = client.series.price.split.close.usd.by.day1().version()
     assert isinstance(v, int)
     assert v >= 1

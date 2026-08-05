@@ -8,6 +8,6 @@
 
 > **OpReturnKind** = `"runes"` \| `"veri_block"` \| `"omni"` \| `"stacks"` \| `"blockstack"` \| `"colu"` \| `"open_assets"` \| `"komodo"` \| `"coin_spark"` \| `"poet"` \| `"docproof"` \| `"open_timestamps"` \| `"factom"` \| `"eternity_wall"` \| `"memo"` \| `"bitproof"` \| `"ascribe"` \| `"stampery"` \| `"epobc"` \| `"bare_hash"` \| `"text"` \| `"empty"` \| `"unknown"`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:797](https://github.com/bitcoinresearchkit/brk/blob/cc5b6da341b469859cb457c9c0c93a547eb6ee00/modules/brk-client/index.js#L797)
+Defined in: [Developer/brk/modules/brk-client/index.js:806](https://github.com/bitcoinresearchkit/brk/blob/76e08a33afe7d878b09f4359c21ffd6183727e32/modules/brk-client/index.js#L806)
 
 ## Type Parameters

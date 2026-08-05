@@ -1,0 +1,33 @@
+[**brk-client**](../README.md)
+
+***
+
+[brk-client](../globals.md) / SeriesTree\_Frameworks\_Cointime\_Adjusted
+
+# Interface: SeriesTree\_Frameworks\_Cointime\_Adjusted
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6809](https://github.com/bitcoinresearchkit/brk/blob/76e08a33afe7d878b09f4359c21ffd6183727e32/modules/brk-client/index.js#L6809)
+
+## Properties
+
+### inflationRate
+
+> **inflationRate**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6810](https://github.com/bitcoinresearchkit/brk/blob/76e08a33afe7d878b09f4359c21ffd6183727e32/modules/brk-client/index.js#L6810)
+
+***
+
+### txVelocityFiat
+
+> **txVelocityFiat**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6812](https://github.com/bitcoinresearchkit/brk/blob/76e08a33afe7d878b09f4359c21ffd6183727e32/modules/brk-client/index.js#L6812)
+
+***
+
+### txVelocityNative
+
+> **txVelocityNative**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6811](https://github.com/bitcoinresearchkit/brk/blob/76e08a33afe7d878b09f4359c21ffd6183727e32/modules/brk-client/index.js#L6811)

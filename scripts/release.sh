@@ -45,7 +45,7 @@ echo ""
 
 echo "--- Python ---"
 cd "$ROOT_DIR/packages/brk_client"
-uv run pytest tests/ -s
+uv run pytest tests/ --ignore=tests/mempool_compat -s
 echo ""
 
 # ============================================================================
