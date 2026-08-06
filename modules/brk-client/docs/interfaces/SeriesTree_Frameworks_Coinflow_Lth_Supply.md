@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Frameworks\_Coinflow\_Lth\_Supply
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6907](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6907)
+Defined in: [Developer/brk/modules/brk-client/index.js:6907](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6907)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6907](https://github.com/
 
 > **immobile**: [`BtcCentsSatsUsdPattern`](BtcCentsSatsUsdPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6909](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6909)
+Defined in: [Developer/brk/modules/brk-client/index.js:6909](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6909)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6909](https://github.com/
 
 > **mobile**: [`SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile`](SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6908](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6908)
+Defined in: [Developer/brk/modules/brk-client/index.js:6908](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6908)

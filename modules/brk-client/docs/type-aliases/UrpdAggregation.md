@@ -8,6 +8,6 @@
 
 > **UrpdAggregation** = `"raw"` \| `"lin200"` \| `"lin500"` \| `"lin1000"` \| `"log10"` \| `"log50"` \| `"log100"` \| `"log200"` \| `"log500"` \| `"log1000"` \| `"log2000"`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1391](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L1391)
+Defined in: [Developer/brk/modules/brk-client/index.js:1391](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1391)
 
 ## Type Parameters

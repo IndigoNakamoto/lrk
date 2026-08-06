@@ -6,7 +6,7 @@
 
 # Interface: BlockFeesEntry
 
-Defined in: [Developer/brk/modules/brk-client/index.js:158](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L158)
+Defined in: [Developer/brk/modules/brk-client/index.js:158](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L158)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:158](https://github.com/b
 
 > **avgFees**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:161](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L161)
+Defined in: [Developer/brk/modules/brk-client/index.js:161](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L161)
 
 Average fees per block in this window (sats)
 
@@ -24,7 +24,7 @@ Average fees per block in this window (sats)
 
 > **avgHeight**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:159](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L159)
+Defined in: [Developer/brk/modules/brk-client/index.js:159](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L159)
 
 Average block height in this window
 
@@ -34,7 +34,7 @@ Average block height in this window
 
 > **timestamp**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:160](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L160)
+Defined in: [Developer/brk/modules/brk-client/index.js:160](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L160)
 
 Unix timestamp at the window midpoint
 
@@ -44,6 +44,6 @@ Unix timestamp at the window midpoint
 
 > **uSD**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:162](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L162)
+Defined in: [Developer/brk/modules/brk-client/index.js:162](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L162)
 
 BTC/USD price at this height

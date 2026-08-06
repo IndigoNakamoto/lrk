@@ -6,7 +6,7 @@
 
 # Interface: PoolsSummary
 
-Defined in: [Developer/brk/modules/brk-client/index.js:982](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L982)
+Defined in: [Developer/brk/modules/brk-client/index.js:982](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L982)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:982](https://github.com/b
 
 > **blockCount**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:984](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L984)
+Defined in: [Developer/brk/modules/brk-client/index.js:984](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L984)
 
 Total blocks in the time period
 
@@ -24,7 +24,7 @@ Total blocks in the time period
 
 > **lastEstimatedHashrate**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:985](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L985)
+Defined in: [Developer/brk/modules/brk-client/index.js:985](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L985)
 
 Estimated network hashrate (H/s)
 
@@ -34,7 +34,7 @@ Estimated network hashrate (H/s)
 
 > **lastEstimatedHashrate1w**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:987](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L987)
+Defined in: [Developer/brk/modules/brk-client/index.js:987](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L987)
 
 Estimated network hashrate over last 1 week (H/s)
 
@@ -44,7 +44,7 @@ Estimated network hashrate over last 1 week (H/s)
 
 > **lastEstimatedHashrate3d**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:986](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L986)
+Defined in: [Developer/brk/modules/brk-client/index.js:986](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L986)
 
 Estimated network hashrate over last 3 days (H/s)
 
@@ -54,6 +54,6 @@ Estimated network hashrate over last 3 days (H/s)
 
 > **pools**: [`PoolStats`](PoolStats.md)[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:983](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L983)
+Defined in: [Developer/brk/modules/brk-client/index.js:983](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L983)
 
 List of pools sorted by block count descending

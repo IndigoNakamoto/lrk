@@ -6,7 +6,7 @@
 
 # Interface: HashrateSummary
 
-Defined in: [Developer/brk/modules/brk-client/index.js:615](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L615)
+Defined in: [Developer/brk/modules/brk-client/index.js:615](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L615)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:615](https://github.com/b
 
 > **currentDifficulty**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:619](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L619)
+Defined in: [Developer/brk/modules/brk-client/index.js:619](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L619)
 
 Current network difficulty
 
@@ -24,7 +24,7 @@ Current network difficulty
 
 > **currentHashrate**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:618](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L618)
+Defined in: [Developer/brk/modules/brk-client/index.js:618](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L618)
 
 Current network hashrate (H/s)
 
@@ -34,7 +34,7 @@ Current network hashrate (H/s)
 
 > **difficulty**: [`DifficultyEntry`](DifficultyEntry.md)[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:617](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L617)
+Defined in: [Developer/brk/modules/brk-client/index.js:617](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L617)
 
 Historical difficulty adjustments
 
@@ -44,6 +44,6 @@ Historical difficulty adjustments
 
 > **hashrates**: [`HashrateEntry`](HashrateEntry.md)[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:616](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L616)
+Defined in: [Developer/brk/modules/brk-client/index.js:616](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L616)
 
 Historical hashrate data points

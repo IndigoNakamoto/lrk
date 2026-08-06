@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Frameworks\_Cointime\_Lth\_Awake
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6752](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6752)
+Defined in: [Developer/brk/modules/brk-client/index.js:6752](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6752)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6752](https://github.com/
 
 > **cap**: [`CentsUsdPattern3`](CentsUsdPattern3.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6754](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6754)
+Defined in: [Developer/brk/modules/brk-client/index.js:6754](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6754)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6754](https://github.com/
 
 > **price**: [`CentsPpmRatioSatsUsdPattern`](CentsPpmRatioSatsUsdPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6755](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6755)
+Defined in: [Developer/brk/modules/brk-client/index.js:6755](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6755)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6755](https://github.com/
 
 > **supply**: [`SeriesTree_Frameworks_Cointime_Lth_Awake_Supply`](SeriesTree_Frameworks_Cointime_Lth_Awake_Supply.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6753](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6753)
+Defined in: [Developer/brk/modules/brk-client/index.js:6753](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6753)

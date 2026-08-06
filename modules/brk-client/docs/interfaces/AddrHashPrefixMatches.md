@@ -6,7 +6,7 @@
 
 # Interface: AddrHashPrefixMatches
 
-Defined in: [Developer/brk/modules/brk-client/index.js:34](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L34)
+Defined in: [Developer/brk/modules/brk-client/index.js:34](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L34)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:34](https://github.com/bi
 
 > **addresses**: `string`[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:38](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L38)
+Defined in: [Developer/brk/modules/brk-client/index.js:38](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L38)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:38](https://github.com/bi
 
 > **addrType**: [`OutputType`](../type-aliases/OutputType.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:35](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L35)
+Defined in: [Developer/brk/modules/brk-client/index.js:35](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L35)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:35](https://github.com/bi
 
 > **prefix**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:36](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L36)
+Defined in: [Developer/brk/modules/brk-client/index.js:36](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L36)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:36](https://github.com/bi
 
 > **truncated**: `boolean`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:37](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L37)
+Defined in: [Developer/brk/modules/brk-client/index.js:37](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L37)

@@ -6,7 +6,7 @@
 
 # Interface: AddrParam
 
-Defined in: [Developer/brk/modules/brk-client/index.js:62](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L62)
+Defined in: [Developer/brk/modules/brk-client/index.js:62](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L62)
 
 ## Properties
 
@@ -14,4 +14,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:62](https://github.com/bi
 
 > **address**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:63](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L63)
+Defined in: [Developer/brk/modules/brk-client/index.js:63](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L63)

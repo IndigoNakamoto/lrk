@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Outputs\_Count
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6199](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6199)
+Defined in: [Developer/brk/modules/brk-client/index.js:6199](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6199)
 
 ## Properties
 
@@ -14,4 +14,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6199](https://github.com/
 
 > **total**: [`CumulativeRollingSumPattern`](CumulativeRollingSumPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6200](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6200)
+Defined in: [Developer/brk/modules/brk-client/index.js:6200](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6200)

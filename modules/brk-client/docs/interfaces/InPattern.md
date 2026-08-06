@@ -6,7 +6,7 @@
 
 # Interface: InPattern
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5460](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L5460)
+Defined in: [Developer/brk/modules/brk-client/index.js:5460](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L5460)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5460](https://github.com/
 
 > **inLoss**: [`SharePattern`](SharePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5461](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L5461)
+Defined in: [Developer/brk/modules/brk-client/index.js:5461](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L5461)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5461](https://github.com/
 
 > **inProfit**: [`SharePattern`](SharePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5462](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L5462)
+Defined in: [Developer/brk/modules/brk-client/index.js:5462](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L5462)

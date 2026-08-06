@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Market\_Technical\_Rsi
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7548](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L7548)
+Defined in: [Developer/brk/modules/brk-client/index.js:7548](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7548)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:7548](https://github.com/
 
 > **\_1m**: [`RsiStochPattern`](RsiStochPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7551](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L7551)
+Defined in: [Developer/brk/modules/brk-client/index.js:7551](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7551)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:7551](https://github.com/
 
 > **\_1w**: [`RsiStochPattern`](RsiStochPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7550](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L7550)
+Defined in: [Developer/brk/modules/brk-client/index.js:7550](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7550)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:7550](https://github.com/
 
 > **\_24h**: [`RsiStochPattern`](RsiStochPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7549](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L7549)
+Defined in: [Developer/brk/modules/brk-client/index.js:7549](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7549)

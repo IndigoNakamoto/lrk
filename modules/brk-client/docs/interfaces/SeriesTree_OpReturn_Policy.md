@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_OpReturn\_Policy
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6570](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6570)
+Defined in: [Developer/brk/modules/brk-client/index.js:6570](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6570)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6570](https://github.com/
 
 > **multiple**: [`ChainDataFeeFeesOutputTxPattern`](ChainDataFeeFeesOutputTxPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6574](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6574)
+Defined in: [Developer/brk/modules/brk-client/index.js:6574](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6574)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6574](https://github.com/
 
 > **oversized**: [`ChainDataFeeFeesOutputTxPattern`](ChainDataFeeFeesOutputTxPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6573](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6573)
+Defined in: [Developer/brk/modules/brk-client/index.js:6573](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6573)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6573](https://github.com/
 
 > **preV30Nonstandard**: [`ChainDataFeeFeesOutputTxPattern`](ChainDataFeeFeesOutputTxPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6572](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6572)
+Defined in: [Developer/brk/modules/brk-client/index.js:6572](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6572)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6572](https://github.com/
 
 > **preV30Standard**: [`ChainDataFeeFeesOutputTxPattern`](ChainDataFeeFeesOutputTxPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6571](https://github.com/bitcoinresearchkit/brk/blob/7ab57b5341cb1b8e45327c9a1bba060f0ddd106d/modules/brk-client/index.js#L6571)
+Defined in: [Developer/brk/modules/brk-client/index.js:6571](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6571)
