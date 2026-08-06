@@ -246,7 +246,7 @@ export const colors = {
     _2: palette.sky,
     _1: palette.blue,
     _0_5: palette.indigo,
-    _0_01: palette.purple,
+    _0_1: palette.purple,
   },
 
   bedrock: {

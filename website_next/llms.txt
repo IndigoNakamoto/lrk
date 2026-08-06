@@ -4,7 +4,7 @@
 
 ## API
 
-- Version: `v0.3.6`
+- Version: `v0.11.0`
 - Base URL: https://bitview.space
 - [Full plain-text reference](https://bitview.space/llms-full.txt)
 - [Compact OpenAPI](https://bitview.space/api.json)

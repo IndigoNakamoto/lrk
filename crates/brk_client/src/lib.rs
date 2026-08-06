@@ -1075,7 +1075,7 @@ impl<T: DeserializeOwned> SeriesPattern<T> for SeriesPattern35<T> { fn get(&self
 /// Pattern struct for repeated tree structure.
 pub struct IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern {
     pub index: SeriesPattern1<StoredI8>,
-    pub pct0_01: CentsSatsUsdPattern,
+    pub pct0_1: CentsSatsUsdPattern,
     pub pct0_5: CentsSatsUsdPattern,
     pub pct1: CentsSatsUsdPattern,
     pub pct10: CentsSatsUsdPattern,
@@ -1102,7 +1102,7 @@ impl IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct9
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
             index: SeriesPattern1::new(client.clone(), _m(&acc, "index")),
-            pct0_01: CentsSatsUsdPattern::new(client.clone(), _m(&acc, "pct0_01")),
+            pct0_1: CentsSatsUsdPattern::new(client.clone(), _m(&acc, "pct0_1")),
             pct0_5: CentsSatsUsdPattern::new(client.clone(), _m(&acc, "pct0_5")),
             pct1: CentsSatsUsdPattern::new(client.clone(), _m(&acc, "pct01")),
             pct10: CentsSatsUsdPattern::new(client.clone(), _m(&acc, "pct10")),
@@ -1178,7 +1178,7 @@ impl Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75
 
 /// Pattern struct for repeated tree structure.
 pub struct Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern {
-    pub pct0_01: PpmPriceRatioPattern,
+    pub pct0_1: PpmPriceRatioPattern,
     pub pct0_5: PpmPriceRatioPattern,
     pub pct1: PpmPriceRatioPattern,
     pub pct10: PpmPriceRatioPattern,
@@ -1203,7 +1203,7 @@ impl Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct9
     /// Create a new pattern node with accumulated series name.
     pub fn new(client: Arc<BrkClientBase>, acc: String) -> Self {
         Self {
-            pct0_01: PpmPriceRatioPattern::new(client.clone(), acc.clone(), "pct0_01".to_string()),
+            pct0_1: PpmPriceRatioPattern::new(client.clone(), acc.clone(), "pct0_1".to_string()),
             pct0_5: PpmPriceRatioPattern::new(client.clone(), acc.clone(), "pct0_5".to_string()),
             pct1: PpmPriceRatioPattern::new(client.clone(), acc.clone(), "pct1".to_string()),
             pct10: PpmPriceRatioPattern::new(client.clone(), acc.clone(), "pct10".to_string()),
@@ -9758,7 +9758,7 @@ pub struct BrkClient {
 
 impl BrkClient {
     /// Client version.
-    pub const VERSION: &'static str = "v0.3.6";
+    pub const VERSION: &'static str = "v0.11.0";
 
     /// Create a new client with the given base URL.
     pub fn new(base_url: impl Into<String>) -> Self {

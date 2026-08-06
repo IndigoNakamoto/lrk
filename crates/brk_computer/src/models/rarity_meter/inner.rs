@@ -13,7 +13,7 @@ use super::Component;
 
 #[derive(Traversable)]
 pub struct RarityMeterInner<M: StorageMode = Rw> {
-    pub pct0_01: Price<PerBlock<Cents, M>>,
+    pub pct0_1: Price<PerBlock<Cents, M>>,
     pub pct0_5: Price<PerBlock<Cents, M>>,
     pub pct1: Price<PerBlock<Cents, M>>,
     pub pct2: Price<PerBlock<Cents, M>>,
@@ -44,7 +44,7 @@ impl RarityMeterInner {
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
         Ok(Self {
-            pct0_01: Price::forced_import(db, &format!("{prefix}_pct0_01"), version, indexes)?,
+            pct0_1: Price::forced_import(db, &format!("{prefix}_pct0_1"), version, indexes)?,
             pct0_5: Price::forced_import(db, &format!("{prefix}_pct0_5"), version, indexes)?,
             pct1: Price::forced_import(db, &format!("{prefix}_pct01"), version, indexes)?,
             pct2: Price::forced_import(db, &format!("{prefix}_pct02"), version, indexes)?,
@@ -81,9 +81,9 @@ impl RarityMeterInner {
         };
 
         // Lower percentiles: max across all models (tightest lower bound)
-        self.pct0_01.cents.height.compute_max_of_others(
+        self.pct0_1.cents.height.compute_max_of_others(
             starting_height,
-            &gather(|component| &component.pct0_01.price.cents.height),
+            &gather(|component| &component.pct0_1.price.cents.height),
             exit,
         )?;
         self.pct0_5.cents.height.compute_max_of_others(
@@ -222,7 +222,7 @@ impl RarityMeterInner {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
         let bands = [
-            &self.pct0_01.cents.height,
+            &self.pct0_1.cents.height,
             &self.pct0_5.cents.height,
             &self.pct1.cents.height,
             &self.pct2.cents.height,
@@ -275,7 +275,7 @@ impl RarityMeterInner {
         let dep_version: Version = components
             .iter()
             .map(|component| {
-                component.pct0_01.price.cents.height.version()
+                component.pct0_1.price.cents.height.version()
                     + component.pct0_5.price.cents.height.version()
                     + component.pct1.price.cents.height.version()
                     + component.pct2.price.cents.height.version()
@@ -300,7 +300,7 @@ impl RarityMeterInner {
                 .iter()
                 .flat_map(|component| {
                     [
-                        component.pct0_01.price.cents.height.len(),
+                        component.pct0_1.price.cents.height.len(),
                         component.pct0_5.price.cents.height.len(),
                         component.pct1.price.cents.height.len(),
                         component.pct2.price.cents.height.len(),
@@ -328,7 +328,7 @@ impl RarityMeterInner {
                 .map(|component| {
                     [
                         component
-                            .pct0_01
+                            .pct0_1
                             .price
                             .cents
                             .height

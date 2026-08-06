@@ -28,7 +28,7 @@ pub struct Band<M: StorageMode = Rw> {
 
 #[derive(Traversable)]
 pub struct Component<M: StorageMode = Rw> {
-    pub pct0_01: Band<M>,
+    pub pct0_1: Band<M>,
     pub pct0_5: Band<M>,
     pub pct1: Band<M>,
     pub pct2: Band<M>,
@@ -55,7 +55,7 @@ pub struct Component<M: StorageMode = Rw> {
     cached_price: CachedComponentPrice,
 }
 
-const VERSION: Version = Version::new(9);
+const VERSION: Version = Version::new(10);
 
 impl Component {
     fn forced_import(
@@ -93,7 +93,7 @@ impl Component {
         }
 
         Ok(Self {
-            pct0_01: import_band!("pct0_01"),
+            pct0_1: import_band!("pct0_1"),
             pct0_5: import_band!("pct0_5"),
             pct1: import_band!("pct1"),
             pct2: import_band!("pct2"),
@@ -155,7 +155,7 @@ impl Component {
 
             let new_ratios = ratio_source.collect_range_at(start, ratio_len);
             let mut pct_vecs: [&mut EagerVec<PcoVec<Height, PartsPerMillion32>>; 19] = [
-                &mut self.pct0_01.ratio.ppm.height,
+                &mut self.pct0_1.ratio.ppm.height,
                 &mut self.pct0_5.ratio.ppm.height,
                 &mut self.pct1.ratio.ppm.height,
                 &mut self.pct2.ratio.ppm.height,
@@ -176,7 +176,7 @@ impl Component {
                 &mut self.pct99_9.ratio.ppm.height,
             ];
             const PCTS: [f64; 19] = [
-                0.0001, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80,
+                0.001, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80,
                 0.90, 0.95, 0.98, 0.99, 0.995, 0.999,
             ];
             let mut out = [0.0; 19];
@@ -210,7 +210,7 @@ impl Component {
         &mut self,
     ) -> impl Iterator<Item = &mut EagerVec<PcoVec<Height, PartsPerMillion32>>> {
         [
-            &mut self.pct0_01.ratio.ppm.height,
+            &mut self.pct0_1.ratio.ppm.height,
             &mut self.pct0_5.ratio.ppm.height,
             &mut self.pct1.ratio.ppm.height,
             &mut self.pct2.ratio.ppm.height,

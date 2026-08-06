@@ -2507,7 +2507,7 @@ function createSeriesPattern35(client, name) { return /** @type {SeriesPattern35
 /**
  * @typedef {Object} IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern
  * @property {SeriesPattern1<StoredI8>} index
- * @property {CentsSatsUsdPattern} pct001
+ * @property {CentsSatsUsdPattern} pct01
  * @property {CentsSatsUsdPattern} pct05
  * @property {CentsSatsUsdPattern} pct1
  * @property {CentsSatsUsdPattern} pct10
@@ -2538,7 +2538,7 @@ function createSeriesPattern35(client, name) { return /** @type {SeriesPattern35
 function createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, acc) {
   return {
     index: createSeriesPattern1(client, _m(acc, 'index')),
-    pct001: createCentsSatsUsdPattern(client, _m(acc, 'pct0_01')),
+    pct01: createCentsSatsUsdPattern(client, _m(acc, 'pct0_1')),
     pct05: createCentsSatsUsdPattern(client, _m(acc, 'pct0_5')),
     pct1: createCentsSatsUsdPattern(client, _m(acc, 'pct01')),
     pct10: createCentsSatsUsdPattern(client, _m(acc, 'pct10')),
@@ -2616,7 +2616,7 @@ function createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65
 
 /**
  * @typedef {Object} Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern
- * @property {PpmPriceRatioPattern} pct001
+ * @property {PpmPriceRatioPattern} pct01
  * @property {PpmPriceRatioPattern} pct05
  * @property {PpmPriceRatioPattern} pct1
  * @property {PpmPriceRatioPattern} pct10
@@ -2645,7 +2645,7 @@ function createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65
  */
 function createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, acc) {
   return {
-    pct001: createPpmPriceRatioPattern(client, acc, 'pct0_01'),
+    pct01: createPpmPriceRatioPattern(client, acc, 'pct0_1'),
     pct05: createPpmPriceRatioPattern(client, acc, 'pct0_5'),
     pct1: createPpmPriceRatioPattern(client, acc, 'pct1'),
     pct10: createPpmPriceRatioPattern(client, acc, 'pct10'),

@@ -2,6 +2,7 @@ use brk_cohort::ByAddrType;
 use brk_types::{
     AnyAddrDataIndexEnum, EmptyAddrData, FundedAddrData, OutputType, TxIndex, TypeIndex,
 };
+use rayon::prelude::*;
 use smallvec::SmallVec;
 
 use crate::distribution::{
@@ -11,6 +12,8 @@ use crate::distribution::{
 
 use super::super::cohort::{WithAddrDataSource, update_tx_counts};
 use super::lookup::AddrLookup;
+
+const MIN_PARALLEL_LOADS: usize = 128;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
@@ -45,6 +48,35 @@ impl BlockAddress {
     fn type_index(self) -> TypeIndex {
         TypeIndex::from(self.0 as u32)
     }
+
+    fn load(
+        self,
+        first_addr_indexes: &ByAddrType<TypeIndex>,
+        vr: &VecsReaders,
+        any_addr_indexes: &AnyAddrIndexesVecs,
+        addrs_data: &AddrsDataVecs,
+    ) -> WithAddrDataSource<FundedAddrData> {
+        let addr_type = self.addr_type();
+        let type_index = self.type_index();
+        let first = *first_addr_indexes.get(addr_type).unwrap();
+
+        if first <= type_index {
+            return WithAddrDataSource::New(FundedAddrData::default());
+        }
+
+        let any_addr_index = vr.any_addr_index(any_addr_indexes, addr_type, type_index);
+
+        match any_addr_index.to_enum() {
+            AnyAddrDataIndexEnum::Funded(funded_index) => {
+                let funded_data = vr.funded_data(addrs_data, funded_index);
+                WithAddrDataSource::FromFunded(funded_index, funded_data)
+            }
+            AnyAddrDataIndexEnum::Empty(empty_index) => {
+                let empty_data = vr.empty_data(addrs_data, empty_index);
+                WithAddrDataSource::FromEmpty(empty_index, empty_data.into())
+            }
+        }
+    }
 }
 
 /// Cache for address data within a flush interval.
@@ -55,6 +87,8 @@ pub struct AddrCache {
     empty: AddrTypeToTypeIndexMap<WithAddrDataSource<EmptyAddrData>>,
     /// Reusable scratch space for the unique addresses touched by one block.
     block_addresses: Vec<BlockAddress>,
+    /// Reusable scratch space for their loaded sources.
+    block_sources: Vec<WithAddrDataSource<FundedAddrData>>,
 }
 
 impl Default for AddrCache {
@@ -69,6 +103,7 @@ impl AddrCache {
             funded: AddrTypeToTypeIndexMap::default(),
             empty: AddrTypeToTypeIndexMap::default(),
             block_addresses: Vec::new(),
+            block_sources: Vec::new(),
         }
     }
 
@@ -95,7 +130,12 @@ impl AddrCache {
     ) {
         self.block_addresses.clear();
         for (addr_type, type_index) in addresses {
-            if addr_type.is_addr() && !self.contains(addr_type, type_index) {
+            if addr_type.is_not_addr() {
+                continue;
+            }
+
+            let first = *first_addr_indexes.get(addr_type).unwrap();
+            if first <= type_index || !self.contains(addr_type, type_index) {
                 self.block_addresses
                     .push(BlockAddress::new(addr_type, type_index));
             }
@@ -103,30 +143,29 @@ impl AddrCache {
         self.block_addresses.sort_unstable();
         self.block_addresses.dedup();
 
-        for index in 0..self.block_addresses.len() {
-            let address = self.block_addresses[index];
-            let addr_type = address.addr_type();
-            let type_index = address.type_index();
-            let first = *first_addr_indexes.get(addr_type).unwrap();
+        self.block_sources.clear();
+        if self.block_addresses.len() < MIN_PARALLEL_LOADS {
+            self.block_sources.extend(
+                self.block_addresses.iter().copied().map(|address| {
+                    address.load(first_addr_indexes, vr, any_addr_indexes, addrs_data)
+                }),
+            );
+        } else {
+            self.block_addresses
+                .par_iter()
+                .copied()
+                .map(|address| address.load(first_addr_indexes, vr, any_addr_indexes, addrs_data))
+                .collect_into_vec(&mut self.block_sources);
+        }
 
-            let source = if first <= type_index {
-                WithAddrDataSource::New(FundedAddrData::default())
-            } else {
-                let any_addr_index = vr.any_addr_index(any_addr_indexes, addr_type, type_index);
-
-                match any_addr_index.to_enum() {
-                    AnyAddrDataIndexEnum::Funded(funded_index) => {
-                        let funded_data = vr.funded_data(addrs_data, funded_index);
-                        WithAddrDataSource::FromFunded(funded_index, funded_data)
-                    }
-                    AnyAddrDataIndexEnum::Empty(empty_index) => {
-                        let empty_data = vr.empty_data(addrs_data, empty_index);
-                        WithAddrDataSource::FromEmpty(empty_index, empty_data.into())
-                    }
-                }
-            };
-
-            self.funded.insert_for_type(addr_type, type_index, source);
+        for (address, source) in self
+            .block_addresses
+            .iter()
+            .copied()
+            .zip(self.block_sources.drain(..))
+        {
+            self.funded
+                .insert_for_type(address.addr_type(), address.type_index(), source);
         }
     }
 

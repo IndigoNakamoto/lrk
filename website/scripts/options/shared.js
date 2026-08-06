@@ -626,7 +626,7 @@ export function simplePriceRatioTree({ pattern, title, legend, color }) {
 }
 
 /**
- * @param {{ pct001: AnyPricePattern, pct05: AnyPricePattern, pct1: AnyPricePattern, pct2: AnyPricePattern, pct5: AnyPricePattern, pct10: AnyPricePattern, pct20: AnyPricePattern, pct30: AnyPricePattern, pct40: AnyPricePattern, pct50: AnyPricePattern, pct60: AnyPricePattern, pct70: AnyPricePattern, pct80: AnyPricePattern, pct90: AnyPricePattern, pct95: AnyPricePattern, pct98: AnyPricePattern, pct99: AnyPricePattern, pct995: AnyPricePattern, pct999: AnyPricePattern }} p
+ * @param {{ pct01: AnyPricePattern, pct05: AnyPricePattern, pct1: AnyPricePattern, pct2: AnyPricePattern, pct5: AnyPricePattern, pct10: AnyPricePattern, pct20: AnyPricePattern, pct30: AnyPricePattern, pct40: AnyPricePattern, pct50: AnyPricePattern, pct60: AnyPricePattern, pct70: AnyPricePattern, pct80: AnyPricePattern, pct90: AnyPricePattern, pct95: AnyPricePattern, pct98: AnyPricePattern, pct99: AnyPricePattern, pct995: AnyPricePattern, pct999: AnyPricePattern }} p
  */
 export function percentileBands(p) {
   return percentileBandsWith(p, (e) => e);
@@ -635,7 +635,7 @@ export function percentileBands(p) {
 /**
  * @template E
  * @template T
- * @param {{ pct001: E, pct05: E, pct1: E, pct2: E, pct5: E, pct10: E, pct20: E, pct30: E, pct40: E, pct50: E, pct60: E, pct70: E, pct80: E, pct90: E, pct95: E, pct98: E, pct99: E, pct995: E, pct999: E }} p
+ * @param {{ pct01: E, pct05: E, pct1: E, pct2: E, pct5: E, pct10: E, pct20: E, pct30: E, pct40: E, pct50: E, pct60: E, pct70: E, pct80: E, pct90: E, pct95: E, pct98: E, pct99: E, pct995: E, pct999: E }} p
  * @param {(entry: E) => T} extract
  */
 export function percentileBandsWith(p, extract) {
@@ -704,9 +704,9 @@ export function percentileBandsWith(p, extract) {
       lineStyle: 0,
     },
     {
-      name: "P0.01",
-      prop: extract(p.pct001),
-      color: colors.ratioPct._0_01,
+      name: "P0.1",
+      prop: extract(p.pct01),
+      color: colors.ratioPct._0_1,
       defaultActive: true,
       lineStyle: 0,
     },
@@ -761,7 +761,7 @@ function ratioBands(bands) {
 
 /**
  * @typedef {{ price: AnyPricePattern, ratio: AnySeriesPattern }} PriceRatioBand
- * @typedef {Record<"pct001" | "pct05" | "pct1" | "pct2" | "pct5" | "pct10" | "pct20" | "pct30" | "pct40" | "pct50" | "pct60" | "pct70" | "pct80" | "pct90" | "pct95" | "pct98" | "pct99" | "pct995" | "pct999", PriceRatioBand>} PriceRatioPercentiles
+ * @typedef {Record<"pct01" | "pct05" | "pct1" | "pct2" | "pct5" | "pct10" | "pct20" | "pct30" | "pct40" | "pct50" | "pct60" | "pct70" | "pct80" | "pct90" | "pct95" | "pct98" | "pct99" | "pct995" | "pct999", PriceRatioBand>} PriceRatioPercentiles
  */
 
 /**

@@ -3037,7 +3037,7 @@ class IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
         self.index: SeriesPattern1[StoredI8] = SeriesPattern1(client, _m(acc, 'index'))
-        self.pct0_01: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'pct0_01'))
+        self.pct0_1: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'pct0_1'))
         self.pct0_5: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'pct0_5'))
         self.pct1: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'pct01'))
         self.pct10: CentsSatsUsdPattern = CentsSatsUsdPattern(client, _m(acc, 'pct10'))
@@ -3088,7 +3088,7 @@ class Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct
     
     def __init__(self, client: BrkClient, acc: str):
         """Create pattern node with accumulated series name."""
-        self.pct0_01: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct0_01')
+        self.pct0_1: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct0_1')
         self.pct0_5: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct0_5')
         self.pct1: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct1')
         self.pct10: PpmPriceRatioPattern = PpmPriceRatioPattern(client, acc, 'pct10')

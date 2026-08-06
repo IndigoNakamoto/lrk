@@ -81,7 +81,7 @@ export function createRarityMeterSection() {
               unit: Unit.count,
               colorFn: (value) =>
                 /** @type {const} */ ([
-                  colors.ratioPct._0_01,
+                  colors.ratioPct._0_1,
                   colors.ratioPct._0_5,
                   colors.ratioPct._1,
                   colors.ratioPct._2,
@@ -98,7 +98,7 @@ export function createRarityMeterSection() {
               series: meter.score,
               name: "Score",
               unit: Unit.count,
-              color: [colors.ratioPct._99_9, colors.ratioPct._0_01],
+              color: [colors.ratioPct._99_9, colors.ratioPct._0_1],
               defaultActive: false,
             }),
           ],
