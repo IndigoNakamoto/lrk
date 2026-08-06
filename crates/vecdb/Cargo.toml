@@ -38,7 +38,7 @@ schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 sonic-rs = { version = "0.5.8", optional = true }
 vecdb_derive = { workspace = true, optional = true }
-zerocopy = { version = "0.8.55", features = ["zerocopy-derive"], optional = true }
+zerocopy = { version = "0.8.56", features = ["zerocopy-derive"], optional = true }
 zstd = { version = "0.13.3", optional = true }
 
 [dev-dependencies]
