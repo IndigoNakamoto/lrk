@@ -102,14 +102,19 @@
         position: absolute;
         top: 0;
         left: 0;
-        font-family:
-          "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
-          sans-serif;
-        font-size: var(--event-marker-size);
-        font-weight: 400;
-        line-height: 1;
+        width: var(--event-marker-size);
+        height: var(--event-marker-size);
+        border-radius: 50%;
+        background: var(--event-color);
         transform: translate(-50%, -50%);
         will-change: left, top;
+        forced-color-adjust: none;
+      }
+
+      #event-markers span[data-shape="ring"] {
+        border: max(0.75px, calc(var(--event-marker-size) * 0.16)) solid
+          var(--event-color);
+        background: transparent;
       }
 
       #identity {
@@ -186,7 +191,7 @@
         flex-wrap: wrap;
         gap: 5px 12px;
         color: var(--muted);
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 550;
         letter-spacing: 0.065em;
         line-height: 16px;
@@ -228,20 +233,25 @@
       .event-key-meta {
         display: block;
         color: #555;
-        font-size: 9px;
+        font-size: 10px;
         letter-spacing: 0.04em;
         line-height: 12px;
       }
 
       #event-key b {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
         margin-right: 3px;
-        font-family:
-          "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
-          sans-serif;
-        font-size: 13px;
-        font-weight: 400;
-        letter-spacing: 0;
+        border-radius: 50%;
+        background: var(--event-color);
         vertical-align: -1px;
+        forced-color-adjust: none;
+      }
+
+      #event-key b[data-shape="ring"] {
+        border: 2px solid var(--event-color);
+        background: transparent;
       }
 
       #status {
@@ -359,7 +369,13 @@
             data-event="profitTaking"
             aria-pressed="true"
           >
-            <span class="event-key-label"><b>🟢</b>Profit taking</span>
+            <span class="event-key-label"
+              ><b
+                aria-hidden="true"
+                style="--event-color: var(--green)"
+              ></b
+              >Profit taking</span
+            >
             <small class="event-key-meta" data-tail="profitTaking">
               Tail —
             </small>
@@ -370,7 +386,13 @@
             data-event="capitulation"
             aria-pressed="true"
           >
-            <span class="event-key-label"><b>🔴</b>Capitulation</span>
+            <span class="event-key-label"
+              ><b
+                aria-hidden="true"
+                style="--event-color: var(--red)"
+              ></b
+              >Capitulation</span
+            >
             <small class="event-key-meta" data-tail="capitulation">
               Tail —
             </small>
@@ -381,7 +403,13 @@
             data-event="peakRegret"
             aria-pressed="true"
           >
-            <span class="event-key-label"><b>🟣</b>Peak regret</span>
+            <span class="event-key-label"
+              ><b
+                aria-hidden="true"
+                style="--event-color: var(--pink)"
+              ></b
+              >Peak regret</span
+            >
             <small class="event-key-meta" data-tail="peakRegret">
               Tail —
             </small>
@@ -392,7 +420,13 @@
             data-event="sellerExhaustion"
             aria-pressed="true"
           >
-            <span class="event-key-label"><b>🟡</b>Seller exhaustion</span>
+            <span class="event-key-label"
+              ><b
+                aria-hidden="true"
+                style="--event-color: var(--yellow)"
+              ></b
+              >Seller exhaustion</span
+            >
             <small class="event-key-meta" data-tail="sellerExhaustion">
               Tail —
             </small>
@@ -403,7 +437,14 @@
             data-event="coinsInLoss"
             aria-pressed="true"
           >
-            <span class="event-key-label"><b>⭕️</b>Coins in loss</span>
+            <span class="event-key-label"
+              ><b
+                aria-hidden="true"
+                data-shape="ring"
+                style="--event-color: var(--red)"
+              ></b
+              >Coins in loss</span
+            >
             <small class="event-key-meta" data-tail="coinsInLoss">
               Tail —
             </small>
@@ -476,7 +517,6 @@
           key: "profitTaking",
           series: "profitTakingTail",
           endpoint: "rarity_meter_profit_taking_tail",
-          emoji: "🟢",
           color: COLORS.green,
           position: "aboveBar",
           priority: 5,
@@ -485,7 +525,6 @@
           key: "capitulation",
           series: "capitulationTail",
           endpoint: "rarity_meter_capitulation_tail",
-          emoji: "🔴",
           color: COLORS.red,
           position: "belowBar",
           priority: 4,
@@ -494,7 +533,6 @@
           key: "peakRegret",
           series: "peakRegretTail",
           endpoint: "rarity_meter_peak_regret_tail",
-          emoji: "🟣",
           color: COLORS.pink,
           position: "belowBar",
           priority: 3,
@@ -503,7 +541,6 @@
           key: "sellerExhaustion",
           series: "sellerExhaustionTail",
           endpoint: "rarity_meter_seller_exhaustion_tail",
-          emoji: "🟡",
           color: COLORS.yellow,
           position: "aboveBar",
           priority: 2,
@@ -512,7 +549,7 @@
           key: "coinsInLoss",
           series: "coinsInLossTail",
           endpoint: "rarity_meter_coins_in_loss_tail",
-          emoji: "⭕️",
+          shape: "ring",
           color: COLORS.red,
           position: "belowBar",
           priority: 1,
@@ -728,7 +765,7 @@
               price:
                 event.position === "aboveBar" ? row.high : row.low,
               color: event.color,
-              emoji: event.emoji,
+              shape: event.shape ?? "filled",
               stack: stacks[event.position],
               priority: event.priority,
             });
@@ -762,7 +799,8 @@
           const fragment = document.createDocumentFragment();
           this.items = markers.map((marker) => {
             const element = document.createElement("span");
-            element.textContent = marker.emoji;
+            element.dataset.shape = marker.shape;
+            element.style.setProperty("--event-color", marker.color);
             fragment.append(element);
             return { ...marker, element };
           });
@@ -791,11 +829,11 @@
           const markerSize =
             Math.round(
               Math.max(
-                7,
+                3,
                 Math.min(
-                  18,
+                  10,
                   18 -
-                    Math.max(0, Math.log2(visibleBars / 250)) * 2.25,
+                    Math.max(0, Math.log2(visibleBars / 250)) * 4,
                 ),
               ),
             ) *
