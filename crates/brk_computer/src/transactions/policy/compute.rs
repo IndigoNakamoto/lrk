@@ -25,7 +25,9 @@ impl Vecs {
             + indexes.height.tx_index_count.version();
         self.is_nonstandard
             .validate_computed_version_or_reset(version)?;
-        self.count.validate_computed_version_or_reset(version)?;
+        self.count
+            .nonstandard
+            .validate_computed_version_or_reset(version)?;
 
         let starting_lengths = indexer.safe_lengths();
         let target_tx = fees.fee.tx_index.len();
@@ -34,7 +36,13 @@ impl Vecs {
             .is_nonstandard
             .len()
             .min(starting_lengths.tx_index.to_usize());
-        let count_len = self.count.len().min(starting_lengths.height.to_usize());
+        let count_len = self
+            .count
+            .nonstandard
+            .cumulative
+            .height
+            .len()
+            .min(starting_lengths.height.to_usize());
         let next_height = if tx_len >= target_tx {
             target_height
         } else {
@@ -52,7 +60,7 @@ impl Vecs {
         let first_tx = &indexer.vecs.transactions.first_tx_index;
         let start_tx = first_tx.collect_one_at(start_height).unwrap().to_usize();
         self.is_nonstandard.truncate_if_needed_at(start_tx)?;
-        self.count.truncate_if_needed_at(start_height)?;
+        self.count.nonstandard.truncate_if_needed_at(start_height)?;
 
         let mut unconditional = features.is_unconditionally_nonstandard.cursor();
         let mut has_dust = features.has_dust_output.cursor();
@@ -84,12 +92,12 @@ impl Vecs {
                 count += nonstandard as u64;
                 self.is_nonstandard.push(StoredBool::from(nonstandard));
             }
-            self.count.push(StoredU64::from(count));
+            self.count.nonstandard.push_block(StoredU64::from(count));
 
             if (height + 1).is_multiple_of(WRITE_INTERVAL) {
                 let _lock = exit.lock();
                 self.is_nonstandard.write()?;
-                self.count.write()?;
+                self.count.nonstandard.write()?;
             }
 
             block_start = block_end;
@@ -97,7 +105,7 @@ impl Vecs {
 
         let _lock = exit.lock();
         self.is_nonstandard.write()?;
-        self.count.write()?;
+        self.count.nonstandard.write()?;
         Ok(())
     }
 }

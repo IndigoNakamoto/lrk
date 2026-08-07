@@ -5944,6 +5944,7 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesTree_Transactions_Fees} fees
  * @property {SeriesTree_Transactions_Patterns} patterns
  * @property {SeriesTree_Transactions_Policy} policy
+ * @property {SeriesTree_Transactions_Sigops} sigops
  * @property {SeriesTree_Transactions_Versions} versions
  * @property {SeriesTree_Transactions_Volume} volume
  */
@@ -6010,14 +6011,14 @@ function createUnspentPattern(client, acc) {
  * @property {SeriesPattern18<StoredU64>} unknown
  * @property {SeriesPattern18<StoredU64>} fakePubkey
  * @property {SeriesPattern18<StoredU64>} fakeScripthash
- * @property {SeriesPattern18<StoredU64>} inscription
- * @property {SeriesPattern18<StoredU64>} annex
- * @property {SeriesPattern18<StoredU64>} sighashAll
- * @property {SeriesPattern18<StoredU64>} sighashNone
- * @property {SeriesPattern18<StoredU64>} sighashSingle
- * @property {SeriesPattern18<StoredU64>} sighashDefault
- * @property {SeriesPattern18<StoredU64>} sighashAnyoneCanPay
- * @property {SeriesPattern18<StoredU64>} dustOutput
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} inscription
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} annex
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashAll
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashNone
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashSingle
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashDefault
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashAnyoneCanPay
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dustOutput
  */
 
 /**
@@ -6058,8 +6059,8 @@ function createUnspentPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Fees_Count
- * @property {SeriesPattern18<StoredU64>} cpfpParent
- * @property {SeriesPattern18<StoredU64>} cpfpChild
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} cpfpParent
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} cpfpChild
  */
 
 /**
@@ -6072,15 +6073,25 @@ function createUnspentPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Patterns_Count
- * @property {SeriesPattern18<StoredU64>} coinjoin
- * @property {SeriesPattern18<StoredU64>} consolidation
- * @property {SeriesPattern18<StoredU64>} batchPayout
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} coinjoin
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} consolidation
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} batchPayout
  */
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Policy
- * @property {SeriesPattern18<StoredU64>} count
+ * @property {SeriesTree_Transactions_Policy_Count} count
  * @property {SeriesPattern19<StoredBool>} isNonstandard
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Policy_Count
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} nonstandard
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Sigops
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} total
  */
 
 /**
@@ -9734,14 +9745,14 @@ class BrkClient extends BrkClientBase {
             unknown: createSeriesPattern18(this, 'tx_count_unknown'),
             fakePubkey: createSeriesPattern18(this, 'tx_count_fake_pubkey'),
             fakeScripthash: createSeriesPattern18(this, 'tx_count_fake_scripthash'),
-            inscription: createSeriesPattern18(this, 'tx_count_inscription'),
-            annex: createSeriesPattern18(this, 'tx_count_annex'),
-            sighashAll: createSeriesPattern18(this, 'tx_count_sighash_all'),
-            sighashNone: createSeriesPattern18(this, 'tx_count_sighash_none'),
-            sighashSingle: createSeriesPattern18(this, 'tx_count_sighash_single'),
-            sighashDefault: createSeriesPattern18(this, 'tx_count_sighash_default'),
-            sighashAnyoneCanPay: createSeriesPattern18(this, 'tx_count_sighash_anyone_can_pay'),
-            dustOutput: createSeriesPattern18(this, 'tx_count_dust_output'),
+            inscription: createAverageBlockCumulativeSumPattern(this, 'tx_count_inscription'),
+            annex: createAverageBlockCumulativeSumPattern(this, 'tx_count_annex'),
+            sighashAll: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_all'),
+            sighashNone: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_none'),
+            sighashSingle: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_single'),
+            sighashDefault: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_default'),
+            sighashAnyoneCanPay: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_anyone_can_pay'),
+            dustOutput: createAverageBlockCumulativeSumPattern(this, 'tx_count_dust_output'),
           },
           hasP2pk: createSeriesPattern19(this, 'has_p2pk'),
           hasP2ms: createSeriesPattern19(this, 'has_p2ms'),
@@ -9781,8 +9792,8 @@ class BrkClient extends BrkClientBase {
         },
         fees: {
           count: {
-            cpfpParent: createSeriesPattern18(this, 'cpfp_parent_count'),
-            cpfpChild: createSeriesPattern18(this, 'cpfp_child_count'),
+            cpfpParent: createAverageBlockCumulativeSumPattern(this, 'cpfp_parent_count'),
+            cpfpChild: createAverageBlockCumulativeSumPattern(this, 'cpfp_child_count'),
           },
           inputValue: createSeriesPattern19(this, 'input_value'),
           outputValue: createSeriesPattern19(this, 'output_value'),
@@ -9794,17 +9805,22 @@ class BrkClient extends BrkClientBase {
         },
         patterns: {
           count: {
-            coinjoin: createSeriesPattern18(this, 'coinjoin_count'),
-            consolidation: createSeriesPattern18(this, 'consolidation_count'),
-            batchPayout: createSeriesPattern18(this, 'batch_payout_count'),
+            coinjoin: createAverageBlockCumulativeSumPattern(this, 'coinjoin_count'),
+            consolidation: createAverageBlockCumulativeSumPattern(this, 'consolidation_count'),
+            batchPayout: createAverageBlockCumulativeSumPattern(this, 'batch_payout_count'),
           },
           isCoinjoin: createSeriesPattern19(this, 'is_coinjoin'),
           isConsolidation: createSeriesPattern19(this, 'is_consolidation'),
           isBatchPayout: createSeriesPattern19(this, 'is_batch_payout'),
         },
         policy: {
-          count: createSeriesPattern18(this, 'nonstandard_count'),
+          count: {
+            nonstandard: createAverageBlockCumulativeSumPattern(this, 'nonstandard_count'),
+          },
           isNonstandard: createSeriesPattern19(this, 'is_nonstandard'),
+        },
+        sigops: {
+          total: createAverageBlockCumulativeSumPattern(this, 'total_sigop_cost'),
         },
         versions: {
           v1: createAverageBlockCumulativeSumPattern(this, 'tx_v1'),

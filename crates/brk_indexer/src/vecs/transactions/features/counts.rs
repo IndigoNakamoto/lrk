@@ -7,7 +7,7 @@ use vecdb::{AnyStoredVec, Database, ImportableVec, PcoVec, Rw, Stamp, StorageMod
 use super::schema::with_transaction_features;
 
 macro_rules! define_counts {
-    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident)?;)+) => {
+    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident $(, count_attr: $count_attr:meta)?)?;)+) => {
         #[derive(Default)]
         pub(crate) struct TransactionCounts {
             v1: u64,
@@ -49,7 +49,7 @@ macro_rules! define_counts {
             pub explicitly_rbf: M::Stored<PcoVec<Height, StoredU64>>,
             pub one_input: M::Stored<PcoVec<Height, StoredU64>>,
             pub one_output: M::Stored<PcoVec<Height, StoredU64>>,
-            $($(pub $count: M::Stored<PcoVec<Height, StoredU64>>,)?) +
+            $($($(#[$count_attr])* pub $count: M::Stored<PcoVec<Height, StoredU64>>,)?) +
         }
 
         impl TransactionCountVecs {

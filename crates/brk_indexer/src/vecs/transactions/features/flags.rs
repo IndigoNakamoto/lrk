@@ -6,7 +6,7 @@ use super::schema::with_transaction_features;
 pub(crate) struct TxFeatureFlags(u32);
 
 macro_rules! define_flags {
-    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident)?;)+) => {
+    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident $(, count_attr: $count_attr:meta)?)?;)+) => {
         impl TxFeatureFlags {
             $(pub(crate) const $flag: u32 = 1 << $bit;)+
         }

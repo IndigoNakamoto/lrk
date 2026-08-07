@@ -3,15 +3,12 @@
 import { colors } from "../utils/colors.js";
 import { brk } from "../utils/client.js";
 import { Unit } from "../utils/units.js";
-import { entries } from "../utils/array.js";
 import {
   line,
   baseline,
   fromSupplyPattern,
   chartsFromFull,
-  chartsFromFullPerBlock,
   chartsFromCount,
-  chartsFromCountEntries,
   chartsFromPercentCumulative,
   chartsFromPercentCumulativeEntries,
   chartsFromAggregatedPerBlock,
@@ -19,7 +16,6 @@ import {
   averagesArray,
   simpleDeltaTree,
   ROLLING_WINDOWS,
-  chartsFromBlockAnd6b,
   multiSeriesTree,
   percentRatio,
   percentRatioDots,
@@ -27,7 +23,6 @@ import {
 import {
   satsBtcUsd,
   satsBtcUsdFrom,
-  satsBtcUsdFullTree,
   formatCohortTitle,
   groupedWindowsCumulative,
   avgHoldingsSubtree,
@@ -36,6 +31,7 @@ import {
   reusedSubtree,
 } from "./shared.js";
 import { createOpReturnSection } from "./network/op-return.js";
+import { createTransactionsSection } from "./network/transactions.js";
 
 /**
  * Create Network section
@@ -1121,97 +1117,7 @@ export function createNetworkSection() {
         ],
       },
 
-      // Transactions
-      {
-        name: "Transactions",
-        tree: [
-          {
-            name: "Count",
-            tree: chartsFromFullPerBlock({
-              pattern: transactions.count.total,
-              metric: "Transaction Count",
-              unit: Unit.count,
-            }),
-          },
-          {
-            name: "Per Second",
-            tree: averagesArray({
-              windows: transactions.volume.txPerSec,
-              metric: "Transactions per Second",
-              unit: Unit.perSec,
-            }),
-          },
-          {
-            name: "Volume",
-            tree: satsBtcUsdFullTree({
-              pattern: transactions.volume.transferVolume,
-              metric: "Transaction Volume",
-            }),
-          },
-          {
-            name: "Effective Fee Rate",
-            tree: chartsFromBlockAnd6b({
-              pattern: transactions.fees.effectiveFeeRate,
-              metric: "Effective Transaction Fee Rate",
-              unit: Unit.feeRate,
-            }),
-          },
-          {
-            name: "Fee",
-            tree: chartsFromBlockAnd6b({
-              pattern: transactions.fees.fee,
-              metric: "Transaction Fee",
-              unit: Unit.sats,
-            }),
-          },
-          {
-            name: "Size",
-            tree: [
-              {
-                name: "Weight",
-                tree: chartsFromBlockAnd6b({
-                  pattern: transactions.size.weight,
-                  metric: "Transaction Weight",
-                  unit: Unit.wu,
-                }),
-              },
-              {
-                name: "Virtual",
-                tree: chartsFromBlockAnd6b({
-                  pattern: transactions.size.vsize,
-                  metric: "Transaction vSize",
-                  unit: Unit.vb,
-                }),
-              },
-            ],
-          },
-          {
-            name: "Versions",
-            tree: chartsFromCountEntries({
-              entries: entries(transactions.versions),
-              metric: "Transaction Versions",
-              unit: Unit.count,
-            }),
-          },
-          {
-            name: "Velocity",
-            title: "Transaction Velocity",
-            bottom: [
-              line({
-                series: supply.velocity.native,
-                name: "BTC",
-                unit: Unit.ratio,
-              }),
-              line({
-                series: supply.velocity.fiat,
-                name: "USD",
-                color: colors.usd,
-                unit: Unit.ratio,
-              }),
-            ],
-          },
-        ],
-      },
+      createTransactionsSection(),
 
       createOpReturnSection(),
 

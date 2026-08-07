@@ -26,7 +26,8 @@ impl<T: VecValue, SI: VecIndex> AggFold<Option<T>, SI, SI, T> for Sparse {
             let next_first = mapping
                 .get(idx + 1)
                 .map(|h| h.to_usize())
-                .unwrap_or(source_len);
+                .unwrap_or(source_len)
+                .min(source_len);
 
             if next_first == 0 || current_first >= next_first {
                 slot_map.push(None);
@@ -55,11 +56,47 @@ impl<T: VecValue, SI: VecIndex> AggFold<Option<T>, SI, SI, T> for Sparse {
         let next_first = mapping
             .get(index + 1)
             .map(|h| h.to_usize())
-            .unwrap_or(source_len);
+            .unwrap_or(source_len)
+            .min(source_len);
 
         if next_first == 0 || current_first >= next_first {
             return Some(None);
         }
         Some(source.collect_one_at(next_first - 1))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sparse;
+    use crate::{AggFold, BytesVec, ImportableVec, Version, WritableVec};
+
+    #[test]
+    fn clamps_partial_final_range_to_source_length() {
+        let temp = tempfile::tempdir().unwrap();
+        let db = crate::Database::open(temp.path()).unwrap();
+        let mut source: BytesVec<usize, u64> =
+            BytesVec::forced_import(&db, "source", Version::ONE).unwrap();
+
+        for value in [10, 20, 30] {
+            source.push(value);
+        }
+
+        let mapping = [0, 2, 4];
+        let values = Sparse::fold(
+            &source,
+            &mapping,
+            0,
+            mapping.len(),
+            Vec::new(),
+            |mut values, value| {
+                values.push(value);
+                values
+            },
+        );
+
+        assert_eq!(values, [Some(20), Some(30), None]);
+        assert_eq!(Sparse::collect_one(&source, &mapping, 1), Some(Some(30)));
+        assert_eq!(Sparse::collect_one(&source, &mapping, 2), Some(None));
     }
 }

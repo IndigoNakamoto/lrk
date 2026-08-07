@@ -3,7 +3,10 @@ use brk_types::Version;
 use vecdb::{Database, EagerVec, ImportableVec};
 
 use super::{CountVecs, Vecs};
-use crate::{indexes, internal::PerTxDistribution};
+use crate::{
+    indexes,
+    internal::{CachedWindowStartVec, PerBlockCumulativeRolling, PerTxDistribution, Windows},
+};
 
 /// Bump this when fee/feerate aggregation logic changes (e.g., skip coinbase, skip zero-fee).
 const VERSION: Version = Version::new(3);
@@ -13,12 +16,25 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let v = version + VERSION;
         Ok(Self {
             count: CountVecs {
-                cpfp_parent: EagerVec::forced_import(db, "cpfp_parent_count", version)?,
-                cpfp_child: EagerVec::forced_import(db, "cpfp_child_count", version)?,
+                cpfp_parent: PerBlockCumulativeRolling::forced_import(
+                    db,
+                    "cpfp_parent_count",
+                    version,
+                    indexes,
+                    cached_starts,
+                )?,
+                cpfp_child: PerBlockCumulativeRolling::forced_import(
+                    db,
+                    "cpfp_child_count",
+                    version,
+                    indexes,
+                    cached_starts,
+                )?,
             },
             input_value: EagerVec::forced_import(db, "input_value", version)?,
             output_value: EagerVec::forced_import(db, "output_value", version)?,

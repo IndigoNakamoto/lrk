@@ -14,16 +14,16 @@ macro_rules! with_transaction_features {
             has_unknown: UNKNOWN = 10, count: unknown;
             has_fake_pubkey: FAKE_PUBKEY = 11, count: fake_pubkey;
             has_fake_scripthash: FAKE_SCRIPTHASH = 12, count: fake_scripthash;
-            has_inscription: INSCRIPTION = 13, count: inscription;
-            has_annex: ANNEX = 14, count: annex;
-            has_sighash_all: SIGHASH_ALL = 15, count: sighash_all;
-            has_sighash_none: SIGHASH_NONE = 16, count: sighash_none;
-            has_sighash_single: SIGHASH_SINGLE = 17, count: sighash_single;
-            has_sighash_default: SIGHASH_DEFAULT = 18, count: sighash_default;
-            has_sighash_anyone_can_pay: SIGHASH_ANYONE_CAN_PAY = 19, count: sighash_anyone_can_pay;
+            has_inscription: INSCRIPTION = 13, count: inscription, count_attr: traversable(hidden);
+            has_annex: ANNEX = 14, count: annex, count_attr: traversable(hidden);
+            has_sighash_all: SIGHASH_ALL = 15, count: sighash_all, count_attr: traversable(hidden);
+            has_sighash_none: SIGHASH_NONE = 16, count: sighash_none, count_attr: traversable(hidden);
+            has_sighash_single: SIGHASH_SINGLE = 17, count: sighash_single, count_attr: traversable(hidden);
+            has_sighash_default: SIGHASH_DEFAULT = 18, count: sighash_default, count_attr: traversable(hidden);
+            has_sighash_anyone_can_pay: SIGHASH_ANYONE_CAN_PAY = 19, count: sighash_anyone_can_pay, count_attr: traversable(hidden);
             #[traversable(hidden)]
             is_unconditionally_nonstandard: UNCONDITIONALLY_NONSTANDARD = 20;
-            has_dust_output: DUST_OUTPUT = 21, count: dust_output;
+            has_dust_output: DUST_OUTPUT = 21, count: dust_output, count_attr: traversable(hidden);
         }
     };
 }

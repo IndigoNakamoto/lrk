@@ -131,8 +131,10 @@ impl Vecs {
         let count_len = self
             .count
             .cpfp_parent
+            .cumulative
+            .height
             .len()
-            .min(self.count.cpfp_child.len())
+            .min(self.count.cpfp_child.cumulative.height.len())
             .min(max_height);
         let start_height = count_len.min(next_height);
         if start_height >= max_height {
@@ -241,8 +243,12 @@ impl Vecs {
                 self.is_cpfp_parent.push(StoredBool::from(is_parent));
                 self.is_cpfp_child.push(StoredBool::from(is_child));
             }
-            self.count.cpfp_parent.push(StoredU64::from(parent_count));
-            self.count.cpfp_child.push(StoredU64::from(child_count));
+            self.count
+                .cpfp_parent
+                .push_block(StoredU64::from(parent_count));
+            self.count
+                .cpfp_child
+                .push_block(StoredU64::from(child_count));
 
             if h % 1_000 == 0 {
                 let _lock = exit.lock();

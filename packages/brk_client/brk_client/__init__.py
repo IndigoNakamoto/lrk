@@ -4639,14 +4639,14 @@ class SeriesTree_Transactions_Features_Count:
         self.unknown: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_unknown')
         self.fake_pubkey: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_fake_pubkey')
         self.fake_scripthash: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_fake_scripthash')
-        self.inscription: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_inscription')
-        self.annex: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_annex')
-        self.sighash_all: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_all')
-        self.sighash_none: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_none')
-        self.sighash_single: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_single')
-        self.sighash_default: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_default')
-        self.sighash_anyone_can_pay: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_sighash_anyone_can_pay')
-        self.dust_output: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'tx_count_dust_output')
+        self.inscription: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_inscription')
+        self.annex: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_annex')
+        self.sighash_all: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_sighash_all')
+        self.sighash_none: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_sighash_none')
+        self.sighash_single: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_sighash_single')
+        self.sighash_default: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_sighash_default')
+        self.sighash_anyone_can_pay: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_sighash_anyone_can_pay')
+        self.dust_output: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'tx_count_dust_output')
 
 class SeriesTree_Transactions_Features:
     """Series tree node."""
@@ -4707,8 +4707,8 @@ class SeriesTree_Transactions_Fees_Count:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.cpfp_parent: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'cpfp_parent_count')
-        self.cpfp_child: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'cpfp_child_count')
+        self.cpfp_parent: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'cpfp_parent_count')
+        self.cpfp_child: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'cpfp_child_count')
 
 class SeriesTree_Transactions_Fees:
     """Series tree node."""
@@ -4727,9 +4727,9 @@ class SeriesTree_Transactions_Patterns_Count:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.coinjoin: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'coinjoin_count')
-        self.consolidation: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'consolidation_count')
-        self.batch_payout: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'batch_payout_count')
+        self.coinjoin: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'coinjoin_count')
+        self.consolidation: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'consolidation_count')
+        self.batch_payout: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'batch_payout_count')
 
 class SeriesTree_Transactions_Patterns:
     """Series tree node."""
@@ -4740,12 +4740,24 @@ class SeriesTree_Transactions_Patterns:
         self.is_consolidation: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_consolidation')
         self.is_batch_payout: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_batch_payout')
 
+class SeriesTree_Transactions_Policy_Count:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.nonstandard: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'nonstandard_count')
+
 class SeriesTree_Transactions_Policy:
     """Series tree node."""
     
     def __init__(self, client: BrkClient, base_path: str = ''):
-        self.count: SeriesPattern18[StoredU64] = SeriesPattern18(client, 'nonstandard_count')
+        self.count: SeriesTree_Transactions_Policy_Count = SeriesTree_Transactions_Policy_Count(client)
         self.is_nonstandard: SeriesPattern19[StoredBool] = SeriesPattern19(client, 'is_nonstandard')
+
+class SeriesTree_Transactions_Sigops:
+    """Series tree node."""
+    
+    def __init__(self, client: BrkClient, base_path: str = ''):
+        self.total: AverageBlockCumulativeSumPattern[StoredU64] = AverageBlockCumulativeSumPattern(client, 'total_sigop_cost')
 
 class SeriesTree_Transactions_Versions:
     """Series tree node."""
@@ -4774,6 +4786,7 @@ class SeriesTree_Transactions:
         self.fees: SeriesTree_Transactions_Fees = SeriesTree_Transactions_Fees(client)
         self.patterns: SeriesTree_Transactions_Patterns = SeriesTree_Transactions_Patterns(client)
         self.policy: SeriesTree_Transactions_Policy = SeriesTree_Transactions_Policy(client)
+        self.sigops: SeriesTree_Transactions_Sigops = SeriesTree_Transactions_Sigops(client)
         self.versions: SeriesTree_Transactions_Versions = SeriesTree_Transactions_Versions(client)
         self.volume: SeriesTree_Transactions_Volume = SeriesTree_Transactions_Volume(client)
 

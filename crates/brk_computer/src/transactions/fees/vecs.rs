@@ -1,13 +1,14 @@
 use brk_traversable::Traversable;
-use brk_types::{FeeRate, Height, Sats, StoredBool, StoredU64, TxIndex};
+use brk_types::{FeeRate, Sats, StoredBool, StoredU64, TxIndex};
 use vecdb::{EagerVec, PcoVec, Rw, StorageMode};
 
-use crate::internal::PerTxDistribution;
+use crate::internal::{PerBlockCumulativeRolling, PerTxDistribution};
 
+/// Confirmed transactions participating in same-block CPFP clusters.
 #[derive(Traversable)]
 pub struct CountVecs<M: StorageMode = Rw> {
-    pub cpfp_parent: M::Stored<EagerVec<PcoVec<Height, StoredU64>>>,
-    pub cpfp_child: M::Stored<EagerVec<PcoVec<Height, StoredU64>>>,
+    pub cpfp_parent: PerBlockCumulativeRolling<StoredU64, M>,
+    pub cpfp_child: PerBlockCumulativeRolling<StoredU64, M>,
 }
 
 #[derive(Traversable)]

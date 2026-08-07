@@ -1,10 +1,10 @@
 # Bitcoin Research Kit (BRK)
 
-> Free, open-source Bitcoin analytics API and block explorer. 57886 on-chain time-series and 97 API operations. No authentication required.
+> Free, open-source Bitcoin analytics API and block explorer. 58022 on-chain time-series and 97 API operations. No authentication required.
 
 ## API
 
-- Version: `v0.11.0`
+- Version: `v0.11.1`
 - Base URL: https://bitview.space
 - [Full plain-text reference](https://bitview.space/llms-full.txt)
 - [Compact OpenAPI](https://bitview.space/api.json)

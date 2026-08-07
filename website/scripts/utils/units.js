@@ -28,6 +28,7 @@ export const Unit = /** @type {const} */ ({
   // Counts
   count: { id: "count", name: "Count" },
   blocks: { id: "blocks", name: "Blocks" },
+  sigopCost: { id: "sigop-cost", name: "Sigop Cost" },
 
   // Size
   bytes: { id: "bytes", name: "Bytes" },

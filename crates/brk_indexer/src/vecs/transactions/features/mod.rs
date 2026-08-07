@@ -16,7 +16,7 @@ use self::schema::with_transaction_features;
 use crate::parallel_import;
 
 macro_rules! define_vecs {
-    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident)?;)+) => {
+    ($($(#[$attribute:meta])* $vector:ident: $flag:ident = $bit:literal $(, count: $count:ident $(, count_attr: $count_attr:meta)?)?;)+) => {
         #[derive(Traversable)]
         pub struct TransactionFeaturesVecs<M: StorageMode = Rw> {
             pub count: TransactionCountVecs<M>,

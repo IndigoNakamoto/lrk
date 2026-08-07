@@ -4288,6 +4288,7 @@ pub struct SeriesTree_Transactions {
     pub fees: SeriesTree_Transactions_Fees,
     pub patterns: SeriesTree_Transactions_Patterns,
     pub policy: SeriesTree_Transactions_Policy,
+    pub sigops: SeriesTree_Transactions_Sigops,
     pub versions: SeriesTree_Transactions_Versions,
     pub volume: SeriesTree_Transactions_Volume,
 }
@@ -4302,6 +4303,7 @@ impl SeriesTree_Transactions {
             fees: SeriesTree_Transactions_Fees::new(client.clone(), format!("{base_path}_fees")),
             patterns: SeriesTree_Transactions_Patterns::new(client.clone(), format!("{base_path}_patterns")),
             policy: SeriesTree_Transactions_Policy::new(client.clone(), format!("{base_path}_policy")),
+            sigops: SeriesTree_Transactions_Sigops::new(client.clone(), format!("{base_path}_sigops")),
             versions: SeriesTree_Transactions_Versions::new(client.clone(), format!("{base_path}_versions")),
             volume: SeriesTree_Transactions_Volume::new(client.clone(), format!("{base_path}_volume")),
         }
@@ -4416,14 +4418,14 @@ pub struct SeriesTree_Transactions_Features_Count {
     pub unknown: SeriesPattern18<StoredU64>,
     pub fake_pubkey: SeriesPattern18<StoredU64>,
     pub fake_scripthash: SeriesPattern18<StoredU64>,
-    pub inscription: SeriesPattern18<StoredU64>,
-    pub annex: SeriesPattern18<StoredU64>,
-    pub sighash_all: SeriesPattern18<StoredU64>,
-    pub sighash_none: SeriesPattern18<StoredU64>,
-    pub sighash_single: SeriesPattern18<StoredU64>,
-    pub sighash_default: SeriesPattern18<StoredU64>,
-    pub sighash_anyone_can_pay: SeriesPattern18<StoredU64>,
-    pub dust_output: SeriesPattern18<StoredU64>,
+    pub inscription: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub annex: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub sighash_all: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub sighash_none: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub sighash_single: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub sighash_default: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub sighash_anyone_can_pay: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub dust_output: AverageBlockCumulativeSumPattern<StoredU64>,
 }
 
 impl SeriesTree_Transactions_Features_Count {
@@ -4449,14 +4451,14 @@ impl SeriesTree_Transactions_Features_Count {
             unknown: SeriesPattern18::new(client.clone(), "tx_count_unknown".to_string()),
             fake_pubkey: SeriesPattern18::new(client.clone(), "tx_count_fake_pubkey".to_string()),
             fake_scripthash: SeriesPattern18::new(client.clone(), "tx_count_fake_scripthash".to_string()),
-            inscription: SeriesPattern18::new(client.clone(), "tx_count_inscription".to_string()),
-            annex: SeriesPattern18::new(client.clone(), "tx_count_annex".to_string()),
-            sighash_all: SeriesPattern18::new(client.clone(), "tx_count_sighash_all".to_string()),
-            sighash_none: SeriesPattern18::new(client.clone(), "tx_count_sighash_none".to_string()),
-            sighash_single: SeriesPattern18::new(client.clone(), "tx_count_sighash_single".to_string()),
-            sighash_default: SeriesPattern18::new(client.clone(), "tx_count_sighash_default".to_string()),
-            sighash_anyone_can_pay: SeriesPattern18::new(client.clone(), "tx_count_sighash_anyone_can_pay".to_string()),
-            dust_output: SeriesPattern18::new(client.clone(), "tx_count_dust_output".to_string()),
+            inscription: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_inscription".to_string()),
+            annex: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_annex".to_string()),
+            sighash_all: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_sighash_all".to_string()),
+            sighash_none: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_sighash_none".to_string()),
+            sighash_single: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_sighash_single".to_string()),
+            sighash_default: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_sighash_default".to_string()),
+            sighash_anyone_can_pay: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_sighash_anyone_can_pay".to_string()),
+            dust_output: AverageBlockCumulativeSumPattern::new(client.clone(), "tx_count_dust_output".to_string()),
         }
     }
 }
@@ -4550,15 +4552,15 @@ impl SeriesTree_Transactions_Fees {
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Fees_Count {
-    pub cpfp_parent: SeriesPattern18<StoredU64>,
-    pub cpfp_child: SeriesPattern18<StoredU64>,
+    pub cpfp_parent: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub cpfp_child: AverageBlockCumulativeSumPattern<StoredU64>,
 }
 
 impl SeriesTree_Transactions_Fees_Count {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            cpfp_parent: SeriesPattern18::new(client.clone(), "cpfp_parent_count".to_string()),
-            cpfp_child: SeriesPattern18::new(client.clone(), "cpfp_child_count".to_string()),
+            cpfp_parent: AverageBlockCumulativeSumPattern::new(client.clone(), "cpfp_parent_count".to_string()),
+            cpfp_child: AverageBlockCumulativeSumPattern::new(client.clone(), "cpfp_child_count".to_string()),
         }
     }
 }
@@ -4584,32 +4586,58 @@ impl SeriesTree_Transactions_Patterns {
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Patterns_Count {
-    pub coinjoin: SeriesPattern18<StoredU64>,
-    pub consolidation: SeriesPattern18<StoredU64>,
-    pub batch_payout: SeriesPattern18<StoredU64>,
+    pub coinjoin: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub consolidation: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub batch_payout: AverageBlockCumulativeSumPattern<StoredU64>,
 }
 
 impl SeriesTree_Transactions_Patterns_Count {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            coinjoin: SeriesPattern18::new(client.clone(), "coinjoin_count".to_string()),
-            consolidation: SeriesPattern18::new(client.clone(), "consolidation_count".to_string()),
-            batch_payout: SeriesPattern18::new(client.clone(), "batch_payout_count".to_string()),
+            coinjoin: AverageBlockCumulativeSumPattern::new(client.clone(), "coinjoin_count".to_string()),
+            consolidation: AverageBlockCumulativeSumPattern::new(client.clone(), "consolidation_count".to_string()),
+            batch_payout: AverageBlockCumulativeSumPattern::new(client.clone(), "batch_payout_count".to_string()),
         }
     }
 }
 
 /// Series tree node.
 pub struct SeriesTree_Transactions_Policy {
-    pub count: SeriesPattern18<StoredU64>,
+    pub count: SeriesTree_Transactions_Policy_Count,
     pub is_nonstandard: SeriesPattern19<StoredBool>,
 }
 
 impl SeriesTree_Transactions_Policy {
     pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
         Self {
-            count: SeriesPattern18::new(client.clone(), "nonstandard_count".to_string()),
+            count: SeriesTree_Transactions_Policy_Count::new(client.clone(), format!("{base_path}_count")),
             is_nonstandard: SeriesPattern19::new(client.clone(), "is_nonstandard".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Policy_Count {
+    pub nonstandard: AverageBlockCumulativeSumPattern<StoredU64>,
+}
+
+impl SeriesTree_Transactions_Policy_Count {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            nonstandard: AverageBlockCumulativeSumPattern::new(client.clone(), "nonstandard_count".to_string()),
+        }
+    }
+}
+
+/// Series tree node.
+pub struct SeriesTree_Transactions_Sigops {
+    pub total: AverageBlockCumulativeSumPattern<StoredU64>,
+}
+
+impl SeriesTree_Transactions_Sigops {
+    pub fn new(client: Arc<BrkClientBase>, base_path: String) -> Self {
+        Self {
+            total: AverageBlockCumulativeSumPattern::new(client.clone(), "total_sigop_cost".to_string()),
         }
     }
 }
@@ -9758,7 +9786,7 @@ pub struct BrkClient {
 
 impl BrkClient {
     /// Client version.
-    pub const VERSION: &'static str = "v0.11.0";
+    pub const VERSION: &'static str = "v0.11.1";
 
     /// Create a new client with the given base URL.
     pub fn new(base_url: impl Into<String>) -> Self {

@@ -59,9 +59,11 @@ impl Vecs {
         let count_len = self
             .count
             .coinjoin
+            .cumulative
+            .height
             .len()
-            .min(self.count.consolidation.len())
-            .min(self.count.batch_payout.len())
+            .min(self.count.consolidation.cumulative.height.len())
+            .min(self.count.batch_payout.cumulative.height.len())
             .min(starting_lengths.height.to_usize());
         let start_height = count_len.min(next_height(indexes, tx_len, target_tx, target_height));
         if start_height >= target_height {
@@ -174,13 +176,15 @@ impl Vecs {
                 self.is_batch_payout.push(StoredBool::from(batch_payout));
             }
 
-            self.count.coinjoin.push(StoredU64::from(coinjoin_count));
+            self.count
+                .coinjoin
+                .push_block(StoredU64::from(coinjoin_count));
             self.count
                 .consolidation
-                .push(StoredU64::from(consolidation_count));
+                .push_block(StoredU64::from(consolidation_count));
             self.count
                 .batch_payout
-                .push(StoredU64::from(batch_payout_count));
+                .push_block(StoredU64::from(batch_payout_count));
 
             if (height + 1).is_multiple_of(WRITE_INTERVAL) {
                 let _lock = exit.lock();
