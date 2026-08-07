@@ -187,32 +187,35 @@
         );
         left: 0;
         display: flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: space-between;
         gap: 24px;
         pointer-events: auto;
       }
 
       .selector-group {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        width: max-content;
+        grid-template-columns: max-content max-content;
         align-items: center;
-        gap: 18px;
+        gap: 8px 7px;
       }
 
       .selector-group-right {
-        justify-content: flex-end;
+        justify-items: stretch;
       }
 
       .selector {
-        display: flex;
-        align-items: center;
-        gap: 7px;
+        display: contents;
         color: var(--muted);
         font-size: 10px;
         font-weight: 500;
         letter-spacing: 0.1em;
         text-transform: uppercase;
+      }
+
+      .selector select {
+        width: 100%;
       }
 
       .cohort-selector {
@@ -284,26 +287,6 @@
           background-color 140ms ease;
       }
 
-      #metric {
-        width: 170px;
-      }
-
-      #shape {
-        width: 112px;
-      }
-
-      #weight {
-        width: 116px;
-      }
-
-      #angle {
-        width: 88px;
-      }
-
-      #cohort {
-        width: 190px;
-      }
-
       @media (hover: hover) and (pointer: fine) {
         select:hover {
           border-color: rgba(231, 220, 192, 0.3);
@@ -367,6 +350,7 @@
         }
 
         .selector {
+          display: block;
           gap: 5px;
           font-size: 10px;
         }
@@ -382,12 +366,14 @@
             calc(env(safe-area-inset-bottom) + 32px)
           );
           left: -4px;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: 170px 118px;
+          justify-content: start;
           gap: 8px;
         }
 
         .selector-group {
-          gap: 8px;
+          display: contents;
         }
 
         .selector > span {
@@ -414,26 +400,6 @@
           padding-top: 5px;
           padding-bottom: 5px;
           font-size: 12px;
-        }
-
-        #metric {
-          width: 170px;
-        }
-
-        #shape {
-          width: 98px;
-        }
-
-        #weight {
-          width: 96px;
-        }
-
-        #angle {
-          width: 76px;
-        }
-
-        #cohort {
-          width: 118px;
         }
 
         .status {
@@ -505,9 +471,22 @@
                 </select>
               </label>
               <label class="selector">
+                <span>View</span>
+                <select id="mode" aria-label="Terrain view">
+                  <option value="value">VALUE</option>
+                  <option value="1w">1W CHANGE</option>
+                  <option value="1m">1M CHANGE</option>
+                  <option value="3m">3M CHANGE</option>
+                  <option value="6m">6M CHANGE</option>
+                  <option value="1y">1Y CHANGE</option>
+                  <option value="2y">2Y CHANGE</option>
+                  <option value="4y">4Y CHANGE</option>
+                </select>
+              </label>
+              <label class="selector">
                 <span>Weight</span>
                 <select id="weight" aria-label="Supply weighting">
-                  <option value="raw">RAW</option>
+                  <option value="raw">NONE</option>
                   <option value="cointime">COINTIME</option>
                   <option value="coinflow">COINFLOW</option>
                 </select>
@@ -528,8 +507,10 @@
                     <option value="utxos_3m_to_4m_old">3 TO 4 MONTHS</option>
                     <option value="utxos_4m_to_5m_old">4 TO 5 MONTHS</option>
                     <option value="utxos_5m_to_6m_old">5 TO 6 MONTHS</option>
-                    <option value="utxos_6m_to_1y_old">6 MONTHS TO 1 YEAR</option>
-                    <option value="utxos_1y_to_2y_old">1 TO 2 YEARS</option>
+                    <option value="utxos_6m_to_9m_old">6 TO 9 MONTHS</option>
+                    <option value="utxos_9m_to_1y_old">9 MONTHS TO 1 YEAR</option>
+                    <option value="utxos_1y_to_18m_old">1 YEAR TO 18 MONTHS</option>
+                    <option value="utxos_18m_to_2y_old">18 MONTHS TO 2 YEARS</option>
                     <option value="utxos_2y_to_3y_old">2 TO 3 YEARS</option>
                     <option value="utxos_3y_to_4y_old">3 TO 4 YEARS</option>
                     <option value="utxos_4y_to_5y_old">4 TO 5 YEARS</option>
@@ -570,6 +551,16 @@
         const MAX_CANVAS_PIXELS = 6_000_000;
         const TERRAIN_CHUNK_SIZE = 64;
         const SETTINGS_KEY = "satoshi-trail:settings";
+        const COMPARISON_OFFSETS = {
+          "1w": 1,
+          "1m": 4,
+          "3m": 13,
+          "6m": 26,
+          "1y": 52,
+          "2y": 104,
+          "4y": 208,
+        };
+        const WATER_CAP_COLOR = "rgba(75, 172, 185, 0.9)";
         const MONO_FONT =
           '"Lilex", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
         const canvas = document.getElementById("terrain");
@@ -578,6 +569,7 @@
         const futureContext = futureCanvas.getContext("2d");
         const cohortSelect = document.getElementById("cohort");
         const metricSelect = document.getElementById("metric");
+        const modeSelect = document.getElementById("mode");
         const shapeSelect = document.getElementById("shape");
         const weightSelect = document.getElementById("weight");
         const angleSelect = document.getElementById("angle");
@@ -609,12 +601,24 @@
           [1, 255, 255, 252],
         ];
 
+        const waterPalette = [
+          [0, 108, 185, 190],
+          [0.1, 68, 168, 180],
+          [0.22, 40, 149, 167],
+          [0.36, 25, 128, 151],
+          [0.52, 16, 105, 133],
+          [0.68, 13, 83, 110],
+          [0.82, 11, 66, 88],
+          [0.92, 10, 55, 72],
+          [1, 9, 47, 62],
+        ];
+
         const state = {
           cohort: "all",
           metric: "supply",
+          mode: "value",
           shape: "flats",
           weight: "raw",
-          orientation: "new-right",
           angle: 30,
           aggregation: "lin1000",
           dates: [],
@@ -669,6 +673,10 @@
           return Math.min(max, Math.max(min, value));
         }
 
+        function lerp(start, end, amount) {
+          return start + (end - start) * amount;
+        }
+
         function hasOption(select, value) {
           return Array.from(select.options).some(
             (option) => option.value === String(value),
@@ -705,6 +713,11 @@
             metricSelect,
             state.metric,
           );
+          state.mode = choose(
+            "mode",
+            modeSelect,
+            state.mode,
+          );
           state.shape = choose(
             "shape",
             shapeSelect,
@@ -725,6 +738,7 @@
           );
 
           metricSelect.value = state.metric;
+          modeSelect.value = state.mode;
           shapeSelect.value = state.shape;
           weightSelect.value = state.weight;
           angleSelect.value = String(state.angle);
@@ -734,6 +748,7 @@
         function persistSettings() {
           const settings = {
             data: state.metric,
+            mode: state.mode,
             shape: state.shape,
             weight: state.weight,
             angle: String(state.angle),
@@ -778,15 +793,44 @@
           return priceFormatter.format(value);
         }
 
+        function comparisonOffset() {
+          return COMPARISON_OFFSETS[state.mode] ?? 0;
+        }
+
+        function comparisonIndex(index) {
+          return index - comparisonOffset();
+        }
+
+        function profileKeyForDate(date) {
+          return `${state.cohort}:${state.weight}:${state.aggregation}:${date}`;
+        }
+
         function cacheKey(index) {
           return (
             state.profileKeys[index] ??
-            `${state.cohort}:${state.weight}:${state.aggregation}:${state.dates[index]}`
+            profileKeyForDate(state.dates[index])
           );
         }
 
         function getProfile(index) {
           return state.cache.get(cacheKey(index));
+        }
+
+        function getComparisonProfile(index) {
+          if (state.mode === "value" || !state.dates[index]) return null;
+          const targetIndex = comparisonIndex(index);
+          return targetIndex >= 0 ? getProfile(targetIndex) : null;
+        }
+
+        function hasRenderableProfile(index) {
+          const comparisonAvailable =
+            state.mode === "value" ||
+            comparisonIndex(index) < 0 ||
+            getComparisonProfile(index);
+          return Boolean(
+            getProfile(index) &&
+              comparisonAvailable,
+          );
         }
 
         function putProfile(key, profile) {
@@ -933,7 +977,7 @@
           const { start, end } = visibleRange();
           let loaded = 0;
           for (let index = start; index <= end; index++) {
-            if (state.cache.has(cacheKey(index))) loaded++;
+            if (hasRenderableProfile(index)) loaded++;
           }
           const total = Math.max(0, end - start + 1);
           const text = state.error
@@ -1016,9 +1060,7 @@
           state.height = height;
           state.dpr = dpr;
           if (!canHoverTerrain()) {
-            state.hoverActive = false;
-            state.hoverPriceCoordinate = null;
-            state.selectedIndex = state.viewIndex;
+            clearHoverState();
           }
           canvas.width = Math.round(width * dpr);
           canvas.height = Math.round(height * dpr);
@@ -1067,9 +1109,31 @@
           }
         }
 
-        function sampleProfile(profile) {
+        function metricSource(profile) {
+          if (state.metric === "realized_cap") {
+            return profile?.realizedCaps;
+          }
+          if (state.metric === "unrealized_pnl") {
+            return profile?.unrealizedPnls;
+          }
+          return profile?.supplies;
+        }
+
+        function metricTotal(profile) {
+          if (state.metric === "realized_cap") {
+            return profile?.totalRealizedCap;
+          }
+          if (state.metric === "unrealized_pnl") {
+            return profile?.totalAbsolutePnl;
+          }
+          return profile?.totalSupply;
+        }
+
+        function sampleProfile(profile, comparisonProfile = null) {
           const sampleKey = [
             state.metric,
+            state.mode,
+            comparisonProfile?.date ?? "none",
             state.aggregation,
             state.grid.kind,
             state.grid.origin,
@@ -1081,44 +1145,58 @@
           if (profile.sampleKey === sampleKey) return profile.sampled;
 
           const values = new Float32Array(state.binCount);
-          const source =
-            state.metric === "realized_cap"
-              ? profile.realizedCaps
-              : state.metric === "unrealized_pnl"
-                ? profile.unrealizedPnls
-                : profile.supplies;
+          const currentTotal = Number(metricTotal(profile)) || 0;
+          const comparisonTotal =
+            Number(metricTotal(comparisonProfile)) || 0;
           const totalValue =
-            state.metric === "realized_cap"
-              ? profile.totalRealizedCap
-              : state.metric === "unrealized_pnl"
-                ? profile.totalAbsolutePnl
-                : profile.totalSupply;
-          if (!(totalValue > 0)) {
+            state.mode !== "value"
+              ? (currentTotal + comparisonTotal) * 0.5
+              : currentTotal;
+          if (
+            !(totalValue > 0) ||
+            (state.mode !== "value" && !comparisonProfile)
+          ) {
             profile.sampleKey = sampleKey;
             profile.sampled = values;
             profile.sampledRaw = values.slice();
             profile.sampledPeak = 0;
+            profile.sampledTotalValue = totalValue;
             return values;
           }
           const grid = state.grid;
 
-          for (let index = 1; index < profile.prices.length; index++) {
-            const price = profile.prices[index];
-            if (!(price >= 0)) continue;
-            const value =
-              state.metric === "unrealized_pnl"
-                ? Math.abs(source[index])
-                : source[index];
-            if (!(value > 0)) continue;
+          const addProfile = (sourceProfile, multiplier) => {
+            const source = metricSource(sourceProfile);
+            if (!source) return;
+            for (
+              let index = 1;
+              index < sourceProfile.prices.length;
+              index++
+            ) {
+              const price = sourceProfile.prices[index];
+              if (!(price >= 0)) continue;
+              const rawValue = Number(source[index]) || 0;
+              const value =
+                state.mode === "value" &&
+                state.metric === "unrealized_pnl"
+                  ? Math.abs(rawValue)
+                  : rawValue;
+              if (value === 0) continue;
 
-            const bucket =
-              grid.kind === "log"
-                ? Math.round(Math.log10(price + 1) * grid.size)
-                : Math.round(price / grid.size);
-            const target = bucket - grid.origin;
-            if (target >= 0 && target < values.length) {
-              values[target] += value;
+              const bucket =
+                grid.kind === "log"
+                  ? Math.round(Math.log10(price + 1) * grid.size)
+                  : Math.round(price / grid.size);
+              const target = bucket - grid.origin;
+              if (target >= 0 && target < values.length) {
+                values[target] += value * multiplier;
+              }
             }
+          };
+
+          addProfile(profile, 1);
+          if (state.mode !== "value") {
+            addProfile(comparisonProfile, -1);
           }
 
           profile.sampledRaw = values.slice();
@@ -1129,30 +1207,41 @@
             let densityScale;
             if (grid.kind === "log") {
               density =
-                values[index] / totalValue / (1 / grid.size);
-              densityScale = 0.01;
+                Math.abs(values[index]) /
+                totalValue /
+                (1 / grid.size);
+              densityScale =
+                state.mode === "value" ? 0.01 : 0.001;
             } else {
-              density = values[index] / totalValue / grid.size;
-              densityScale = 0.000001;
+              density =
+                Math.abs(values[index]) / totalValue / grid.size;
+              densityScale =
+                state.mode === "value" ? 0.000001 : 0.0000001;
             }
-            values[index] = clamp(
+            const height = clamp(
               Math.asinh(density / densityScale) / denominator,
               0,
               1,
             );
-            peak = Math.max(peak, values[index]);
+            const signedHeight =
+              Math.sign(values[index]) * height;
+            values[index] =
+              state.mode === "value" ? height : signedHeight;
+            peak = Math.max(peak, height);
           }
 
           profile.sampleKey = sampleKey;
           profile.sampled = values;
           profile.sampledPeak = peak;
+          profile.sampledTotalValue = totalValue;
           return values;
         }
 
         function geometry() {
           const mobile = state.width <= 560;
+          const signed = state.mode !== "value";
           const top = mobile ? 80 : 94;
-          const bottom = mobile ? 104 : 82;
+          const bottom = mobile ? 104 : 30;
           const available = Math.max(240, state.height - top - bottom);
           const angleRadians = (state.angle * Math.PI) / 180;
           const isoSlope = Math.tan(angleRadians);
@@ -1173,7 +1262,13 @@
           const margin = mobile ? 18 : 44;
           const heightScale =
             available *
-            (mobile ? 0.2 : 0.23) *
+            (signed
+              ? mobile
+                ? 0.14
+                : 0.17
+              : mobile
+                ? 0.2
+                : 0.23) *
             (Math.cos(angleRadians) / Math.cos(Math.PI / 6));
           const footprint = Math.max(120, state.width - margin * 2);
           const totalTimeExtent = Math.max(
@@ -1188,14 +1283,11 @@
           const depthY = depthX * isoSlope;
           const priceWidth = footprint - timeFootprint;
           const priceRise = priceWidth * isoSlope;
-          const newOnRight = state.orientation === "new-right";
-          const priceY = newOnRight ? -priceRise : priceRise;
-          const timeX = newOnRight ? depthX : -depthX;
           const left =
             (state.width - footprint) * 0.5 +
-            (newOnRight ? pastExtent : futureExtent) * depthX;
+            pastExtent * depthX;
           const maxYOffset =
-            Math.max(0, priceY) + futureExtent * depthY;
+            futureExtent * depthY;
 
           return {
             top,
@@ -1206,9 +1298,13 @@
             left,
             width: priceWidth,
             priceRise,
-            priceY,
-            timeX,
-            baseY: state.height - bottom - maxYOffset,
+            priceY: -priceRise,
+            timeX: depthX,
+            baseY:
+              state.height -
+              bottom -
+              maxYOffset -
+              (signed ? heightScale : 0),
             heightScale,
           };
         }
@@ -1369,20 +1465,24 @@
           return row[lower] + (row[upper] - row[lower]) * amount;
         }
 
-        function elevationColor(height, shade) {
+        function elevationColor(height, shade, sign = 1) {
           const heightBand = Math.round(clamp(height, 0, 1) * 192);
           const shadeBand = Math.round(clamp(shade, 0.55, 1.14) * 64);
-          const key = heightBand * 100 + shadeBand;
+          const key =
+            (sign < 0 ? 20_000 : 0) +
+            heightBand * 100 +
+            shadeBand;
           const cached = colorCache[key];
           if (cached) return cached;
 
           const value = heightBand / 192;
-          let lower = palette[0];
-          let upper = palette[palette.length - 1];
-          for (let index = 1; index < palette.length; index++) {
-            if (value <= palette[index][0]) {
-              lower = palette[index - 1];
-              upper = palette[index];
+          const activePalette = sign < 0 ? waterPalette : palette;
+          let lower = activePalette[0];
+          let upper = activePalette[activePalette.length - 1];
+          for (let index = 1; index < activePalette.length; index++) {
+            if (value <= activePalette[index][0]) {
+              lower = activePalette[index - 1];
+              upper = activePalette[index];
               break;
             }
           }
@@ -1448,10 +1548,11 @@
           topShade,
           topY,
           bottomY,
+          sign = 1,
         ) {
           const bottomShade = Math.max(0.55, topShade * 0.62);
           if (Math.abs(bottomY - topY) < 0.5) {
-            return elevationColor(colorHeight, bottomShade);
+            return elevationColor(colorHeight, bottomShade, sign);
           }
           const gradient = target.createLinearGradient(
             0,
@@ -1461,18 +1562,19 @@
           );
           gradient.addColorStop(
             0,
-            elevationColor(colorHeight, topShade),
+            elevationColor(colorHeight, topShade, sign),
           );
           gradient.addColorStop(
             0.32,
             elevationColor(
               colorHeight,
               topShade + (bottomShade - topShade) * 0.28,
+              sign,
             ),
           );
           gradient.addColorStop(
             1,
-            elevationColor(colorHeight, bottomShade),
+            elevationColor(colorHeight, bottomShade, sign),
           );
           return gradient;
         }
@@ -1527,7 +1629,7 @@
           const arm = mobile ? 29 : 42;
           const origin = {
             x: mobile ? 58 : 88,
-            y: layout.top + (mobile ? 86 : 96),
+            y: layout.top + (mobile ? 62 : 58),
           };
           const groundX = Math.cos(angle) * arm;
           const groundY = Math.sin(angle) * arm;
@@ -1596,10 +1698,16 @@
           context.textAlign = "center";
           context.fillText(
             state.metric === "realized_cap"
-              ? "INVESTED CAPITAL"
+              ? state.mode === "value"
+                ? "INVESTED CAPITAL"
+                : "NET INVESTED CAPITAL"
               : state.metric === "unrealized_pnl"
-                ? "UNREALIZED P&L"
-                : "SUPPLY",
+                ? state.mode === "value"
+                  ? "UNREALIZED P&L"
+                  : "NET UNREALIZED P&L"
+                : state.mode === "value"
+                  ? "SUPPLY"
+                  : "NET SUPPLY",
             heightEnd.x,
             heightEnd.y - 8,
           );
@@ -1622,6 +1730,8 @@
 
         function formatAxisValue(value) {
           const currency = state.metric !== "supply";
+          const negative = value < 0;
+          const magnitude = Math.abs(value);
           const units = [
             [1_000_000_000_000, "T"],
             [1_000_000_000, "B"],
@@ -1631,20 +1741,27 @@
           let scaled = value;
           let suffix = "";
           for (const [size, unit] of units) {
-            if (value >= size) {
-              scaled = value / size;
+            if (magnitude >= size) {
+              scaled = magnitude / size;
               suffix = unit;
               break;
             }
           }
+          if (!suffix) scaled = magnitude;
           const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
           const text = Number(scaled.toFixed(precision));
+          const sign = negative ? "−" : "";
           return currency
-            ? `$${text}${suffix}`
-            : `${text}${suffix} BTC`;
+            ? `${sign}$${text}${suffix}`
+            : `${sign}${text}${suffix} BTC`;
         }
 
         function valueAxisTitle() {
+          if (state.mode !== "value") {
+            return state.metric === "supply"
+              ? "Δ BTC / $1K"
+              : "Δ USD / $1K";
+          }
           return state.metric === "supply"
             ? "BTC / $1K"
             : state.metric === "unrealized_pnl"
@@ -1653,18 +1770,23 @@
         }
 
         function profileTotalValue(profile) {
-          return state.metric === "realized_cap"
-            ? profile?.totalRealizedCap
-            : state.metric === "unrealized_pnl"
-              ? profile?.totalAbsolutePnl
-              : profile?.totalSupply;
+          if (state.mode !== "value") {
+            return profile?.sampledTotalValue;
+          }
+          return metricTotal(profile);
         }
 
         function valueAtTerrainHeight(profile, height) {
           const totalValue = profileTotalValue(profile);
           if (!(totalValue > 0)) return 0;
           const densityScale =
-            state.grid.kind === "log" ? 0.01 : 0.000001;
+            state.grid.kind === "log"
+              ? state.mode === "value"
+                ? 0.01
+                : 0.001
+              : state.mode === "value"
+                ? 0.000001
+                : 0.0000001;
           const bucketShare =
             Math.sinh(height * Math.asinh(200)) *
             densityScale *
@@ -1758,6 +1880,12 @@
             0,
             1,
           );
+          const valueBottom = projectAtPrice(
+            layout,
+            axisEnd,
+            0,
+            state.mode === "value" ? 0 : -1,
+          );
           const pastMin = projectAtPrice(layout, start, 0, 0);
           const nowMin = projectAtPrice(layout, end, 0, 0);
           const drawFloorLabel = (
@@ -1794,7 +1922,7 @@
           context.lineTo(frontMax.x, frontMax.y);
           context.moveTo(pastMin.x, pastMin.y);
           context.lineTo(nowMin.x, nowMin.y);
-          context.moveTo(frontMin.x, frontMin.y);
+          context.moveTo(valueBottom.x, valueBottom.y);
           context.lineTo(valueTop.x, valueTop.y);
           context.stroke();
 
@@ -1865,11 +1993,15 @@
           if (totalValue > 0) {
             const valueSide = frontMin.x < state.width * 0.5 ? -1 : 1;
             const valueTickCount = mobile ? 2 : 4;
+            const firstValueTick =
+              state.mode === "value" ? 0 : -valueTickCount;
+            const valueTickStep =
+              state.mode === "value" ? 1 : 2;
             context.textAlign = valueSide < 0 ? "right" : "left";
             for (
-              let tickIndex = 0;
+              let tickIndex = firstValueTick;
               tickIndex <= valueTickCount;
-              tickIndex++
+              tickIndex += valueTickStep
             ) {
               const height = tickIndex / valueTickCount;
               const point = projectAtPrice(
@@ -2310,13 +2442,7 @@
                 edgeIndex < state.binCount;
                 edgeIndex += priceStep
               ) {
-                const binIndex = clamp(
-                  state.orientation === "new-right"
-                    ? edgeIndex
-                    : edgeIndex - 1,
-                  0,
-                  state.binCount - 1,
-                );
+                const binIndex = edgeIndex;
                 target.moveTo(
                   layout.priceEdgeX[edgeIndex] + farX,
                   layout.priceEdgeYBase[edgeIndex] +
@@ -2363,6 +2489,49 @@
           target.restore();
         }
 
+        function heightSign(first, second = 0) {
+          const height = first || second;
+          return height < 0 ? -1 : 1;
+        }
+
+        function clipFaceAtZero(vertices, sign) {
+          const clipped = [];
+          const inside = (vertex) =>
+            sign < 0 ? vertex.height <= 0 : vertex.height >= 0;
+          for (let index = 0; index < vertices.length; index++) {
+            const current = vertices[index];
+            const previous =
+              vertices[(index + vertices.length - 1) % vertices.length];
+            const currentInside = inside(current);
+            const previousInside = inside(previous);
+            if (currentInside !== previousInside) {
+              const amount =
+                previous.height /
+                (previous.height - current.height);
+              clipped.push({
+                x:
+                  previous.x +
+                  (current.x - previous.x) * amount,
+                y:
+                  previous.y +
+                  (current.y - previous.y) * amount,
+                height: 0,
+              });
+            }
+            if (currentInside) clipped.push(current);
+          }
+          return clipped;
+        }
+
+        function appendPolygon(path, vertices) {
+          if (vertices.length < 3) return;
+          path.moveTo(vertices[0].x, vertices[0].y);
+          for (let index = 1; index < vertices.length; index++) {
+            path.lineTo(vertices[index].x, vertices[index].y);
+          }
+          path.closePath();
+        }
+
         function drawSideWallSegment(
           target,
           layout,
@@ -2377,7 +2546,12 @@
         ) {
           const firstHeight = first[binIndex];
           const secondHeight = second[binIndex];
-          if (firstHeight <= 0.0001 && secondHeight <= 0.0001) return;
+          if (
+            Math.abs(firstHeight) <= 0.0001 &&
+            Math.abs(secondHeight) <= 0.0001
+          ) {
+            return;
+          }
 
           const firstOffset = dateIndex - state.viewIndex;
           const secondOffset =
@@ -2392,34 +2566,69 @@
             firstPriceX + secondOffset * layout.timeXStep;
           const secondBottomY =
             firstPriceY + secondOffset * layout.timeYStep;
-
-          target.beginPath();
-          target.moveTo(
-            firstX,
-            firstBottomY - firstHeight * layout.heightScale,
-          );
-          target.lineTo(
-            secondX,
-            secondBottomY - secondHeight * layout.heightScale,
-          );
-          target.lineTo(secondX, secondBottomY);
-          target.lineTo(firstX, firstBottomY);
-          target.closePath();
-          const colorHeight = surfaceColorHeight(
-            (firstHeight + secondHeight) * 0.5,
-            localPeak,
-          );
-          target.fillStyle = faceGradient(
-            target,
-            colorHeight,
-            topShade,
-            (firstBottomY +
-              secondBottomY -
-              (firstHeight + secondHeight) * layout.heightScale) *
-              0.5,
-            (firstBottomY + secondBottomY) * 0.5,
-          );
-          target.fill();
+          const face = [
+            {
+              x: firstX,
+              y:
+                firstBottomY -
+                firstHeight * layout.heightScale,
+              height: firstHeight,
+            },
+            {
+              x: secondX,
+              y:
+                secondBottomY -
+                secondHeight * layout.heightScale,
+              height: secondHeight,
+            },
+            {
+              x: secondX,
+              y: secondBottomY,
+              height: 0,
+            },
+            {
+              x: firstX,
+              y: firstBottomY,
+              height: 0,
+            },
+          ];
+          for (const sign of [1, -1]) {
+            if (state.mode === "value" && sign < 0) continue;
+            const clipped =
+              state.mode === "value"
+                ? face
+                : clipFaceAtZero(face, sign);
+            if (clipped.length < 3) continue;
+            const firstMagnitude =
+              sign > 0
+                ? Math.max(firstHeight, 0)
+                : Math.max(-firstHeight, 0);
+            const secondMagnitude =
+              sign > 0
+                ? Math.max(secondHeight, 0)
+                : Math.max(-secondHeight, 0);
+            const colorHeight = surfaceColorHeight(
+              firstMagnitude > 0.0001
+                ? firstMagnitude
+                : secondMagnitude,
+              localPeak,
+            );
+            const path = new Path2D();
+            appendPolygon(path, clipped);
+            target.fillStyle = faceGradient(
+              target,
+              colorHeight,
+              topShade,
+              (firstBottomY +
+                secondBottomY -
+                (firstHeight + secondHeight) *
+                  layout.heightScale) *
+                0.5,
+              (firstBottomY + secondBottomY) * 0.5,
+              sign,
+            );
+            target.fill(path);
+          }
         }
 
         function drawDateWall(
@@ -2430,27 +2639,22 @@
           shade,
         ) {
           const flat = state.shape === "flats";
-          const binStart =
-            state.orientation === "new-right" ? row.length - 1 : 0;
-          const binEnd =
-            state.orientation === "new-right" ? -1 : row.length;
-          const binStep =
-            state.orientation === "new-right" ? -1 : 1;
           let localPeak = 0;
           for (const height of row) {
-            localPeak = Math.max(localPeak, height);
+            localPeak = Math.max(localPeak, Math.abs(height));
           }
           const dateOffset = dateIndex - state.viewIndex;
           const offsetX = dateOffset * layout.timeXStep;
           const offsetY = dateOffset * layout.timeYStep;
 
           for (
-            let binIndex = binStart;
-            binIndex !== binEnd;
-            binIndex += binStep
+            let binIndex = row.length - 1;
+            binIndex >= 0;
+            binIndex--
           ) {
             const height = row[binIndex];
-            if (height <= 0.0001) continue;
+            if (Math.abs(height) <= 0.0001) continue;
+            const sign = heightSign(height);
             const leftHeight =
               flat || binIndex === 0
                 ? height
@@ -2487,7 +2691,7 @@
             target.lineTo(leftX, leftBottomY);
             target.closePath();
             const colorHeight = surfaceColorHeight(
-              height,
+              Math.abs(height),
               localPeak,
             );
             target.fillStyle = faceGradient(
@@ -2501,9 +2705,101 @@
                   layout.heightScale) /
                 3,
               (leftBottomY + rightBottomY) * 0.5,
+              sign,
             );
             target.fill();
           }
+        }
+
+        function drawWaterCaps(
+          target,
+          layout,
+          first,
+          second,
+          dateIndex,
+          overlapDates,
+        ) {
+          if (state.mode === "value") return;
+          const firstOffset = dateIndex - state.viewIndex;
+          const secondOffset =
+            dateIndex + 1 + overlapDates - state.viewIndex;
+          const firstOffsetX =
+            firstOffset * layout.timeXStep;
+          const firstOffsetY =
+            firstOffset * layout.timeYStep;
+          const secondOffsetX =
+            secondOffset * layout.timeXStep;
+          const secondOffsetY =
+            secondOffset * layout.timeYStep;
+          const path = new Path2D();
+
+          for (
+            let binIndex = 0;
+            binIndex < state.binCount;
+            binIndex++
+          ) {
+            const firstHeight = first[binIndex];
+            const secondHeight = second[binIndex];
+            if (firstHeight >= 0 && secondHeight >= 0) continue;
+
+            let startAmount = 0;
+            let endAmount = 1;
+            if (firstHeight * secondHeight < 0) {
+              const crossing =
+                firstHeight / (firstHeight - secondHeight);
+              if (firstHeight < 0) endAmount = crossing;
+              else startAmount = crossing;
+            }
+
+            const leftX = layout.priceEdgeX[binIndex];
+            const leftY = layout.priceEdgeYBase[binIndex];
+            const rightX = layout.priceEdgeX[binIndex + 1];
+            const rightY =
+              layout.priceEdgeYBase[binIndex + 1];
+            const startXOffset = lerp(
+              firstOffsetX,
+              secondOffsetX,
+              startAmount,
+            );
+            const startYOffset = lerp(
+              firstOffsetY,
+              secondOffsetY,
+              startAmount,
+            );
+            const endXOffset = lerp(
+              firstOffsetX,
+              secondOffsetX,
+              endAmount,
+            );
+            const endYOffset = lerp(
+              firstOffsetY,
+              secondOffsetY,
+              endAmount,
+            );
+
+            path.moveTo(
+              leftX + startXOffset,
+              leftY + startYOffset,
+            );
+            path.lineTo(
+              rightX + startXOffset,
+              rightY + startYOffset,
+            );
+            path.lineTo(
+              rightX + endXOffset,
+              rightY + endYOffset,
+            );
+            path.lineTo(
+              leftX + endXOffset,
+              leftY + endYOffset,
+            );
+            path.closePath();
+          }
+
+          target.save();
+          target.fillStyle = WATER_CAP_COLOR;
+          target.fill(path);
+          target.restore();
         }
 
         function drawSurface(
@@ -2543,18 +2839,10 @@
               secondProfile?.close,
             );
             const flat = state.shape === "flats";
-            const nearEdgeIndex =
-              state.orientation === "new-right" ? 0 : state.binCount;
-            const nearBinIndex =
-              state.orientation === "new-right"
-                ? 0
-                : state.binCount - 1;
-            const farEdgeIndex =
-              state.orientation === "new-right" ? state.binCount : 0;
-            const farBinIndex =
-              state.orientation === "new-right"
-                ? state.binCount - 1
-                : 0;
+            const nearEdgeIndex = 0;
+            const nearBinIndex = 0;
+            const farEdgeIndex = state.binCount;
+            const farBinIndex = state.binCount - 1;
             const localPeak = Math.max(
               firstProfile?.sampledPeak ?? 0,
               secondProfile?.sampledPeak ?? 0,
@@ -2588,18 +2876,9 @@
                 sceneEnd,
               ),
             );
-            const binStart =
-              state.orientation === "new-right"
-                ? state.binCount - 1
-                : 0;
-            const binEnd =
-              state.orientation === "new-right"
-                ? -1
-                : state.binCount;
-            const binStep =
-              state.orientation === "new-right" ? -1 : 1;
             const surfacePathKey = [
               state.metric,
+              state.mode,
               state.shape,
               state.projectionCache?.key,
               sceneStart,
@@ -2613,9 +2892,9 @@
             if (!surfacePaths) {
               const pathsByFill = new Map();
               for (
-                let binIndex = binStart;
-                binIndex !== binEnd;
-                binIndex += binStep
+                let binIndex = state.binCount - 1;
+                binIndex >= 0;
+                binIndex--
               ) {
                 const firstHeight = first[binIndex];
                 const secondHeight = second[binIndex];
@@ -2635,26 +2914,6 @@
                   flat || binIndex === state.binCount - 1
                     ? secondHeight
                     : (secondHeight + second[binIndex + 1]) * 0.5;
-                const average = (firstHeight + secondHeight) * 0.5;
-                const colorHeight = surfaceColorHeight(
-                  average,
-                  localPeak,
-                );
-
-                const shade = surfaceShade(
-                  firstHeight,
-                  secondHeight,
-                  dateIndex,
-                  sceneStart,
-                  sceneEnd,
-                );
-                const fill = elevationColor(colorHeight, shade);
-                let path = pathsByFill.get(fill);
-                if (!path) {
-                  path = new Path2D();
-                  pathsByFill.set(fill, path);
-                }
-
                 const firstLeftX =
                   layout.priceEdgeX[binIndex] + firstOffsetX;
                 const firstCenterX =
@@ -2691,25 +2950,147 @@
                   layout.priceEdgeYBase[binIndex] +
                   secondOffsetY -
                   secondLeftHeight * layout.heightScale;
+                const appendSurfaceSegment = (
+                  startAmount,
+                  endAmount,
+                  sign,
+                ) => {
+                  const startHeight = lerp(
+                    firstHeight,
+                    secondHeight,
+                    startAmount,
+                  );
+                  const endHeight = lerp(
+                    firstHeight,
+                    secondHeight,
+                    endAmount,
+                  );
+                  const colorHeight = surfaceColorHeight(
+                    (Math.abs(startHeight) + Math.abs(endHeight)) *
+                      0.5,
+                    localPeak,
+                  );
+                  const shade = surfaceShade(
+                    startHeight,
+                    endHeight,
+                    dateIndex,
+                    sceneStart,
+                    sceneEnd,
+                  );
+                  const fill = elevationColor(
+                    colorHeight,
+                    shade,
+                    sign,
+                  );
+                  const pathKey = fill;
+                  let entry = pathsByFill.get(pathKey);
+                  if (!entry) {
+                    entry = {
+                      fill,
+                      path: new Path2D(),
+                    };
+                    pathsByFill.set(pathKey, entry);
+                  }
+                  const path = entry.path;
 
-                if (flat) {
-                  path.moveTo(firstLeftX, firstLeftY);
-                  path.lineTo(firstCenterX, firstCenterY);
-                  path.lineTo(firstRightX, firstRightY);
-                  path.lineTo(secondRightX, secondRightY);
-                  path.lineTo(secondCenterX, secondCenterY);
-                  path.lineTo(secondLeftX, secondLeftY);
+                  path.moveTo(
+                    lerp(
+                      firstLeftX,
+                      secondLeftX,
+                      startAmount,
+                    ),
+                    lerp(
+                      firstLeftY,
+                      secondLeftY,
+                      startAmount,
+                    ),
+                  );
+                  path.lineTo(
+                    lerp(
+                      firstCenterX,
+                      secondCenterX,
+                      startAmount,
+                    ),
+                    lerp(
+                      firstCenterY,
+                      secondCenterY,
+                      startAmount,
+                    ),
+                  );
+                  path.lineTo(
+                    lerp(
+                      firstRightX,
+                      secondRightX,
+                      startAmount,
+                    ),
+                    lerp(
+                      firstRightY,
+                      secondRightY,
+                      startAmount,
+                    ),
+                  );
+                  path.lineTo(
+                    lerp(
+                      firstRightX,
+                      secondRightX,
+                      endAmount,
+                    ),
+                    lerp(
+                      firstRightY,
+                      secondRightY,
+                      endAmount,
+                    ),
+                  );
+                  path.lineTo(
+                    lerp(
+                      firstCenterX,
+                      secondCenterX,
+                      endAmount,
+                    ),
+                    lerp(
+                      firstCenterY,
+                      secondCenterY,
+                      endAmount,
+                    ),
+                  );
+                  path.lineTo(
+                    lerp(
+                      firstLeftX,
+                      secondLeftX,
+                      endAmount,
+                    ),
+                    lerp(
+                      firstLeftY,
+                      secondLeftY,
+                      endAmount,
+                    ),
+                  );
                   path.closePath();
-                  continue;
-                }
+                };
 
-                path.moveTo(firstLeftX, firstLeftY);
-                path.lineTo(firstCenterX, firstCenterY);
-                path.lineTo(firstRightX, firstRightY);
-                path.lineTo(secondRightX, secondRightY);
-                path.lineTo(secondCenterX, secondCenterY);
-                path.lineTo(secondLeftX, secondLeftY);
-                path.closePath();
+                if (
+                  state.mode !== "value" &&
+                  firstHeight * secondHeight < 0
+                ) {
+                  const crossing =
+                    firstHeight / (firstHeight - secondHeight);
+                  appendSurfaceSegment(
+                    0,
+                    crossing,
+                    firstHeight < 0 ? -1 : 1,
+                  );
+                  appendSurfaceSegment(
+                    crossing,
+                    1,
+                    secondHeight < 0 ? -1 : 1,
+                  );
+                } else {
+                  appendSurfaceSegment(
+                    0,
+                    1,
+                    heightSign(firstHeight, secondHeight),
+                  );
+                }
               }
               if (flat) {
                 for (
@@ -2719,36 +3100,18 @@
                 ) {
                   const leftBin = edgeIndex - 1;
                   const rightBin = edgeIndex;
-                  const nearBin =
-                    state.orientation === "new-right"
-                      ? leftBin
-                      : rightBin;
-                  const farBin =
-                    state.orientation === "new-right"
-                      ? rightBin
-                      : leftBin;
+                  const nearBin = leftBin;
+                  const farBin = rightBin;
                   const firstNearHeight = first[nearBin];
                   const firstFarHeight = first[farBin];
                   const secondNearHeight = second[nearBin];
                   const secondFarHeight = second[farBin];
                   const visibleHeight = Math.max(
-                    firstFarHeight - firstNearHeight,
-                    secondFarHeight - secondNearHeight,
+                    Math.abs(firstFarHeight - firstNearHeight),
+                    Math.abs(secondFarHeight - secondNearHeight),
                   );
                   if (visibleHeight <= 0.0001) continue;
 
-                  const firstLowerHeight =
-                    firstFarHeight > firstNearHeight
-                      ? firstNearHeight
-                      : firstFarHeight;
-                  const secondLowerHeight =
-                    secondFarHeight > secondNearHeight
-                      ? secondNearHeight
-                      : secondFarHeight;
-                  const colorHeight = surfaceColorHeight(
-                    (firstFarHeight + secondFarHeight) * 0.5,
-                    localPeak,
-                  );
                   const sideShade =
                     surfaceShade(
                       firstFarHeight,
@@ -2757,16 +3120,6 @@
                       sceneStart,
                       sceneEnd,
                     ) * 0.82;
-                  const fill = elevationColor(
-                    colorHeight,
-                    sideShade,
-                  );
-                  let path = pathsByFill.get(fill);
-                  if (!path) {
-                    path = new Path2D();
-                    pathsByFill.set(fill, path);
-                  }
-
                   const firstX =
                     layout.priceEdgeX[edgeIndex] + firstOffsetX;
                   const firstBaseY =
@@ -2775,34 +3128,94 @@
                     layout.priceEdgeX[edgeIndex] + secondOffsetX;
                   const secondBaseY =
                     layout.priceEdgeYBase[edgeIndex] + secondOffsetY;
+                  const face = [
+                    {
+                      x: firstX,
+                      y:
+                        firstBaseY -
+                        firstFarHeight * layout.heightScale,
+                      height: firstFarHeight,
+                    },
+                    {
+                      x: secondX,
+                      y:
+                        secondBaseY -
+                        secondFarHeight * layout.heightScale,
+                      height: secondFarHeight,
+                    },
+                    {
+                      x: secondX,
+                      y:
+                        secondBaseY -
+                        secondNearHeight * layout.heightScale,
+                      height: secondNearHeight,
+                    },
+                    {
+                      x: firstX,
+                      y:
+                        firstBaseY -
+                        firstNearHeight * layout.heightScale,
+                      height: firstNearHeight,
+                    },
+                  ];
 
-                  path.moveTo(
-                    firstX,
-                    firstBaseY -
-                      firstFarHeight * layout.heightScale,
-                  );
-                  path.lineTo(
-                    secondX,
-                    secondBaseY -
-                      secondFarHeight * layout.heightScale,
-                  );
-                  path.lineTo(
-                    secondX,
-                    secondBaseY -
-                      secondLowerHeight * layout.heightScale,
-                  );
-                  path.lineTo(
-                    firstX,
-                    firstBaseY -
-                      firstLowerHeight * layout.heightScale,
-                  );
-                  path.closePath();
+                  for (const sign of [1, -1]) {
+                    const clipped =
+                      state.mode === "value"
+                        ? sign > 0
+                          ? face
+                          : []
+                        : clipFaceAtZero(face, sign);
+                    if (clipped.length < 3) continue;
+                    const firstMagnitude =
+                      sign > 0
+                        ? Math.max(
+                            firstFarHeight,
+                            firstNearHeight,
+                            0,
+                          )
+                        : Math.max(
+                            -firstFarHeight,
+                            -firstNearHeight,
+                            0,
+                          );
+                    const secondMagnitude =
+                      sign > 0
+                        ? Math.max(
+                            secondFarHeight,
+                            secondNearHeight,
+                            0,
+                          )
+                        : Math.max(
+                            -secondFarHeight,
+                            -secondNearHeight,
+                            0,
+                          );
+                    const colorHeight = surfaceColorHeight(
+                      firstMagnitude > 0.0001
+                        ? firstMagnitude
+                        : secondMagnitude,
+                      localPeak,
+                    );
+                    const fill = elevationColor(
+                      colorHeight,
+                      sideShade,
+                      sign,
+                    );
+                    const pathKey = fill;
+                    let entry = pathsByFill.get(pathKey);
+                    if (!entry) {
+                      entry = {
+                        fill,
+                        path: new Path2D(),
+                      };
+                      pathsByFill.set(pathKey, entry);
+                    }
+                    appendPolygon(entry.path, clipped);
+                  }
                 }
               }
-              surfacePaths = Array.from(
-                pathsByFill,
-                ([fill, path]) => ({ fill, path }),
-              );
+              surfacePaths = Array.from(pathsByFill.values());
               if (firstProfile) {
                 firstProfile.surfacePathCache = {
                   key: surfacePathKey,
@@ -2815,6 +3228,14 @@
               target.fill(path);
             }
 
+            drawWaterCaps(
+              target,
+              layout,
+              first,
+              second,
+              dateIndex,
+              overlapDates,
+            );
             drawSideWallSegment(
               target,
               layout,
@@ -2860,6 +3281,7 @@
           const { start, end } = visibleRange();
           return [
             state.metric,
+            state.mode,
             state.shape,
             state.projectionCache?.key,
             start,
@@ -2868,13 +3290,24 @@
         }
 
         function terrainChunkBounds(layout, start, end) {
-          const points = [];
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
           for (const dateIndex of [start - 1, end + 3]) {
             for (const price of [0, 1]) {
-              points.push(
-                projectAtPrice(layout, dateIndex, price, 0),
-                projectAtPrice(layout, dateIndex, price, 1.14),
-              );
+              for (const height of [-1.14, 0, 1.14]) {
+                const point = projectAtPrice(
+                  layout,
+                  dateIndex,
+                  price,
+                  height,
+                );
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+              }
             }
           }
           const padding = 8;
@@ -2882,33 +3315,25 @@
           const leftPixels = Math.max(
             0,
             Math.floor(
-              (Math.min(...points.map((point) => point.x)) -
-                padding) *
-                scale,
+              (minX - padding) * scale,
             ),
           );
           const topPixels = Math.max(
             0,
             Math.floor(
-              (Math.min(...points.map((point) => point.y)) -
-                padding) *
-                scale,
+              (minY - padding) * scale,
             ),
           );
           const rightPixels = Math.min(
             Math.round(state.width * scale),
             Math.ceil(
-              (Math.max(...points.map((point) => point.x)) +
-                padding) *
-                scale,
+              (maxX + padding) * scale,
             ),
           );
           const bottomPixels = Math.min(
             Math.round(state.height * scale),
             Math.ceil(
-              (Math.max(...points.map((point) => point.y)) +
-                padding) *
-                scale,
+              (maxY + padding) * scale,
             ),
           );
           return {
@@ -2927,9 +3352,20 @@
           const profiles = new Array(end + 1);
           for (let index = start; index <= end; index++) {
             const profile = getProfile(index);
-            if (!profile) return null;
+            const comparisonProfile = getComparisonProfile(index);
+            if (
+              !profile ||
+              (state.mode !== "value" &&
+                comparisonIndex(index) >= 0 &&
+                !comparisonProfile)
+            ) {
+              return null;
+            }
             profiles[index] = profile;
-            rows[index] = sampleProfile(profile);
+            rows[index] = sampleProfile(
+              profile,
+              comparisonProfile,
+            );
           }
 
           const bounds = terrainChunkBounds(layout, start, end);
@@ -3088,10 +3524,6 @@
           }
         }
 
-        function drawFrontFace(layout, dateIndex, row) {
-          drawDateWall(context, layout, dateIndex, row, 0.82);
-        }
-
         function drawRidge(layout, dateIndex, row) {
           context.save();
           context.globalAlpha = 0.32;
@@ -3223,14 +3655,30 @@
           const profiles = new Array(end + 1);
           for (let dateIndex = start; dateIndex <= end; dateIndex++) {
             const profile = getProfile(dateIndex);
-            if (profile) {
+            const comparisonProfile =
+              getComparisonProfile(dateIndex);
+            if (
+              profile &&
+              (state.mode === "value" ||
+                comparisonIndex(dateIndex) < 0 ||
+                comparisonProfile)
+            ) {
               profiles[dateIndex] = profile;
-              rows[dateIndex] = sampleProfile(profile);
+              rows[dateIndex] = sampleProfile(
+                profile,
+                comparisonProfile,
+              );
             }
           }
           const back = rows[start];
           if (back) {
-            drawDateWall(context, layout, start, back, 0.7);
+            drawDateWall(
+              context,
+              layout,
+              start,
+              back,
+              0.7,
+            );
           }
           state.hoverModel = createHoverModel(layout, start, end);
 
@@ -3249,10 +3697,16 @@
           const selectedProfile = profiles[state.selectedIndex];
           const selected = rows[state.selectedIndex];
           if (selected) {
-            drawFrontFace(layout, state.selectedIndex, selected);
+            drawDateWall(
+              context,
+              layout,
+              state.selectedIndex,
+              selected,
+              0.82,
+            );
           }
 
-          if (end > state.selectedIndex) {
+          if (!state.hoverActive && end > state.selectedIndex) {
             futureContext.clearRect(
               0,
               0,
@@ -3291,12 +3745,11 @@
           if (state.loading > 0 || state.error) updateStatus();
         }
 
-        async function fetchProfile(index, signal) {
-          const key = cacheKey(index);
+        async function fetchProfileByDate(date, signal) {
+          const key = profileKeyForDate(date);
           const cached = state.cache.get(key);
           if (cached) return cached;
 
-          const date = state.dates[index];
           const query = new URLSearchParams({
             agg: state.aggregation,
             weight: state.weight,
@@ -3371,27 +3824,60 @@
           return profile;
         }
 
+        function fetchProfile(index, signal) {
+          return fetchProfileByDate(state.dates[index], signal);
+        }
+
         async function loadVisibleWindow(generation, controller) {
           if (!state.dates.length || generation !== state.loadGeneration) return;
           const { start, end } = visibleRange();
           const selected = state.viewIndex;
-          const indices = [];
-          for (let index = start; index <= end; index++) {
-            if (!state.cache.has(cacheKey(index))) indices.push(index);
+          const requests = [];
+          const requestedDates = new Set();
+          const addRequest = (date, index) => {
+            const key = profileKeyForDate(date);
+            if (state.cache.has(key) || requestedDates.has(date)) return;
+            requestedDates.add(date);
+            requests.push({
+              date,
+              index,
+              distance: Math.abs(index - selected),
+            });
+          };
+          const requestStart =
+            state.mode === "value"
+              ? start
+              : Math.max(0, start - comparisonOffset());
+          for (let index = requestStart; index <= end; index++) {
+            addRequest(state.dates[index], index);
           }
-          indices.sort(
+          requests.sort(
             (first, second) =>
-              Math.abs(first - selected) - Math.abs(second - selected),
+              first.distance - second.distance,
           );
 
-          state.loading = indices.length;
+          state.loading = requests.length;
           state.error = "";
           updateStatus();
 
           try {
-            const selectedProfile = await fetchProfile(
-              selected,
-              controller.signal,
+            const selectedProfiles = [
+              fetchProfile(selected, controller.signal),
+            ];
+            const selectedComparison = comparisonIndex(selected);
+            if (
+              state.mode !== "value" &&
+              selectedComparison >= 0
+            ) {
+              selectedProfiles.push(
+                fetchProfile(
+                  selectedComparison,
+                  controller.signal,
+                ),
+              );
+            }
+            const [selectedProfile] = await Promise.all(
+              selectedProfiles,
             );
             if (generation !== state.loadGeneration) return;
             setPriceRange(selectedProfile);
@@ -3401,15 +3887,18 @@
             let cursor = 0;
             const worker = async () => {
               while (
-                cursor < indices.length &&
+                cursor < requests.length &&
                 generation === state.loadGeneration
               ) {
-                const index = indices[cursor++];
+                const request = requests[cursor++];
                 try {
-                  await fetchProfile(index, controller.signal);
+                  await fetchProfileByDate(
+                    request.date,
+                    controller.signal,
+                  );
                   if (generation === state.loadGeneration) {
                     state.loading = Math.max(0, state.loading - 1);
-                    if (index === state.selectedIndex) {
+                    if (request.index === state.selectedIndex) {
                       updateReadout();
                     }
                     scheduleProgressRender();
@@ -3425,7 +3914,7 @@
                 {
                   length: Math.min(
                     requestConcurrency(),
-                    indices.length,
+                    requests.length,
                   ),
                 },
                 worker,
@@ -3469,8 +3958,7 @@
           const generation = ++state.loadGeneration;
           const weight = state.weight;
           state.error = "";
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
+          clearHoverState();
           state.dates = [];
           state.dateLabels = [];
           state.profileKeys = [];
@@ -3575,7 +4063,7 @@
             corners[1].y,
             corners[2].y,
             corners[3].y,
-          );
+          ) + (state.mode === "value" ? 0 : layout.heightScale);
           return {
             layout,
             start,
@@ -3648,18 +4136,19 @@
           };
         }
 
-        function resetHover() {
-          if (
-            !state.hoverActive &&
-            state.hoverPriceCoordinate === null &&
-            state.selectedIndex === state.viewIndex
-          ) {
-            return;
-          }
+        function clearHoverState() {
+          const changed =
+            state.hoverActive ||
+            state.hoverPriceCoordinate !== null ||
+            state.selectedIndex !== state.viewIndex;
           state.hoverActive = false;
           state.hoverPriceCoordinate = null;
           state.selectedIndex = state.viewIndex;
-          scheduleHoverRender();
+          return changed;
+        }
+
+        function resetHover() {
+          if (clearHoverState()) scheduleHoverRender();
         }
 
         canvas.addEventListener(
@@ -3700,18 +4189,14 @@
 
         cohortSelect.addEventListener("change", () => {
           const preserveDate = state.dates[state.viewIndex];
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
-          state.selectedIndex = state.viewIndex;
+          clearHoverState();
           state.cohort = cohortSelect.value;
           persistSettings();
           loadDates(state.cohort, preserveDate);
         });
 
         metricSelect.addEventListener("change", () => {
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
-          state.selectedIndex = state.viewIndex;
+          clearHoverState();
           state.metric = metricSelect.value;
           invalidateTerrainChunks();
           updateReadout();
@@ -3720,10 +4205,38 @@
           scheduleTerrainChunkBuild();
         });
 
+        modeSelect.addEventListener("change", () => {
+          clearHoverState();
+          state.mode = modeSelect.value;
+          invalidateTerrainChunks();
+          updateReadout();
+          persistSettings();
+          scheduleRender();
+          const { start, end } = visibleRange();
+          const requiredStart =
+            state.mode === "value"
+              ? start
+              : Math.max(0, start - comparisonOffset());
+          let missingProfile = false;
+          for (
+            let index = requiredStart;
+            index <= end;
+            index++
+          ) {
+            if (!getProfile(index)) {
+              missingProfile = true;
+              break;
+            }
+          }
+          if (missingProfile) {
+            scheduleWindowLoad(0);
+          } else {
+            scheduleTerrainChunkBuild();
+          }
+        });
+
         shapeSelect.addEventListener("change", () => {
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
-          state.selectedIndex = state.viewIndex;
+          clearHoverState();
           state.shape = shapeSelect.value;
           invalidateTerrainChunks();
           persistSettings();
@@ -3733,19 +4246,14 @@
 
         weightSelect.addEventListener("change", () => {
           const preserveDate = state.dates[state.viewIndex];
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
-          state.selectedIndex = state.viewIndex;
+          clearHoverState();
           state.weight = weightSelect.value;
-          invalidateTerrainChunks();
           persistSettings();
           loadDates(state.cohort, preserveDate);
         });
 
         angleSelect.addEventListener("change", () => {
-          state.hoverActive = false;
-          state.hoverPriceCoordinate = null;
-          state.selectedIndex = state.viewIndex;
+          clearHoverState();
           state.angle = Number(angleSelect.value);
           invalidateTerrainChunks();
           updateReadout();
