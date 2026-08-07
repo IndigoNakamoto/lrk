@@ -344,10 +344,20 @@
           top: auto;
           bottom: max(8px, env(safe-area-inset-bottom));
           left: 50%;
-          max-width: calc(100% - 8px);
+          width: calc(100% - 24px);
+          max-width: none;
           font-size: 10px;
           line-height: 20px;
+          text-align: center;
           transform: translateX(-50%);
+        }
+
+        #source-credit .credit-copy {
+          display: none;
+        }
+
+        #source-credit a::after {
+          content: " · ";
         }
 
         .selector {
@@ -405,6 +415,61 @@
 
         .status {
           display: none;
+        }
+      }
+
+      @media (min-width: 561px) and (max-width: 960px) and (max-height: 560px) {
+        .app {
+          min-height: 0;
+        }
+
+        .topbar {
+          --topbar-y: max(10px, env(safe-area-inset-top));
+          right: 14px;
+          left: 14px;
+        }
+
+        .eyebrow {
+          margin-bottom: 2px;
+          font-size: 9px;
+        }
+
+        .identity,
+        .readout {
+          text-shadow:
+            0 1px 3px #07100f,
+            0 0 14px #07100f;
+        }
+
+        .readout {
+          top: 67px;
+        }
+
+        .status {
+          display: none;
+        }
+
+        .selectors {
+          bottom: max(
+            32px,
+            calc(env(safe-area-inset-bottom) + 26px)
+          );
+        }
+
+        .selector-group {
+          gap: 6px 7px;
+        }
+
+        select {
+          min-height: 31px;
+          padding: 5px 30px 5px 9px;
+          font-size: 11px;
+        }
+
+        #source-credit {
+          bottom: max(4px, env(safe-area-inset-bottom));
+          font-size: 8px;
+          line-height: 16px;
         }
       }
 
@@ -1240,9 +1305,11 @@
 
         function geometry() {
           const mobile = state.width <= 560;
+          const compactLandscape =
+            state.width <= 960 && state.height <= 560;
           const signed = state.mode !== "value";
-          const top = mobile ? 80 : 94;
-          const bottom = mobile ? 104 : 30;
+          const top = mobile ? 80 : compactLandscape ? 160 : 94;
+          const bottom = mobile ? 178 : 30;
           const available = Math.max(240, state.height - top - bottom);
           const angleRadians = (state.angle * Math.PI) / 180;
           const isoSlope = Math.tan(angleRadians);
@@ -1260,7 +1327,7 @@
             futureExtent = (end - state.viewIndex) / timeSpan;
           }
 
-          const margin = mobile ? 18 : 44;
+          const margin = mobile ? 40 : 44;
           const heightScale =
             available *
             (signed
@@ -1626,11 +1693,14 @@
 
         function drawAxisLegend(layout) {
           const mobile = state.width <= 560;
+          const compactLandscape =
+            state.width <= 960 && state.height <= 560;
+          const compact = mobile || compactLandscape;
           const angle = (state.angle * Math.PI) / 180;
-          const arm = mobile ? 29 : 42;
+          const arm = compact ? 29 : 42;
           const origin = {
-            x: mobile ? 58 : 88,
-            y: layout.top + (mobile ? 62 : 58),
+            x: compact ? 64 : 88,
+            y: compactLandscape ? 104 : layout.top + (mobile ? 62 : 58),
           };
           const groundX = Math.cos(angle) * arm;
           const groundY = Math.sin(angle) * arm;
@@ -1655,7 +1725,7 @@
               end.y - origin.y,
               end.x - origin.x,
             );
-            const head = mobile ? 3.5 : 4.5;
+            const head = compact ? 3.5 : 4.5;
             context.moveTo(origin.x, origin.y);
             context.lineTo(end.x, end.y);
             context.moveTo(end.x, end.y);
@@ -1672,7 +1742,7 @@
 
           context.save();
           context.strokeStyle = "rgba(238, 232, 214, 0.42)";
-          context.lineWidth = mobile ? 0.7 : 0.85;
+          context.lineWidth = compact ? 0.7 : 0.85;
           context.lineCap = "round";
           context.beginPath();
           drawArrow(priceEnd);
@@ -1681,7 +1751,7 @@
           context.stroke();
 
           context.fillStyle = "rgba(231, 228, 214, 0.64)";
-          context.font = `500 ${mobile ? 11 : 12}px ${MONO_FONT}`;
+          context.font = `500 ${compact ? 11 : 12}px ${MONO_FONT}`;
           context.textBaseline = "middle";
 
           context.textAlign = "left";
@@ -1927,7 +1997,7 @@
           context.lineTo(valueTop.x, valueTop.y);
           context.stroke();
 
-          const priceStep = 10_000;
+          const priceStep = mobile ? 20_000 : 10_000;
           for (
             let price = 0;
             price <= state.maxPrice;
@@ -1960,7 +2030,7 @@
           for (
             let year = startYear;
             year <= endYear;
-            year += 1
+            year += mobile ? 2 : 1
           ) {
             const dateIndex = nearestDateIndex(
               `${year}-01-01`,
