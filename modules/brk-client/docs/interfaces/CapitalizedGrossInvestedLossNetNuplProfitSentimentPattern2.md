@@ -6,7 +6,7 @@
 
 # Interface: CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3176](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3176)
+Defined in: [Developer/brk/modules/brk-client/index.js:3176](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3176)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3176](https://github.com/
 
 > **capitalizedCapInLossRaw**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3177](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3177)
+Defined in: [Developer/brk/modules/brk-client/index.js:3177](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3177)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3177](https://github.com/
 
 > **capitalizedCapInProfitRaw**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3178](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3178)
+Defined in: [Developer/brk/modules/brk-client/index.js:3178](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3178)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3178](https://github.com/
 
 > **grossPnl**: [`CentsUsdPattern3`](CentsUsdPattern3.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3179](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3179)
+Defined in: [Developer/brk/modules/brk-client/index.js:3179](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3179)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3179](https://github.com/
 
 > **investedCapital**: [`InPattern2`](InPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3180](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3180)
+Defined in: [Developer/brk/modules/brk-client/index.js:3180](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3180)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3180](https://github.com/
 
 > **loss**: [`CentsNegativeToUsdPattern2`](CentsNegativeToUsdPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3181](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3181)
+Defined in: [Developer/brk/modules/brk-client/index.js:3181](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3181)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3181](https://github.com/
 
 > **netPnl**: [`CentsToUsdPattern3`](CentsToUsdPattern3.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3182](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3182)
+Defined in: [Developer/brk/modules/brk-client/index.js:3182](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3182)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3182](https://github.com/
 
 > **nupl**: [`PpmRatioPattern`](PpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3183](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3183)
+Defined in: [Developer/brk/modules/brk-client/index.js:3183](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3183)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3183](https://github.com/
 
 > **profit**: [`CentsToUsdPattern4`](CentsToUsdPattern4.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3184](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3184)
+Defined in: [Developer/brk/modules/brk-client/index.js:3184](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3184)
 
 ***
 
@@ -78,4 +78,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:3184](https://github.com/
 
 > **sentiment**: [`GreedNetPainPattern`](GreedNetPainPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:3185](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L3185)
+Defined in: [Developer/brk/modules/brk-client/index.js:3185](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3185)

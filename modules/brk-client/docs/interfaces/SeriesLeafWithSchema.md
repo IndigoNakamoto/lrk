@@ -6,7 +6,7 @@
 
 # Interface: SeriesLeafWithSchema
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1113](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1113)
+Defined in: [Developer/brk/modules/brk-client/index.js:1113](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1113)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1113](https://github.com/
 
 > **indexes**: [`Index`](../type-aliases/Index.md)[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1116](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1116)
+Defined in: [Developer/brk/modules/brk-client/index.js:1116](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1116)
 
 Available indexes for this series
 
@@ -24,7 +24,7 @@ Available indexes for this series
 
 > **kind**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1115](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1115)
+Defined in: [Developer/brk/modules/brk-client/index.js:1115](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1115)
 
 The Rust type (e.g., "Sats", "StoredF64")
 
@@ -34,7 +34,7 @@ The Rust type (e.g., "Sats", "StoredF64")
 
 > **name**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1114](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1114)
+Defined in: [Developer/brk/modules/brk-client/index.js:1114](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1114)
 
 The series name/identifier
 
@@ -44,6 +44,6 @@ The series name/identifier
 
 > **type**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1117](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L1117)
+Defined in: [Developer/brk/modules/brk-client/index.js:1117](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1117)
 
 JSON Schema type (e.g., "integer", "number", "string", "boolean", "array", "object")

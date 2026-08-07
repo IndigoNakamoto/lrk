@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Indexes\_Addr\_OpReturn
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7132](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7132)
+Defined in: [Developer/brk/modules/brk-client/index.js:7143](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7143)
 
 ## Properties
 
@@ -14,4 +14,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:7132](https://github.com/
 
 > **identity**: [`SeriesPattern23`](../type-aliases/SeriesPattern23.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7133](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L7133)
+Defined in: [Developer/brk/modules/brk-client/index.js:7144](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7144)

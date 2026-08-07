@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Scripts\_Raw
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6490](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6490)
+Defined in: [Developer/brk/modules/brk-client/index.js:6501](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6501)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6490](https://github.com/
 
 > **empty**: [`SeriesTree_Scripts_Raw_Empty`](SeriesTree_Scripts_Raw_Empty.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6491](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6491)
+Defined in: [Developer/brk/modules/brk-client/index.js:6502](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6502)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6491](https://github.com/
 
 > **p2ms**: [`SeriesTree_Scripts_Raw_P2ms`](SeriesTree_Scripts_Raw_P2ms.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6492](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6492)
+Defined in: [Developer/brk/modules/brk-client/index.js:6503](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6503)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6492](https://github.com/
 
 > **unknown**: [`SeriesTree_Scripts_Raw_Unknown`](SeriesTree_Scripts_Raw_Unknown.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6493](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6493)
+Defined in: [Developer/brk/modules/brk-client/index.js:6504](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6504)

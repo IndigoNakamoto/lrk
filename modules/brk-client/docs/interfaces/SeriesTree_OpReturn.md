@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_OpReturn
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6517](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6517)
+Defined in: [Developer/brk/modules/brk-client/index.js:6528](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6528)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6517](https://github.com/
 
 > **byKind**: [`SeriesTree_OpReturn_ByKind`](SeriesTree_OpReturn_ByKind.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6520](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6520)
+Defined in: [Developer/brk/modules/brk-client/index.js:6531](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6531)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6520](https://github.com/
 
 > **policy**: [`SeriesTree_OpReturn_Policy`](SeriesTree_OpReturn_Policy.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6521](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6521)
+Defined in: [Developer/brk/modules/brk-client/index.js:6532](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6532)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6521](https://github.com/
 
 > **raw**: [`SeriesTree_OpReturn_Raw`](SeriesTree_OpReturn_Raw.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6518](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6518)
+Defined in: [Developer/brk/modules/brk-client/index.js:6529](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6529)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6518](https://github.com/
 
 > **total**: [`SeriesTree_OpReturn_Total`](SeriesTree_OpReturn_Total.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6519](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6519)
+Defined in: [Developer/brk/modules/brk-client/index.js:6530](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6530)

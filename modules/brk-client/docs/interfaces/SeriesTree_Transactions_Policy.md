@@ -6,15 +6,15 @@
 
 # Interface: SeriesTree\_Transactions\_Policy
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6081](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6081)
+Defined in: [Developer/brk/modules/brk-client/index.js:6082](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6082)
 
 ## Properties
 
 ### count
 
-> **count**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
+> **count**: [`SeriesTree_Transactions_Policy_Count`](SeriesTree_Transactions_Policy_Count.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6082](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6082)
+Defined in: [Developer/brk/modules/brk-client/index.js:6083](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6083)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6082](https://github.com/
 
 > **isNonstandard**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`boolean`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6083](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6083)
+Defined in: [Developer/brk/modules/brk-client/index.js:6084](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6084)

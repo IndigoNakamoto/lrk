@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Frameworks\_Coinflow\_AgeRange
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6834](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6834)
+Defined in: [Developer/brk/modules/brk-client/index.js:6845](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6845)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6834](https://github.com/
 
 > **\_10yTo12y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6855](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6855)
+Defined in: [Developer/brk/modules/brk-client/index.js:6866](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6866)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6855](https://github.com/
 
 > **\_12yTo15y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6856](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6856)
+Defined in: [Developer/brk/modules/brk-client/index.js:6867](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6867)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6856](https://github.com/
 
 > **\_18mTo2y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6847](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6847)
+Defined in: [Developer/brk/modules/brk-client/index.js:6858](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6858)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6847](https://github.com/
 
 > **\_1dTo1w**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6837](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6837)
+Defined in: [Developer/brk/modules/brk-client/index.js:6848](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6848)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6837](https://github.com/
 
 > **\_1hTo1d**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6836](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6836)
+Defined in: [Developer/brk/modules/brk-client/index.js:6847](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6847)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6836](https://github.com/
 
 > **\_1mTo2m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6839](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6839)
+Defined in: [Developer/brk/modules/brk-client/index.js:6850](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6850)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6839](https://github.com/
 
 > **\_1wTo1m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6838](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6838)
+Defined in: [Developer/brk/modules/brk-client/index.js:6849](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6849)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6838](https://github.com/
 
 > **\_1yTo18m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6846](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6846)
+Defined in: [Developer/brk/modules/brk-client/index.js:6857](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6857)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6846](https://github.com/
 
 > **\_2mTo3m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6840](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6840)
+Defined in: [Developer/brk/modules/brk-client/index.js:6851](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6851)
 
 ***
 
@@ -86,7 +86,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6840](https://github.com/
 
 > **\_2yTo3y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6848](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6848)
+Defined in: [Developer/brk/modules/brk-client/index.js:6859](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6859)
 
 ***
 
@@ -94,7 +94,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6848](https://github.com/
 
 > **\_3mTo4m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6841](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6841)
+Defined in: [Developer/brk/modules/brk-client/index.js:6852](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6852)
 
 ***
 
@@ -102,7 +102,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6841](https://github.com/
 
 > **\_3yTo4y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6849](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6849)
+Defined in: [Developer/brk/modules/brk-client/index.js:6860](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6860)
 
 ***
 
@@ -110,7 +110,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6849](https://github.com/
 
 > **\_4mTo5m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6842](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6842)
+Defined in: [Developer/brk/modules/brk-client/index.js:6853](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6853)
 
 ***
 
@@ -118,7 +118,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6842](https://github.com/
 
 > **\_4yTo5y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6850](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6850)
+Defined in: [Developer/brk/modules/brk-client/index.js:6861](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6861)
 
 ***
 
@@ -126,7 +126,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6850](https://github.com/
 
 > **\_5mTo6m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6843](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6843)
+Defined in: [Developer/brk/modules/brk-client/index.js:6854](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6854)
 
 ***
 
@@ -134,7 +134,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6843](https://github.com/
 
 > **\_5yTo6y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6851](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6851)
+Defined in: [Developer/brk/modules/brk-client/index.js:6862](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6862)
 
 ***
 
@@ -142,7 +142,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6851](https://github.com/
 
 > **\_6mTo9m**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6844](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6844)
+Defined in: [Developer/brk/modules/brk-client/index.js:6855](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6855)
 
 ***
 
@@ -150,7 +150,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6844](https://github.com/
 
 > **\_6yTo7y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6852](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6852)
+Defined in: [Developer/brk/modules/brk-client/index.js:6863](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6863)
 
 ***
 
@@ -158,7 +158,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6852](https://github.com/
 
 > **\_7yTo8y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6853](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6853)
+Defined in: [Developer/brk/modules/brk-client/index.js:6864](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6864)
 
 ***
 
@@ -166,7 +166,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6853](https://github.com/
 
 > **\_8yTo10y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6854](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6854)
+Defined in: [Developer/brk/modules/brk-client/index.js:6865](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6865)
 
 ***
 
@@ -174,7 +174,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6854](https://github.com/
 
 > **\_9mTo1y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6845](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6845)
+Defined in: [Developer/brk/modules/brk-client/index.js:6856](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6856)
 
 ***
 
@@ -182,7 +182,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6845](https://github.com/
 
 > **over15y**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6857](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6857)
+Defined in: [Developer/brk/modules/brk-client/index.js:6868](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6868)
 
 ***
 
@@ -190,4 +190,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6857](https://github.com/
 
 > **under1h**: [`MobilitySpendingSupplyPattern`](MobilitySpendingSupplyPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6835](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L6835)
+Defined in: [Developer/brk/modules/brk-client/index.js:6846](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6846)

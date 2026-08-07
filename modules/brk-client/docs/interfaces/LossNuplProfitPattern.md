@@ -6,7 +6,7 @@
 
 # Interface: LossNuplProfitPattern
 
-Defined in: [Developer/brk/modules/brk-client/index.js:4874](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L4874)
+Defined in: [Developer/brk/modules/brk-client/index.js:4874](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L4874)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:4874](https://github.com/
 
 > **loss**: [`CentsNegativeUsdPattern`](CentsNegativeUsdPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:4875](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L4875)
+Defined in: [Developer/brk/modules/brk-client/index.js:4875](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L4875)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:4875](https://github.com/
 
 > **nupl**: [`PpmRatioPattern`](PpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:4876](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L4876)
+Defined in: [Developer/brk/modules/brk-client/index.js:4876](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L4876)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:4876](https://github.com/
 
 > **profit**: [`CentsUsdPattern3`](CentsUsdPattern3.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:4877](https://github.com/bitcoinresearchkit/brk/blob/f363f65275d140f73b1a471070edcc576fd24a17/modules/brk-client/index.js#L4877)
+Defined in: [Developer/brk/modules/brk-client/index.js:4877](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L4877)
