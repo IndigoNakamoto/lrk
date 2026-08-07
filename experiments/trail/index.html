@@ -190,7 +190,7 @@
         align-items: flex-end;
         justify-content: space-between;
         gap: 24px;
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       .selector-group {
@@ -199,6 +199,7 @@
         grid-template-columns: max-content max-content;
         align-items: center;
         gap: 8px 7px;
+        pointer-events: auto;
       }
 
       .selector-group-right {
@@ -1912,7 +1913,7 @@
 
           context.save();
           context.strokeStyle = "rgba(203, 212, 202, 0.22)";
-          context.fillStyle = "rgba(214, 218, 207, 0.52)";
+          context.fillStyle = "rgba(231, 232, 219, 0.78)";
           context.lineWidth = 0.7;
           context.font = `500 ${mobile ? 11 : 12}px ${MONO_FONT}`;
           context.textBaseline = "middle";
@@ -3524,16 +3525,27 @@
           }
         }
 
-        function drawRidge(layout, dateIndex, row) {
-          context.save();
-          context.globalAlpha = 0.32;
-          context.strokeStyle = "#eee4cb";
-          context.lineWidth = 0.8;
-          context.lineJoin = "round";
-          context.beginPath();
+        function drawSelectionOutline(layout, dateIndex, row) {
+          const leftBase = projectAtPrice(
+            layout,
+            dateIndex,
+            0,
+            0,
+          );
+          const rightBase = projectAtPrice(
+            layout,
+            dateIndex,
+            1,
+            0,
+          );
           const dateOffset = dateIndex - state.viewIndex;
           const offsetX = dateOffset * layout.timeXStep;
           const offsetY = dateOffset * layout.timeYStep;
+
+          context.save();
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.beginPath();
           traceProfilePath(
             context,
             layout,
@@ -3541,6 +3553,18 @@
             offsetX,
             offsetY,
           );
+          context.lineTo(rightBase.x, rightBase.y);
+          context.lineTo(leftBase.x, leftBase.y);
+          context.closePath();
+
+          context.globalAlpha = 0.72;
+          context.strokeStyle = "#07100f";
+          context.lineWidth = state.width <= 560 ? 2.2 : 2.8;
+          context.stroke();
+
+          context.globalAlpha = 0.82;
+          context.strokeStyle = "#f4ecd9";
+          context.lineWidth = state.width <= 560 ? 0.8 : 1.05;
           context.stroke();
           context.restore();
         }
@@ -3618,7 +3642,7 @@
           profile,
         ) {
           if (row) {
-            drawRidge(layout, dateIndex, row);
+            drawSelectionOutline(layout, dateIndex, row);
             drawPriceCap(
               context,
               layout,
