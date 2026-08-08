@@ -28,7 +28,7 @@ Sats = int
 # Index within its type (e.g., 0 for first P2WPKH address)
 TypeIndex = int
 # Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
-OutputType = Literal["p2pk", "p2pk", "p2pkh", "multisig", "p2sh", "op_return", "v0_p2wpkh", "v0_p2wsh", "v1_p2tr", "p2a", "empty", "unknown"]
+OutputType = Literal["p2pk65", "p2pk33", "p2pkh", "p2ms", "p2sh", "opreturn", "p2wpkh", "p2wsh", "p2tr", "p2a", "empty", "unknown"]
 # Signed satoshis (i64) - for values that can be negative.
 # Used for changes, deltas, profit/loss calculations, etc.
 SatsSigned = int
@@ -357,7 +357,7 @@ class AddrStats(TypedDict):
 
     Attributes:
         address: Bitcoin address string
-        addr_type: Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
+        addr_type: BRK address type (p2pk33, p2pk65, p2pkh, p2sh, p2wpkh, p2wsh, p2tr, etc.)
         chain_stats: Statistics for confirmed transactions on the blockchain
         mempool_stats: Statistics for unconfirmed transactions in the mempool
         balance: Total current balance in satoshis, including pending (unconfirmed) mempool changes
@@ -2048,11 +2048,13 @@ def _validate_hash_prefix_nibbles(nibbles: int) -> None:
 def _address_payload_lengths(addr_type: OutputType) -> Tuple[int, ...]:
     if addr_type == "p2a":
         return (2,)
-    if addr_type == "p2pk":
-        return (33, 65)
-    if addr_type in ("p2pkh", "p2sh", "v0_p2wpkh"):
+    if addr_type == "p2pk33":
+        return (33,)
+    if addr_type == "p2pk65":
+        return (65,)
+    if addr_type in ("p2pkh", "p2sh", "p2wpkh"):
         return (20,)
-    if addr_type in ("v0_p2wsh", "v1_p2tr"):
+    if addr_type in ("p2wsh", "p2tr"):
         return (32,)
     raise ValueError(f"Unsupported address type for address payload hash-prefix: {addr_type}")
 
@@ -9463,4 +9465,3 @@ class BrkClient(BrkClientBase):
 
         Endpoint: `GET /api.json`"""
         return self.get_json('/api.json')
-
