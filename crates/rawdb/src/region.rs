@@ -1,10 +1,18 @@
-use std::{fs::File, mem, sync::Arc};
+use std::{
+    fs::File,
+    mem,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use log::{debug, trace};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Database, Error, PAGE_SIZE, PAGE_SIZE_MINUS_1, Reader, RegionMetadata, Result, WeakDatabase,
+    Database, Error, HolePunch, PAGE_SIZE, PAGE_SIZE_MINUS_1, Reader, RegionMetadata, Result,
+    WeakDatabase,
 };
 
 /// Named, dynamically-sized region within a database.
@@ -17,8 +25,9 @@ pub(crate) struct RegionInner {
     db: WeakDatabase,
     index: usize,
     meta: RwLock<RegionMetadata>,
-    /// (min_offset, max_offset) relative to region start. (usize::MAX, 0) = clean.
-    dirty_bounds: Mutex<(usize, usize)>,
+    /// Sorted, merged dirty byte ranges relative to the region start.
+    dirty_ranges: Mutex<Vec<(usize, usize)>>,
+    sparse_flush: AtomicBool,
 }
 
 impl Region {
@@ -34,7 +43,8 @@ impl Region {
             db: db.weak_clone(),
             index,
             meta: RwLock::new(RegionMetadata::new(id, start, len, reserved)),
-            dirty_bounds: Mutex::new((usize::MAX, 0)),
+            dirty_ranges: Mutex::new(Vec::new()),
+            sparse_flush: AtomicBool::new(false),
         }))
     }
 
@@ -43,7 +53,8 @@ impl Region {
             db: db.weak_clone(),
             index,
             meta: RwLock::new(meta),
-            dirty_bounds: Mutex::new((usize::MAX, 0)),
+            dirty_ranges: Mutex::new(Vec::new()),
+            sparse_flush: AtomicBool::new(false),
         }))
     }
 
@@ -174,13 +185,60 @@ impl Region {
     /// Appends data to the region. Not durable until `flush()`.
     #[inline]
     pub fn write(&self, data: &[u8]) -> Result<()> {
-        self.write_with(data, None, false)
+        self.write_with(data, None, false, false)
     }
 
     /// Writes data at offset within the region. Not durable until `flush()`.
     #[inline]
     pub fn write_at(&self, data: &[u8], at: usize) -> Result<()> {
-        self.write_with(data, Some(at), false)
+        self.write_with(data, Some(at), false, false)
+    }
+
+    /// Writes data at an arbitrary reserved offset, growing the logical region
+    /// length when needed. Bytes skipped between the old length and `at` must
+    /// not be read unless they have been initialized separately.
+    ///
+    /// This is intended for sparse, fixed-layout storage whose independent
+    /// sections are filled out of order.
+    #[doc(hidden)]
+    #[inline]
+    pub fn write_at_grow(&self, data: &[u8], at: usize) -> Result<()> {
+        self.write_with(data, Some(at), false, true)
+    }
+
+    /// Prevents database-wide flush coalescing from spanning this region's
+    /// intentionally sparse internal layout.
+    #[doc(hidden)]
+    pub fn use_sparse_flush(&self) {
+        self.0.sparse_flush.store(true, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub(crate) fn uses_sparse_flush(&self) -> bool {
+        self.0.sparse_flush.load(Ordering::Relaxed)
+    }
+
+    /// Deallocates initialized but unused bytes inside this region without
+    /// changing its logical length.
+    #[doc(hidden)]
+    pub fn punch_hole(&self, offset: usize, len: usize) -> Result<()> {
+        if len == 0 {
+            return Ok(());
+        }
+        let end = offset.checked_add(len).ok_or(Error::RegionSizeOverflow {
+            current: offset,
+            requested: len,
+        })?;
+        let meta = self.meta_mut();
+        if end > meta.reserved() {
+            return Err(Error::WriteOutOfBounds {
+                position: end,
+                region_len: meta.reserved(),
+            });
+        }
+        let start = meta.start() + offset;
+        let db = self.db();
+        HolePunch::punch(&db.file(), start, len)
     }
 
     /// Writes ascending (offset, value) pairs directly to the mmap within region bounds.
@@ -231,9 +289,7 @@ impl Region {
             dirty_end = end_offset;
         }
 
-        let mut bounds = self.0.dirty_bounds.lock();
-        bounds.0 = bounds.0.min(first_offset);
-        bounds.1 = bounds.1.max(dirty_end);
+        self.mark_dirty(first_offset, dirty_end - first_offset);
     }
 
     pub fn truncate(&self, from: usize) -> Result<()> {
@@ -259,11 +315,17 @@ impl Region {
     /// Truncates to `at`, then writes data there.
     #[inline]
     pub fn truncate_write(&self, at: usize, data: &[u8]) -> Result<()> {
-        self.write_with(data, Some(at), true)
+        self.write_with(data, Some(at), true, false)
     }
 
     #[inline]
-    fn write_with(&self, data: &[u8], at: Option<usize>, truncate: bool) -> Result<()> {
+    fn write_with(
+        &self,
+        data: &[u8],
+        at: Option<usize>,
+        truncate: bool,
+        allow_grow: bool,
+    ) -> Result<()> {
         let db = self.db();
         let index = self.index();
         let meta = self.meta();
@@ -274,7 +336,8 @@ impl Region {
 
         let data_len = data.len();
 
-        if let Some(at_val) = at
+        if !allow_grow
+            && let Some(at_val) = at
             && at_val > len
         {
             return Err(Error::WriteOutOfBounds {
@@ -477,16 +540,18 @@ impl Region {
     /// Flushes dirty data and metadata to disk. Returns whether anything was flushed.
     pub fn flush(&self) -> Result<bool> {
         let db = self.db();
-        let dirty_bounds = self.take_dirty_bounds();
+        let dirty_ranges = self.take_dirty_ranges();
         let regions = db.regions();
 
-        let data_flushed = if let Some((min, max)) = dirty_bounds {
+        let data_flushed = if !dirty_ranges.is_empty() {
             let region_start = self.meta().start();
             let mmap = db.mmap();
-            if let Err(e) = mmap.flush_async_range(region_start + min, max - min) {
-                drop(mmap);
-                self.restore_dirty_bounds(min, max);
-                return Err(e.into());
+            for &(start, end) in &dirty_ranges {
+                if let Err(error) = mmap.flush_async_range(region_start + start, end - start) {
+                    drop(mmap);
+                    self.restore_dirty_ranges(&dirty_ranges);
+                    return Err(error.into());
+                }
             }
             true
         } else {
@@ -538,10 +603,20 @@ impl Region {
 
     #[inline]
     pub fn mark_dirty(&self, offset: usize, len: usize) {
+        if len == 0 {
+            return;
+        }
         let end = offset + len;
-        let mut bounds = self.0.dirty_bounds.lock();
-        bounds.0 = bounds.0.min(offset);
-        bounds.1 = bounds.1.max(end);
+        let mut ranges = self.0.dirty_ranges.lock();
+        let mut start = offset;
+        let mut end = end;
+        let at = ranges.partition_point(|&(_, range_end)| range_end < start);
+        while at < ranges.len() && ranges[at].0 <= end {
+            let range = ranges.remove(at);
+            start = start.min(range.0);
+            end = end.max(range.1);
+        }
+        ranges.insert(at, (start, end));
     }
 
     #[inline]
@@ -551,19 +626,14 @@ impl Region {
     }
 
     #[inline]
-    pub(crate) fn take_dirty_bounds(&self) -> Option<(usize, usize)> {
-        let mut bounds = self.0.dirty_bounds.lock();
-        if bounds.0 < bounds.1 {
-            Some(mem::replace(&mut *bounds, (usize::MAX, 0)))
-        } else {
-            None
-        }
+    pub(crate) fn take_dirty_ranges(&self) -> Vec<(usize, usize)> {
+        mem::take(&mut *self.0.dirty_ranges.lock())
     }
 
     #[inline]
-    pub(crate) fn restore_dirty_bounds(&self, min: usize, max: usize) {
-        let mut bounds = self.0.dirty_bounds.lock();
-        bounds.0 = bounds.0.min(min);
-        bounds.1 = bounds.1.max(max);
+    pub(crate) fn restore_dirty_ranges(&self, ranges: &[(usize, usize)]) {
+        for &(start, end) in ranges {
+            self.mark_dirty(start, end - start);
+        }
     }
 }

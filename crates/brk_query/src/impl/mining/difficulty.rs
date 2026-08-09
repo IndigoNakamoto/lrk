@@ -53,7 +53,7 @@ impl Query {
             .collect_one(current_epoch)
             .data()?;
         let current_timestamp = indexer
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_one(current_height)
@@ -105,13 +105,13 @@ impl Query {
                 .data()?;
 
             let prev_difficulty = indexer
-                .vecs
+                .vecs()
                 .blocks
                 .difficulty
                 .collect_one(prev_epoch_start)
                 .data()?;
             let curr_difficulty = indexer
-                .vecs
+                .vecs()
                 .blocks
                 .difficulty
                 .collect_one(epoch_start_height)

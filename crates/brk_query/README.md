@@ -18,7 +18,7 @@ Query blocks, transactions, addresses, and 1000+ on-chain metrics through a unif
 ## Core API
 
 ```rust,ignore
-let query = Query::build(&reader, &indexer, &computer, Some(mempool));
+let query = Query::build(&indexer, &computer, Some(mempool));
 
 // Current height
 let height = query.height();
@@ -55,7 +55,7 @@ let stats = query.address(address)?;
 ## Async Usage
 
 ```rust,ignore
-let async_query = AsyncQuery::build(&reader, &indexer, &computer, mempool);
+let async_query = AsyncQuery::build(&indexer, &computer, mempool);
 
 // Run blocking queries in thread pool
 let result = async_query.run(|q| q.block_by_height(height)).await;

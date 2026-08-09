@@ -26,10 +26,10 @@ impl Vecs {
                 self.coinbase.compute_from(
                     starting_height,
                     prices,
-                    &indexer.vecs.transactions.first_tx_index,
+                    &indexer.vecs().transactions.first_tx_index,
                     |_, tx_index| {
                         let mut txout_cursor = indexer
-                            .vecs
+                            .vecs()
                             .transactions
                             .first_txout_index
                             .reader()
@@ -44,7 +44,7 @@ impl Vecs {
                         count_cursor.advance(ti - count_cursor.position());
                         let output_count: usize = count_cursor.next().unwrap().into();
 
-                        indexer.vecs.outputs.value.fold_range_at(
+                        indexer.vecs().outputs.value.fold_range_at(
                             first_txout_index,
                             first_txout_index + output_count,
                             Sats::ZERO,
@@ -59,7 +59,7 @@ impl Vecs {
                     starting_height,
                     &window_starts,
                     prices,
-                    &indexer.vecs.transactions.first_tx_index,
+                    &indexer.vecs().transactions.first_tx_index,
                     &indexes.height.tx_index_count,
                     &transactions.fees.fee.tx_index,
                     exit,

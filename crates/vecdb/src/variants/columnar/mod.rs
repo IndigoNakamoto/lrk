@@ -1,0 +1,275 @@
+use std::{marker::PhantomData, sync::Arc};
+
+use parking_lot::RwLock;
+
+use crate::{
+    Error, ImportOptions, MAX_UNCOMPRESSED_PAGE_SIZE, Result, SharedLen, StoredVec, VecIndex,
+    Version,
+};
+
+mod lazy;
+mod read;
+mod schema;
+mod sum;
+mod traits;
+
+pub use lazy::*;
+pub use schema::*;
+pub use sum::*;
+
+use read::read_rows;
+use schema::validate_schema;
+
+const VERSION: Version = Version::new(7);
+
+#[inline]
+pub(super) const fn rows_per_block<T>() -> usize {
+    MAX_UNCOMPRESSED_PAGE_SIZE / size_of::<T>()
+}
+
+/// One logical vector of rows stored as page-sized, column-major blocks in `V`.
+///
+/// `V` remains an ordinary flat scalar vector. Every complete block of
+/// `ROWS_PER_BLOCK` rows is flattened as consecutive scalar column pages:
+///
+/// ```text
+/// [column 0 page][column 1 page] ... [last column page]
+/// ```
+///
+/// The final incomplete block is rebuilt in column-major order whenever it is
+/// persisted. Raw and compressed vectors therefore keep their existing write,
+/// page, rollback, and compression logic unchanged.
+#[derive(Debug)]
+#[must_use = "Vector should be stored to keep data accessible"]
+pub struct ColumnarVec<V, C>
+where
+    V: StoredVec,
+    C: ColumnId,
+{
+    vec: V,
+    stored_rows: usize,
+    pushed: Vec<C::Row<V::T>>,
+    visible_rows: SharedLen,
+    gate: Arc<RwLock<()>>,
+}
+
+/// Lean read-only clone of a [`ColumnarVec`].
+pub struct ReadOnlyColumnarVec<V, C>
+where
+    V: StoredVec,
+    C: ColumnId,
+{
+    vec: V::ReadOnly,
+    visible_rows: SharedLen,
+    gate: Arc<RwLock<()>>,
+    columns: PhantomData<C>,
+}
+
+impl<V, C> Clone for ReadOnlyColumnarVec<V, C>
+where
+    V: StoredVec,
+    C: ColumnId,
+{
+    fn clone(&self) -> Self {
+        Self {
+            vec: self.vec.clone(),
+            visible_rows: self.visible_rows.clone(),
+            gate: Arc::clone(&self.gate),
+            columns: PhantomData,
+        }
+    }
+}
+
+/// Owned scalar projection of one columnar source.
+pub struct ColumnarVecColumn<S, C>
+where
+    C: ColumnId,
+    S: ReadableColumnarVec<C>,
+{
+    source: S,
+    column: C,
+}
+
+impl<S, C> Clone for ColumnarVecColumn<S, C>
+where
+    C: ColumnId,
+    S: ReadableColumnarVec<C>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            source: self.source.clone(),
+            column: self.column,
+        }
+    }
+}
+
+impl<V, C> ColumnarVec<V, C>
+where
+    V: StoredVec,
+    C: ColumnId,
+{
+    pub(super) const COLUMN_COUNT: usize = C::ALL.len();
+    pub(super) const ROWS_PER_BLOCK: usize = rows_per_block::<V::T>();
+
+    fn validate_layout() -> Result<()> {
+        validate_schema::<C>()?;
+        if size_of::<V::T>() == 0 || Self::ROWS_PER_BLOCK == 0 {
+            return Err(Error::InvalidArgument(
+                "ColumnarVec requires at least one non-zero-sized scalar per page",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_flat_len(vec: &V) -> Result<usize> {
+        let len = vec.len();
+        if !len.is_multiple_of(Self::COLUMN_COUNT) {
+            return Err(Error::CorruptedRegion {
+                name: vec.name().to_string(),
+                region_len: vec.region().meta().len(),
+            });
+        }
+        Ok(len / Self::COLUMN_COUNT)
+    }
+
+    fn import_inner(mut options: ImportOptions, forced: bool) -> Result<Self> {
+        Self::validate_layout()?;
+        let columns = u32::try_from(Self::COLUMN_COUNT).map_err(|_| Error::Overflow)?;
+        options.version = options.version + VERSION + C::VERSION + Version::new(columns);
+        options.initial_capacity = Some(
+            options
+                .initial_capacity
+                .unwrap_or(V::I::INITIAL_CAPACITY)
+                .checked_mul(Self::COLUMN_COUNT)
+                .ok_or(Error::Overflow)?,
+        );
+        let mut vec = if forced {
+            V::forced_import_with(options)?
+        } else {
+            V::import_with(options)?
+        };
+
+        let stored_rows = match Self::validate_flat_len(&vec) {
+            Ok(len) => len,
+            Err(_) if forced => {
+                vec.reset()?;
+                vec.write()?;
+                Self::validate_flat_len(&vec)?
+            }
+            Err(error) => return Err(error),
+        };
+        Ok(Self {
+            vec,
+            stored_rows,
+            pushed: Vec::new(),
+            visible_rows: SharedLen::new(stored_rows),
+            gate: Arc::new(RwLock::new(())),
+        })
+    }
+
+    pub fn read_only_clone(&self) -> ReadOnlyColumnarVec<V, C> {
+        ReadOnlyColumnarVec {
+            vec: self.vec.read_only_clone(),
+            visible_rows: self.visible_rows.clone(),
+            gate: Arc::clone(&self.gate),
+            columns: PhantomData,
+        }
+    }
+
+    /// Returns an owned read-only view of one persisted scalar column.
+    /// Uncommitted rows become visible to the view after `write()`.
+    pub fn column(&self, column: C) -> ColumnarVecColumn<ReadOnlyColumnarVec<V, C>, C> {
+        self.read_only_clone().column(column)
+    }
+
+    /// Returns a lazy sum of selected persisted columns.
+    /// Uncommitted rows become visible to the view after `write()`.
+    pub fn sum_columns<const M: usize>(
+        &self,
+        name: &str,
+        version: Version,
+        columns: [C; M],
+    ) -> ColumnarSumVec<ReadOnlyColumnarVec<V, C>, C> {
+        ColumnarSumVec::new(name, version, self.read_only_clone(), columns)
+    }
+
+    pub fn reserve_pushed(&mut self, additional: usize) {
+        self.pushed.reserve(additional);
+    }
+
+    #[inline]
+    fn flat_rows(&self) -> usize {
+        debug_assert!(self.vec.len().is_multiple_of(Self::COLUMN_COUNT));
+        self.vec.len() / Self::COLUMN_COUNT
+    }
+
+    #[inline]
+    fn push_block(vec: &mut V, rows: &[C::Row<V::T>]) {
+        for &column in C::ALL {
+            for row in rows {
+                vec.push(column.get(row).clone());
+            }
+        }
+    }
+
+    /// Moves the logical matrix changes into the wrapped flat vector.
+    ///
+    /// Only the incomplete height block is read and rebuilt. Completed blocks
+    /// already consist of aligned scalar column pages and remain untouched.
+    fn stage_pending(&mut self) -> Result<()> {
+        let flat_rows = self.flat_rows();
+        if self.stored_rows == flat_rows && self.pushed.is_empty() {
+            return Ok(());
+        }
+
+        let target_rows = self
+            .stored_rows
+            .checked_add(self.pushed.len())
+            .ok_or(Error::Overflow)?;
+        let block_start = self.stored_rows / Self::ROWS_PER_BLOCK * Self::ROWS_PER_BLOCK;
+        let retained_capacity = if self.stored_rows == block_start {
+            0
+        } else {
+            (target_rows - block_start).min(Self::ROWS_PER_BLOCK)
+        };
+        let mut retained = Vec::with_capacity(retained_capacity);
+        read_rows::<V::I, V::T, V, C>(
+            &self.vec,
+            flat_rows,
+            block_start,
+            self.stored_rows,
+            &mut retained,
+        );
+
+        let mut pushed_from = 0;
+        if !retained.is_empty() {
+            let take = (Self::ROWS_PER_BLOCK - retained.len()).min(self.pushed.len());
+            retained.extend_from_slice(&self.pushed[..take]);
+            pushed_from = take;
+        }
+
+        let flat_start = block_start
+            .checked_mul(Self::COLUMN_COUNT)
+            .ok_or(Error::Overflow)?;
+        self.vec.truncate_if_needed_at(flat_start)?;
+        Self::push_block(&mut self.vec, &retained);
+        for block in self.pushed[pushed_from..].chunks(Self::ROWS_PER_BLOCK) {
+            Self::push_block(&mut self.vec, block);
+        }
+
+        self.stored_rows = target_rows;
+        self.pushed.clear();
+        debug_assert_eq!(self.vec.len(), target_rows * Self::COLUMN_COUNT);
+        Ok(())
+    }
+
+    fn write_pending(&mut self) -> Result<bool> {
+        let gate = Arc::clone(&self.gate);
+        let _guard = gate.write();
+        self.stage_pending()?;
+        let written = self.vec.write()?;
+        self.stored_rows = self.flat_rows();
+        self.visible_rows.set(self.stored_rows);
+        Ok(written)
+    }
+}

@@ -33,6 +33,7 @@ where
     T: VecValue,
 {
     pub fn import(options: ImportOptions, format: Format) -> Result<Self> {
+        let initial_capacity = options.initial_capacity.unwrap_or(I::INITIAL_CAPACITY);
         let region = options
             .db
             .create_region_if_needed(&vec_region_name_with::<I>(options.name))?;
@@ -45,8 +46,7 @@ where
             });
         }
 
-        let initial_capacity = I::INITIAL_CAPACITY;
-        if region_len == 0 && format.is_raw() && initial_capacity > 0 {
+        if region_len == 0 && initial_capacity > 0 {
             let capacity = initial_capacity
                 .checked_mul(size_of::<T>())
                 .and_then(|bytes| bytes.checked_add(HEADER_OFFSET))

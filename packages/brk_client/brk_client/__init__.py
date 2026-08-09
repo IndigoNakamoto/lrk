@@ -9465,3 +9465,4 @@ class BrkClient(BrkClientBase):
 
         Endpoint: `GET /api.json`"""
         return self.get_json('/api.json')
+

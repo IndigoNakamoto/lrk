@@ -26,8 +26,8 @@ pub struct Vecs<'a> {
 impl<'a> Vecs<'a> {
     pub fn build(indexer: &'a Indexer<Ro>, computer: &'a Computer<Ro>) -> Self {
         Self::build_from(
-            indexer.vecs.iter_any_visible(),
-            indexer.vecs.to_tree_node(),
+            indexer.vecs().iter_any_visible(),
+            indexer.vecs().to_tree_node(),
             computer.iter_named_visible(),
             computer.to_tree_node(),
         )
@@ -35,8 +35,8 @@ impl<'a> Vecs<'a> {
 
     pub fn build_rw(indexer: &'a Indexer, computer: &'a Computer) -> Self {
         Self::build_from(
-            indexer.vecs.iter_any_visible(),
-            indexer.vecs.to_tree_node(),
+            indexer.vecs().iter_any_visible(),
+            indexer.vecs().to_tree_node(),
             computer.iter_named_visible(),
             computer.to_tree_node(),
         )

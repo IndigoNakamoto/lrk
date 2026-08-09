@@ -21,7 +21,7 @@ impl Vecs {
         let tx_index_to_vsize = LazyVec::transformed::<WeightToVSize>(
             "tx_vsize",
             version,
-            indexer.vecs.transactions.weight.read_only_boxed_clone(),
+            indexer.vecs().transactions.weight.read_only_boxed_clone(),
         );
 
         let vsize = LazyPerTxDistributionTransformed::new::<WeightToVSize>(

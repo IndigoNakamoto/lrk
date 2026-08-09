@@ -3,6 +3,8 @@ use std::{env, path::Path, time::Instant};
 use brk_computer::Computer;
 use brk_error::Result;
 use brk_indexer::Indexer;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use vecdb::{AnySerializableVec, AnyVec};
 
 pub fn main() -> Result<()> {
@@ -10,7 +12,13 @@ pub fn main() -> Result<()> {
 
     let outputs_dir = Path::new(&env::var("HOME").unwrap()).join(".brk");
 
-    let indexer = Indexer::forced_import(&outputs_dir)?;
+    let bitcoin_dir = Client::default_bitcoin_path();
+    let client = Client::new(
+        Client::default_url(),
+        Auth::CookieFile(bitcoin_dir.join(".cookie")),
+    )?;
+    let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
+    let indexer = Indexer::import(&outputs_dir, &reader)?;
 
     let computer = Computer::forced_import(&outputs_dir, &indexer)?;
 

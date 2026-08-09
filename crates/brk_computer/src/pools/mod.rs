@@ -137,20 +137,20 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
 
         let dep_version: Version = [
-            indexer.vecs.blocks.coinbase_tag.version(),
-            indexer.vecs.transactions.first_tx_index.version(),
-            indexer.vecs.transactions.first_txout_index.version(),
+            indexer.vecs().blocks.coinbase_tag.version(),
+            indexer.vecs().transactions.first_tx_index.version(),
+            indexer.vecs().transactions.first_txout_index.version(),
             indexes.tx_index.output_count.version(),
-            indexer.vecs.outputs.output_type.version(),
-            indexer.vecs.outputs.type_index.version(),
-            indexer.vecs.addrs.p2pk65.bytes.version(),
-            indexer.vecs.addrs.p2pk33.bytes.version(),
-            indexer.vecs.addrs.p2pkh.bytes.version(),
-            indexer.vecs.addrs.p2sh.bytes.version(),
-            indexer.vecs.addrs.p2wpkh.bytes.version(),
-            indexer.vecs.addrs.p2wsh.bytes.version(),
-            indexer.vecs.addrs.p2tr.bytes.version(),
-            indexer.vecs.addrs.p2a.bytes.version(),
+            indexer.vecs().outputs.output_type.version(),
+            indexer.vecs().outputs.type_index.version(),
+            indexer.vecs().addrs.p2pk65.bytes.version(),
+            indexer.vecs().addrs.p2pk33.bytes.version(),
+            indexer.vecs().addrs.p2pkh.bytes.version(),
+            indexer.vecs().addrs.p2sh.bytes.version(),
+            indexer.vecs().addrs.p2wpkh.bytes.version(),
+            indexer.vecs().addrs.p2wsh.bytes.version(),
+            indexer.vecs().addrs.p2tr.bytes.version(),
+            indexer.vecs().addrs.p2a.bytes.version(),
         ]
         .into_iter()
         .sum();
@@ -165,17 +165,17 @@ impl Vecs {
         }
         self.pool.validate_computed_version_or_reset(dep_version)?;
 
-        let first_txout_index = indexer.vecs.transactions.first_txout_index.reader();
-        let output_type = indexer.vecs.outputs.output_type.reader();
-        let type_index = indexer.vecs.outputs.type_index.reader();
-        let p2pk65 = indexer.vecs.addrs.p2pk65.bytes.reader();
-        let p2pk33 = indexer.vecs.addrs.p2pk33.bytes.reader();
-        let p2pkh = indexer.vecs.addrs.p2pkh.bytes.reader();
-        let p2sh = indexer.vecs.addrs.p2sh.bytes.reader();
-        let p2wpkh = indexer.vecs.addrs.p2wpkh.bytes.reader();
-        let p2wsh = indexer.vecs.addrs.p2wsh.bytes.reader();
-        let p2tr = indexer.vecs.addrs.p2tr.bytes.reader();
-        let p2a = indexer.vecs.addrs.p2a.bytes.reader();
+        let first_txout_index = indexer.vecs().transactions.first_txout_index.reader();
+        let output_type = indexer.vecs().outputs.output_type.reader();
+        let type_index = indexer.vecs().outputs.type_index.reader();
+        let p2pk65 = indexer.vecs().addrs.p2pk65.bytes.reader();
+        let p2pk33 = indexer.vecs().addrs.p2pk33.bytes.reader();
+        let p2pkh = indexer.vecs().addrs.p2pkh.bytes.reader();
+        let p2sh = indexer.vecs().addrs.p2sh.bytes.reader();
+        let p2wpkh = indexer.vecs().addrs.p2wpkh.bytes.reader();
+        let p2wsh = indexer.vecs().addrs.p2wsh.bytes.reader();
+        let p2tr = indexer.vecs().addrs.p2tr.bytes.reader();
+        let p2a = indexer.vecs().addrs.p2a.bytes.reader();
 
         let unknown = self.pools.get_unknown();
 
@@ -184,17 +184,17 @@ impl Vecs {
         // Cursors avoid per-height PcoVec page decompression.
         // Heights are sequential, tx_index values derived from them are monotonically
         // increasing, so both cursors only advance forward.
-        let mut first_tx_index_cursor = indexer.vecs.transactions.first_tx_index.cursor();
+        let mut first_tx_index_cursor = indexer.vecs().transactions.first_tx_index.cursor();
         first_tx_index_cursor.advance(min);
         let mut output_count_cursor = indexes.tx_index.output_count.cursor();
 
         self.pool.truncate_if_needed_at(min)?;
         self.pool_heights.truncate(min);
 
-        let len = indexer.vecs.blocks.coinbase_tag.len();
+        let len = indexer.vecs().blocks.coinbase_tag.len();
         let mut next_height = min;
 
-        indexer.vecs.blocks.coinbase_tag.try_for_each_range_at(
+        indexer.vecs().blocks.coinbase_tag.try_for_each_range_at(
             min,
             len,
             |coinbase_tag| -> Result<()> {

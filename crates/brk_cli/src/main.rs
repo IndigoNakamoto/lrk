@@ -36,23 +36,23 @@ pub fn main() -> anyhow::Result<()> {
 
     let reader = Reader::new(config.blocksdir(), &client);
 
-    let mut indexer = Indexer::forced_import(&config.brkdir())?;
+    let mut indexer = Indexer::import(&config.brkdir(), &reader)?;
 
     #[cfg(not(debug_assertions))]
     {
         // Pre-run indexer if too far behind, then drop and reimport to reduce memory
         let chain_height = client.get_last_height()?;
-        let indexed_height = indexer.vecs.next_height();
+        let indexed_height = indexer.vecs().next_height();
         let blocks_behind = chain_height.saturating_sub(*indexed_height);
         if blocks_behind > 10_000 {
             info!("---");
             info!("Indexing {blocks_behind} blocks before starting server...");
             info!("---");
             sleep(Duration::from_secs(10));
-            indexer.index(&reader, &client, &exit)?;
+            indexer.index(&exit)?;
             drop(indexer);
             Mimalloc::collect();
-            indexer = Indexer::forced_import(&config.brkdir())?;
+            indexer = Indexer::import(&config.brkdir(), &reader)?;
         }
     }
 
@@ -60,7 +60,7 @@ pub fn main() -> anyhow::Result<()> {
 
     let mempool = Mempool::new(&client);
 
-    let query = AsyncQuery::build(&reader, &indexer, &computer, Some(mempool.clone()));
+    let query = AsyncQuery::build(&indexer, &computer, Some(mempool.clone()));
 
     let mempool_clone = mempool.clone();
     let resolver = query.sync(|q| q.indexer_prevout_resolver());
@@ -104,9 +104,9 @@ pub fn main() -> anyhow::Result<()> {
         let total_start = Instant::now();
 
         if cfg!(debug_assertions) {
-            indexer.checked_index(&reader, &client, &exit)?;
+            indexer.checked_index(&exit)?;
         } else {
-            indexer.index(&reader, &client, &exit)?;
+            indexer.index(&exit)?;
         }
 
         Mimalloc::collect();

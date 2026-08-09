@@ -3,7 +3,7 @@
 use std::{borrow::Cow, cmp::Ordering, fmt::Debug, fs, hash::Hash, mem, ops::Range, path::Path};
 
 use brk_error::Result;
-use brk_types::{Height, Version};
+use brk_types::Version;
 use byteview::ByteView;
 use fjall::{Database, Keyspace, KeyspaceCreateOptions, config::*};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -14,10 +14,11 @@ mod kind;
 mod meta;
 mod mode;
 
+use item::Item;
+use meta::StoreMeta;
+
 pub use any::*;
-pub use item::*;
 pub use kind::*;
-pub use meta::*;
 pub use mode::*;
 
 const MAJOR_FJALL_VERSION: Version = Version::new(4);
@@ -28,6 +29,8 @@ pub fn open_database(path: &Path) -> fjall::Result<Database> {
         .max_cached_files(Some(512))
         .open()
 }
+
+pub type PendingIngest = Box<dyn FnOnce() -> Result<()> + Send>;
 
 #[derive(Clone)]
 pub struct Store<K, V> {
@@ -199,31 +202,24 @@ where
     }
 
     /// Takes buffered puts/dels and returns a closure that ingests them into the keyspace.
-    /// The store is left with empty buffers, ready for the next batch.
-    #[allow(clippy::type_complexity)]
-    pub fn take_pending_ingest(
-        &mut self,
-        height: Height,
-    ) -> Result<Option<Box<dyn FnOnce() -> Result<()> + Send>>>
+    /// The store is left with empty buffers, ready for the next batch. The caller must
+    /// persist the database after ingestion before treating the data as durable.
+    pub fn take_pending_ingest(&mut self) -> Option<PendingIngest>
     where
         K: Send + 'static,
         V: Send + 'static,
         for<'a> ByteView: From<&'a K> + From<&'a V>,
     {
-        self.export_meta_if_needed(height)?;
-
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
 
         if puts.is_empty() && dels.is_empty() {
-            return Ok(None);
+            return None;
         }
 
         let keyspace = self.keyspace.clone();
 
-        Ok(Some(Box::new(move || {
-            Self::ingest_owned(&keyspace, puts, dels)
-        })))
+        Some(Box::new(move || Self::ingest_owned(&keyspace, puts, dels)))
     }
 
     #[inline]
@@ -261,23 +257,6 @@ where
 
     pub fn approximate_len(&self) -> usize {
         self.keyspace.approximate_len()
-    }
-
-    #[inline]
-    fn has(&self, height: Height) -> bool {
-        self.meta.has(height)
-    }
-
-    fn export_meta(&mut self, height: Height) -> Result<()> {
-        self.meta.export(height)?;
-        Ok(())
-    }
-
-    fn export_meta_if_needed(&mut self, height: Height) -> Result<()> {
-        if !self.has(height) {
-            self.export_meta(height)?;
-        }
-        Ok(())
     }
 
     fn ingest<'a>(
@@ -367,17 +346,7 @@ where
     for<'a> ByteView: From<K> + From<V> + From<&'a K> + From<&'a V>,
     Self: Send + Sync,
 {
-    fn export_meta(&mut self, height: Height) -> Result<()> {
-        self.export_meta(height)
-    }
-
-    fn height(&self) -> Option<Height> {
-        self.meta.height()
-    }
-
-    fn commit(&mut self, height: Height) -> Result<()> {
-        self.export_meta_if_needed(height)?;
-
+    fn ingest_pending(&mut self) -> Result<()> {
         let puts = mem::take(&mut self.puts);
         let dels = mem::take(&mut self.dels);
 

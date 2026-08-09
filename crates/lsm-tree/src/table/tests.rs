@@ -33,9 +33,10 @@ fn test_with_table(
 
         for (idx, item) in items.iter().enumerate() {
             if let Some(rotate) = rotate_every
-                && idx % rotate == 0 {
-                    writer.spill_block()?;
-                }
+                && idx % rotate == 0
+            {
+                writer.spill_block()?;
+            }
             writer.write(item.clone())?;
         }
         let (_, checksum) = writer.finish()?.unwrap();
@@ -175,9 +176,10 @@ fn test_with_table(
 
         for (idx, item) in items.iter().enumerate() {
             if let Some(rotate) = rotate_every
-                && idx % rotate == 0 {
-                    writer.spill_block()?;
-                }
+                && idx % rotate == 0
+            {
+                writer.spill_block()?;
+            }
             writer.write(item.clone())?;
         }
         let (_, checksum) = writer.finish()?.unwrap();

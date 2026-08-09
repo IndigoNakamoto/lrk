@@ -1,5 +1,5 @@
-use brk_error::{Error, OptionData, Result};
-use brk_types::{Addr, AddrIndexTxIndex, Height, Txid, Unit};
+use brk_error::{Error, Result};
+use brk_types::{Addr, Height, Txid};
 
 use crate::Query;
 
@@ -14,29 +14,20 @@ impl Query {
         before_txid: Option<&Txid>,
     ) -> Result<Height> {
         let (output_type, type_index) = self.resolve_addr(addr)?;
-        let store = self
-            .indexer()
-            .stores
-            .addr_type_to_addr_index_and_tx_index
-            .get(output_type)
-            .data()?;
+        let stores = self.indexer().stores();
         let tx_index_len = self.safe_lengths().tx_index;
         let last_tx_index = match before_txid {
             Some(txid) => {
                 let before_tx_index = self.resolve_tx_index(txid)?;
-                let min = AddrIndexTxIndex::min_for_addr(type_index);
-                let cursor = AddrIndexTxIndex::from((type_index, before_tx_index));
-                store
-                    .range(min..cursor)
+                stores
+                    .addr_tx_indexes_before(output_type, type_index, before_tx_index)?
                     .rev()
-                    .map(|(key, _): (AddrIndexTxIndex, Unit)| key.tx_index())
                     .find(|tx_index| *tx_index < tx_index_len)
                     .ok_or(Error::UnknownAddr)?
             }
-            None => store
-                .prefix(type_index)
+            None => stores
+                .addr_tx_indexes(output_type, type_index)?
                 .rev()
-                .map(|(key, _): (AddrIndexTxIndex, Unit)| key.tx_index())
                 .find(|tx_index| *tx_index < tx_index_len)
                 .ok_or(Error::UnknownAddr)?,
         };

@@ -139,7 +139,7 @@ impl Vecs {
         let timestamp = Timestamps::from_locals(
             version,
             monotonic,
-            indexer.vecs.blocks.timestamp.read_only_boxed_clone(),
+            indexer.vecs().blocks.timestamp.read_only_boxed_clone(),
             &minute10,
             &minute30,
             &hour1,
@@ -192,7 +192,7 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
 
         self.tx_heights.update(indexer, starting_height);
-        if starting_height.to_usize() < indexer.vecs.transactions.first_tx_index.len() {
+        if starting_height.to_usize() < indexer.vecs().transactions.first_tx_index.len() {
             self.chain_counts.clear();
         }
 

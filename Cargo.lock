@@ -733,6 +733,8 @@ name = "brk_oracle"
 version = "0.11.2"
 dependencies = [
  "brk_indexer",
+ "brk_reader",
+ "brk_rpc",
  "brk_types",
  "serde_json",
  "vecdb",

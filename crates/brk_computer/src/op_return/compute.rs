@@ -51,8 +51,8 @@ impl Vecs {
         self.db.sync_bg_tasks()?;
 
         let starting_lengths = indexer.safe_lengths();
-        let raw = &indexer.vecs.op_return;
-        let txs = &indexer.vecs.transactions;
+        let raw = &indexer.vecs().op_return;
+        let txs = &indexer.vecs().transactions;
         let version = raw.first_index.version()
             + raw.to_tx_index.version()
             + raw.kind.version()

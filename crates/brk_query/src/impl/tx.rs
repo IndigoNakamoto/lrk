@@ -22,10 +22,8 @@ impl Query {
     #[inline]
     pub(crate) fn resolve_tx_index(&self, txid: &Txid) -> Result<TxIndex> {
         self.indexer()
-            .stores
-            .txid_prefix_to_tx_index
-            .get(&TxidPrefix::from(txid))?
-            .map(|cow| cow.into_owned())
+            .stores()
+            .tx_index(&TxidPrefix::from(txid))?
             .ok_or(Error::UnknownTxid)
     }
 
@@ -47,7 +45,7 @@ impl Query {
             return Err(Error::OutOfRange("Transaction index out of range".into()));
         }
         self.indexer()
-            .vecs
+            .vecs()
             .transactions
             .txid
             .collect_one(index)
@@ -90,8 +88,8 @@ impl Query {
     #[inline]
     pub(crate) fn block_hash_and_time(&self, height: Height) -> Result<(BlockHash, Timestamp)> {
         let indexer = self.indexer();
-        let hash = indexer.vecs.blocks.blockhash.collect_one(height).data()?;
-        let time = indexer.vecs.blocks.timestamp.collect_one(height).data()?;
+        let hash = indexer.vecs().blocks.blockhash.collect_one(height).data()?;
+        let time = indexer.vecs().blocks.timestamp.collect_one(height).data()?;
         Ok((hash, time))
     }
 
@@ -224,11 +222,11 @@ impl Query {
     ) -> Result<Vec<TxOutspend>> {
         let indexer = self.indexer();
         let txin_index_reader = self.computer().outputs.spent.txin_index.reader();
-        let txid_reader = indexer.vecs.transactions.txid.reader();
+        let txid_reader = indexer.vecs().transactions.txid.reader();
 
         let tx_heights = &self.computer().indexes.tx_heights;
-        let mut input_tx_cursor = indexer.vecs.inputs.tx_index.cursor();
-        let mut first_txin_cursor = indexer.vecs.transactions.first_txin_index.cursor();
+        let mut input_tx_cursor = indexer.vecs().inputs.tx_index.cursor();
+        let mut first_txin_cursor = indexer.vecs().transactions.first_txin_index.cursor();
 
         let bound = self.safe_lengths();
 
@@ -277,20 +275,20 @@ impl Query {
     fn build_outspend(&self, txin_index: TxInIndex) -> Result<TxOutspend> {
         let indexer = self.indexer();
         let spending_tx_index: TxIndex = indexer
-            .vecs
+            .vecs()
             .inputs
             .tx_index
             .collect_one(txin_index)
             .data()?;
         let spending_first_txin: TxInIndex = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_txin_index
             .collect_one(spending_tx_index)
             .data()?;
         let vin = Vin::from(usize::from(txin_index) - usize::from(spending_first_txin));
         let spending_txid = indexer
-            .vecs
+            .vecs()
             .transactions
             .txid
             .collect_one(spending_tx_index)
@@ -317,7 +315,7 @@ impl Query {
         if tx_index >= safe.tx_index {
             return Err(Error::UnknownTxid);
         }
-        let first_txout_vec = &self.indexer().vecs.transactions.first_txout_index;
+        let first_txout_vec = &self.indexer().vecs().transactions.first_txout_index;
         let first_txout_reader = first_txout_vec.reader();
         let first = first_txout_reader.try_get(tx_index).ok_or(Error::Internal(
             "resolve_tx_outputs: first txout index past data",
@@ -346,13 +344,13 @@ impl Query {
     fn transaction_raw_by_index(&self, tx_index: TxIndex) -> Result<Vec<u8>> {
         let indexer = self.indexer();
         let total_size = indexer
-            .vecs
+            .vecs()
             .transactions
             .total_size
             .collect_one(tx_index)
             .data()?;
         let position = indexer
-            .vecs
+            .vecs()
             .transactions
             .position
             .collect_one(tx_index)
@@ -388,7 +386,7 @@ impl Query {
         let (tx_index, height) = self.resolve_tx(txid)?;
         let first_tx = self
             .indexer()
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_one(height)

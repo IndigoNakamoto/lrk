@@ -71,16 +71,14 @@ impl BlockAddresses {
         self.lookups
             .sort_unstable_by_key(|lookup| (lookup.output_type, lookup.hash));
 
-        let stores = &processor.stores.addr_type_to_addr_hash_to_addr_index;
         let lengths = &*processor.lengths;
 
         self.lookups
             .par_iter_mut()
             .try_for_each(|lookup| -> Result<()> {
-                lookup.type_index = stores
-                    .get_unwrap(lookup.output_type)
-                    .get(&lookup.hash)?
-                    .map(|type_index| *type_index)
+                lookup.type_index = processor
+                    .stores
+                    .addr_index(lookup.output_type, &lookup.hash)?
                     .filter(|type_index| *type_index < lengths.to_type_index(lookup.output_type));
                 Ok(())
             })?;

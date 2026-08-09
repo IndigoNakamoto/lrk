@@ -118,6 +118,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use brk_indexer::Indexer;
+    use brk_reader::Reader;
+    use brk_rpc::{Auth, Client};
     use brk_traversable::Traversable;
     use vecdb::{AnyVec, ReadableVec};
 
@@ -135,7 +137,9 @@ mod tests {
             std::process::id()
         ));
 
-        let indexer = Indexer::forced_import(&path).unwrap();
+        let client = Client::new("http://127.0.0.1:1", Auth::None).unwrap();
+        let reader = Reader::new_without_rlimit(path.join("blocks"), &client);
+        let indexer = Indexer::import(&path, &reader).unwrap();
         let indexes = indexes::Vecs::forced_import(&path, Version::ONE, &indexer).unwrap();
         let lookback = LookbackVecs::new(
             Version::ONE,

@@ -168,9 +168,9 @@ impl Iterator for Iter {
                     v
                 })
                 .map(Ok)
-            {
-                return Some(item);
-            }
+        {
+            return Some(item);
+        }
 
         if !self.index_initialized {
             // Lazily initialize the index iterator here (not in `new`) so callers can set bounds
@@ -221,9 +221,9 @@ impl Iterator for Iter {
                             v
                         })
                         .map(Ok)
-                    {
-                        return Some(item);
-                    }
+                {
+                    return Some(item);
+                }
 
                 // Nothing left to serve; drop both buffers so the iterator can be reused safely.
                 self.lo_data_block = None;
@@ -290,9 +290,9 @@ impl DoubleEndedIterator for Iter {
                     v
                 })
                 .map(Ok)
-            {
-                return Some(item);
-            }
+        {
+            return Some(item);
+        }
 
         if !self.index_initialized {
             // Mirror forward iteration: initialize lazily so bounds can be applied up-front. The
@@ -307,13 +307,12 @@ impl DoubleEndedIterator for Iter {
                 true
             };
 
-            if ok
-                && let Some(bound) = &self.range.1 {
-                    let key = match bound {
-                        Bound::Included(k) | Bound::Excluded(k) => k,
-                    };
-                    ok = self.index_iter.seek_upper(key, u64::MAX);
-                }
+            if ok && let Some(bound) = &self.range.1 {
+                let key = match bound {
+                    Bound::Included(k) | Bound::Excluded(k) => k,
+                };
+                ok = self.index_iter.seek_upper(key, u64::MAX);
+            }
 
             self.index_initialized = true;
 
@@ -337,9 +336,9 @@ impl DoubleEndedIterator for Iter {
                             v
                         })
                         .map(Ok)
-                    {
-                        return Some(item);
-                    }
+                {
+                    return Some(item);
+                }
 
                 // Nothing left to produce; reset both buffers to keep the iterator reusable.
                 self.lo_data_block = None;

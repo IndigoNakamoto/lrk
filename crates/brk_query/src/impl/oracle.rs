@@ -230,8 +230,7 @@ impl Query {
         let indexer = self.indexer();
         let safe_height = safe.height.to_usize();
         let total_outputs = safe.txout_index.to_usize();
-        let first_txout_index = &indexer.vecs.outputs.first_txout_index;
-
+        let first_txout_index = &indexer.vecs().outputs.first_txout_index;
         let out_start = first_txout_index
             .collect_one_at(range.start)
             .unwrap()
@@ -245,7 +244,7 @@ impl Query {
 
         let mut hist = HistogramRaw::zeros();
         indexer
-            .vecs
+            .vecs()
             .outputs
             .value
             .for_each_range_at(out_start, out_end, |sats| {

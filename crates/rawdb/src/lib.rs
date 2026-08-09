@@ -53,7 +53,7 @@ pub const GiB: usize = 1024 * 1024 * 1024;
 #[must_use = "Database should be stored to keep the database open"]
 pub struct Database(Arc<DatabaseInner>);
 
-/// Lock ordering: layout → regions → mmap → file → meta → dirty_bounds.
+/// Lock ordering: layout → regions → mmap → file → meta → dirty_ranges.
 struct DatabaseInner {
     path: PathBuf,
     name: String,
@@ -312,15 +312,15 @@ impl Database {
 
     /// Flushes all dirty data and metadata to disk. Returns number of flushed regions.
     pub fn flush(&self) -> Result<usize> {
-        let dirty_regions: Vec<(Region, Option<(usize, usize)>)> = self
+        let dirty_regions: Vec<(Region, Vec<(usize, usize)>)> = self
             .regions()
             .index_to_region()
             .iter()
             .flatten()
             .filter_map(|r| {
-                let bounds = r.take_dirty_bounds();
-                if bounds.is_some() || r.meta().needs_flush() {
-                    Some((r.clone(), bounds))
+                let ranges = r.take_dirty_ranges();
+                if !ranges.is_empty() || r.meta().needs_flush() {
+                    Some((r.clone(), ranges))
                 } else {
                     None
                 }
@@ -333,27 +333,80 @@ impl Database {
             return Ok(0);
         }
 
-        let (flush_start, flush_end) = dirty_regions
+        let mut flush_ranges = dirty_regions
             .iter()
-            .filter_map(|(r, bounds)| {
-                let (min, max) = (*bounds)?;
-                let region_start = r.meta().start();
-                Some((region_start + min, region_start + max))
+            .filter(|(region, _)| region.uses_sparse_flush())
+            .flat_map(|(region, ranges)| {
+                let region_start = region.meta().start();
+                ranges
+                    .iter()
+                    .map(move |&(start, end)| (region_start + start, region_start + end))
             })
-            .fold((usize::MAX, 0usize), |(min_s, max_e), (s, e)| {
-                (min_s.min(s), max_e.max(e))
+            .collect::<Vec<_>>();
+
+        let (regular_start, regular_end) = dirty_regions
+            .iter()
+            .filter(|(region, _)| !region.uses_sparse_flush())
+            .flat_map(|(region, ranges)| {
+                let region_start = region.meta().start();
+                ranges
+                    .iter()
+                    .map(move |&(start, end)| (region_start + start, region_start + end))
+            })
+            .fold((usize::MAX, 0), |(min, max), (start, end)| {
+                (min.min(start), max.max(end))
             });
 
-        if flush_start < flush_end {
-            let mmap = self.mmap();
-            if let Err(e) = mmap.flush_async_range(flush_start, flush_end - flush_start) {
-                drop(mmap);
-                for (region, bounds) in dirty_regions {
-                    if let Some((min, max)) = bounds {
-                        region.restore_dirty_bounds(min, max);
-                    }
+        if regular_start < regular_end {
+            let mut cursor = regular_start;
+            let mut sparse_regions = self
+                .regions()
+                .index_to_region()
+                .iter()
+                .flatten()
+                .filter(|region| region.uses_sparse_flush())
+                .map(|region| {
+                    let meta = region.meta();
+                    (meta.start(), meta.start() + meta.reserved())
+                })
+                .collect::<Vec<_>>();
+            sparse_regions.sort_unstable();
+            for (start, end) in sparse_regions {
+                if end <= cursor || start >= regular_end {
+                    continue;
                 }
-                return Err(e.into());
+                if cursor < start {
+                    flush_ranges.push((cursor, start.min(regular_end)));
+                }
+                cursor = cursor.max(end);
+            }
+            if cursor < regular_end {
+                flush_ranges.push((cursor, regular_end));
+            }
+        }
+
+        flush_ranges.sort_unstable();
+        let mut merged_ranges: Vec<(usize, usize)> = Vec::with_capacity(flush_ranges.len());
+        for (start, end) in flush_ranges {
+            if let Some((_, previous_end)) = merged_ranges.last_mut()
+                && start <= *previous_end
+            {
+                *previous_end = (*previous_end).max(end);
+            } else {
+                merged_ranges.push((start, end));
+            }
+        }
+
+        if !merged_ranges.is_empty() {
+            let mmap = self.mmap();
+            for &(start, end) in &merged_ranges {
+                if let Err(error) = mmap.flush_async_range(start, end - start) {
+                    drop(mmap);
+                    for (region, ranges) in dirty_regions {
+                        region.restore_dirty_ranges(&ranges);
+                    }
+                    return Err(error.into());
+                }
             }
         }
 

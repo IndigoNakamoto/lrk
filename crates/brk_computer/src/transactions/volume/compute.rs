@@ -20,7 +20,7 @@ impl Vecs {
         self.transfer_volume.compute_filtered_from_indexes(
             starting_height,
             prices,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
             &fees_vecs.input_value,
             |sats| !sats.is_max(),

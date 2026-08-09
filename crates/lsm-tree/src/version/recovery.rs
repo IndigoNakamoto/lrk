@@ -89,8 +89,6 @@ pub fn recover(folder: &Path) -> crate::Result<Recovery> {
     }
 
     let tree_type = {
-        
-
         toc
             .section(b"tree_type")
             .ok_or(crate::Error::Unrecoverable)

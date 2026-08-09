@@ -15,6 +15,8 @@ pub struct ImportOptions<'a> {
     pub version: Version,
     /// Number of stamped change files to keep for rollback support (0 to disable).
     pub saved_stamped_changes: u16,
+    /// Overrides the index type's initial value capacity when set.
+    pub initial_capacity: Option<usize>,
 }
 
 impl<'a> ImportOptions<'a> {
@@ -24,11 +26,17 @@ impl<'a> ImportOptions<'a> {
             name,
             version,
             saved_stamped_changes: 0,
+            initial_capacity: None,
         }
     }
 
     pub fn with_saved_stamped_changes(mut self, num: u16) -> Self {
         self.saved_stamped_changes = num;
+        self
+    }
+
+    pub fn with_initial_capacity(mut self, capacity: usize) -> Self {
+        self.initial_capacity = Some(capacity);
         self
     }
 }

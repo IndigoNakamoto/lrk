@@ -20,7 +20,7 @@ impl Vecs {
         self.size.compute(
             starting_height,
             &window_starts,
-            &indexer.vecs.blocks.total,
+            &indexer.vecs().blocks.total,
             exit,
         )?;
 

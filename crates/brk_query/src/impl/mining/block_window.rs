@@ -94,7 +94,7 @@ impl BlockWindow {
 
         let timestamps: Vec<Timestamp> = query
             .indexer()
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_range(start, end);

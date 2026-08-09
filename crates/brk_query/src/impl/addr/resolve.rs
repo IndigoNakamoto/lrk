@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use brk_error::{Error, OptionData, Result};
+use brk_error::{Error, Result};
 use brk_types::{Addr, AddrBytes, AddrHash, OutputType, TypeIndex};
 
 use crate::Query;
@@ -22,12 +22,8 @@ impl Query {
         hash: &AddrHash,
     ) -> Result<TypeIndex> {
         self.indexer()
-            .stores
-            .addr_type_to_addr_hash_to_addr_index
-            .get(output_type)
-            .data()?
-            .get(hash)?
-            .map(|cow| cow.into_owned())
+            .stores()
+            .addr_index(output_type, hash)?
             .ok_or(Error::UnknownAddr)
     }
 }

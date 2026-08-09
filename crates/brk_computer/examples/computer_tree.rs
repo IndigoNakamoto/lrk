@@ -2,6 +2,8 @@ use std::{env, fs, path::Path};
 
 use brk_computer::Computer;
 use brk_indexer::Indexer;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use brk_traversable::{Traversable, TreeNode};
 
 pub fn main() -> color_eyre::Result<()> {
@@ -10,12 +12,14 @@ pub fn main() -> color_eyre::Result<()> {
     let tmp = env::temp_dir().join("brk_tree_gen");
     fs::create_dir_all(&tmp)?;
 
-    let indexer = Indexer::forced_import(&tmp)?;
+    let client = Client::new("http://127.0.0.1:1", Auth::None)?;
+    let reader = Reader::new_without_rlimit(tmp.join("blocks"), &client);
+    let indexer = Indexer::import(&tmp, &reader)?;
     let computer = Computer::forced_import(&tmp, &indexer)?;
 
     let tree = TreeNode::Branch(
         [
-            ("indexed".to_string(), indexer.vecs.to_tree_node()),
+            ("indexed".to_string(), indexer.vecs().to_tree_node()),
             ("computed".to_string(), computer.to_tree_node()),
         ]
         .into_iter()

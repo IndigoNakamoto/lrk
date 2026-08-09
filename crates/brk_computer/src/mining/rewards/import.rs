@@ -22,9 +22,9 @@ impl Vecs {
         cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let coinbase_version = version
-            + indexer.vecs.transactions.first_txout_index.version()
+            + indexer.vecs().transactions.first_txout_index.version()
             + indexes.tx_index.output_count.version()
-            + indexer.vecs.outputs.value.version();
+            + indexer.vecs().outputs.value.version();
 
         let coinbase = ValuePerBlockCumulativeRolling::forced_import(
             db,

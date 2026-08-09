@@ -4,6 +4,7 @@ use brk_traversable::Traversable;
 use brk_types::Age;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
+use vecdb::{ColumnId, VecValue, Version};
 
 use super::{CohortName, Filter, TimeFilter};
 
@@ -33,6 +34,135 @@ pub const HOURS_12Y: usize = 24 * 12 * 365;
 pub const HOURS_15Y: usize = 24 * 15 * 365;
 
 pub const AGE_RANGE_COUNT: usize = 23;
+pub const STH_AGE_RANGE_COUNT: usize = 8;
+pub const LTH_AGE_RANGE_COUNT: usize = AGE_RANGE_COUNT - STH_AGE_RANGE_COUNT;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum AgeRangeId {
+    Under1H,
+    From1HTo1D,
+    From1DTo1W,
+    From1WTo1M,
+    From1MTo2M,
+    From2MTo3M,
+    From3MTo4M,
+    From4MTo5M,
+    From5MTo6M,
+    From6MTo9M,
+    From9MTo1Y,
+    From1YTo18M,
+    From18MTo2Y,
+    From2YTo3Y,
+    From3YTo4Y,
+    From4YTo5Y,
+    From5YTo6Y,
+    From6YTo7Y,
+    From7YTo8Y,
+    From8YTo10Y,
+    From10YTo12Y,
+    From12YTo15Y,
+    Over15Y,
+}
+
+pub const AGE_RANGE_IDS: [AgeRangeId; AGE_RANGE_COUNT] = [
+    AgeRangeId::Under1H,
+    AgeRangeId::From1HTo1D,
+    AgeRangeId::From1DTo1W,
+    AgeRangeId::From1WTo1M,
+    AgeRangeId::From1MTo2M,
+    AgeRangeId::From2MTo3M,
+    AgeRangeId::From3MTo4M,
+    AgeRangeId::From4MTo5M,
+    AgeRangeId::From5MTo6M,
+    AgeRangeId::From6MTo9M,
+    AgeRangeId::From9MTo1Y,
+    AgeRangeId::From1YTo18M,
+    AgeRangeId::From18MTo2Y,
+    AgeRangeId::From2YTo3Y,
+    AgeRangeId::From3YTo4Y,
+    AgeRangeId::From4YTo5Y,
+    AgeRangeId::From5YTo6Y,
+    AgeRangeId::From6YTo7Y,
+    AgeRangeId::From7YTo8Y,
+    AgeRangeId::From8YTo10Y,
+    AgeRangeId::From10YTo12Y,
+    AgeRangeId::From12YTo15Y,
+    AgeRangeId::Over15Y,
+];
+
+pub const STH_AGE_RANGE_IDS: [AgeRangeId; STH_AGE_RANGE_COUNT] = [
+    AgeRangeId::Under1H,
+    AgeRangeId::From1HTo1D,
+    AgeRangeId::From1DTo1W,
+    AgeRangeId::From1WTo1M,
+    AgeRangeId::From1MTo2M,
+    AgeRangeId::From2MTo3M,
+    AgeRangeId::From3MTo4M,
+    AgeRangeId::From4MTo5M,
+];
+
+pub const LTH_AGE_RANGE_IDS: [AgeRangeId; LTH_AGE_RANGE_COUNT] = [
+    AgeRangeId::From5MTo6M,
+    AgeRangeId::From6MTo9M,
+    AgeRangeId::From9MTo1Y,
+    AgeRangeId::From1YTo18M,
+    AgeRangeId::From18MTo2Y,
+    AgeRangeId::From2YTo3Y,
+    AgeRangeId::From3YTo4Y,
+    AgeRangeId::From4YTo5Y,
+    AgeRangeId::From5YTo6Y,
+    AgeRangeId::From6YTo7Y,
+    AgeRangeId::From7YTo8Y,
+    AgeRangeId::From8YTo10Y,
+    AgeRangeId::From10YTo12Y,
+    AgeRangeId::From12YTo15Y,
+    AgeRangeId::Over15Y,
+];
+
+impl ColumnId for AgeRangeId {
+    type Row<T>
+        = [T; AGE_RANGE_COUNT]
+    where
+        T: VecValue;
+
+    const VERSION: Version = Version::ONE;
+    const ALL: &'static [Self] = &AGE_RANGE_IDS;
+
+    #[inline]
+    fn index(self) -> usize {
+        self as usize
+    }
+
+    #[inline]
+    fn get<T: VecValue>(self, row: &Self::Row<T>) -> &T {
+        &row[self as usize]
+    }
+
+    #[inline]
+    fn get_mut<T: VecValue>(self, row: &mut Self::Row<T>) -> &mut T {
+        &mut row[self as usize]
+    }
+
+    #[inline]
+    fn from_fn<T, F>(mut f: F) -> Self::Row<T>
+    where
+        T: VecValue,
+        F: FnMut(Self) -> T,
+    {
+        std::array::from_fn(|index| f(AGE_RANGE_IDS[index]))
+    }
+
+    #[inline]
+    fn map<T, U, F>(row: Self::Row<T>, f: F) -> Self::Row<U>
+    where
+        T: VecValue,
+        U: VecValue,
+        F: FnMut(T) -> U,
+    {
+        row.map(f)
+    }
+}
 
 /// Age boundaries in hours. Defines the cohort ranges:
 /// [0, 1h), [1h, 1d), [1d, 1w), [1w, 1m), ..., [15y, ∞)
@@ -441,6 +571,31 @@ mod tests {
 
         for adjacent in ranges.windows(2) {
             assert_eq!(adjacent[0].end, adjacent[1].start);
+        }
+    }
+
+    #[test]
+    fn column_ids_match_storage_order_and_term_split() {
+        assert_eq!(AgeRangeId::ALL, &AGE_RANGE_IDS);
+        assert_eq!(
+            STH_AGE_RANGE_IDS.len() + LTH_AGE_RANGE_IDS.len(),
+            AGE_RANGE_COUNT
+        );
+        assert_eq!(
+            STH_AGE_RANGE_IDS.as_slice(),
+            &AGE_RANGE_IDS[..STH_AGE_RANGE_COUNT]
+        );
+        assert_eq!(
+            LTH_AGE_RANGE_IDS.as_slice(),
+            &AGE_RANGE_IDS[STH_AGE_RANGE_COUNT..]
+        );
+        assert_eq!(STH_AGE_RANGE_IDS.last(), Some(&AgeRangeId::From4MTo5M));
+        assert_eq!(LTH_AGE_RANGE_IDS.first(), Some(&AgeRangeId::From5MTo6M));
+
+        let row = AgeRangeId::from_fn(|column| column.index());
+        for (index, &column) in AGE_RANGE_IDS.iter().enumerate() {
+            assert_eq!(column.index(), index);
+            assert_eq!(*column.get(&row), index);
         }
     }
 

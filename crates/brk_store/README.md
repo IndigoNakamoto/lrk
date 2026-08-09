@@ -8,22 +8,24 @@ Persist and query Bitcoin index data (address→outputs, txid→height, etc.) wi
 
 ## Key Features
 
-- **Workload-optimized configs**: `Kind::Random` (bloom filters, pinned blocks), `Kind::Recent` (point-read optimized), `Kind::Sequential` (scan-friendly), `Kind::Vec` (append-heavy)
-- **Write batching**: Accumulate puts/deletes in memory, commit atomically
-- **Tiered caching**: In-memory LRU cache layers before hitting disk
-- **Version management**: Automatic schema versioning with `StoreMeta`
-- **Height-aware operations**: `insert_if_needed` / `remove_if_needed` skip work at heights already processed
+- **Workload-optimized configs**: `Kind::Random` (bloom filters, pinned blocks), `Kind::Recent` (point-read optimized), and `Kind::Vec` (append-heavy)
+- **Write batching**: Accumulate puts/deletes in memory, then move them into an owned ingestion batch
+- **Tiered caching**: Optional bounded in-memory batches before hitting disk
+- **Version management**: Automatic schema-version validation when opening a store
 
 ## Core API
 
 ```rust,ignore
-let store: Store<Txid, Height> = Store::import(
+let mut store: Store<Txid, Height> = Store::import(
     &db, &path, "txid_to_height",
     Version::new(1), Mode::Any, Kind::Random
 )?;
 
 store.insert(txid, height);
-store.commit(height)?;
+if let Some(ingest) = store.take_pending_ingest() {
+    ingest()?;
+}
+db.persist(PersistMode::SyncData)?;
 
 let height = store.get(&txid)?;
 ```
@@ -34,7 +36,6 @@ let height = store.get(&txid)?;
 |------|----------|--------------|
 | `Random` | UTXO lookups, txid queries | Aggressive bloom filters |
 | `Recent` | Mempool, recent blocks | Point-read hints |
-| `Sequential` | Full chain scans | Minimal indexing |
 | `Vec` | Append-only series | Large memtables, no filters |
 
 ## Built On

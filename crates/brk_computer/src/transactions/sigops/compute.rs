@@ -15,9 +15,9 @@ impl Vecs {
     ) -> Result<()> {
         self.total.compute_cumulative_sum_from_indexes(
             indexer.safe_lengths().height,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
-            &indexer.vecs.transactions.total_sigop_cost,
+            &indexer.vecs().transactions.total_sigop_cost,
             |value| StoredU64::from(u64::from(u32::from(value))),
             exit,
         )

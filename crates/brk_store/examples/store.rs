@@ -1,20 +1,26 @@
-// use std::path::Path;
+use std::path::Path;
 
 use brk_error::Result;
+use brk_store::{Kind, Mode, Store, open_database};
+use brk_types::{Height, TxIndex, Version};
+use fjall::PersistMode;
 
 fn main() -> Result<()> {
-    // let p = Path::new("./examples/_fjall");
+    let path = Path::new("./examples/_fjall");
+    let db = open_database(path)?;
+    let mut store: Store<TxIndex, Height> =
+        Store::import(&db, path, "numbers", Version::ZERO, Mode::Any, Kind::Random)?;
 
-    // let _keyspace = brk_store::open_keyspace(p)?;
+    let key = TxIndex::new(10);
+    let value = Height::new(50);
+    store.insert(key, value);
 
-    // let mut store: Store<usize, usize> =
-    //     brk_store::Store::import(&keyspace, p, "n", Version::ZERO, None)?;
+    if let Some(ingest) = store.take_pending_ingest() {
+        ingest()?;
+    }
+    db.persist(PersistMode::SyncData)?;
 
-    // store.insert_if_needed(Sats::new(10), Sats::FIFTY_BTC, Height::ZERO);
-
-    // store.commit(Height::ZERO)?;
-
-    // store.persist()?;
+    assert_eq!(store.get(&key)?.as_deref(), Some(&value));
 
     Ok(())
 }

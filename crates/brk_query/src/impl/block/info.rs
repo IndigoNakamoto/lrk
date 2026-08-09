@@ -85,7 +85,7 @@ impl Query {
         if height >= self.safe_lengths().height {
             return Err(Error::OutOfRange("Block height out of range".into()));
         }
-        self.indexer().vecs.blocks.blockhash.get(height).data()
+        self.indexer().vecs().blocks.blockhash.get(height).data()
     }
 
     /// Most recent `count` blocks ending at `start_height` (default tip),
@@ -122,12 +122,16 @@ impl Query {
 
         // Bulk read all indexed data. `end <= safe.height` ⇒ these per-block
         // vecs are populated for `[begin, end)`, so short reads are impossible.
-        let blockhashes = indexer.vecs.blocks.blockhash.collect_range_at(begin, end);
-        let difficulties = indexer.vecs.blocks.difficulty.collect_range_at(begin, end);
-        let timestamps = indexer.vecs.blocks.timestamp.collect_range_at(begin, end);
-        let sizes = indexer.vecs.blocks.total.collect_range_at(begin, end);
-        let weights = indexer.vecs.blocks.weight.collect_range_at(begin, end);
-        let positions = indexer.vecs.blocks.position.collect_range_at(begin, end);
+        let blockhashes = indexer.vecs().blocks.blockhash.collect_range_at(begin, end);
+        let difficulties = indexer
+            .vecs()
+            .blocks
+            .difficulty
+            .collect_range_at(begin, end);
+        let timestamps = indexer.vecs().blocks.timestamp.collect_range_at(begin, end);
+        let sizes = indexer.vecs().blocks.total.collect_range_at(begin, end);
+        let weights = indexer.vecs().blocks.weight.collect_range_at(begin, end);
+        let positions = indexer.vecs().blocks.position.collect_range_at(begin, end);
         debug_assert_eq!(blockhashes.len(), count);
         debug_assert_eq!(difficulties.len(), count);
         debug_assert_eq!(timestamps.len(), count);
@@ -139,7 +143,7 @@ impl Query {
         // exclusive height bound. Tip block falls back to `tx_index_len` in the loop.
         let tx_index_end = (end + 1).min(height_len);
         let first_tx_indexes: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(begin, tx_index_end);
@@ -148,7 +152,7 @@ impl Query {
         // Bulk read median time window
         let median_start = begin.saturating_sub(10);
         let median_timestamps: Vec<Timestamp> = indexer
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_range_at(median_start, end);
@@ -210,12 +214,16 @@ impl Query {
         let all_pools = pools();
 
         // Bulk read all indexed data
-        let blockhashes = indexer.vecs.blocks.blockhash.collect_range_at(begin, end);
-        let difficulties = indexer.vecs.blocks.difficulty.collect_range_at(begin, end);
-        let timestamps = indexer.vecs.blocks.timestamp.collect_range_at(begin, end);
-        let sizes = indexer.vecs.blocks.total.collect_range_at(begin, end);
-        let weights = indexer.vecs.blocks.weight.collect_range_at(begin, end);
-        let positions = indexer.vecs.blocks.position.collect_range_at(begin, end);
+        let blockhashes = indexer.vecs().blocks.blockhash.collect_range_at(begin, end);
+        let difficulties = indexer
+            .vecs()
+            .blocks
+            .difficulty
+            .collect_range_at(begin, end);
+        let timestamps = indexer.vecs().blocks.timestamp.collect_range_at(begin, end);
+        let sizes = indexer.vecs().blocks.total.collect_range_at(begin, end);
+        let weights = indexer.vecs().blocks.weight.collect_range_at(begin, end);
+        let positions = indexer.vecs().blocks.position.collect_range_at(begin, end);
         let pool_slugs = computer.pools.pool.collect_range_at(begin, end);
         let pool_block_numbers = computer
             .pools
@@ -226,16 +234,24 @@ impl Query {
         // exclusive height bound. Tip block falls back to `tx_index_len` in the loop.
         let tx_index_end = (end + 1).min(height_len);
         let first_tx_indexes: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(begin, tx_index_end);
 
         // Bulk read segwit stats
-        let segwit_txs = indexer.vecs.blocks.segwit_txs.collect_range_at(begin, end);
-        let segwit_sizes = indexer.vecs.blocks.segwit_size.collect_range_at(begin, end);
+        let segwit_txs = indexer
+            .vecs()
+            .blocks
+            .segwit_txs
+            .collect_range_at(begin, end);
+        let segwit_sizes = indexer
+            .vecs()
+            .blocks
+            .segwit_size
+            .collect_range_at(begin, end);
         let segwit_weights = indexer
-            .vecs
+            .vecs()
             .blocks
             .segwit_weight
             .collect_range_at(begin, end);
@@ -310,7 +326,7 @@ impl Query {
         // Bulk read median time window
         let median_start = begin.saturating_sub(10);
         let median_timestamps = indexer
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_range_at(median_start, end);
@@ -515,15 +531,13 @@ impl Query {
         let indexer = self.indexer();
         let prefix = BlockHashPrefix::from(hash);
         let height = indexer
-            .stores
-            .blockhash_prefix_to_height
-            .get(&prefix)?
-            .map(|h| *h)
+            .stores()
+            .block_height(&prefix)?
             .ok_or(Error::NotFound("Block not found".into()))?;
         if height >= self.safe_lengths().height {
             return Err(Error::NotFound("Block not found".into()));
         }
-        match indexer.vecs.blocks.blockhash.get(height) {
+        match indexer.vecs().blocks.blockhash.get(height) {
             Some(stored) if &stored == hash => Ok(height),
             _ => Err(Error::NotFound("Block not found".into())),
         }
@@ -536,7 +550,7 @@ impl Query {
     pub fn read_block_header(&self, height: Height) -> Result<bitcoin::block::Header> {
         let position = self
             .indexer()
-            .vecs
+            .vecs()
             .blocks
             .position
             .collect_one(height)

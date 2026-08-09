@@ -17,13 +17,13 @@ impl Vecs {
         let height_vec = &mut self.op_return.cumulative.sats.height;
 
         // Validate computed versions against dependencies
-        let dep_version = indexer.vecs.outputs.first_txout_index.version()
-            + indexer.vecs.outputs.output_type.version()
-            + indexer.vecs.outputs.value.version();
+        let dep_version = indexer.vecs().outputs.first_txout_index.version()
+            + indexer.vecs().outputs.output_type.version()
+            + indexer.vecs().outputs.value.version();
         height_vec.validate_computed_version_or_reset(dep_version)?;
 
         // Get target height
-        let target_len = indexer.vecs.outputs.first_txout_index.len();
+        let target_len = indexer.vecs().outputs.first_txout_index.len();
         if target_len == 0 {
             self.op_return
                 .compute_cents(starting_lengths.height, prices, exit)?;
@@ -38,9 +38,10 @@ impl Vecs {
         if starting_height <= target_height {
             // Pre-collect height-indexed data
             let first_txout_indexes: Vec<TxOutIndex> =
-                indexer.vecs.outputs.first_txout_index.collect_range_at(
+                indexer.vecs().outputs.first_txout_index.collect_range_at(
                     starting_height.to_usize(),
-                    target_height.to_usize() + 2.min(indexer.vecs.outputs.first_txout_index.len()),
+                    target_height.to_usize()
+                        + 2.min(indexer.vecs().outputs.first_txout_index.len()),
                 );
 
             let mut output_types_buf: Vec<OutputType> = Vec::new();
@@ -62,19 +63,19 @@ impl Vecs {
                     if let Some(&next) = first_txout_indexes.get(local_idx + 1) {
                         next
                     } else {
-                        TxOutIndex::from(indexer.vecs.outputs.value.len())
+                        TxOutIndex::from(indexer.vecs().outputs.value.len())
                     };
 
                 let out_start = first_txout_index.to_usize();
                 let out_end = next_first_txout_index.to_usize();
 
                 // Pre-collect both vecs into reusable buffers
-                indexer.vecs.outputs.output_type.collect_range_into_at(
+                indexer.vecs().outputs.output_type.collect_range_into_at(
                     out_start,
                     out_end,
                     &mut output_types_buf,
                 );
-                indexer.vecs.outputs.value.collect_range_into_at(
+                indexer.vecs().outputs.value.collect_range_into_at(
                     out_start,
                     out_end,
                     &mut values_buf,

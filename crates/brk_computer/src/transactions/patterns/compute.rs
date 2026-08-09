@@ -16,18 +16,18 @@ impl Vecs {
         indexes: &indexes::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        let features = &indexer.vecs.transaction_features;
+        let features = &indexer.vecs().transaction_features;
         let version = indexes.tx_index.input_count.version()
             + indexes.tx_index.output_count.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.first_txin_index.version()
-            + indexer.vecs.transactions.first_txout_index.version()
+            + indexer.vecs().transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_txin_index.version()
+            + indexer.vecs().transactions.first_txout_index.version()
             + input_values.version()
-            + indexer.vecs.inputs.output_type.version()
-            + indexer.vecs.inputs.type_index.version()
-            + indexer.vecs.outputs.value.version()
-            + indexer.vecs.outputs.output_type.version()
-            + indexer.vecs.outputs.type_index.version()
+            + indexer.vecs().inputs.output_type.version()
+            + indexer.vecs().inputs.type_index.version()
+            + indexer.vecs().outputs.value.version()
+            + indexer.vecs().outputs.output_type.version()
+            + indexer.vecs().outputs.type_index.version()
             + features.has_op_return.version()
             + features.has_inscription.version()
             + indexes.height.tx_index_count.version();
@@ -70,7 +70,7 @@ impl Vecs {
             return Ok(());
         }
 
-        let first_tx = &indexer.vecs.transactions.first_tx_index;
+        let first_tx = &indexer.vecs().transactions.first_tx_index;
         let start_tx = first_tx.collect_one_at(start_height).unwrap().to_usize();
         self.is_coinjoin.truncate_if_needed_at(start_tx)?;
         self.is_consolidation.truncate_if_needed_at(start_tx)?;
@@ -84,14 +84,14 @@ impl Vecs {
             .truncate_if_needed_at(start_height)?;
 
         let first_txin = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_txin_index
             .collect_one_at(start_tx)
             .unwrap()
             .to_usize();
         let first_txout = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_txout_index
             .collect_one_at(start_tx)
@@ -101,11 +101,11 @@ impl Vecs {
         let mut input_count = indexes.tx_index.input_count.cursor();
         let mut output_count = indexes.tx_index.output_count.cursor();
         let mut input_value = input_values.cursor();
-        let mut input_type = indexer.vecs.inputs.output_type.cursor();
-        let mut input_type_index = indexer.vecs.inputs.type_index.cursor();
-        let mut output_value = indexer.vecs.outputs.value.reader().cursor();
-        let mut output_type = indexer.vecs.outputs.output_type.reader().cursor();
-        let mut output_type_index = indexer.vecs.outputs.type_index.reader().cursor();
+        let mut input_type = indexer.vecs().inputs.output_type.cursor();
+        let mut input_type_index = indexer.vecs().inputs.type_index.cursor();
+        let mut output_value = indexer.vecs().outputs.value.reader().cursor();
+        let mut output_type = indexer.vecs().outputs.output_type.reader().cursor();
+        let mut output_type_index = indexer.vecs().outputs.type_index.reader().cursor();
         let mut has_op_return = features.has_op_return.cursor();
         let mut has_inscription = features.has_inscription.cursor();
         let mut tx_count = indexes.height.tx_index_count.cursor();

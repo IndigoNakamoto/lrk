@@ -26,7 +26,7 @@ impl Vecs {
                 db,
                 "block_vbytes",
                 version,
-                &indexer.vecs.blocks.weight,
+                &indexer.vecs().blocks.weight,
                 block_vbytes,
                 indexes,
                 cached_starts,

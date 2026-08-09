@@ -55,7 +55,7 @@ impl AppState {
         self.sync(|q| {
             let height = q.height();
             q.indexer()
-                .vecs
+                .vecs()
                 .blocks
                 .timestamp
                 .collect_one(height)

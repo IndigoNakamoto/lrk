@@ -18,28 +18,28 @@ impl Vecs {
             identity: LazyVec::init(
                 "tx_index",
                 version,
-                indexer.vecs.transactions.txid.read_only_boxed_clone(),
+                indexer.vecs().transactions.txid.read_only_boxed_clone(),
                 |index, _| index,
             ),
             input_count: LazyIndexCountVec::new(
                 "input_count",
                 version,
                 indexer
-                    .vecs
+                    .vecs()
                     .transactions
                     .first_txin_index
                     .read_only_boxed_clone(),
-                indexer.vecs.inputs.outpoint.read_only_boxed_clone(),
+                indexer.vecs().inputs.outpoint.read_only_boxed_clone(),
             ),
             output_count: LazyIndexCountVec::new(
                 "output_count",
                 version,
                 indexer
-                    .vecs
+                    .vecs()
                     .transactions
                     .first_txout_index
                     .read_only_boxed_clone(),
-                indexer.vecs.outputs.value.read_only_boxed_clone(),
+                indexer.vecs().outputs.value.read_only_boxed_clone(),
             ),
         }
     }

@@ -383,29 +383,29 @@ impl Vecs {
             + [
                 prices.spot.cents.height.version(),
                 indexes.timestamp.monotonic.version(),
-                indexer.vecs.transactions.first_tx_index.version(),
-                indexer.vecs.outputs.first_txout_index.version(),
-                indexer.vecs.inputs.first_txin_index.version(),
+                indexer.vecs().transactions.first_tx_index.version(),
+                indexer.vecs().outputs.first_txout_index.version(),
+                indexer.vecs().inputs.first_txin_index.version(),
                 transactions.count.total.block.version(),
                 outputs.count.total.sum.version(),
                 inputs.count.sum.version(),
                 indexes.tx_index.output_count.version(),
                 indexes.tx_index.input_count.version(),
-                indexer.vecs.outputs.value.version(),
-                indexer.vecs.outputs.output_type.version(),
-                indexer.vecs.outputs.type_index.version(),
+                indexer.vecs().outputs.value.version(),
+                indexer.vecs().outputs.output_type.version(),
+                indexer.vecs().outputs.type_index.version(),
                 inputs.value.version(),
-                indexer.vecs.inputs.outpoint.version(),
-                indexer.vecs.inputs.output_type.version(),
-                indexer.vecs.inputs.type_index.version(),
-                indexer.vecs.addrs.p2pk65.first_index.version(),
-                indexer.vecs.addrs.p2pk33.first_index.version(),
-                indexer.vecs.addrs.p2pkh.first_index.version(),
-                indexer.vecs.addrs.p2sh.first_index.version(),
-                indexer.vecs.addrs.p2wpkh.first_index.version(),
-                indexer.vecs.addrs.p2wsh.first_index.version(),
-                indexer.vecs.addrs.p2tr.first_index.version(),
-                indexer.vecs.addrs.p2a.first_index.version(),
+                indexer.vecs().inputs.outpoint.version(),
+                indexer.vecs().inputs.output_type.version(),
+                indexer.vecs().inputs.type_index.version(),
+                indexer.vecs().addrs.p2pk65.first_index.version(),
+                indexer.vecs().addrs.p2pk33.first_index.version(),
+                indexer.vecs().addrs.p2pkh.first_index.version(),
+                indexer.vecs().addrs.p2sh.first_index.version(),
+                indexer.vecs().addrs.p2wpkh.first_index.version(),
+                indexer.vecs().addrs.p2wsh.first_index.version(),
+                indexer.vecs().addrs.p2tr.first_index.version(),
+                indexer.vecs().addrs.p2a.first_index.version(),
             ]
             .into_iter()
             .sum::<Version>();
@@ -571,7 +571,7 @@ impl Vecs {
         };
 
         // 3. Get last height from indexer
-        let last_height = Height::from(indexer.vecs.blocks.blockhash.len().saturating_sub(1));
+        let last_height = Height::from(indexer.vecs().blocks.blockhash.len().saturating_sub(1));
         debug!(
             "last_height={}, starting_height={}",
             last_height, starting_height

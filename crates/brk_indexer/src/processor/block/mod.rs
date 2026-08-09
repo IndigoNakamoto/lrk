@@ -4,6 +4,7 @@ use tracing::error;
 use vecdb::{WritableVec, unlikely};
 
 use super::{BlockProcessor, transaction::ComputedTx};
+use crate::stores::IndexerStores as _;
 
 impl BlockProcessor<'_> {
     pub(crate) fn process_block_metadata(&mut self) -> Result<()> {
@@ -14,9 +15,8 @@ impl BlockProcessor<'_> {
         if unlikely(self.check_collisions)
             && self
                 .stores
-                .blockhash_prefix_to_height
-                .get(&blockhash_prefix)?
-                .is_some_and(|prev_height| *prev_height != height)
+                .block_height(&blockhash_prefix)?
+                .is_some_and(|prev_height| prev_height != height)
         {
             error!("BlockHash: {blockhash}");
             return Err(Error::Internal("BlockHash prefix collision"));
@@ -24,9 +24,7 @@ impl BlockProcessor<'_> {
 
         self.lengths.push(self.vecs);
 
-        self.stores
-            .blockhash_prefix_to_height
-            .insert(blockhash_prefix, height);
+        self.stores.insert_block_height(blockhash_prefix, height);
 
         self.vecs
             .blocks

@@ -13,8 +13,8 @@ const BATCH_SIZE: usize = SORT_MEMORY_BUDGET / (size_of::<Entry>() + size_of::<S
 impl Vecs {
     pub(super) fn compute_value(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
-        let txout_indexes = &indexer.vecs.inputs.txout_index;
-        let dep_version = txout_indexes.version() + indexer.vecs.outputs.value.version();
+        let txout_indexes = &indexer.vecs().inputs.txout_index;
+        let dep_version = txout_indexes.version() + indexer.vecs().outputs.value.version();
         self.value.validate_computed_version_or_reset(dep_version)?;
 
         let target = txout_indexes.len();
@@ -24,7 +24,7 @@ impl Vecs {
             return Ok(());
         }
 
-        let value_reader = indexer.vecs.outputs.value.reader();
+        let value_reader = indexer.vecs().outputs.value.reader();
         let mut entries = Vec::with_capacity((target - min).min(BATCH_SIZE));
         let mut values = Vec::with_capacity((target - min).min(BATCH_SIZE));
 

@@ -241,11 +241,7 @@ impl ReadBatch {
             .zip(previous_parent_prefixes.par_iter())
             .try_for_each(|read| {
                 let (read, txid_prefix) = read;
-                let store_result = processor
-                    .stores
-                    .txid_prefix_to_tx_index
-                    .get(txid_prefix)?
-                    .map(|value| *value);
+                let store_result = processor.stores.tx_index(txid_prefix)?;
 
                 let tx_index = match store_result {
                     Some(tx_index) if tx_index < current_tx_index => tx_index,

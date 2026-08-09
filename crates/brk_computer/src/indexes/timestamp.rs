@@ -125,7 +125,7 @@ impl Timestamps {
         let mut prev = None;
         self.monotonic.inner.compute_transform(
             starting_height,
-            &indexer.vecs.blocks.timestamp,
+            &indexer.vecs().blocks.timestamp,
             |(h, timestamp, this)| {
                 if prev.is_none()
                     && let Some(prev_h) = h.decremented()

@@ -358,9 +358,10 @@ impl Version {
                 .collect::<Vec<_>>();
 
             if level_idx == dest_level
-                && let Some(run) = Run::new(new_tables.to_vec()) {
-                    runs.insert(0, run);
-                }
+                && let Some(run) = Run::new(new_tables.to_vec())
+            {
+                runs.insert(0, run);
+            }
 
             let runs = optimize_runs(runs);
 
@@ -399,9 +400,10 @@ impl Version {
                 .collect::<Vec<_>>();
 
             if level_idx == dest_level
-                && let Some(run) = Run::new(affected_tables.clone()) {
-                    runs.insert(0, run);
-                }
+                && let Some(run) = Run::new(affected_tables.clone())
+            {
+                runs.insert(0, run);
+            }
 
             let runs = optimize_runs(runs);
 

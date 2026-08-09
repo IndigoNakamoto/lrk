@@ -102,13 +102,15 @@ impl Iterator for Iter {
             let mut iter = OwnedIndexBlockIter::new(index_block, IndexBlock::iter);
 
             if let Some((lo_key, lo_seqno)) = &self.lo
-                && !iter.seek_lower(lo_key, *lo_seqno) {
-                    return None;
-                }
+                && !iter.seek_lower(lo_key, *lo_seqno)
+            {
+                return None;
+            }
             if let Some((hi_key, hi_seqno)) = &self.hi
-                && !iter.seek_upper(hi_key, *hi_seqno) {
-                    return None;
-                }
+                && !iter.seek_upper(hi_key, *hi_seqno)
+            {
+                return None;
+            }
 
             let next_item = iter.next().map(Ok);
 
@@ -138,13 +140,15 @@ impl DoubleEndedIterator for Iter {
             let mut iter = OwnedIndexBlockIter::new(index_block, IndexBlock::iter);
 
             if let Some((lo_key, lo_seqno)) = &self.lo
-                && !iter.seek_lower(lo_key, *lo_seqno) {
-                    return None;
-                }
+                && !iter.seek_lower(lo_key, *lo_seqno)
+            {
+                return None;
+            }
             if let Some((hi_key, hi_seqno)) = &self.hi
-                && !iter.seek_upper(hi_key, *hi_seqno) {
-                    return None;
-                }
+                && !iter.seek_upper(hi_key, *hi_seqno)
+            {
+                return None;
+            }
 
             let next_item = iter.next_back().map(Ok);
 

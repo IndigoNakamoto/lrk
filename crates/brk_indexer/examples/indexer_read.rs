@@ -2,6 +2,8 @@ use std::{fs, path::Path};
 
 use brk_error::Result;
 use brk_indexer::Indexer;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use vecdb::ReadableVec;
 
 fn main() -> Result<()> {
@@ -10,9 +12,18 @@ fn main() -> Result<()> {
     let outputs_dir = Path::new(&std::env::var("HOME").unwrap()).join(".brk");
     fs::create_dir_all(&outputs_dir)?;
 
-    let indexer = Indexer::forced_import(&outputs_dir)?;
+    let bitcoin_dir = Client::default_bitcoin_path();
+    let client = Client::new(
+        Client::default_url(),
+        Auth::CookieFile(bitcoin_dir.join(".cookie")),
+    )?;
+    let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
+    let indexer = Indexer::import(&outputs_dir, &reader)?;
 
-    println!("{:?}", indexer.vecs.outputs.value.collect_range_at(0, 200));
+    println!(
+        "{:?}",
+        indexer.vecs().outputs.value.collect_range_at(0, 200)
+    );
 
     Ok(())
 }

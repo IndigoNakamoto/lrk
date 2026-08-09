@@ -21,9 +21,4 @@ impl BlockBuffers {
     pub(crate) fn finish_block(&mut self, blockhash: BlockHash) {
         self.tip = Some(blockhash);
     }
-
-    pub(crate) fn reset(&mut self) {
-        self.addresses.clear_cache();
-        self.tip = None;
-    }
 }

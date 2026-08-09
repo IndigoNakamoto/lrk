@@ -29,12 +29,12 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
 
         let source_version = [
-            indexer.vecs.transactions.txid.version(),
-            indexer.vecs.transactions.first_tx_index.version(),
-            indexer.vecs.outputs.first_txout_index.version(),
-            indexer.vecs.transactions.first_txout_index.version(),
-            indexer.vecs.outputs.value.version(),
-            indexer.vecs.outputs.output_type.version(),
+            indexer.vecs().transactions.txid.version(),
+            indexer.vecs().transactions.first_tx_index.version(),
+            indexer.vecs().outputs.first_txout_index.version(),
+            indexer.vecs().transactions.first_txout_index.version(),
+            indexer.vecs().outputs.value.version(),
+            indexer.vecs().outputs.output_type.version(),
         ]
         .into_iter()
         .sum();
@@ -44,7 +44,7 @@ impl Vecs {
             .inner
             .validate_computed_version_or_reset(source_version)?;
 
-        let total_heights = indexer.vecs.blocks.timestamp.len();
+        let total_heights = indexer.vecs().blocks.timestamp.len();
 
         if total_heights <= START_HEIGHT_SLOW {
             return Ok(());
@@ -195,22 +195,22 @@ impl Vecs {
                 c.height.to_usize(),
             ),
             None => (
-                indexer.vecs.transactions.txid.len(),
-                indexer.vecs.outputs.value.len(),
-                indexer.vecs.transactions.first_tx_index.len(),
+                indexer.vecs().transactions.txid.len(),
+                indexer.vecs().outputs.value.len(),
+                indexer.vecs().transactions.first_tx_index.len(),
             ),
         };
 
         // Pre-collect height-indexed data for the range (plus one extra for next-block lookups)
         let collect_end = (range.end + 1).min(height_len);
         let first_tx_indexes: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(range.start, collect_end);
 
         let out_firsts: Vec<TxOutIndex> = indexer
-            .vecs
+            .vecs()
             .outputs
             .first_txout_index
             .collect_range_at(range.start, collect_end);
@@ -218,7 +218,7 @@ impl Vecs {
         // Cursor avoids per-block PcoVec page decompression for the
         // tx-indexed first_txout_index lookup. Accessed tx_index values
         // are strictly increasing across blocks, so it only advances forward.
-        let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+        let mut txout_cursor = indexer.vecs().transactions.first_txout_index.cursor();
 
         // Reusable buffers: avoid per-block allocation. `tx_starts` holds the
         // first txout index of each non-coinbase tx in the current block.
@@ -249,11 +249,11 @@ impl Vecs {
             let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
             indexer
-                .vecs
+                .vecs()
                 .outputs
                 .value
                 .collect_range_into_at(out_start, out_end, &mut values);
-            indexer.vecs.outputs.output_type.collect_range_into_at(
+            indexer.vecs().outputs.output_type.collect_range_into_at(
                 out_start,
                 out_end,
                 &mut output_types,

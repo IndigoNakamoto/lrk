@@ -78,7 +78,7 @@ pub enum Error {
         expected_len: usize,
         actual_len: usize,
     },
-    #[error("Cannot remove PcodecVec: pages still referenced")]
+    #[error("Cannot remove vec: pages still referenced")]
     PagesStillReferenced,
     #[error("Invalid format byte: {0}")]
     InvalidFormat(u8),

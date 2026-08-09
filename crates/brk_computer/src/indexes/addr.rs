@@ -99,13 +99,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2pk33_addr_index",
                     version,
-                    indexer.vecs.addrs.p2pk33.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pk33.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2pk33_addr",
                     version,
-                    indexer.vecs.addrs.p2pk33.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pk33.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -113,13 +113,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2pk65_addr_index",
                     version,
-                    indexer.vecs.addrs.p2pk65.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pk65.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2pk65_addr",
                     version,
-                    indexer.vecs.addrs.p2pk65.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pk65.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -127,13 +127,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2pkh_addr_index",
                     version,
-                    indexer.vecs.addrs.p2pkh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pkh.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2pkh_addr",
                     version,
-                    indexer.vecs.addrs.p2pkh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2pkh.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -141,13 +141,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2sh_addr_index",
                     version,
-                    indexer.vecs.addrs.p2sh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2sh.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2sh_addr",
                     version,
-                    indexer.vecs.addrs.p2sh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2sh.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -155,13 +155,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2tr_addr_index",
                     version,
-                    indexer.vecs.addrs.p2tr.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2tr.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2tr_addr",
                     version,
-                    indexer.vecs.addrs.p2tr.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2tr.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -169,13 +169,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2wpkh_addr_index",
                     version,
-                    indexer.vecs.addrs.p2wpkh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2wpkh.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2wpkh_addr",
                     version,
-                    indexer.vecs.addrs.p2wpkh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2wpkh.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -183,13 +183,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2wsh_addr_index",
                     version,
-                    indexer.vecs.addrs.p2wsh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2wsh.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2wsh_addr",
                     version,
-                    indexer.vecs.addrs.p2wsh.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2wsh.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -197,13 +197,13 @@ impl Vecs {
                 identity: LazyVec::init(
                     "p2a_addr_index",
                     version,
-                    indexer.vecs.addrs.p2a.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2a.bytes.read_only_boxed_clone(),
                     |index, _| index,
                 ),
                 addr: LazyVec::init(
                     "p2a_addr",
                     version,
-                    indexer.vecs.addrs.p2a.bytes.read_only_boxed_clone(),
+                    indexer.vecs().addrs.p2a.bytes.read_only_boxed_clone(),
                     |_, bytes| Addr::try_from(&AddrBytes::from(bytes)).unwrap(),
                 ),
             },
@@ -212,7 +212,7 @@ impl Vecs {
                     "p2ms_output_index",
                     version,
                     indexer
-                        .vecs
+                        .vecs()
                         .scripts
                         .p2ms
                         .to_tx_index
@@ -225,7 +225,7 @@ impl Vecs {
                     "empty_output_index",
                     version,
                     indexer
-                        .vecs
+                        .vecs()
                         .scripts
                         .empty
                         .to_tx_index
@@ -238,7 +238,7 @@ impl Vecs {
                     "unknown_output_index",
                     version,
                     indexer
-                        .vecs
+                        .vecs()
                         .scripts
                         .unknown
                         .to_tx_index
@@ -250,7 +250,7 @@ impl Vecs {
                 identity: LazyVec::init(
                     "op_return_index",
                     version,
-                    indexer.vecs.op_return.to_tx_index.read_only_boxed_clone(),
+                    indexer.vecs().op_return.to_tx_index.read_only_boxed_clone(),
                     |index, _| index,
                 ),
             },

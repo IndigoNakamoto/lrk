@@ -2,6 +2,8 @@ use std::{fs, path::Path, time::Instant};
 
 use brk_error::Result;
 use brk_indexer::Indexer;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use brk_types::Sats;
 use vecdb::ReadableVec;
 
@@ -10,7 +12,7 @@ fn run_benchmark(indexer: &Indexer) -> (Sats, std::time::Duration, usize) {
     let mut sum = Sats::ZERO;
     let mut count = 0;
 
-    indexer.vecs.outputs.value.for_each(|value| {
+    indexer.vecs().outputs.value.for_each(|value| {
         sum += value;
         count += 1;
     });
@@ -30,7 +32,13 @@ fn main() -> Result<()> {
     println!("╚════════════════════════════════════════════════════════╝\n");
 
     println!("Loading indexer from: {}", outputs_dir.display());
-    let indexer = Indexer::forced_import(&outputs_dir)?;
+    let bitcoin_dir = Client::default_bitcoin_path();
+    let client = Client::new(
+        Client::default_url(),
+        Auth::CookieFile(bitcoin_dir.join(".cookie")),
+    )?;
+    let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
+    let indexer = Indexer::import(&outputs_dir, &reader)?;
     println!("Indexer loaded.\n");
 
     // Warmup run

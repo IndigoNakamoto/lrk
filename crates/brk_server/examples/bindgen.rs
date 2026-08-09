@@ -4,6 +4,8 @@ use aide::axum::ApiRouter;
 use brk_computer::Computer;
 use brk_indexer::Indexer;
 use brk_query::Vecs;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use brk_server::{ApiRoutes, finish_openapi, generate_bindings};
 
 pub fn main() -> color_eyre::Result<()> {
@@ -12,7 +14,9 @@ pub fn main() -> color_eyre::Result<()> {
     let tmp = env::temp_dir().join("brk_bindgen");
     fs::create_dir_all(&tmp)?;
 
-    let indexer = Indexer::forced_import(&tmp)?;
+    let client = Client::new("http://127.0.0.1:1", Auth::None)?;
+    let reader = Reader::new_without_rlimit(tmp.join("blocks"), &client);
+    let indexer = Indexer::import(&tmp, &reader)?;
     let computer = Computer::forced_import(&tmp, &indexer)?;
     let vecs = Vecs::build_rw(&indexer, &computer);
 

@@ -44,23 +44,23 @@ pub fn main() -> color_eyre::Result<()> {
 
     let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
 
-    let mut indexer = Indexer::forced_import(&outputs_dir)?;
+    let mut indexer = Indexer::import(&outputs_dir, &reader)?;
 
     // Pre-run indexer if too far behind, then drop and reimport to reduce memory
     let chain_height = client.get_last_height()?;
-    let indexed_height = indexer.vecs.next_height();
+    let indexed_height = indexer.vecs().next_height();
     if chain_height.saturating_sub(*indexed_height) > 1000 {
-        indexer.index(&reader, &client, &exit)?;
+        indexer.index(&exit)?;
         drop(indexer);
         Mimalloc::collect();
-        indexer = Indexer::forced_import(&outputs_dir)?;
+        indexer = Indexer::import(&outputs_dir, &reader)?;
     }
 
     let mut computer = Computer::forced_import(&outputs_dir, &indexer)?;
 
     loop {
         let i = Instant::now();
-        indexer.index(&reader, &client, &exit)?;
+        indexer.index(&exit)?;
         info!("Done in {:?}", i.elapsed());
 
         Mimalloc::collect();

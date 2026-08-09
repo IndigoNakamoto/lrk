@@ -18,7 +18,7 @@ impl Vecs {
             indexer,
             indexes,
             &starting_lengths,
-            &indexer.vecs.transactions.weight,
+            &indexer.vecs().transactions.weight,
             exit,
         )?;
 

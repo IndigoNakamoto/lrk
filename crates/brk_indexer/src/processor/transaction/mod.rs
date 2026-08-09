@@ -8,8 +8,11 @@ use rayon::prelude::*;
 use tracing::error;
 use vecdb::{AnyVec, WritableVec, likely, unlikely};
 
-use crate::constants::DUPLICATE_TXIDS;
-use crate::{TransactionCounts, TransactionFeaturesVecs, TxMetadataVecs};
+use crate::{
+    TransactionCounts, TransactionFeaturesVecs, TxMetadataVecs,
+    constants::DUPLICATE_TXIDS,
+    stores::{IndexerStores as _, TransactionStoresMut},
+};
 
 pub(super) use computed::ComputedTx;
 
@@ -39,11 +42,7 @@ impl<'a> BlockProcessor<'a> {
                     true
                 } else {
                     let txid_prefix = TxidPrefix::from(&txid);
-                    let prev_tx_index = self
-                        .stores
-                        .txid_prefix_to_tx_index
-                        .get(&txid_prefix)?
-                        .map(|value| *value);
+                    let prev_tx_index = self.stores.tx_index(&txid_prefix)?;
 
                     if let Some(prev_tx_index) = prev_tx_index {
                         self.validate_txid_collision(tx_index, prev_tx_index)?;
@@ -125,10 +124,12 @@ impl<'a> BlockProcessor<'a> {
         let transaction_features = &mut self.vecs.transaction_features;
         let height = self.height;
 
-        let addr_hash_stores = &mut self.stores.addr_type_to_addr_hash_to_addr_index;
-        let addr_tx_index_stores = &mut self.stores.addr_type_to_addr_index_and_tx_index;
-        let addr_outpoint_stores = &mut self.stores.addr_type_to_addr_index_and_unspent_outpoint;
-        let txid_prefix_store = &mut self.stores.txid_prefix_to_tx_index;
+        let TransactionStoresMut {
+            addr_hashes,
+            addr_tx_indexes,
+            addr_unspent_outpoints,
+            txid_prefixes,
+        } = self.stores.transaction_stores_mut();
 
         rayon::join(
             || {
@@ -141,9 +142,9 @@ impl<'a> BlockProcessor<'a> {
                     addrs,
                     scripts,
                     op_return,
-                    addr_hash_stores,
-                    addr_tx_index_stores,
-                    addr_outpoint_stores,
+                    addr_hashes,
+                    addr_tx_indexes,
+                    addr_unspent_outpoints,
                     &mut txouts,
                     addresses,
                 );
@@ -153,8 +154,8 @@ impl<'a> BlockProcessor<'a> {
                     base_txin_index,
                     first_txin_index,
                     inputs,
-                    addr_tx_index_stores,
-                    addr_outpoint_stores,
+                    addr_tx_indexes,
+                    addr_unspent_outpoints,
                     txins,
                     &txouts,
                 );
@@ -164,7 +165,7 @@ impl<'a> BlockProcessor<'a> {
                     height,
                     txs,
                     transaction_analyses,
-                    txid_prefix_store,
+                    txid_prefixes,
                     &mut tx_metadata,
                     transaction_features,
                 )

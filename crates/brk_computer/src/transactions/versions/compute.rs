@@ -8,8 +8,7 @@ impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let lengths = indexer.safe_lengths();
         let starting_height = lengths.height;
-        let counts = &indexer.vecs.transaction_features.count;
-
+        let counts = &indexer.vecs().transaction_features.count;
         for (metrics, source) in [
             (&mut self.v1, &counts.v1),
             (&mut self.v2, &counts.v2),

@@ -63,9 +63,9 @@ pub(crate) fn process_blocks(
         return Ok(());
     }
 
-    let height_to_first_tx_index = &indexer.vecs.transactions.first_tx_index;
-    let height_to_first_txout_index = &indexer.vecs.outputs.first_txout_index;
-    let height_to_first_txin_index = &indexer.vecs.inputs.first_txin_index;
+    let height_to_first_tx_index = &indexer.vecs().transactions.first_tx_index;
+    let height_to_first_txout_index = &indexer.vecs().outputs.first_txout_index;
+    let height_to_first_txin_index = &indexer.vecs().inputs.first_txin_index;
     let height_to_tx_count = &transactions.count.total.block;
     let height_to_output_count = &outputs.count.total.sum;
     let height_to_input_count = &inputs.count.sum;
@@ -106,7 +106,7 @@ pub(crate) fn process_blocks(
     debug!("VecsReaders created");
 
     // Extend tx_index_to_height RangeMap with new entries (incremental, O(new_blocks))
-    let target_len = indexer.vecs.transactions.first_tx_index.len();
+    let target_len = indexer.vecs().transactions.first_tx_index.len();
     let current_len = tx_index_to_height.len();
     if current_len < target_len {
         debug!(
@@ -114,7 +114,7 @@ pub(crate) fn process_blocks(
             current_len, target_len
         );
         let new_entries: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(current_len, target_len);
@@ -141,49 +141,49 @@ pub(crate) fn process_blocks(
 
     // Pre-collect first address indexes per type for the block range
     let first_p2a_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2a
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pk33_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pk33
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pk65_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pk65
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pkh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pkh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2sh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2sh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2tr_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2tr
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2wpkh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2wpkh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2wsh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2wsh
         .first_index

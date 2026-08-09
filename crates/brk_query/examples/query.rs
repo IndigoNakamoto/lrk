@@ -7,7 +7,7 @@ use brk_mempool::Mempool;
 use brk_query::Query;
 use brk_reader::Reader;
 use brk_rpc::{Auth, Client};
-use brk_types::{Addr, OutputType};
+use brk_types::Addr;
 use vecdb::Exit;
 
 pub fn main() -> Result<()> {
@@ -33,7 +33,7 @@ pub fn main() -> Result<()> {
 
     let reader = Reader::new(blocks_dir, &client);
 
-    let indexer = Indexer::forced_import(&outputs_dir)?;
+    let indexer = Indexer::import(&outputs_dir, &reader)?;
 
     let computer = Computer::forced_import(&outputs_dir, &indexer)?;
 
@@ -43,15 +43,7 @@ pub fn main() -> Result<()> {
         mempool_clone.start();
     });
 
-    let query = Query::build(&reader, &indexer, &computer, Some(mempool));
-
-    dbg!(
-        indexer
-            .stores
-            .addr_type_to_addr_hash_to_addr_index
-            .get_unwrap(OutputType::P2WSH)
-            .approximate_len()
-    );
+    let query = Query::build(&indexer, &computer, Some(mempool));
 
     let _ = dbg!(query.addr(Addr::from(
         "bc1qwzrryqr3ja8w7hnja2spmkgfdcgvqwp5swz4af4ngsjecfz0w0pqud7k38".to_string(),

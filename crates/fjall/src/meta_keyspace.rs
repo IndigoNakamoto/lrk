@@ -262,8 +262,7 @@ mod tests {
                     .inner
                     .get(
                         [
-                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r',
-                            b's', b'i', b'o', b'n'
+                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r', b's', b'i', b'o', b'n'
                         ],
                         SeqNo::MAX
                     )?
@@ -288,8 +287,7 @@ mod tests {
                     .inner
                     .get(
                         [
-                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r',
-                            b's', b'i', b'o', b'n'
+                            b'c', 0, 0, 0, 0, 0, 0, 0, 1, b'v', b'e', b'r', b's', b'i', b'o', b'n'
                         ],
                         SeqNo::MAX
                     )?

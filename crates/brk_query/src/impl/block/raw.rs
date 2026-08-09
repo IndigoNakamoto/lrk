@@ -19,8 +19,8 @@ impl Query {
         }
 
         let indexer = self.indexer();
-        let position = indexer.vecs.blocks.position.collect_one(height).data()?;
-        let size = indexer.vecs.blocks.total.collect_one(height).data()?;
+        let position = indexer.vecs().blocks.position.collect_one(height).data()?;
+        let size = indexer.vecs().blocks.total.collect_one(height).data()?;
 
         self.reader().read_raw_bytes(position, *size as usize)
     }

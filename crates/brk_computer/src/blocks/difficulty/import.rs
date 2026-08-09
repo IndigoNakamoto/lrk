@@ -36,7 +36,7 @@ impl Vecs {
         let hashrate = LazyPerBlock::from_height_source::<DifficultyToHashF64, _>(
             "difficulty_hashrate",
             version,
-            indexer.vecs.blocks.difficulty.read_only_clone(),
+            indexer.vecs().blocks.difficulty.read_only_clone(),
             indexes,
         );
 
@@ -63,7 +63,7 @@ impl Vecs {
         Self {
             value: Resolutions::forced_import(
                 "difficulty",
-                indexer.vecs.blocks.difficulty.read_only_clone(),
+                indexer.vecs().blocks.difficulty.read_only_clone(),
                 version,
                 indexes,
             ),
@@ -71,7 +71,7 @@ impl Vecs {
             adjustment: LazyPercentPerBlock::from_lookback_source(
                 "difficulty_adjustment",
                 version + Version::ONE,
-                &indexer.vecs.blocks.difficulty,
+                &indexer.vecs().blocks.difficulty,
                 DIFFICULTY_ADJUSTMENT_LOOKBACK,
                 difficulty_adjustment,
                 indexes,

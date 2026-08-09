@@ -674,9 +674,11 @@ mod tests {
 
         #[test]
         fn compaction_filter_custom_mvcc() {
-            let vec = [kv(b"abc", 4, b"c", false),
+            let vec = [
+                kv(b"abc", 4, b"c", false),
                 kv(b"abc", 3, b"b", false),
-                kv(b"abc", 2, b"a", false)];
+                kv(b"abc", 2, b"a", false),
+            ];
 
             let iter = vec.iter().cloned().map(Ok);
             let iter = CompactionStream::new(iter, 995).with_filter(Filter {

@@ -11,10 +11,10 @@ impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
 
-        let dep_version = indexer.vecs.inputs.output_type.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.first_txin_index.version()
-            + indexer.vecs.transactions.txid.version();
+        let dep_version = indexer.vecs().inputs.output_type.version()
+            + indexer.vecs().transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_txin_index.version()
+            + indexer.vecs().transactions.txid.version();
 
         self.input_count
             .validate_and_truncate(dep_version, starting_lengths.height)?;
@@ -26,18 +26,18 @@ impl Vecs {
             .min_stateful_len()
             .min(self.tx_count.min_stateful_len());
 
-        let first_tx_index = &indexer.vecs.transactions.first_tx_index;
+        let first_tx_index = &indexer.vecs().transactions.first_tx_index;
         let end = first_tx_index.len();
         if skip < end {
             self.input_count.truncate_if_needed_at(skip)?;
             self.tx_count.truncate_if_needed_at(skip)?;
 
             let fi_batch = first_tx_index.collect_range_at(skip, end);
-            let txid_len = indexer.vecs.transactions.txid.len();
-            let total_txin_len = indexer.vecs.inputs.output_type.len();
+            let txid_len = indexer.vecs().transactions.txid.len();
+            let total_txin_len = indexer.vecs().inputs.output_type.len();
 
-            let mut itype_cursor = indexer.vecs.inputs.output_type.cursor();
-            let mut fi_in_cursor = indexer.vecs.transactions.first_txin_index.cursor();
+            let mut itype_cursor = indexer.vecs().inputs.output_type.cursor();
+            let mut fi_in_cursor = indexer.vecs().transactions.first_txin_index.cursor();
             let mut height = skip;
 
             walk_blocks(

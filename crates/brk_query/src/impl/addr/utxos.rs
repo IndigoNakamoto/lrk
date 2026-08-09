@@ -1,25 +1,19 @@
-use brk_error::{Error, OptionData, Result};
-use brk_types::{Addr, AddrIndexOutPoint, Height, TxIndex, TxStatus, Unit, Utxo, Vout};
+use brk_error::{Error, Result};
+use brk_types::{Addr, Height, TxIndex, TxStatus, Utxo, Vout};
 
 use crate::Query;
 
 impl Query {
     pub fn addr_utxos(&self, addr: Addr, max_utxos: usize) -> Result<Vec<Utxo>> {
         let indexer = self.indexer();
-        let stores = &indexer.stores;
-        let vecs = &indexer.vecs;
+        let stores = indexer.stores();
+        let vecs = indexer.vecs();
 
         let (output_type, type_index) = self.resolve_addr(&addr)?;
 
-        let store = stores
-            .addr_type_to_addr_index_and_unspent_outpoint
-            .get(output_type)
-            .data()?;
-
         let tx_index_len = self.safe_lengths().tx_index;
-        let outpoints: Vec<(TxIndex, Vout)> = store
-            .prefix(type_index)
-            .map(|(key, _): (AddrIndexOutPoint, Unit)| (key.tx_index(), key.vout()))
+        let outpoints: Vec<(TxIndex, Vout)> = stores
+            .addr_unspent_outpoints(output_type, type_index)?
             .filter(|(tx_index, _)| *tx_index < tx_index_len)
             .take(max_utxos + 1)
             .collect();

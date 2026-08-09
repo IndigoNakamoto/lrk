@@ -14,7 +14,7 @@ impl Vecs {
             identity: LazyVec::init(
                 "txout_index",
                 version,
-                indexer.vecs.outputs.value.read_only_boxed_clone(),
+                indexer.vecs().outputs.value.read_only_boxed_clone(),
                 |index, _| index,
             ),
         }

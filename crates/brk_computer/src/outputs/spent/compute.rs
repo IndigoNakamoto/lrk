@@ -12,14 +12,14 @@ impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<ExitGuard> {
         let starting_lengths = indexer.safe_lengths();
 
-        let dep_version = indexer.vecs.inputs.txout_index.version()
-            + indexer.vecs.outputs.first_txout_index.version()
-            + indexer.vecs.inputs.first_txin_index.version()
-            + indexer.vecs.outputs.value.version();
+        let dep_version = indexer.vecs().inputs.txout_index.version()
+            + indexer.vecs().outputs.first_txout_index.version()
+            + indexer.vecs().inputs.first_txin_index.version()
+            + indexer.vecs().outputs.value.version();
         self.txin_index
             .validate_computed_version_or_reset(dep_version)?;
 
-        let target_height = indexer.vecs.blocks.blockhash.len();
+        let target_height = indexer.vecs().blocks.blockhash.len();
         if target_height == 0 {
             return Ok(exit.lock());
         }
@@ -35,10 +35,9 @@ impl Vecs {
         self.txin_index
             .truncate_if_needed(TxOutIndex::from(min_txout_index))?;
 
-        let txin_index_to_txout_index = &indexer.vecs.inputs.txout_index;
-
+        let txin_index_to_txout_index = &indexer.vecs().inputs.txout_index;
         // Find min_height via binary search (first_txout_index is monotonically non-decreasing)
-        let first_txout_index_vec = &indexer.vecs.outputs.first_txout_index;
+        let first_txout_index_vec = &indexer.vecs().outputs.first_txout_index;
         let min_height = if min_txout_index == 0 {
             Height::ZERO
         } else if min_txout_index >= starting_lengths.txout_index.to_usize() {
@@ -67,7 +66,7 @@ impl Vecs {
         let first_txout_index_data =
             first_txout_index_vec.collect_range_at(offset, target_height.to_usize() + 1);
         let first_txin_index_data = indexer
-            .vecs
+            .vecs()
             .inputs
             .first_txin_index
             .collect_range_at(offset, target_height.to_usize() + 2);
@@ -87,7 +86,7 @@ impl Vecs {
 
             // Fill txout_index up to batch_end_height + 1
             let batch_txout_index = if batch_end_height >= target_height {
-                indexer.vecs.outputs.value.len()
+                indexer.vecs().outputs.value.len()
             } else {
                 first_txout_index_data[batch_end_height.to_usize() + 1 - offset].to_usize()
             };
@@ -98,7 +97,7 @@ impl Vecs {
             let txin_start =
                 first_txin_index_data[batch_start_height.to_usize() - offset].to_usize();
             let txin_end = if batch_end_height >= target_height {
-                indexer.vecs.inputs.txout_index.len()
+                indexer.vecs().inputs.txout_index.len()
             } else {
                 first_txin_index_data[batch_end_height.to_usize() + 1 - offset].to_usize()
             };

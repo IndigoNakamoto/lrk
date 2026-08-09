@@ -34,7 +34,7 @@ impl Vecs {
         let fullness = LazyPercentVec::from_indexed_source(
             "block_fullness",
             version,
-            &indexer.vecs.blocks.weight,
+            &indexer.vecs().blocks.weight,
             block_fullness,
         );
 

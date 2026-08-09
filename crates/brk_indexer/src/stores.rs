@@ -1,54 +1,161 @@
-use std::{fs, path::Path, time::Instant};
+use std::{fs, ops::Range, path::Path, time::Instant};
 
 use rustc_hash::FxHashSet;
 
 use brk_cohort::ByAddrType;
-use brk_error::{Error, Result};
-use brk_store::{AnyStore, Kind, Mode, Store};
+use brk_error::{Error, OptionData, Result};
+use brk_store::{AnyStore, Kind, Mode, PendingIngest, Store};
 use brk_types::{
     AddrHash, AddrIndexOutPoint, AddrIndexTxIndex, BlockHashPrefix, Height, OutPoint, OutputType,
     TxIndex, TxOutIndex, TxidPrefix, TypeIndex, Unit, Version, Vout,
 };
-use fjall::{Database, PersistMode};
+use fjall::Database;
 use rayon::prelude::*;
-use tracing::{debug, info};
+use tracing::debug;
 use vecdb::{AnyVec, ReadableVec, VecIndex};
 
-use crate::{Lengths, constants::DUPLICATE_TXID_PREFIXES};
+use crate::{Lengths, constants::DUPLICATE_TXID_PREFIXES, vecs::IndexerVecs as _};
 
 use super::Vecs;
 
+mod checkpoint;
+
+use checkpoint::{
+    DeferredStoresCommit, PendingStoresCheckpoint, PersistedStoresCheckpoint, StoresCheckpoint,
+};
+
 #[derive(Clone)]
 pub struct Stores {
-    pub db: Database,
+    inner: StoresInner,
+}
 
-    pub addr_type_to_addr_hash_to_addr_index: ByAddrType<Store<AddrHash, TypeIndex>>,
-    pub addr_type_to_addr_index_and_tx_index: ByAddrType<Store<AddrIndexTxIndex, Unit>>,
-    pub addr_type_to_addr_index_and_unspent_outpoint: ByAddrType<Store<AddrIndexOutPoint, Unit>>,
-    pub blockhash_prefix_to_height: Store<BlockHashPrefix, Height>,
-    pub txid_prefix_to_tx_index: Store<TxidPrefix, TxIndex>,
+#[derive(Clone)]
+struct StoresInner {
+    db: Database,
+    checkpoint: StoresCheckpoint,
+
+    addr_type_to_addr_hash_to_addr_index: ByAddrType<Store<AddrHash, TypeIndex>>,
+    addr_type_to_addr_index_and_tx_index: ByAddrType<Store<AddrIndexTxIndex, Unit>>,
+    addr_type_to_addr_index_and_unspent_outpoint: ByAddrType<Store<AddrIndexOutPoint, Unit>>,
+    blockhash_prefix_to_height: Store<BlockHashPrefix, Height>,
+    txid_prefix_to_tx_index: Store<TxidPrefix, TxIndex>,
+}
+
+pub struct TransactionStoresMut<'a> {
+    pub addr_hashes: &'a mut ByAddrType<Store<AddrHash, TypeIndex>>,
+    pub addr_tx_indexes: &'a mut ByAddrType<Store<AddrIndexTxIndex, Unit>>,
+    pub addr_unspent_outpoints: &'a mut ByAddrType<Store<AddrIndexOutPoint, Unit>>,
+    pub txid_prefixes: &'a mut Store<TxidPrefix, TxIndex>,
+}
+
+pub trait IndexerStores: Sized {
+    fn forced_import(parent: &Path, version: Version) -> Result<Self>;
+    fn next_height(&self) -> Result<Option<Height>>;
+    fn begin_commit(&self, completed_height: Height) -> Result<PendingStoresCheckpoint>;
+    fn persist(&mut self, checkpoint: PendingStoresCheckpoint)
+    -> Result<PersistedStoresCheckpoint>;
+    fn take_deferred_commit(&mut self, completed_height: Height) -> Result<DeferredStoresCommit>;
+    fn rollback_if_needed(&mut self, vecs: &Vecs, starting_lengths: &Lengths) -> Result<()>;
+    fn insert_block_height(&mut self, prefix: BlockHashPrefix, height: Height);
+    fn transaction_stores_mut(&mut self) -> TransactionStoresMut<'_>;
 }
 
 impl Stores {
-    pub fn forced_import(parent: &Path, version: Version) -> Result<Self> {
-        Self::forced_import_inner(parent, version, true)
+    #[inline]
+    pub fn addr_index(&self, addr_type: OutputType, hash: &AddrHash) -> Result<Option<TypeIndex>> {
+        Ok(self
+            .inner
+            .addr_type_to_addr_hash_to_addr_index
+            .get(addr_type)
+            .data()?
+            .get(hash)?
+            .map(|index| index.into_owned()))
     }
 
-    fn forced_import_inner(parent: &Path, version: Version, can_retry: bool) -> Result<Self> {
+    pub fn addr_hash_range(
+        &self,
+        addr_type: OutputType,
+        range: Range<AddrHash>,
+    ) -> Result<impl DoubleEndedIterator<Item = (AddrHash, TypeIndex)> + '_> {
+        Ok(self
+            .inner
+            .addr_type_to_addr_hash_to_addr_index
+            .get(addr_type)
+            .data()?
+            .range(range))
+    }
+
+    pub fn addr_tx_indexes(
+        &self,
+        addr_type: OutputType,
+        addr_index: TypeIndex,
+    ) -> Result<impl DoubleEndedIterator<Item = TxIndex> + '_> {
+        Ok(self
+            .inner
+            .addr_type_to_addr_index_and_tx_index
+            .get(addr_type)
+            .data()?
+            .prefix(addr_index)
+            .map(|(key, _)| key.tx_index()))
+    }
+
+    pub fn addr_tx_indexes_before(
+        &self,
+        addr_type: OutputType,
+        addr_index: TypeIndex,
+        before: TxIndex,
+    ) -> Result<impl DoubleEndedIterator<Item = TxIndex> + '_> {
+        let min = AddrIndexTxIndex::min_for_addr(addr_index);
+        let cursor = AddrIndexTxIndex::from((addr_index, before));
+        Ok(self
+            .inner
+            .addr_type_to_addr_index_and_tx_index
+            .get(addr_type)
+            .data()?
+            .range(min..cursor)
+            .map(|(key, _)| key.tx_index()))
+    }
+
+    pub fn addr_unspent_outpoints(
+        &self,
+        addr_type: OutputType,
+        addr_index: TypeIndex,
+    ) -> Result<impl DoubleEndedIterator<Item = (TxIndex, Vout)> + '_> {
+        Ok(self
+            .inner
+            .addr_type_to_addr_index_and_unspent_outpoint
+            .get(addr_type)
+            .data()?
+            .prefix(addr_index)
+            .map(|(key, _)| (key.tx_index(), key.vout())))
+    }
+
+    #[inline]
+    pub fn block_height(&self, prefix: &BlockHashPrefix) -> Result<Option<Height>> {
+        Ok(self
+            .inner
+            .blockhash_prefix_to_height
+            .get(prefix)?
+            .map(|height| height.into_owned()))
+    }
+
+    #[inline]
+    pub fn tx_index(&self, prefix: &TxidPrefix) -> Result<Option<TxIndex>> {
+        Ok(self
+            .inner
+            .txid_prefix_to_tx_index
+            .get(prefix)?
+            .map(|index| index.into_owned()))
+    }
+}
+
+impl StoresInner {
+    fn open(parent: &Path, version: Version) -> Result<Self> {
         let pathbuf = parent.join("stores");
         let path = pathbuf.as_path();
 
         fs::create_dir_all(&pathbuf)?;
-
-        let database = match brk_store::open_database(path) {
-            Ok(database) => database,
-            Err(err) if can_retry => {
-                info!("Failed to open stores at {path:?}: {err:?}, deleting and retrying");
-                fs::remove_dir_all(path)?;
-                return Self::forced_import_inner(parent, version, false);
-            }
-            Err(err) => return Err(err.into()),
-        };
+        let database = brk_store::open_database(path)?;
 
         let database_ref = &database;
 
@@ -87,6 +194,7 @@ impl Stores {
 
         let stores = Self {
             db: database.clone(),
+            checkpoint: StoresCheckpoint::new(path),
 
             addr_type_to_addr_hash_to_addr_index: ByAddrType::new_with_index(
                 create_addr_hash_to_addr_index_store,
@@ -116,37 +224,15 @@ impl Stores {
             )?,
         };
 
+        if stores.checkpoint.next_height()?.is_none() && stores.is_empty()? {
+            stores.checkpoint.initialize_empty()?;
+        }
+
         Ok(stores)
     }
 
-    pub fn next_height(&self) -> Height {
-        self.iter_any()
-            .map(|store| store.height().map(Height::incremented).unwrap_or_default())
-            .min()
-            .unwrap()
-    }
-
-    fn iter_any(&self) -> impl Iterator<Item = &dyn AnyStore> {
-        [
-            &self.blockhash_prefix_to_height as &dyn AnyStore,
-            &self.txid_prefix_to_tx_index,
-        ]
-        .into_iter()
-        .chain(
-            self.addr_type_to_addr_hash_to_addr_index
-                .values()
-                .map(|s| s as &dyn AnyStore),
-        )
-        .chain(
-            self.addr_type_to_addr_index_and_tx_index
-                .values()
-                .map(|s| s as &dyn AnyStore),
-        )
-        .chain(
-            self.addr_type_to_addr_index_and_unspent_outpoint
-                .values()
-                .map(|s| s as &dyn AnyStore),
-        )
+    fn checkpoint_height(&self) -> Result<Option<Height>> {
+        self.checkpoint.next_height()
     }
 
     fn par_iter_any_mut(&mut self) -> impl ParallelIterator<Item = &mut dyn AnyStore> {
@@ -172,32 +258,34 @@ impl Stores {
         )
     }
 
-    pub fn commit(&mut self, height: Height) -> Result<()> {
-        let i = Instant::now();
-        self.par_iter_any_mut()
-            .try_for_each(|store| store.commit(height))?;
-        debug!("Stores committed in {:?}", i.elapsed());
+    fn prepare_checkpoint(&self, completed_height: Height) -> Result<PendingStoresCheckpoint> {
+        self.checkpoint.begin(completed_height)
+    }
+
+    fn persist_checkpoint(
+        &mut self,
+        checkpoint: PendingStoresCheckpoint,
+    ) -> Result<PersistedStoresCheckpoint> {
+        let db = self.db.clone();
 
         let i = Instant::now();
-        self.db.persist(PersistMode::SyncData)?;
+        let persisted = checkpoint.persist(&db, || {
+            self.par_iter_any_mut()
+                .try_for_each(|store| store.ingest_pending())
+        })?;
         debug!("Stores persisted in {:?}", i.elapsed());
 
-        Ok(())
+        Ok(persisted)
     }
 
     /// Takes all pending puts/dels from every store and returns closures
     /// that can ingest them on a background thread.
-    #[allow(clippy::type_complexity)]
-    pub fn take_all_pending_ingests(
-        &mut self,
-        height: Height,
-    ) -> Result<Vec<Box<dyn FnOnce() -> Result<()> + Send>>> {
-        let h = height;
+    fn take_pending_ingests(&mut self) -> Vec<PendingIngest> {
         let mut tasks = Vec::new();
 
         macro_rules! take {
             ($store:expr) => {
-                tasks.extend($store.take_pending_ingest(h)?);
+                tasks.extend($store.take_pending_ingest());
             };
         }
 
@@ -217,16 +305,21 @@ impl Stores {
             take!(store);
         }
 
-        Ok(tasks)
+        tasks
     }
 
-    /// Rewrites reverse-key entries below the lowered bound. In-flight
-    /// readers may briefly see torn state.
-    pub fn rollback_if_needed(
-        &mut self,
-        vecs: &mut Vecs,
-        starting_lengths: &Lengths,
-    ) -> Result<()> {
+    fn defer_commit(&mut self, completed_height: Height) -> Result<DeferredStoresCommit> {
+        let checkpoint = self.checkpoint.begin(completed_height)?;
+        let ingests = self.take_pending_ingests();
+        Ok(DeferredStoresCommit::new(
+            self.db.clone(),
+            ingests,
+            checkpoint,
+        ))
+    }
+
+    /// Stages reverse-key entries below the lowered bound for persistence.
+    fn rollback(&mut self, vecs: &Vecs, starting_lengths: &Lengths) -> Result<()> {
         if self.is_empty()? {
             return Ok(());
         }
@@ -238,11 +331,6 @@ impl Stores {
         self.rollback_block_metadata(vecs, starting_lengths)?;
         self.rollback_txids(vecs, starting_lengths);
         self.rollback_outputs_and_inputs(vecs, starting_lengths)?;
-
-        let rollback_height = starting_lengths.height.decremented().unwrap_or_default();
-        self.par_iter_any_mut()
-            .try_for_each(|store| store.export_meta(rollback_height))?;
-        self.commit(rollback_height)?;
 
         Ok(())
     }
@@ -264,11 +352,7 @@ impl Stores {
                 .try_fold(true, |acc, s| s.is_empty().map(|empty| acc && empty))?)
     }
 
-    fn rollback_block_metadata(
-        &mut self,
-        vecs: &mut Vecs,
-        starting_lengths: &Lengths,
-    ) -> Result<()> {
+    fn rollback_block_metadata(&mut self, vecs: &Vecs, starting_lengths: &Lengths) -> Result<()> {
         vecs.blocks.blockhash.for_each_range_at(
             starting_lengths.height.to_usize(),
             vecs.blocks.blockhash.len(),
@@ -289,7 +373,7 @@ impl Stores {
         Ok(())
     }
 
-    fn rollback_txids(&mut self, vecs: &mut Vecs, starting_lengths: &Lengths) {
+    fn rollback_txids(&mut self, vecs: &Vecs, starting_lengths: &Lengths) {
         let start = starting_lengths.tx_index.to_usize();
         let end = vecs.transactions.txid.len();
         let mut current_index = start;
@@ -317,7 +401,7 @@ impl Stores {
 
     fn rollback_outputs_and_inputs(
         &mut self,
-        vecs: &mut Vecs,
+        vecs: &Vecs,
         starting_lengths: &Lengths,
     ) -> Result<()> {
         let tx_index_to_first_txout_index_reader = vecs.transactions.first_txout_index.reader();
@@ -414,6 +498,50 @@ impl Stores {
     }
 }
 
+impl IndexerStores for Stores {
+    fn forced_import(parent: &Path, version: Version) -> Result<Self> {
+        Ok(Self {
+            inner: StoresInner::open(parent, version)?,
+        })
+    }
+
+    fn next_height(&self) -> Result<Option<Height>> {
+        self.inner.checkpoint_height()
+    }
+
+    fn begin_commit(&self, completed_height: Height) -> Result<PendingStoresCheckpoint> {
+        self.inner.prepare_checkpoint(completed_height)
+    }
+
+    fn persist(
+        &mut self,
+        checkpoint: PendingStoresCheckpoint,
+    ) -> Result<PersistedStoresCheckpoint> {
+        self.inner.persist_checkpoint(checkpoint)
+    }
+
+    fn take_deferred_commit(&mut self, completed_height: Height) -> Result<DeferredStoresCommit> {
+        self.inner.defer_commit(completed_height)
+    }
+
+    fn rollback_if_needed(&mut self, vecs: &Vecs, starting_lengths: &Lengths) -> Result<()> {
+        self.inner.rollback(vecs, starting_lengths)
+    }
+
+    fn insert_block_height(&mut self, prefix: BlockHashPrefix, height: Height) {
+        self.inner.blockhash_prefix_to_height.insert(prefix, height);
+    }
+
+    fn transaction_stores_mut(&mut self) -> TransactionStoresMut<'_> {
+        TransactionStoresMut {
+            addr_hashes: &mut self.inner.addr_type_to_addr_hash_to_addr_index,
+            addr_tx_indexes: &mut self.inner.addr_type_to_addr_index_and_tx_index,
+            addr_unspent_outpoints: &mut self.inner.addr_type_to_addr_index_and_unspent_outpoint,
+            txid_prefixes: &mut self.inner.txid_prefix_to_tx_index,
+        }
+    }
+}
+
 fn valid_rollback_boundaries(
     first_txout_indexes: &[TxOutIndex],
     rollback_start: usize,
@@ -456,7 +584,64 @@ fn txout_ranges(
 
 #[cfg(test)]
 mod tests {
+    use fjall::PersistMode;
+
     use super::*;
+
+    #[test]
+    fn empty_stores_initialize_zero_checkpoint() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let stores = Stores::forced_import(dir.path(), Version::ZERO)?;
+
+        assert_eq!(stores.next_height()?, Some(Height::ZERO));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_checkpoint_with_data_stays_invalid() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+
+        {
+            let mut stores = Stores::forced_import(dir.path(), Version::ZERO)?;
+            let inner = &mut stores.inner;
+            inner
+                .blockhash_prefix_to_height
+                .insert(BlockHashPrefix::from(1_u64), Height::ZERO);
+            inner
+                .blockhash_prefix_to_height
+                .take_pending_ingest()
+                .unwrap()()?;
+            inner.db.persist(PersistMode::SyncData)?;
+
+            let pending_checkpoint = inner.checkpoint.begin(Height::ZERO)?;
+            drop(pending_checkpoint);
+        }
+
+        let reopened = Stores::forced_import(dir.path(), Version::ZERO)?;
+        assert_eq!(reopened.next_height()?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn synchronous_commit_persists_data_and_checkpoint() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let prefix = BlockHashPrefix::from(1_u64);
+
+        {
+            let mut stores = Stores::forced_import(dir.path(), Version::ZERO)?;
+            stores
+                .inner
+                .blockhash_prefix_to_height
+                .insert(prefix, Height::ZERO);
+            let checkpoint = stores.begin_commit(Height::new(42))?;
+            stores.persist(checkpoint)?.publish()?;
+        }
+
+        let reopened = Stores::forced_import(dir.path(), Version::ZERO)?;
+        assert_eq!(reopened.next_height()?, Some(Height::new(43)));
+        assert_eq!(reopened.block_height(&prefix)?, Some(Height::ZERO));
+        Ok(())
+    }
 
     #[test]
     fn rollback_output_ranges_reconstruct_tx_indexes_and_vouts() {

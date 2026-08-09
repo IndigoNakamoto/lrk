@@ -46,21 +46,21 @@ impl<'a> TxOutReaders<'a> {
         output_count: usize,
     ) -> &[TxOutData] {
         let end = first_txout_index + output_count;
-        self.indexer.vecs.outputs.value.collect_range_into_at(
+        self.indexer.vecs().outputs.value.collect_range_into_at(
             first_txout_index,
             end,
             &mut self.values_buf,
         );
-        self.indexer.vecs.outputs.output_type.collect_range_into_at(
-            first_txout_index,
-            end,
-            &mut self.output_types_buf,
-        );
-        self.indexer.vecs.outputs.type_index.collect_range_into_at(
-            first_txout_index,
-            end,
-            &mut self.type_indexes_buf,
-        );
+        self.indexer
+            .vecs()
+            .outputs
+            .output_type
+            .collect_range_into_at(first_txout_index, end, &mut self.output_types_buf);
+        self.indexer
+            .vecs()
+            .outputs
+            .type_index
+            .collect_range_into_at(first_txout_index, end, &mut self.type_indexes_buf);
 
         self.txout_data_buf.clear();
         self.txout_data_buf.extend(
@@ -118,17 +118,17 @@ impl<'a> TxInReaders<'a> {
         let end = first_txin_index + input_count;
         self.input_values
             .collect_range_into_at(first_txin_index, end, &mut self.values_buf);
-        self.indexer.vecs.inputs.outpoint.collect_range_into_at(
+        self.indexer.vecs().inputs.outpoint.collect_range_into_at(
             first_txin_index,
             end,
             &mut self.outpoints_buf,
         );
-        self.indexer.vecs.inputs.output_type.collect_range_into_at(
-            first_txin_index,
-            end,
-            &mut self.output_types_buf,
-        );
-        self.indexer.vecs.inputs.type_index.collect_range_into_at(
+        self.indexer
+            .vecs()
+            .inputs
+            .output_type
+            .collect_range_into_at(first_txin_index, end, &mut self.output_types_buf);
+        self.indexer.vecs().inputs.type_index.collect_range_into_at(
             first_txin_index,
             end,
             &mut self.type_indexes_buf,

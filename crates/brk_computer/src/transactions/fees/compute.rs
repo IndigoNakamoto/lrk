@@ -25,16 +25,16 @@ impl Vecs {
 
         self.input_value.compute_sum_from_indexes(
             starting_lengths.tx_index,
-            &indexer.vecs.transactions.first_txin_index,
+            &indexer.vecs().transactions.first_txin_index,
             &indexes.tx_index.input_count,
             input_values,
             exit,
         )?;
         self.output_value.compute_sum_from_indexes(
             starting_lengths.tx_index,
-            &indexer.vecs.transactions.first_txout_index,
+            &indexer.vecs().transactions.first_txout_index,
             &indexes.tx_index.output_count,
-            &indexer.vecs.outputs.value,
+            &indexer.vecs().outputs.value,
             exit,
         )?;
 
@@ -75,9 +75,9 @@ impl Vecs {
         let dep_version = self.input_value.version()
             + self.output_value.version()
             + size_vecs.vsize.tx_index.version()
-            + indexer.vecs.inputs.outpoint.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.first_txin_index.version()
+            + indexer.vecs().inputs.outpoint.version()
+            + indexer.vecs().transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_txin_index.version()
             + indexes.height.tx_index_count.version();
 
         self.fee
@@ -114,7 +114,7 @@ impl Vecs {
             .min(self.is_cpfp_child.len())
             .min(starting_lengths.tx_index.to_usize());
         let max_height = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .len()
@@ -142,7 +142,7 @@ impl Vecs {
         }
 
         let start_tx = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_one_at(start_height)
@@ -163,7 +163,7 @@ impl Vecs {
         self.count.cpfp_child.truncate_if_needed_at(start_height)?;
 
         let mut tx_count = indexes.height.tx_index_count.cursor();
-        let mut next_block_input = indexer.vecs.inputs.first_txin_index.cursor();
+        let mut next_block_input = indexer.vecs().inputs.first_txin_index.cursor();
         tx_count.advance(start_height);
         next_block_input.advance(start_height + 1);
 
@@ -193,7 +193,7 @@ impl Vecs {
                 .tx_index
                 .collect_range_into_at(first_tx, first_tx + n, &mut vsizes);
             indexer
-                .vecs
+                .vecs()
                 .transactions
                 .first_txin_index
                 .collect_range_into_at(first_tx, first_tx + n, &mut txin_starts);
@@ -201,9 +201,9 @@ impl Vecs {
             let input_end = if h + 1 < max_height {
                 next_block_input.next().unwrap().to_usize()
             } else {
-                indexer.vecs.inputs.outpoint.len()
+                indexer.vecs().inputs.outpoint.len()
             };
-            indexer.vecs.inputs.outpoint.collect_range_into_at(
+            indexer.vecs().inputs.outpoint.collect_range_into_at(
                 input_begin,
                 input_end,
                 &mut outpoints,

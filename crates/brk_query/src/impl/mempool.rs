@@ -50,20 +50,18 @@ impl Query {
                 return FxHashMap::default();
             }
             let safe = indexer.safe_lengths();
-            let first_txout_reader = indexer.vecs.transactions.first_txout_index.reader();
-            let output_type_reader = indexer.vecs.outputs.output_type.reader();
-            let type_index_reader = indexer.vecs.outputs.type_index.reader();
-            let value_reader = indexer.vecs.outputs.value.reader();
-            let addr_readers = indexer.vecs.addrs.addr_readers();
+            let first_txout_reader = indexer.vecs().transactions.first_txout_index.reader();
+            let output_type_reader = indexer.vecs().outputs.output_type.reader();
+            let type_index_reader = indexer.vecs().outputs.type_index.reader();
+            let value_reader = indexer.vecs().outputs.value.reader();
+            let addr_readers = indexer.vecs().addrs.addr_readers();
             holes
                 .iter()
                 .filter_map(|(prev_txid, vout)| {
                     let prev_tx_index = indexer
-                        .stores
-                        .txid_prefix_to_tx_index
-                        .get(&TxidPrefix::from(prev_txid))
-                        .ok()??
-                        .into_owned();
+                        .stores()
+                        .tx_index(&TxidPrefix::from(prev_txid))
+                        .ok()??;
                     if prev_tx_index >= safe.tx_index {
                         return None;
                     }

@@ -51,8 +51,7 @@ where
     /// # Warning
     ///
     /// This will DELETE all existing data on format/version errors. Use with caution.
-    pub fn forced_import_with(mut options: ImportOptions, format: Format) -> Result<Self> {
-        options.version = options.version + VERSION;
+    pub fn forced_import_with(options: ImportOptions, format: Format) -> Result<Self> {
         let res = Self::import_with(options, format);
         match res {
             Err(Error::WrongEndian)

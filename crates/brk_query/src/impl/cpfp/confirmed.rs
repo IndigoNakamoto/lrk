@@ -35,7 +35,7 @@ impl Query {
         let descendants = self.resolve_entries(&walk.descendants)?;
         let sigops = self
             .indexer()
-            .vecs
+            .vecs()
             .transactions
             .total_sigop_cost
             .collect_one(seed)
@@ -56,9 +56,9 @@ impl Query {
     ) -> Result<Vec<Member>> {
         let indexer = self.indexer();
         let computer = self.computer();
-        let mut weight = indexer.vecs.transactions.weight.cursor();
+        let mut weight = indexer.vecs().transactions.weight.cursor();
         let mut fee = computer.transactions.fees.fee.tx_index.cursor();
-        let txid = indexer.vecs.transactions.txid.reader();
+        let txid = indexer.vecs().transactions.txid.reader();
 
         members
             .iter()
@@ -79,9 +79,9 @@ impl Query {
     fn resolve_entries(&self, indexes: &[TxIndex]) -> Result<Vec<CpfpEntry>> {
         let indexer = self.indexer();
         let computer = self.computer();
-        let mut weight = indexer.vecs.transactions.weight.cursor();
+        let mut weight = indexer.vecs().transactions.weight.cursor();
         let mut fee = computer.transactions.fees.fee.tx_index.cursor();
-        let txid = indexer.vecs.transactions.txid.reader();
+        let txid = indexer.vecs().transactions.txid.reader();
 
         indexes
             .iter()
@@ -100,7 +100,7 @@ impl Query {
         let indexer = self.indexer();
         let computer = self.computer();
         let safe = self.safe_lengths();
-        let first_tx = &indexer.vecs.transactions.first_tx_index;
+        let first_tx = &indexer.vecs().transactions.first_tx_index;
         let block_first = first_tx.collect_one(height).data()?;
         let next_height = height.incremented();
         let block_end = if next_height < safe.height {
@@ -109,18 +109,18 @@ impl Query {
             safe.tx_index
         };
 
-        let mut first_txin = indexer.vecs.transactions.first_txin_index.cursor();
+        let mut first_txin = indexer.vecs().transactions.first_txin_index.cursor();
         let mut input_count = computer.indexes.tx_index.input_count.cursor();
-        let mut outpoint = indexer.vecs.inputs.outpoint.cursor();
+        let mut outpoint = indexer.vecs().inputs.outpoint.cursor();
         let first_txout = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_txout_index
             .reader()
             .cursor();
         let mut output_count = computer.indexes.tx_index.output_count.cursor();
         let spent = computer.outputs.spent.txin_index.reader().cursor();
-        let mut spending_tx = indexer.vecs.inputs.tx_index.cursor();
+        let mut spending_tx = indexer.vecs().inputs.tx_index.cursor();
 
         let mut parents_of = |tx: TxIndex| -> Result<SmallVec<[TxIndex; 2]>> {
             let position = tx.to_usize();

@@ -11,12 +11,12 @@ impl Vecs {
         let mut prev_timestamp = None;
         self.0.compute_from(
             starting_height,
-            &indexer.vecs.blocks.timestamp,
+            &indexer.vecs().blocks.timestamp,
             |height, timestamp| {
                 let interval = if let Some(previous_height) = height.decremented() {
                     let previous = prev_timestamp.unwrap_or_else(|| {
                         indexer
-                            .vecs
+                            .vecs()
                             .blocks
                             .timestamp
                             .collect_one(previous_height)

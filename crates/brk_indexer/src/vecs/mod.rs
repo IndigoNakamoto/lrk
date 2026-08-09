@@ -4,11 +4,11 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{AddrHash, Height, OutputType, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Rw, Stamp, StorageMode};
+use vecdb::{AnyStoredVec, AnyVec, Database, RawDBError, Rw, Stamp, StorageMode};
 
 const PAGE_SIZE: usize = 4096;
 
-use crate::parallel_import;
+use crate::{Lengths, parallel_import};
 
 mod addrs;
 mod blocks;
@@ -27,12 +27,10 @@ pub use outputs::*;
 pub use scripts::*;
 pub use transactions::*;
 
-use crate::Lengths;
-
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
-    pub db: Database,
+    db: Database,
     pub blocks: BlocksVecs<M>,
     #[traversable(wrap = "transactions", rename = "raw")]
     pub transactions: TransactionsVecs<M>,
@@ -50,8 +48,25 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub op_return: OpReturnVecs<M>,
 }
 
-impl Vecs {
-    pub fn forced_import(parent: &Path, version: Version) -> Result<Self> {
+pub trait IndexerVecs: Sized {
+    fn forced_import(parent: &Path, version: Version) -> Result<Self>;
+    fn rollback_if_needed(&mut self, starting_lengths: &Lengths) -> Result<()>;
+    fn flush(&mut self, height: Height) -> Result<()>;
+    fn stamped_write(&mut self, height: Height) -> Result<()>;
+    fn sync_bg_tasks(&self) -> Result<()>;
+    fn run_bg(
+        &self,
+        f: impl FnOnce(&Database) -> std::result::Result<(), RawDBError> + Send + 'static,
+    );
+    fn iter_addr_hashes_from(
+        &self,
+        addr_type: OutputType,
+        height: Height,
+    ) -> Result<Box<dyn Iterator<Item = AddrHash> + '_>>;
+}
+
+impl IndexerVecs for Vecs {
+    fn forced_import(parent: &Path, version: Version) -> Result<Self> {
         tracing::debug!("Opening vecs database...");
         let db = Database::open(&parent.join("vecs"))?;
         tracing::debug!("Setting min len...");
@@ -99,7 +114,7 @@ impl Vecs {
         Ok(this)
     }
 
-    pub fn rollback_if_needed(&mut self, starting_lengths: &Lengths) -> Result<()> {
+    fn rollback_if_needed(&mut self, starting_lengths: &Lengths) -> Result<()> {
         let saved_height = starting_lengths.height.decremented().unwrap_or_default();
         let stamp = Stamp::from(u64::from(saved_height));
 
@@ -150,45 +165,48 @@ impl Vecs {
         Ok(())
     }
 
-    pub fn flush(&mut self, height: Height) -> Result<()> {
+    fn flush(&mut self, height: Height) -> Result<()> {
         self.stamped_write(height)?;
         self.db.flush()?;
         Ok(())
     }
 
-    pub fn next_height(&self) -> Height {
-        self.iter_any_stored_vec()
-            .map(|vec| {
-                let h = Height::from(vec.stamp());
-                if h > Height::ZERO { h.incremented() } else { h }
-            })
-            .min()
-            .unwrap()
-    }
-
-    pub fn stamped_write(&mut self, height: Height) -> Result<()> {
+    fn stamped_write(&mut self, height: Height) -> Result<()> {
         self.par_iter_mut_any_stored_vec()
             .try_for_each(|vec| vec.stamped_write(Stamp::from(height)))?;
         Ok(())
     }
 
-    pub fn compact(&self) -> Result<()> {
-        self.db.compact()?;
+    fn sync_bg_tasks(&self) -> Result<()> {
+        self.db.sync_bg_tasks()?;
         Ok(())
     }
 
-    pub fn reset(&mut self) -> Result<()> {
-        self.par_iter_mut_any_stored_vec()
-            .try_for_each(|vec| vec.any_reset())?;
-        Ok(())
+    fn run_bg(
+        &self,
+        f: impl FnOnce(&Database) -> std::result::Result<(), RawDBError> + Send + 'static,
+    ) {
+        self.db.run_bg(f);
     }
 
-    pub fn iter_addr_hashes_from(
+    fn iter_addr_hashes_from(
         &self,
         addr_type: OutputType,
         height: Height,
     ) -> Result<Box<dyn Iterator<Item = AddrHash> + '_>> {
         self.addrs.iter_hashes_from(addr_type, height)
+    }
+}
+
+impl Vecs {
+    pub fn next_height(&self) -> Height {
+        let min_stamp = self
+            .iter_any_stored_vec()
+            .map(|vec| vec.stamp())
+            .min()
+            .unwrap();
+
+        next_height_from_min_stamp(min_stamp, !self.blocks.blockhash.is_empty())
     }
 
     fn par_iter_mut_any_stored_vec(
@@ -215,5 +233,34 @@ impl Vecs {
             .chain(self.addrs.iter_any())
             .chain(self.scripts.iter_any())
             .chain(self.op_return.iter_any())
+    }
+}
+
+fn next_height_from_min_stamp(min_stamp: Stamp, has_blocks: bool) -> Height {
+    if has_blocks {
+        Height::from(min_stamp).incremented()
+    } else {
+        Height::ZERO
+    }
+}
+
+#[cfg(test)]
+mod checkpoint_tests {
+    use super::*;
+
+    #[test]
+    fn zero_stamp_distinguishes_empty_from_genesis() {
+        let zero = Stamp::from(0_u64);
+
+        assert_eq!(next_height_from_min_stamp(zero, false), Height::ZERO);
+        assert_eq!(next_height_from_min_stamp(zero, true), Height::new(1));
+    }
+
+    #[test]
+    fn nonzero_stamp_advances_to_next_height() {
+        assert_eq!(
+            next_height_from_min_stamp(Stamp::from(41_u64), true),
+            Height::new(42)
+        );
     }
 }

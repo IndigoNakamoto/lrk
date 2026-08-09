@@ -20,27 +20,31 @@ impl CachedChainCounts {
                 "tx_count_cumulative",
                 version,
                 indexer
-                    .vecs
+                    .vecs()
                     .transactions
                     .first_tx_index
                     .read_only_boxed_clone(),
-                indexer.vecs.transactions.txid.read_only_boxed_clone(),
+                indexer.vecs().transactions.txid.read_only_boxed_clone(),
             )),
             input: CachedVec::wrap(LazyCumulativeIndexVec::new(
                 "input_count_cumulative",
                 version,
-                indexer.vecs.inputs.first_txin_index.read_only_boxed_clone(),
-                indexer.vecs.inputs.outpoint.read_only_boxed_clone(),
+                indexer
+                    .vecs()
+                    .inputs
+                    .first_txin_index
+                    .read_only_boxed_clone(),
+                indexer.vecs().inputs.outpoint.read_only_boxed_clone(),
             )),
             output: CachedVec::wrap(LazyCumulativeIndexVec::new(
                 "output_count_cumulative",
                 version,
                 indexer
-                    .vecs
+                    .vecs()
                     .outputs
                     .first_txout_index
                     .read_only_boxed_clone(),
-                indexer.vecs.outputs.value.read_only_boxed_clone(),
+                indexer.vecs().outputs.value.read_only_boxed_clone(),
             )),
         }
     }

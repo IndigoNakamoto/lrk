@@ -17,11 +17,11 @@ impl Vecs {
         fees: &fees::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        let features = &indexer.vecs.transaction_features;
+        let features = &indexer.vecs().transaction_features;
         let version = features.is_unconditionally_nonstandard.version()
             + features.has_dust_output.version()
             + fees.fee.tx_index.version()
-            + indexer.vecs.transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_tx_index.version()
             + indexes.height.tx_index_count.version();
         self.is_nonstandard
             .validate_computed_version_or_reset(version)?;
@@ -57,7 +57,7 @@ impl Vecs {
             return Ok(());
         }
 
-        let first_tx = &indexer.vecs.transactions.first_tx_index;
+        let first_tx = &indexer.vecs().transactions.first_tx_index;
         let start_tx = first_tx.collect_one_at(start_height).unwrap().to_usize();
         self.is_nonstandard.truncate_if_needed_at(start_tx)?;
         self.count.nonstandard.truncate_if_needed_at(start_height)?;

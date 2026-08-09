@@ -41,7 +41,7 @@ impl Query {
 
         let start: usize = usize::from(first_height_of_day).min(tip);
 
-        let mut ts_cursor = indexer.vecs.blocks.timestamp.cursor();
+        let mut ts_cursor = indexer.vecs().blocks.timestamp.cursor();
         let mut best: Option<(usize, Timestamp)> = None;
 
         let mut above_streak = 0usize;
@@ -82,7 +82,7 @@ impl Query {
             best.ok_or_else(|| Error::NotFound("No block at or before timestamp".into()))?;
 
         let height = Height::from(best_height);
-        let blockhash = indexer.vecs.blocks.blockhash.collect_one(height).data()?;
+        let blockhash = indexer.vecs().blocks.blockhash.collect_one(height).data()?;
 
         let ts_secs: i64 = (*best_ts).into();
         let iso_timestamp = JiffTimestamp::from_second(ts_secs)

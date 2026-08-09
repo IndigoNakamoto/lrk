@@ -47,7 +47,7 @@ impl Vecs {
             total: LazyPerBlockCumulativeRolling::from_indexed_source(
                 "block_count",
                 version + Version::ONE,
-                &indexer.vecs.blocks.weight,
+                &indexer.vecs().blocks.weight,
                 cumulative_block_count,
                 cached_starts,
                 indexes,

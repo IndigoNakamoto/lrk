@@ -9,13 +9,14 @@
 
 use std::{cmp::Ordering, env, path::PathBuf};
 
-use brk_indexer::Indexer;
 use brk_oracle::{
     BINS_PER_DECADE, Config, NUM_BINS, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
     bin_to_cents, cents_to_bin, seed_bin as oracle_seed_bin,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};
+
+mod common;
 
 const GENESIS_DAY: u32 = 14252;
 const BINS_5PCT: f64 = 4.24;
@@ -455,8 +456,8 @@ fn main() {
         .unwrap_or(START_HEIGHT_SLOW)
         .max(START_HEIGHT_SLOW);
 
-    let indexer = Indexer::forced_import(&data_dir).expect("Failed to load indexer");
-    let total_heights = indexer.vecs.blocks.timestamp.len();
+    let indexer = common::import_indexer(&data_dir);
+    let total_heights = indexer.vecs().blocks.timestamp.len();
     let end = end_override.unwrap_or(total_heights).min(total_heights);
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
 
@@ -478,7 +479,7 @@ fn main() {
         })
         .collect();
 
-    let timestamps: Vec<brk_types::Timestamp> = indexer.vecs.blocks.timestamp.collect();
+    let timestamps: Vec<brk_types::Timestamp> = indexer.vecs().blocks.timestamp.collect();
     let height_years: Vec<u16> = timestamps
         .iter()
         .map(|ts| timestamp_to_year(**ts))
@@ -530,12 +531,12 @@ fn main() {
         .map(|cfg| Variant::new(cfg, seed_bin))
         .collect();
 
-    let total_txs = indexer.vecs.transactions.txid.len();
-    let total_outputs = indexer.vecs.outputs.value.len();
-    let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
-    let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
+    let total_txs = indexer.vecs().transactions.txid.len();
+    let total_outputs = indexer.vecs().outputs.value.len();
+    let first_tx_index: Vec<TxIndex> = indexer.vecs().transactions.first_tx_index.collect();
+    let out_first: Vec<TxOutIndex> = indexer.vecs().outputs.first_txout_index.collect();
     let mut txout_cursor = indexer
-        .vecs
+        .vecs()
         .transactions
         .first_txout_index
         .reader()
@@ -580,11 +581,11 @@ fn main() {
         let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
         indexer
-            .vecs
+            .vecs()
             .outputs
             .value
             .collect_range_into_at(out_start, out_end, &mut values);
-        indexer.vecs.outputs.output_type.collect_range_into_at(
+        indexer.vecs().outputs.output_type.collect_range_into_at(
             out_start,
             out_end,
             &mut output_types,

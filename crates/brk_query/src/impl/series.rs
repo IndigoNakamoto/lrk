@@ -225,7 +225,7 @@ impl Query {
     }
 
     fn entity_index_at(&self, index: Index, h: Height) -> Option<usize> {
-        let v = &self.indexer().vecs;
+        let v = self.indexer().vecs();
         match index {
             Index::TxIndex => v
                 .transactions

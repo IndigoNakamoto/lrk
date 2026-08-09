@@ -256,10 +256,11 @@ impl Writer {
 
         if value_type == ValueType::Value
             && let Some((prev_key, prev_type)) = &self.previous_item
-                && prev_type == &ValueType::WeakTombstone && prev_key.as_ref() == user_key.as_ref()
-                {
-                    self.meta.weak_tombstone_reclaimable_count += 1;
-                }
+            && prev_type == &ValueType::WeakTombstone
+            && prev_key.as_ref() == user_key.as_ref()
+        {
+            self.meta.weak_tombstone_reclaimable_count += 1;
+        }
 
         // NOTE: Check if we visit a new key
         if Some(&user_key) != self.current_key.as_ref() {
