@@ -160,6 +160,10 @@ mod tests {
             script_type(p2pk_script(&p2pk65)),
             (OutputType::P2PK65, "p2pk".to_string())
         );
+        assert_eq!(
+            script_type(ScriptBuf::from_bytes(vec![0x51, 0x02, 0x4e, 0x73])),
+            (OutputType::P2A, "anchor".to_string())
+        );
         let mut p2wpkh = vec![0; 22];
         p2wpkh[1] = 0x14;
         assert_eq!(

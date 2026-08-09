@@ -70,6 +70,8 @@ pub enum OutputTypeNormalized {
     #[serde(rename = "v1_p2tr")]
     #[strum(serialize = "v1_p2tr")]
     P2TR,
+    #[serde(rename = "anchor")]
+    #[strum(serialize = "anchor")]
     P2A,
     Empty,
     Unknown,
@@ -369,7 +371,7 @@ mod tests {
                 OutputTypeNormalized::P2TR,
                 "v1_p2tr",
             ),
-            (OutputType::P2A, "p2a", OutputTypeNormalized::P2A, "p2a"),
+            (OutputType::P2A, "p2a", OutputTypeNormalized::P2A, "anchor"),
             (
                 OutputType::Empty,
                 "empty",
@@ -408,5 +410,7 @@ mod tests {
         }
 
         assert!(serde_json::from_str::<OutputType>(r#""p2pk""#).is_err());
+        assert!(serde_json::from_str::<OutputType>(r#""anchor""#).is_err());
+        assert!(serde_json::from_str::<OutputTypeNormalized>(r#""p2a""#).is_err());
     }
 }

@@ -1482,7 +1482,7 @@ curl -s "https://bitview.space/version"
 ### `AddrStats`
 
 - `address`: `Addr` (required) — Bitcoin address string
-- `addr_type`: `OutputType` (required) — Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
+- `addr_type`: `OutputType` (required) — BRK address type (p2pk33, p2pk65, p2pkh, p2sh, p2wpkh, p2wsh, p2tr, etc.)
 - `chain_stats`: `AddrChainStats` (required) — Statistics for confirmed transactions on the blockchain
 - `mempool_stats`: `AddrMempoolStats` (required) — Statistics for unconfirmed transactions in the mempool
 - `balance`: `Sats` (required) — Total current balance in satoshis, including pending (unconfirmed) mempool changes
@@ -1794,7 +1794,7 @@ curl -s "https://bitview.space/version"
 
 ### `OutputType`
 
-`p2pk | p2pk | p2pkh | multisig | p2sh | op_return | v0_p2wpkh | v0_p2wsh | v1_p2tr | p2a | empty | unknown`
+`p2pk65 | p2pk33 | p2pkh | p2ms | p2sh | opreturn | p2wpkh | p2wsh | p2tr | p2a | empty | unknown`
 
 ### `PaginatedSeries`
 
