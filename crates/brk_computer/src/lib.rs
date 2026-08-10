@@ -50,7 +50,8 @@ pub struct Computer<M: StorageMode = Rw> {
 // Litecoin index epoch), which changes every date-indexed vec; forces recompute.
 // v10: split MWEB v8/v9 output types, HogEx tx flags, peg pool/pegin/pegout
 // series, hogex_tx_count, raw_input_volume for distortion charts.
-const VERSION: Version = Version::new(10);
+// v11: Phase 3 extension-block series (kernel fee/counts/peg flows + recon).
+const VERSION: Version = Version::new(11);
 
 impl Computer {
     pub fn forced_import(outputs_path: &Path, indexer: &Indexer) -> Result<Self> {

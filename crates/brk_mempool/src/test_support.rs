@@ -116,5 +116,9 @@ pub fn fake_bitcoin_tx(
         lock_time: LockTime::ZERO,
         input,
         output,
+        #[cfg(feature = "litecoin")]
+        is_hog_ex: false,
+        #[cfg(feature = "litecoin")]
+        mw_tx: None,
     }
 }

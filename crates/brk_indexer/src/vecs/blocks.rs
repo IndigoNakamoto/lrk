@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{
-    BlkPosition, BlockHash, CoinbaseTag, Height, StoredF64, StoredU32, StoredU64, Timestamp,
+    BlkPosition, BlockHash, CoinbaseTag, Height, Sats, StoredF64, StoredU32, StoredU64, Timestamp,
     Version, Weight,
 };
 use rayon::prelude::*;
@@ -30,6 +30,20 @@ pub struct BlocksVecs<M: StorageMode = Rw> {
     pub segwit_txs: M::Stored<PcoVec<Height, StoredU32>>,
     pub segwit_size: M::Stored<PcoVec<Height, StoredU64>>,
     pub segwit_weight: M::Stored<PcoVec<Height, Weight>>,
+    /// MWEB extension-block input count (0 when no `mweb_block`).
+    /// Hidden: computer re-exports rolled series under the same names.
+    #[traversable(hidden)]
+    pub mweb_input_count: M::Stored<PcoVec<Height, StoredU32>>,
+    #[traversable(hidden)]
+    pub mweb_output_count: M::Stored<PcoVec<Height, StoredU32>>,
+    #[traversable(hidden)]
+    pub mweb_kernel_count: M::Stored<PcoVec<Height, StoredU32>>,
+    #[traversable(hidden)]
+    pub mweb_fee_sats: M::Stored<PcoVec<Height, Sats>>,
+    #[traversable(hidden)]
+    pub mweb_kernel_pegin_sats: M::Stored<PcoVec<Height, Sats>>,
+    #[traversable(hidden)]
+    pub mweb_kernel_pegout_sats: M::Stored<PcoVec<Height, Sats>>,
 }
 
 impl BlocksVecs {
@@ -45,6 +59,12 @@ impl BlocksVecs {
             segwit_txs,
             segwit_size,
             segwit_weight,
+            mweb_input_count,
+            mweb_output_count,
+            mweb_kernel_count,
+            mweb_fee_sats,
+            mweb_kernel_pegin_sats,
+            mweb_kernel_pegout_sats,
         ) = parallel_import! {
             blockhash = BytesVec::forced_import(db, "blockhash", version),
             coinbase_tag = BytesVec::forced_import(db, "coinbase_tag", version),
@@ -56,6 +76,12 @@ impl BlocksVecs {
             segwit_txs = PcoVec::forced_import(db, "segwit_txs", version),
             segwit_size = PcoVec::forced_import(db, "segwit_size", version),
             segwit_weight = PcoVec::forced_import(db, "segwit_weight", version),
+            mweb_input_count = PcoVec::forced_import(db, "mweb_input_count", version),
+            mweb_output_count = PcoVec::forced_import(db, "mweb_output_count", version),
+            mweb_kernel_count = PcoVec::forced_import(db, "mweb_kernel_count", version),
+            mweb_fee_sats = PcoVec::forced_import(db, "mweb_fee_sats", version),
+            mweb_kernel_pegin_sats = PcoVec::forced_import(db, "mweb_kernel_pegin_sats", version),
+            mweb_kernel_pegout_sats = PcoVec::forced_import(db, "mweb_kernel_pegout_sats", version),
         };
         Ok(Self {
             blockhash: CachedVec::wrap(blockhash),
@@ -68,6 +94,12 @@ impl BlocksVecs {
             segwit_txs,
             segwit_size,
             segwit_weight,
+            mweb_input_count,
+            mweb_output_count,
+            mweb_kernel_count,
+            mweb_fee_sats,
+            mweb_kernel_pegin_sats,
+            mweb_kernel_pegout_sats,
         })
     }
 
@@ -91,6 +123,18 @@ impl BlocksVecs {
             .truncate_if_needed_with_stamp(height, stamp)?;
         self.segwit_weight
             .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_input_count
+            .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_output_count
+            .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_kernel_count
+            .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_fee_sats
+            .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_kernel_pegin_sats
+            .truncate_if_needed_with_stamp(height, stamp)?;
+        self.mweb_kernel_pegout_sats
+            .truncate_if_needed_with_stamp(height, stamp)?;
         Ok(())
     }
 
@@ -106,6 +150,12 @@ impl BlocksVecs {
             &mut self.segwit_txs,
             &mut self.segwit_size,
             &mut self.segwit_weight,
+            &mut self.mweb_input_count,
+            &mut self.mweb_output_count,
+            &mut self.mweb_kernel_count,
+            &mut self.mweb_fee_sats,
+            &mut self.mweb_kernel_pegin_sats,
+            &mut self.mweb_kernel_pegout_sats,
         ]
         .into_par_iter()
     }
@@ -122,6 +172,12 @@ impl BlocksVecs {
             &self.segwit_txs,
             &self.segwit_size,
             &self.segwit_weight,
+            &self.mweb_input_count,
+            &self.mweb_output_count,
+            &self.mweb_kernel_count,
+            &self.mweb_fee_sats,
+            &self.mweb_kernel_pegin_sats,
+            &self.mweb_kernel_pegout_sats,
         ]
         .into_iter()
     }

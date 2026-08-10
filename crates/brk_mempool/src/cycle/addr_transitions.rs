@@ -33,7 +33,7 @@ impl AddrTransitions {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{ScriptBuf, hashes::Hash};
+    use brk_chain::primitives::{self as bitcoin, ScriptBuf, hashes::Hash};
 
     use super::*;
 

@@ -13,6 +13,8 @@ struct RawBlockData {
     bytes: Vec<u8>,
     /// Per-tx byte offset within `bytes`.
     tx_offsets: Vec<u32>,
+    /// End of the L1 transaction region (excludes trailing MWEB extension).
+    l1_end: u32,
 }
 
 #[derive(Debug, Deref)]
@@ -52,8 +54,12 @@ impl Block {
         (total_size, weight_wu)
     }
 
-    pub fn set_raw_data(&mut self, bytes: Vec<u8>, tx_offsets: Vec<u32>) {
-        self.raw = Some(RawBlockData { bytes, tx_offsets });
+    pub fn set_raw_data(&mut self, bytes: Vec<u8>, tx_offsets: Vec<u32>, l1_end: u32) {
+        self.raw = Some(RawBlockData {
+            bytes,
+            tx_offsets,
+            l1_end,
+        });
     }
 
     /// Compute txid, base_size, and total_size for the transaction at `index`.
@@ -92,10 +98,12 @@ impl Block {
     fn raw_tx_bytes(&self, index: usize) -> Option<&[u8]> {
         let raw = self.raw.as_ref()?;
         let start = raw.tx_offsets[index] as usize;
+        // Bound the last L1 tx by `l1_end` so a trailing MWEB extension is not
+        // attributed to HogEx `total_size`.
         let end = raw
             .tx_offsets
             .get(index + 1)
-            .map_or(raw.bytes.len(), |&off| off as usize);
+            .map_or(raw.l1_end as usize, |&off| off as usize);
         Some(&raw.bytes[start..end])
     }
 

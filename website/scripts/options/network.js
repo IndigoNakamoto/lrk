@@ -1718,6 +1718,92 @@ export function createNetworkSection() {
               }),
             ],
           },
+          {
+            name: "Extension Block",
+            tree: [
+              {
+                name: "Activity",
+                title: "MWEB Extension Inputs / Outputs / Kernels",
+                bottom: [
+                  line({
+                    series: outputs.mweb.inputCount.block,
+                    name: "Inputs",
+                    color: colors.gray,
+                    unit: Unit.count,
+                  }),
+                  line({
+                    series: outputs.mweb.outputCount.block,
+                    name: "Outputs",
+                    color: st.mwebPegPool,
+                    unit: Unit.count,
+                  }),
+                  line({
+                    series: outputs.mweb.kernelCount.block,
+                    name: "Kernels",
+                    color: st.mweb,
+                    unit: Unit.count,
+                  }),
+                ],
+              },
+              {
+                name: "Kernel Counts",
+                tree: chartsFromCount({
+                  pattern: outputs.mweb.kernelCount,
+                  metric: "MWEB Kernels",
+                  unit: Unit.count,
+                  color: st.mweb,
+                }),
+              },
+              {
+                name: "Fees",
+                title: "MWEB Kernel Fees",
+                bottom: [
+                  line({
+                    series: outputs.mweb.fee.block.btc,
+                    name: "Kernel Fees",
+                    color: st.mweb,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.fee.cumulative.btc,
+                    name: "Cumulative",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+              {
+                name: "Kernel Peg Flow",
+                title: "Kernel Peg-In / Peg-Out Value",
+                bottom: [
+                  line({
+                    series: outputs.mweb.kernelPegin.block.btc,
+                    name: "Kernel Peg-In",
+                    color: st.mwebPegIn,
+                    unit: Unit.btc,
+                  }),
+                  line({
+                    series: outputs.mweb.kernelPegout.block.btc,
+                    name: "Kernel Peg-Out",
+                    color: st.mweb,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+              {
+                name: "Bridge Health",
+                title: "L1↔Kernel Peg Reconciliation Delta",
+                bottom: [
+                  line({
+                    series: outputs.mweb.reconDelta.block.btc,
+                    name: "Recon Delta",
+                    color: colors.gray,
+                    unit: Unit.btc,
+                  }),
+                ],
+              },
+            ],
+          },
         ],
       },
 

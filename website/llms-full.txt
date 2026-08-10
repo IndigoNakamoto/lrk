@@ -1,6 +1,6 @@
 # Litecoin Research Kit (LRK) — Full API Reference
 
-> Free, open-source Litecoin on-chain analytics API. 8,000+ time-series, block explorer, address index, mempool, mining stats — all computed from a Litecoin Core node. No auth required.
+> Free, open-source Litecoin on-chain analytics API. 8,000+ time-series, block explorer, address index, mempool, mining stats, MWEB peg analytics — all computed from a Litecoin Core node. No auth required.
 
 Base URL: https://litview.space
 GitHub: https://github.com/IndigoNakamoto/lrk
@@ -342,6 +342,8 @@ Array of spend status for all outputs.
 
 Mempool.space compatible. Supports P2PKH, P2SH, P2WPKH, P2WSH, P2TR.
 
+MWEB outputs (peg-pool witness v8, peg-in witness v9) are unspendable and excluded from the transparent UTXO set, so they never appear as addresses. Query aggregate MWEB balances via the MWEB series instead (see below).
+
 ### GET https://litview.space/api/address/{address}
 
 Address summary. Values in satoshis.
@@ -474,6 +476,40 @@ Reward statistics for the last N blocks.
 
 ---
 
+## MWEB (MimbleWimble Extension Blocks)
+
+Litecoin MWEB peg accounting, derived purely from the canonical chain. MWEB outputs (peg-pool witness v8 + peg-in witness v9) are unspendable and excluded from the transparent UTXO set, so MWEB is exposed as **series**, not addresses. The net pegged balance is recovered as `cumulative(outputs_value) - cumulative(inputs_value)`.
+
+Query these like any series (all range params, JSON/CSV, bulk). Peg-in/peg-out flow and count series are block-indexed (`height`).
+
+    # Total LTC currently pegged into MWEB
+    curl -s "https://litview.space/api/series/mweb_balance/day/latest"
+    → 461788.26
+
+    # Peg-pool balance, last 7 days
+    curl -s "https://litview.space/api/series/mweb_peg_pool_balance/day?start=-7"
+
+    # Peg-out value by block height
+    curl -s "https://litview.space/api/series/mweb_pegout_value/height?start=-10"
+
+Key series (most have `_sats` / `_usd` / `_cents` value variants, plus `_cumulative` and rolling `_sum_*` / `_average_*` windows):
+
+- `mweb_balance` — net LTC pegged into MWEB (peg-pool + peg-in combined)
+- `mweb_peg_pool_balance` — witness v8 / HogAddr macro balance (the peg-pool)
+- `mweb_pegin_balance` — witness v9 peg-in outputs (≈0 steady-state)
+- `mweb_outputs_value` / `mweb_inputs_value` — gross MWEB value created / spent per block
+- `mweb_pegin_count`, `mweb_pegin_outputs_value` — peg-in activity (block-indexed)
+- `mweb_pegout_count`, `mweb_pegout_value` — transparent peg-out on HogEx txs (block-indexed)
+- `mweb_peg_pool_outputs_value`, `mweb_peg_pool_inputs_value`, `mweb_pegin_inputs_value` — per-class peg flows
+- `mweb_input_count`, `mweb_output_count`, `mweb_kernel_count` — extension-block body activity
+- `mweb_fee` — sum of kernel fees in the extension block
+- `mweb_kernel_pegin`, `mweb_kernel_pegout` — kernel-declared peg amounts
+- `mweb_recon_delta` — `|L1 peg-in − kernel peg-in| + |L1 peg-out − kernel peg-out|` health signal
+
+Discover all MWEB series: `GET /api/series/search?q=mweb`
+
+---
+
 ## Series Categories
 
 8,000+ series across these categories. Use `/api/series/search?q={keyword}` to discover, or `/api/series` for the full tree.
@@ -487,6 +523,7 @@ Reward statistics for the last N blocks.
 - **Holder cohorts**: by balance range (plankton to whale), by holding duration (short/long-term)
 - **Cost basis**: UTXO realized price distributions by cohort
 - **Addresses**: total, new, active, empty, by balance range, by type
+- **MWEB**: peg-pool balance, peg-in / peg-out flows and counts (Litecoin MimbleWimble Extension Blocks)
 
 ---
 

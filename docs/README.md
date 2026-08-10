@@ -12,7 +12,7 @@ Open-source Litecoin data toolkit that can parse blocks, index the chain, comput
 
 **Zero external dependencies.** LRK needs only a Litecoin Core node. 8,000+ metrics across 15 time resolutions, all computed locally from your own copy of the blockchain. Historical LTC/USD prices are built in (Bitfinex back to 2013, Coinbase from 2016), with live price from your mempool. Your node, your data.
 
-**Blockchain:** Blocks, transactions, addresses, UTXOs — including MWEB (MimbleWimble Extension Blocks).
+**Blockchain:** Blocks, transactions, addresses, UTXOs — including MWEB (MimbleWimble Extension Blocks). See [MWEB.md](./MWEB.md) for the peg model and Phase 3 extension-block series.
 
 **Metrics:** Supply distributions, holder cohorts, network activity, fee markets, mining, and market indicators.
 
@@ -62,11 +62,12 @@ cargo add brk --features litecoin
 
 Build custom applications in Rust. Use the full stack or individual components (parser, indexer, computer, server).
 
-[Reference](https://docs.rs/brk) · [Architecture](./ARCHITECTURE.md)
+[Reference](https://docs.rs/brk) · [Architecture](./ARCHITECTURE.md) · [MWEB](./MWEB.md)
 
 ## Links
 
 - [Changelog](./CHANGELOG.md)
+- [MWEB model](./MWEB.md)
 - [Contributing](https://github.com/IndigoNakamoto/lrk/issues)
 - [Upstream BRK](https://github.com/bitcoinresearchkit/brk)
 

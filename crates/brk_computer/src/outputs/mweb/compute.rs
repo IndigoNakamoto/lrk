@@ -2,15 +2,29 @@ use std::time::{Duration, Instant};
 
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Height, OutputType, Sats, StoredU64, TxInIndex, TxIndex, TxOutIndex};
+use brk_types::{
+    Height, OutputType, Sats, StoredU32, StoredU64, TxInIndex, TxIndex, TxOutIndex,
+};
 use tracing::info;
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::{
+    AnyStoredVec, AnyVec, EagerVec, Exit, PcoVec, ReadableVec, VecIndex, WritableVec,
+};
 
 use super::{PegFlow, Vecs};
 use crate::{inputs, price};
 
 const PROGRESS_BLOCKS: usize = 50_000;
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Transparent HogEx outputs that fund peg-outs.
+///
+/// Canonical HogEx shape: `vout[0]` is the SegWit v8 HogAddr (peg-pool), and
+/// peg-outs are later transparent `vout`s. Excluding `OutputType::is_mweb()`
+/// (v8 peg-pool / v9 peg-in) is the type-based equivalent of skipping `vout[0]`.
+#[inline]
+pub(crate) fn is_hogex_pegout_output(ot: OutputType) -> bool {
+    !ot.is_mweb()
+}
 
 impl Vecs {
     pub(crate) fn compute(
@@ -26,6 +40,8 @@ impl Vecs {
         self.compute_input_flows(indexer, inputs, prices, exit)?;
         self.compute_pegin_count(indexer, exit)?;
         self.compute_pegout(indexer, prices, exit)?;
+        self.compute_extension_summaries(indexer, prices, exit)?;
+        self.compute_recon_delta(indexer, prices, exit)?;
 
         compute_balance(
             &mut self.peg_pool,
@@ -36,6 +52,148 @@ impl Vecs {
         compute_balance(&mut self.pegin, starting_lengths.height, prices, exit)?;
         compute_combined_balance(self, starting_lengths.height, prices, exit)?;
 
+        Ok(())
+    }
+
+    /// Copy per-block extension-block summaries from the indexer into chart series.
+    fn compute_extension_summaries(
+        &mut self,
+        indexer: &Indexer,
+        prices: &price::Vecs,
+        exit: &Exit,
+    ) -> Result<()> {
+        let starting_height = indexer.safe_lengths().height;
+        let dep_version = indexer.vecs.blocks.mweb_kernel_count.version()
+            + indexer.vecs.blocks.mweb_fee_sats.version();
+
+        self.input_count
+            .block
+            .validate_computed_version_or_reset(dep_version)?;
+        self.output_count
+            .block
+            .validate_computed_version_or_reset(dep_version)?;
+        self.kernel_count
+            .block
+            .validate_computed_version_or_reset(dep_version)?;
+        self.fee
+            .inner
+            .block
+            .sats
+            .validate_computed_version_or_reset(dep_version)?;
+        self.kernel_pegin
+            .inner
+            .block
+            .sats
+            .validate_computed_version_or_reset(dep_version)?;
+        self.kernel_pegout
+            .inner
+            .block
+            .sats
+            .validate_computed_version_or_reset(dep_version)?;
+
+        copy_height_u32(
+            &mut self.input_count.block,
+            &indexer.vecs.blocks.mweb_input_count,
+            starting_height,
+        )?;
+        self.input_count.compute_rest(starting_height, exit)?;
+
+        copy_height_u32(
+            &mut self.output_count.block,
+            &indexer.vecs.blocks.mweb_output_count,
+            starting_height,
+        )?;
+        self.output_count.compute_rest(starting_height, exit)?;
+
+        copy_height_u32(
+            &mut self.kernel_count.block,
+            &indexer.vecs.blocks.mweb_kernel_count,
+            starting_height,
+        )?;
+        self.kernel_count.compute_rest(starting_height, exit)?;
+
+        copy_height_sats(
+            &mut self.fee.block.sats,
+            &indexer.vecs.blocks.mweb_fee_sats,
+            starting_height,
+        )?;
+        self.fee.compute_rest(starting_height, prices, exit)?;
+
+        copy_height_sats(
+            &mut self.kernel_pegin.block.sats,
+            &indexer.vecs.blocks.mweb_kernel_pegin_sats,
+            starting_height,
+        )?;
+        self.kernel_pegin
+            .compute_rest(starting_height, prices, exit)?;
+
+        copy_height_sats(
+            &mut self.kernel_pegout.block.sats,
+            &indexer.vecs.blocks.mweb_kernel_pegout_sats,
+            starting_height,
+        )?;
+        self.kernel_pegout
+            .compute_rest(starting_height, prices, exit)?;
+
+        Ok(())
+    }
+
+    /// `|L1 peg-in created − kernel peg-in| + |L1 peg-out − kernel peg-out|`.
+    ///
+    /// Near-zero on healthy tips; spikes flag bridge/accounting divergence
+    /// (useful litview ops signal after Core MWEB state bugs).
+    fn compute_recon_delta(
+        &mut self,
+        indexer: &Indexer,
+        prices: &price::Vecs,
+        exit: &Exit,
+    ) -> Result<()> {
+        let starting_height = indexer.safe_lengths().height;
+        let dep_version = self.pegin.outputs_value.block.sats.version()
+            + self.pegout_value.block.sats.version()
+            + self.kernel_pegin.block.sats.version()
+            + self.kernel_pegout.block.sats.version();
+
+        self.recon_delta
+            .inner
+            .block
+            .sats
+            .validate_computed_version_or_reset(dep_version)?;
+
+        let target_len = indexer.vecs.blocks.mweb_kernel_count.len();
+        if target_len == 0 {
+            return Ok(());
+        }
+        let target_height = Height::from(target_len - 1);
+        let current_len = self.recon_delta.block.sats.len();
+        let start =
+            Height::from(current_len.min(starting_height.to_usize()));
+        if start > target_height {
+            return Ok(());
+        }
+
+        self.recon_delta.block.sats.truncate_if_needed(start)?;
+
+        let begin = start.to_usize();
+        let end = target_height.to_usize() + 1;
+        let l1_pegin = self
+            .pegin
+            .outputs_value
+            .block
+            .sats
+            .collect_range_at(begin, end);
+        let l1_pegout = self.pegout_value.block.sats.collect_range_at(begin, end);
+        let k_pegin = self.kernel_pegin.block.sats.collect_range_at(begin, end);
+        let k_pegout = self.kernel_pegout.block.sats.collect_range_at(begin, end);
+
+        for i in 0..l1_pegin.len() {
+            let d_pegin = abs_sats_diff(l1_pegin[i], k_pegin[i]);
+            let d_pegout = abs_sats_diff(l1_pegout[i], k_pegout[i]);
+            self.recon_delta.block.sats.push(d_pegin + d_pegout);
+        }
+        self.recon_delta.block.sats.write()?;
+        self.recon_delta
+            .compute_rest(starting_height, prices, exit)?;
         Ok(())
     }
 
@@ -414,7 +572,7 @@ impl Vecs {
                     );
 
                     for (ot, val) in output_types_buf.iter().zip(values_buf.iter()) {
-                        if ot.is_mweb() {
+                        if !is_hogex_pegout_output(*ot) {
                             continue;
                         }
                         pegout_value += *val;
@@ -526,4 +684,78 @@ fn compute_combined_balance(
         );
     }
     vecs.balance.compute(prices, max_height, exit)
+}
+
+fn abs_sats_diff(a: Sats, b: Sats) -> Sats {
+    if a >= b { a - b } else { b - a }
+}
+
+fn copy_height_u32(
+    dest: &mut EagerVec<PcoVec<Height, StoredU32>>,
+    src: &impl ReadableVec<Height, StoredU32>,
+    starting_height: Height,
+) -> Result<()> {
+    let target_len = src.len();
+    if target_len == 0 {
+        return Ok(());
+    }
+    let target_height = Height::from(target_len - 1);
+    let start = Height::from(dest.len().min(starting_height.to_usize()));
+    if start > target_height {
+        return Ok(());
+    }
+    dest.truncate_if_needed(start)?;
+    let values = src.collect_range_at(start.to_usize(), target_height.to_usize() + 1);
+    for v in values {
+        dest.push(v);
+    }
+    dest.write()?;
+    Ok(())
+}
+
+fn copy_height_sats(
+    dest: &mut EagerVec<PcoVec<Height, Sats>>,
+    src: &impl ReadableVec<Height, Sats>,
+    starting_height: Height,
+) -> Result<()> {
+    let target_len = src.len();
+    if target_len == 0 {
+        return Ok(());
+    }
+    let target_height = Height::from(target_len - 1);
+    let start = Height::from(dest.len().min(starting_height.to_usize()));
+    if start > target_height {
+        return Ok(());
+    }
+    dest.truncate_if_needed(start)?;
+    let values = src.collect_range_at(start.to_usize(), target_height.to_usize() + 1);
+    for v in values {
+        dest.push(v);
+    }
+    dest.write()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hogex_pegout_skips_mweb_bridge_outputs() {
+        // v8 HogAddr (vout[0]) and any v9 peg-in must not count as peg-outs.
+        assert!(!is_hogex_pegout_output(OutputType::MWEBPegPool));
+        assert!(!is_hogex_pegout_output(OutputType::MWEBPegIn));
+        // Transparent destinations on HogEx (vout[i>0]) do count.
+        assert!(is_hogex_pegout_output(OutputType::P2WPKH));
+        assert!(is_hogex_pegout_output(OutputType::P2PKH));
+        assert!(is_hogex_pegout_output(OutputType::P2TR));
+    }
+
+    #[test]
+    fn abs_sats_diff_is_symmetric() {
+        let a = Sats::from(10u64);
+        let b = Sats::from(3u64);
+        assert_eq!(abs_sats_diff(a, b), Sats::from(7u64));
+        assert_eq!(abs_sats_diff(b, a), Sats::from(7u64));
+    }
 }

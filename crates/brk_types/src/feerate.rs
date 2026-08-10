@@ -64,8 +64,12 @@ impl From<(Sats, VSize)> for FeeRate {
         }
         let sats = u64::from(sats);
         let vsize = u64::from(vsize);
+        // Litecoin MWEB-only txs can report L1 vsize/weight 0 (body weight is
+        // off the L1 fee market). Treat as undefined sat/vB (0) rather than
+        // NaN so fee histograms / packing sort them as lowest priority without
+        // poisoning percentile math.
         if vsize == 0 {
-            return Self(f64::NAN);
+            return Self(0.0);
         }
         Self((sats * 1000).div_ceil(vsize) as f64 / 1000.0)
     }
@@ -210,5 +214,23 @@ impl Formattable for FeeRate {
         } else {
             buf.extend_from_slice(b"null");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zero_vsize_is_zero_rate_not_nan() {
+        let rate = FeeRate::from((Sats::from(1000u64), VSize::from(0u64)));
+        assert_eq!(rate, FeeRate::new(0.0));
+        assert!(f64::from(rate).is_finite());
+    }
+
+    #[test]
+    fn zero_fee_is_zero_rate() {
+        let rate = FeeRate::from((Sats::from(0u64), VSize::from(100u64)));
+        assert_eq!(rate, FeeRate::new(0.0));
     }
 }

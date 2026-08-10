@@ -9,6 +9,19 @@ use crate::{XORBytes, XORIndex, canonical::CanonicalRange};
 
 pub(crate) const HEADER_LEN: usize = 80;
 
+/// Litecoin header version bit that may accompany an MWEB extension body.
+#[cfg(feature = "litecoin")]
+const MWEB_VERSION_BIT: i32 = 0x2000_0000;
+
+/// True when the L1 header + tx list may be followed by an MWEB presence byte
+/// (matches litecoin-crate `block_carries_mweb`).
+#[cfg(feature = "litecoin")]
+fn block_carries_mweb(version: bitcoin::block::Version, txdata: &[Transaction]) -> bool {
+    txdata.len() >= 2
+        && (version.to_consensus() & MWEB_VERSION_BIT) != 0
+        && txdata.last().is_some_and(|t| t.is_hog_ex)
+}
+
 /// Decodes the header onto a stack buffer so `bytes` stays untouched:
 /// the body parse later re-XORs the full block from the original phase.
 pub(crate) fn peek_canonical(
@@ -63,19 +76,34 @@ pub(crate) fn parse_canonical_body(
         tx_metadata.push(BlkMetadata::new(metadata.position() + tx_start, tx_len));
     }
 
+    // End of the L1 tx region — trailing MWEB bytes (if any) must not inflate
+    // the last HogEx tx's raw slice used for size/txid fast-paths.
+    let l1_end = cursor.position() as u32;
+
+    #[cfg(feature = "litecoin")]
+    let mweb_block = if block_carries_mweb(header.version, &txdata) {
+        let present = u8::consensus_decode_from_finite_reader(&mut cursor)?;
+        if present != 0 {
+            Some(bitcoin::block::MwebBlock::consensus_decode_from_finite_reader(
+                &mut cursor,
+            )?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let raw_bytes = cursor.into_inner();
     #[cfg(not(feature = "litecoin"))]
     let primitive_block = bitcoin::Block { header, txdata };
-    // Litecoin's `Block` carries the MWEB extension block; the indexer
-    // ignores it (peg-in/peg-out are visible as normal txs), so default
-    // it to `None`.
     #[cfg(feature = "litecoin")]
     let primitive_block = bitcoin::Block {
         header,
         txdata,
-        mweb_block: None,
+        mweb_block,
     };
     let mut block = Block::from((height, bitcoin_hash, primitive_block));
-    block.set_raw_data(raw_bytes, tx_offsets);
+    block.set_raw_data(raw_bytes, tx_offsets, l1_end);
     Ok(ReadBlock::from((block, metadata, tx_metadata)))
 }

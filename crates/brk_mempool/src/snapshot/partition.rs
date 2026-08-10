@@ -44,7 +44,12 @@ impl Partitioner {
             .enumerate()
             .filter_map(|(i, t)| {
                 let idx = TxIndex::from(i);
-                (!excluded.contains(&idx)).then_some((idx, t.vsize, t.chunk_rate))
+                // MWEB-only txs can have L1 vsize 0; they don't compete in the
+                // sat/vB packing market and would always "fit" any remaining budget.
+                if excluded.contains(&idx) || *t.vsize == 0 {
+                    return None;
+                }
+                Some((idx, t.vsize, t.chunk_rate))
             })
             .collect();
         cands.sort_by(|(a_idx, _, a_rate), (b_idx, _, b_rate)| {
@@ -58,6 +63,7 @@ impl Partitioner {
 
 #[cfg(test)]
 mod tests {
+    use brk_chain::primitives as bitcoin;
     use bitcoin::hashes::Hash;
     use brk_types::{Sats, Txid, Weight};
     use smallvec::SmallVec;
@@ -77,6 +83,18 @@ mod tests {
             parents: SmallVec::new(),
             children: SmallVec::new(),
         }
+    }
+
+    #[test]
+    fn zero_vsize_excluded_from_packing_candidates() {
+        let txs = vec![
+            snap_tx(1, 1000, 100),
+            snap_tx(2, 5000, 0), // MWEB-only: no L1 vsize
+        ];
+        let excluded = FxHashSet::default();
+        let cands = Partitioner::sorted_candidates(&txs, &excluded);
+        assert_eq!(cands.len(), 1);
+        assert_eq!(cands[0].0, TxIndex::from(0usize));
     }
 
     #[test]

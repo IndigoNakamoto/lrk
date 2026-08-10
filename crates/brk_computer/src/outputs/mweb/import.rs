@@ -78,6 +78,55 @@ impl Vecs {
                 indexes,
                 cached_starts,
             )?,
+            input_count: PerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_input_count",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            output_count: PerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_output_count",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            kernel_count: PerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_kernel_count",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            fee: ValuePerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_fee",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            kernel_pegin: ValuePerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_kernel_pegin",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            kernel_pegout: ValuePerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_kernel_pegout",
+                version,
+                indexes,
+                cached_starts,
+            )?,
+            recon_delta: ValuePerBlockCumulativeRolling::forced_import(
+                db,
+                "mweb_recon_delta",
+                version,
+                indexes,
+                cached_starts,
+            )?,
         })
     }
 }

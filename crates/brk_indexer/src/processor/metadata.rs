@@ -4,6 +4,8 @@ use brk_types::{BlockHashPrefix, Timestamp};
 use tracing::error;
 use vecdb::WritableVec;
 
+use crate::MwebSummary;
+
 use super::{BlockProcessor, ComputedTx};
 
 impl BlockProcessor<'_> {
@@ -46,6 +48,25 @@ impl BlockProcessor<'_> {
             .timestamp
             .inner
             .checked_push(height, Timestamp::from(self.block.header.time))?;
+
+        let mweb = MwebSummary::from_block(self.block);
+        let blocks = &mut self.vecs.blocks;
+        blocks
+            .mweb_input_count
+            .checked_push(height, mweb.input_count)?;
+        blocks
+            .mweb_output_count
+            .checked_push(height, mweb.output_count)?;
+        blocks
+            .mweb_kernel_count
+            .checked_push(height, mweb.kernel_count)?;
+        blocks.mweb_fee_sats.checked_push(height, mweb.fee_sats)?;
+        blocks
+            .mweb_kernel_pegin_sats
+            .checked_push(height, mweb.kernel_pegin_sats)?;
+        blocks
+            .mweb_kernel_pegout_sats
+            .checked_push(height, mweb.kernel_pegout_sats)?;
 
         Ok(())
     }

@@ -54,15 +54,21 @@ impl BlockStats {
         let mut total_fee = Sats::default();
         let mut total_vsize = VSize::default();
         let mut total_size: u64 = 0;
+        let mut tx_count = 0u32;
         let mut rates: Vec<(FeeRate, VSize)> = Vec::with_capacity(block.len());
 
         for &tx_index in block {
             let Some(t) = txs.get(tx_index.as_usize()) else {
                 continue;
             };
+            tx_count += 1;
             total_fee += t.fee;
             total_vsize += t.vsize;
             total_size += t.size;
+            // Exclude zero-L1-vsize txs (MWEB-only) from sat/vB percentiles.
+            if *t.vsize == 0 {
+                continue;
+            }
             rates.push((t.chunk_rate, t.vsize));
         }
 
@@ -75,7 +81,7 @@ impl BlockStats {
         };
 
         Self {
-            tx_count: rates.len() as u32,
+            tx_count,
             total_size,
             total_vsize,
             total_fee,

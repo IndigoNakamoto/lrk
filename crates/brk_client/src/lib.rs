@@ -68,7 +68,12 @@ fn validate_address_payload_for_type(addr_type: OutputType, payload: &[u8]) -> R
         OutputType::P2PK65 => &[65],
         OutputType::P2PKH | OutputType::P2SH | OutputType::P2WPKH => &[20],
         OutputType::P2WSH | OutputType::P2TR => &[32],
-        OutputType::P2MS | OutputType::OpReturn | OutputType::Empty | OutputType::Unknown => {
+        OutputType::P2MS
+        | OutputType::OpReturn
+        | OutputType::Empty
+        | OutputType::Unknown
+        | OutputType::MWEBPegPool
+        | OutputType::MWEBPegIn => {
             return Err(BrkError { message: format!("Unsupported address type for address payload hash-prefix: {addr_type:?}") });
         },
     };
@@ -95,7 +100,12 @@ fn address_payload_type_path(addr_type: OutputType) -> Result<&'static str> {
         OutputType::P2WPKH => Ok("v0_p2wpkh"),
         OutputType::P2WSH => Ok("v0_p2wsh"),
         OutputType::P2TR => Ok("v1_p2tr"),
-        OutputType::P2MS | OutputType::OpReturn | OutputType::Empty | OutputType::Unknown => {
+        OutputType::P2MS
+        | OutputType::OpReturn
+        | OutputType::Empty
+        | OutputType::Unknown
+        | OutputType::MWEBPegPool
+        | OutputType::MWEBPegIn => {
             Err(BrkError { message: format!("Unsupported address type for address payload hash-prefix: {addr_type:?}") })
         },
     }
@@ -4566,6 +4576,13 @@ pub struct SeriesTree_Outputs_Mweb {
     pub pegin_count: AverageBlockCumulativeSumPattern<StoredU64>,
     pub pegout_value: AverageBlockCumulativeSumPattern3,
     pub pegout_count: AverageBlockCumulativeSumPattern<StoredU64>,
+    pub input_count: AverageBlockCumulativeSumPattern2,
+    pub output_count: AverageBlockCumulativeSumPattern2,
+    pub kernel_count: AverageBlockCumulativeSumPattern2,
+    pub fee: AverageBlockCumulativeSumPattern3,
+    pub kernel_pegin: AverageBlockCumulativeSumPattern3,
+    pub kernel_pegout: AverageBlockCumulativeSumPattern3,
+    pub recon_delta: AverageBlockCumulativeSumPattern3,
 }
 
 impl SeriesTree_Outputs_Mweb {
@@ -4579,6 +4596,13 @@ impl SeriesTree_Outputs_Mweb {
             pegin_count: AverageBlockCumulativeSumPattern::new(client.clone(), "mweb_pegin_count".to_string()),
             pegout_value: AverageBlockCumulativeSumPattern3::new(client.clone(), "mweb_pegout_value".to_string()),
             pegout_count: AverageBlockCumulativeSumPattern::new(client.clone(), "mweb_pegout_count".to_string()),
+            input_count: AverageBlockCumulativeSumPattern2::new(client.clone(), "mweb_input_count".to_string()),
+            output_count: AverageBlockCumulativeSumPattern2::new(client.clone(), "mweb_output_count".to_string()),
+            kernel_count: AverageBlockCumulativeSumPattern2::new(client.clone(), "mweb_kernel_count".to_string()),
+            fee: AverageBlockCumulativeSumPattern3::new(client.clone(), "mweb_fee".to_string()),
+            kernel_pegin: AverageBlockCumulativeSumPattern3::new(client.clone(), "mweb_kernel_pegin".to_string()),
+            kernel_pegout: AverageBlockCumulativeSumPattern3::new(client.clone(), "mweb_kernel_pegout".to_string()),
+            recon_delta: AverageBlockCumulativeSumPattern3::new(client.clone(), "mweb_recon_delta".to_string()),
         }
     }
 }

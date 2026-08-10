@@ -1,5 +1,5 @@
 use brk_traversable::Traversable;
-use brk_types::StoredU64;
+use brk_types::{StoredU32, StoredU64};
 use vecdb::{Rw, StorageMode};
 
 use crate::internal::{
@@ -21,6 +21,9 @@ pub struct PegFlow<M: StorageMode = Rw> {
 /// excluded from the transparent UTXO set. The net pegged balance is recovered as
 /// `cumulative(outputs_value) - cumulative(inputs_value)`, which telescopes to
 /// the value of the currently-unspent MWEB outputs (i.e. the peg-pool balance).
+///
+/// Phase 3 also surfaces extension-block interior summaries (kernel fees,
+/// input/output/kernel counts, kernel peg amounts) indexed from `mweb_block`.
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
     /// Gross value of MWEB outputs created per block (peg-pool + peg-in).
@@ -39,4 +42,18 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub pegout_value: ValuePerBlockCumulativeRolling<M>,
     /// Transparent vout count on HogEx txs (excludes v8/v9).
     pub pegout_count: PerBlockCumulativeRolling<StoredU64, StoredU64, M>,
+    /// Extension-block input count per height.
+    pub input_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
+    /// Extension-block output count per height.
+    pub output_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
+    /// Extension-block kernel count per height.
+    pub kernel_count: PerBlockCumulativeRolling<StoredU32, StoredU64, M>,
+    /// Sum of kernel fees in the extension block.
+    pub fee: ValuePerBlockCumulativeRolling<M>,
+    /// Sum of kernel peg-in amounts in the extension block.
+    pub kernel_pegin: ValuePerBlockCumulativeRolling<M>,
+    /// Sum of kernel peg-out amounts in the extension block.
+    pub kernel_pegout: ValuePerBlockCumulativeRolling<M>,
+    /// Absolute L1↔kernel peg bridge divergence per block (health signal).
+    pub recon_delta: ValuePerBlockCumulativeRolling<M>,
 }

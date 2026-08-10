@@ -20,6 +20,7 @@ use vecdb::{
 };
 mod constants;
 mod lengths;
+mod mweb_summary;
 mod processor;
 mod readers;
 mod safe_lengths;
@@ -31,6 +32,7 @@ use processor::{BlockBuffers, BlockProcessor};
 use readers::Readers;
 
 pub use lengths::Lengths;
+pub use mweb_summary::MwebSummary;
 pub use safe_lengths::SafeLengths;
 pub use stores::Stores;
 pub use vecs::*;

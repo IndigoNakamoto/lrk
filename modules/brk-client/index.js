@@ -5844,6 +5844,13 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} peginCount
  * @property {AverageBlockCumulativeSumPattern3} pegoutValue
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} pegoutCount
+ * @property {AverageBlockCumulativeSumPattern2} inputCount
+ * @property {AverageBlockCumulativeSumPattern2} outputCount
+ * @property {AverageBlockCumulativeSumPattern2} kernelCount
+ * @property {AverageBlockCumulativeSumPattern3} fee
+ * @property {AverageBlockCumulativeSumPattern3} kernelPegin
+ * @property {AverageBlockCumulativeSumPattern3} kernelPegout
+ * @property {AverageBlockCumulativeSumPattern3} reconDelta
  */
 
 /**
@@ -9365,6 +9372,13 @@ class BrkClient extends BrkClientBase {
           peginCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_count'),
           pegoutValue: createAverageBlockCumulativeSumPattern3(this, 'mweb_pegout_value'),
           pegoutCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegout_count'),
+          inputCount: createAverageBlockCumulativeSumPattern2(this, 'mweb_input_count'),
+          outputCount: createAverageBlockCumulativeSumPattern2(this, 'mweb_output_count'),
+          kernelCount: createAverageBlockCumulativeSumPattern2(this, 'mweb_kernel_count'),
+          fee: createAverageBlockCumulativeSumPattern3(this, 'mweb_fee'),
+          kernelPegin: createAverageBlockCumulativeSumPattern3(this, 'mweb_kernel_pegin'),
+          kernelPegout: createAverageBlockCumulativeSumPattern3(this, 'mweb_kernel_pegout'),
+          reconDelta: createAverageBlockCumulativeSumPattern3(this, 'mweb_recon_delta'),
         },
       },
       addrs: {
