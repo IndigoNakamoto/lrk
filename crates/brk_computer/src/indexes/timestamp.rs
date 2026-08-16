@@ -1,74 +1,87 @@
+mod boundary;
+
 use brk_error::Result;
-use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1, Month3,
-    Month6, Timestamp, Week1, Year1, Year10,
+    BLOCKS_PER_DIFF_EPOCHS, BLOCKS_PER_HALVING, Day1, Day3, Epoch, Halving, Height, Hour1, Hour4,
+    Hour12, Minute10, Minute30, Month1, Month3, Month6, Timestamp, Week1, Year1, Year10,
 };
 use derive_more::{Deref, DerefMut};
 use vecdb::{
-    Database, EagerVec, Exit, ImportableVec, LazyVecFrom1, PcoVec, ReadableVec, Rw, StorageMode,
-    Version,
+    AnyVec, CachedVec, Database, EagerVec, Exit, ImportableVec, LazyVec, PcoVec, ReadableBoxedVec,
+    ReadableVec, Rw, StorageMode, Version,
 };
 
 use crate::internal::PerResolution;
+
+pub use boundary::BoundaryTimestampVec;
 
 /// Timestamps: monotonic height→timestamp + per-period timestamp lookups.
 ///
 /// Time-based periods (minute10–year10) are lazy: `idx.to_timestamp()` is a pure
 /// function of the index, so no storage or decompression is needed.
-/// Epoch-based periods (halving, difficulty) are eager: their timestamps
-/// come from block data via `compute_indirect_sequential`.
+/// Block-based periods (halving, difficulty) are storage-free views of the raw
+/// timestamp at each period's first block.
 #[derive(Deref, DerefMut, Traversable)]
 pub struct Timestamps<M: StorageMode = Rw> {
-    pub monotonic: M::Stored<EagerVec<PcoVec<Height, Timestamp>>>,
+    pub monotonic: CachedVec<M::Stored<EagerVec<PcoVec<Height, Timestamp>>>>,
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
     #[allow(clippy::type_complexity)]
     pub resolutions: PerResolution<
-        LazyVecFrom1<Minute10, Timestamp, Minute10, Height>,
-        LazyVecFrom1<Minute30, Timestamp, Minute30, Height>,
-        LazyVecFrom1<Hour1, Timestamp, Hour1, Height>,
-        LazyVecFrom1<Hour4, Timestamp, Hour4, Height>,
-        LazyVecFrom1<Hour12, Timestamp, Hour12, Height>,
-        LazyVecFrom1<Day1, Timestamp, Day1, Height>,
-        LazyVecFrom1<Day3, Timestamp, Day3, Height>,
-        LazyVecFrom1<Week1, Timestamp, Week1, Height>,
-        LazyVecFrom1<Month1, Timestamp, Month1, Height>,
-        LazyVecFrom1<Month3, Timestamp, Month3, Height>,
-        LazyVecFrom1<Month6, Timestamp, Month6, Height>,
-        LazyVecFrom1<Year1, Timestamp, Year1, Height>,
-        LazyVecFrom1<Year10, Timestamp, Year10, Height>,
-        M::Stored<EagerVec<PcoVec<Halving, Timestamp>>>,
-        M::Stored<EagerVec<PcoVec<Epoch, Timestamp>>>,
+        LazyVec<Minute10, Timestamp, Minute10, Height>,
+        LazyVec<Minute30, Timestamp, Minute30, Height>,
+        LazyVec<Hour1, Timestamp, Hour1, Height>,
+        LazyVec<Hour4, Timestamp, Hour4, Height>,
+        LazyVec<Hour12, Timestamp, Hour12, Height>,
+        LazyVec<Day1, Timestamp, Day1, Height>,
+        LazyVec<Day3, Timestamp, Day3, Height>,
+        LazyVec<Week1, Timestamp, Week1, Height>,
+        LazyVec<Month1, Timestamp, Month1, Height>,
+        LazyVec<Month3, Timestamp, Month3, Height>,
+        LazyVec<Month6, Timestamp, Month6, Height>,
+        LazyVec<Year1, Timestamp, Year1, Height>,
+        LazyVec<Year10, Timestamp, Year10, Height>,
+        BoundaryTimestampVec<Halving>,
+        BoundaryTimestampVec<Epoch>,
     >,
 }
 
 impl Timestamps {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn forced_import_from_locals(
+    pub(crate) fn forced_import_monotonic(
         db: &Database,
         version: Version,
-        minute10: &super::Minute10Vecs,
-        minute30: &super::Minute30Vecs,
-        hour1: &super::Hour1Vecs,
-        hour4: &super::Hour4Vecs,
-        hour12: &super::Hour12Vecs,
-        day1: &super::Day1Vecs,
-        day3: &super::Day3Vecs,
-        week1: &super::Week1Vecs,
-        month1: &super::Month1Vecs,
-        month3: &super::Month3Vecs,
-        month6: &super::Month6Vecs,
-        year1: &super::Year1Vecs,
-        year10: &super::Year10Vecs,
-    ) -> Result<Self> {
-        let monotonic = EagerVec::forced_import(db, "timestamp_monotonic", version)?;
+    ) -> Result<CachedVec<EagerVec<PcoVec<Height, Timestamp>>>> {
+        Ok(CachedVec::wrap(EagerVec::forced_import(
+            db,
+            "timestamp_monotonic",
+            version,
+        )?))
+    }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_locals(
+        version: Version,
+        monotonic: CachedVec<EagerVec<PcoVec<Height, Timestamp>>>,
+        raw_timestamps: ReadableBoxedVec<Height, Timestamp>,
+        minute10: &super::ResolutionVecs<Minute10>,
+        minute30: &super::ResolutionVecs<Minute30>,
+        hour1: &super::ResolutionVecs<Hour1>,
+        hour4: &super::ResolutionVecs<Hour4>,
+        hour12: &super::ResolutionVecs<Hour12>,
+        day1: &super::DatedResolutionVecs<Day1>,
+        day3: &super::DatedResolutionVecs<Day3>,
+        week1: &super::DatedResolutionVecs<Week1>,
+        month1: &super::DatedResolutionVecs<Month1>,
+        month3: &super::DatedResolutionVecs<Month3>,
+        month6: &super::DatedResolutionVecs<Month6>,
+        year1: &super::DatedResolutionVecs<Year1>,
+        year10: &super::DatedResolutionVecs<Year10>,
+    ) -> Self {
         macro_rules! period {
             ($field:ident) => {
-                LazyVecFrom1::init(
+                LazyVec::init(
                     "timestamp",
                     version,
                     $field.first_height.read_only_boxed_clone(),
@@ -77,7 +90,7 @@ impl Timestamps {
             };
         }
 
-        Ok(Self {
+        Self {
             monotonic,
             resolutions: PerResolution {
                 minute10: period!(minute10),
@@ -93,10 +106,13 @@ impl Timestamps {
                 month6: period!(month6),
                 year1: period!(year1),
                 year10: period!(year10),
-                halving: ImportableVec::forced_import(db, "timestamp", version)?,
-                epoch: ImportableVec::forced_import(db, "timestamp", version)?,
+                halving: BoundaryTimestampVec::new(
+                    raw_timestamps.clone(),
+                    BLOCKS_PER_HALVING as usize,
+                ),
+                epoch: BoundaryTimestampVec::new(raw_timestamps, BLOCKS_PER_DIFF_EPOCHS as usize),
             },
-        })
+        }
     }
 
     pub(crate) fn compute_monotonic(
@@ -104,11 +120,12 @@ impl Timestamps {
         indexer: &brk_indexer::Indexer,
         starting_height: Height,
         exit: &Exit,
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        let rewrites_existing = usize::from(starting_height) < self.monotonic.len();
         let mut prev = None;
-        self.monotonic.compute_transform(
+        self.monotonic.inner.compute_transform(
             starting_height,
-            &indexer.vecs.blocks.timestamp,
+            &indexer.vecs().blocks.timestamp,
             |(h, timestamp, this)| {
                 if prev.is_none()
                     && let Some(prev_h) = h.decremented()
@@ -121,31 +138,9 @@ impl Timestamps {
             },
             exit,
         )?;
-        Ok(())
-    }
-
-    pub(crate) fn compute_per_resolution(
-        &mut self,
-        indexer: &brk_indexer::Indexer,
-        height: &super::HeightVecs,
-        halving_vecs: &super::HalvingVecs,
-        epoch_vecs: &super::EpochVecs,
-        starting_lengths: &Lengths,
-        exit: &Exit,
-    ) -> Result<()> {
-        let prev_height = starting_lengths.height.decremented().unwrap_or_default();
-        self.resolutions.halving.compute_indirect_sequential(
-            height.halving.collect_one(prev_height).unwrap_or_default(),
-            &halving_vecs.first_height,
-            &indexer.vecs.blocks.timestamp,
-            exit,
-        )?;
-        self.resolutions.epoch.compute_indirect_sequential(
-            height.epoch.collect_one(prev_height).unwrap_or_default(),
-            &epoch_vecs.first_height,
-            &indexer.vecs.blocks.timestamp,
-            exit,
-        )?;
-        Ok(())
+        if rewrites_existing {
+            self.monotonic.clear();
+        }
+        Ok(rewrites_existing)
     }
 }

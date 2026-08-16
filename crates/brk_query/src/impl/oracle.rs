@@ -13,7 +13,7 @@ use crate::Query;
 
 impl Query {
     pub fn live_price(&self) -> Result<Dollars> {
-        if !self.indexer().chain.supports_oracle() {
+        if !self.indexer().chain().supports_oracle() {
             // No on-chain oracle for this chain; return the last committed
             // exchange (spot) price instead.
             let cents = &self.computer().price.spot.cents.height;
@@ -121,7 +121,7 @@ impl Query {
     /// from the last committed price. Cached per tip height; rebuilt on advance
     /// or reorg.
     fn cached_oracle(&self) -> Result<Arc<Oracle>> {
-        if !self.indexer().chain.supports_oracle() {
+        if !self.indexer().chain().supports_oracle() {
             return Err(Error::NotFound(
                 "on-chain price oracle is not supported for this chain".to_string(),
             ));
@@ -246,8 +246,7 @@ impl Query {
         let indexer = self.indexer();
         let safe_height = safe.height.to_usize();
         let total_outputs = safe.txout_index.to_usize();
-        let first_txout_index = &indexer.vecs.outputs.first_txout_index;
-
+        let first_txout_index = &indexer.vecs().outputs.first_txout_index;
         let out_start = first_txout_index
             .collect_one_at(range.start)
             .unwrap()
@@ -261,7 +260,7 @@ impl Query {
 
         let mut hist = HistogramRaw::zeros();
         indexer
-            .vecs
+            .vecs()
             .outputs
             .value
             .for_each_range_at(out_start, out_end, |sats| {

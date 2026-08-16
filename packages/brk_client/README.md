@@ -6,6 +6,10 @@ Requires Python 3.9+. Zero dependencies.
 
 [PyPI](https://pypi.org/project/brk-client/) | [API Reference](https://github.com/bitcoinresearchkit/brk/blob/main/packages/brk_client/DOCS.md)
 
+AI clients can use the same API through the official stateless, read-only MCP
+endpoint at [mcp.bitview.space](https://mcp.bitview.space/). No authentication
+is required.
+
 ## Installation
 
 ```bash

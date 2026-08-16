@@ -76,6 +76,7 @@ function createReceiptBrand() {
 /** @param {Block} block */
 function openReceiptDialog(block) {
   const dialog = document.createElement("dialog");
+  const content = document.createElement("main");
   const paper = document.createElement("article");
   const controls = document.createElement("footer");
   const print = document.createElement("button");
@@ -104,14 +105,15 @@ function openReceiptDialog(block) {
     createReceiptQr(block, url),
     createReceiptBrand(),
   );
-  dialog.append(paper, controls);
+  content.append(paper);
+  dialog.append(content, controls);
 
   print.addEventListener("click", () => {
     window.print();
   });
   openDialog(dialog, document.body);
   dialog.focus({ preventScroll: true });
-  dialog.scrollTop = 0;
+  content.scrollTop = 0;
 }
 
 export function createBlockReceipt() {

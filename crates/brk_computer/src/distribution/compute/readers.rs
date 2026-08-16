@@ -1,14 +1,14 @@
-use brk_cohort::{ByAddrType, ByAnyAddr};
 use brk_indexer::Indexer;
-use brk_types::{Height, OutPoint, OutputType, Sats, StoredU64, TxIndex, TypeIndex};
-use vecdb::{ReadableVec, Reader, VecIndex};
+use brk_types::{
+    AnyAddrIndex, EmptyAddrData, EmptyAddrIndex, FundedAddrData, FundedAddrIndex, Height, OutPoint,
+    OutputType, P2AAddrIndex, P2PK33AddrIndex, P2PK65AddrIndex, P2PKHAddrIndex, P2SHAddrIndex,
+    P2TRAddrIndex, P2WPKHAddrIndex, P2WSHAddrIndex, Sats, StoredU64, TxInIndex, TxIndex, TypeIndex,
+};
+use vecdb::{BytesVecReader, PcoVec, ReadableVec, VecIndex};
 
-use crate::{
-    distribution::{
-        RangeMap,
-        addr::{AddrsDataVecs, AnyAddrIndexesVecs},
-    },
-    inputs,
+use crate::distribution::{
+    RangeMap,
+    addr::{AddrsDataVecs, AnyAddrIndexesVecs},
 };
 
 /// Output data collected from separate vecs.
@@ -46,21 +46,21 @@ impl<'a> TxOutReaders<'a> {
         output_count: usize,
     ) -> &[TxOutData] {
         let end = first_txout_index + output_count;
-        self.indexer.vecs.outputs.value.collect_range_into_at(
+        self.indexer.vecs().outputs.value.collect_range_into_at(
             first_txout_index,
             end,
             &mut self.values_buf,
         );
-        self.indexer.vecs.outputs.output_type.collect_range_into_at(
-            first_txout_index,
-            end,
-            &mut self.output_types_buf,
-        );
-        self.indexer.vecs.outputs.type_index.collect_range_into_at(
-            first_txout_index,
-            end,
-            &mut self.type_indexes_buf,
-        );
+        self.indexer
+            .vecs()
+            .outputs
+            .output_type
+            .collect_range_into_at(first_txout_index, end, &mut self.output_types_buf);
+        self.indexer
+            .vecs()
+            .outputs
+            .type_index
+            .collect_range_into_at(first_txout_index, end, &mut self.type_indexes_buf);
 
         self.txout_data_buf.clear();
         self.txout_data_buf.extend(
@@ -81,7 +81,7 @@ impl<'a> TxOutReaders<'a> {
 /// Readers for txin vectors. Reuses all buffers across blocks.
 pub struct TxInReaders<'a> {
     indexer: &'a Indexer,
-    txins: &'a inputs::Vecs,
+    input_values: &'a PcoVec<TxInIndex, Sats>,
     tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     outpoints_buf: Vec<OutPoint>,
     values_buf: Vec<Sats>,
@@ -93,12 +93,12 @@ pub struct TxInReaders<'a> {
 impl<'a> TxInReaders<'a> {
     pub(crate) fn new(
         indexer: &'a Indexer,
-        txins: &'a inputs::Vecs,
+        input_values: &'a PcoVec<TxInIndex, Sats>,
         tx_index_to_height: &'a mut RangeMap<TxIndex, Height>,
     ) -> Self {
         Self {
             indexer,
-            txins,
+            input_values,
             tx_index_to_height,
             outpoints_buf: Vec::new(),
             values_buf: Vec::new(),
@@ -116,21 +116,19 @@ impl<'a> TxInReaders<'a> {
         current_height: Height,
     ) -> (&[Sats], &[Height], &[OutputType], &[TypeIndex]) {
         let end = first_txin_index + input_count;
-        self.txins
-            .spent
-            .value
+        self.input_values
             .collect_range_into_at(first_txin_index, end, &mut self.values_buf);
-        self.indexer.vecs.inputs.outpoint.collect_range_into_at(
+        self.indexer.vecs().inputs.outpoint.collect_range_into_at(
             first_txin_index,
             end,
             &mut self.outpoints_buf,
         );
-        self.indexer.vecs.inputs.output_type.collect_range_into_at(
-            first_txin_index,
-            end,
-            &mut self.output_types_buf,
-        );
-        self.indexer.vecs.inputs.type_index.collect_range_into_at(
+        self.indexer
+            .vecs()
+            .inputs
+            .output_type
+            .collect_range_into_at(first_txin_index, end, &mut self.output_types_buf);
+        self.indexer.vecs().inputs.type_index.collect_range_into_at(
             first_txin_index,
             end,
             &mut self.type_indexes_buf,
@@ -159,35 +157,67 @@ impl<'a> TxInReaders<'a> {
 
 /// Cached readers for stateful vectors.
 pub struct VecsReaders {
-    pub addr_type_index_to_any_addr_index: ByAddrType<Reader>,
-    pub any_addr_index_to_any_addr_data: ByAnyAddr<Reader>,
+    p2a: BytesVecReader<P2AAddrIndex, AnyAddrIndex>,
+    p2pk33: BytesVecReader<P2PK33AddrIndex, AnyAddrIndex>,
+    p2pk65: BytesVecReader<P2PK65AddrIndex, AnyAddrIndex>,
+    p2pkh: BytesVecReader<P2PKHAddrIndex, AnyAddrIndex>,
+    p2sh: BytesVecReader<P2SHAddrIndex, AnyAddrIndex>,
+    p2tr: BytesVecReader<P2TRAddrIndex, AnyAddrIndex>,
+    p2wpkh: BytesVecReader<P2WPKHAddrIndex, AnyAddrIndex>,
+    p2wsh: BytesVecReader<P2WSHAddrIndex, AnyAddrIndex>,
+    funded: BytesVecReader<FundedAddrIndex, FundedAddrData>,
+    empty: BytesVecReader<EmptyAddrIndex, EmptyAddrData>,
 }
 
 impl VecsReaders {
     pub(crate) fn new(any_addr_indexes: &AnyAddrIndexesVecs, addrs_data: &AddrsDataVecs) -> Self {
         Self {
-            addr_type_index_to_any_addr_index: ByAddrType {
-                p2a: any_addr_indexes.p2a.create_reader(),
-                p2pk33: any_addr_indexes.p2pk33.create_reader(),
-                p2pk65: any_addr_indexes.p2pk65.create_reader(),
-                p2pkh: any_addr_indexes.p2pkh.create_reader(),
-                p2sh: any_addr_indexes.p2sh.create_reader(),
-                p2tr: any_addr_indexes.p2tr.create_reader(),
-                p2wpkh: any_addr_indexes.p2wpkh.create_reader(),
-                p2wsh: any_addr_indexes.p2wsh.create_reader(),
-            },
-            any_addr_index_to_any_addr_data: ByAnyAddr {
-                funded: addrs_data.funded.create_reader(),
-                empty: addrs_data.empty.create_reader(),
-            },
+            p2a: any_addr_indexes.p2a.reader(),
+            p2pk33: any_addr_indexes.p2pk33.reader(),
+            p2pk65: any_addr_indexes.p2pk65.reader(),
+            p2pkh: any_addr_indexes.p2pkh.reader(),
+            p2sh: any_addr_indexes.p2sh.reader(),
+            p2tr: any_addr_indexes.p2tr.reader(),
+            p2wpkh: any_addr_indexes.p2wpkh.reader(),
+            p2wsh: any_addr_indexes.p2wsh.reader(),
+            funded: addrs_data.funded.reader(),
+            empty: addrs_data.empty.reader(),
         }
     }
 
-    /// Get reader for specific address type.
-    pub(crate) fn addr_reader(&self, addr_type: OutputType) -> &Reader {
-        self.addr_type_index_to_any_addr_index
-            .get(addr_type)
-            .unwrap()
+    /// Read the unified address index, including uncommitted updates after rollback.
+    pub(crate) fn any_addr_index(
+        &self,
+        vecs: &AnyAddrIndexesVecs,
+        addr_type: OutputType,
+        type_index: TypeIndex,
+    ) -> AnyAddrIndex {
+        let index = match addr_type {
+            OutputType::P2A => vecs.p2a.get_with_reader(type_index.into(), &self.p2a),
+            OutputType::P2PK33 => vecs.p2pk33.get_with_reader(type_index.into(), &self.p2pk33),
+            OutputType::P2PK65 => vecs.p2pk65.get_with_reader(type_index.into(), &self.p2pk65),
+            OutputType::P2PKH => vecs.p2pkh.get_with_reader(type_index.into(), &self.p2pkh),
+            OutputType::P2SH => vecs.p2sh.get_with_reader(type_index.into(), &self.p2sh),
+            OutputType::P2TR => vecs.p2tr.get_with_reader(type_index.into(), &self.p2tr),
+            OutputType::P2WPKH => vecs.p2wpkh.get_with_reader(type_index.into(), &self.p2wpkh),
+            OutputType::P2WSH => vecs.p2wsh.get_with_reader(type_index.into(), &self.p2wsh),
+            _ => unreachable!("invalid address type: {addr_type:?}"),
+        };
+        index.unwrap()
+    }
+
+    #[inline]
+    pub(crate) fn funded_data(
+        &self,
+        vecs: &AddrsDataVecs,
+        index: FundedAddrIndex,
+    ) -> FundedAddrData {
+        vecs.funded.get_with_reader(index, &self.funded).unwrap()
+    }
+
+    #[inline]
+    pub(crate) fn empty_data(&self, vecs: &AddrsDataVecs, index: EmptyAddrIndex) -> EmptyAddrData {
+        vecs.empty.get_with_reader(index, &self.empty).unwrap()
     }
 }
 

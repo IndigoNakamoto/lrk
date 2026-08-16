@@ -6,23 +6,23 @@
 
 # Interface: SeriesTree\_Blocks\_Fullness
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5380](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5380)
+Defined in: [Developer/brk/modules/brk-client/index.js:5925](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5925)
 
 ## Properties
-
-### bps
-
-> **bps**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5381](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5381)
-
-***
 
 ### percent
 
 > **percent**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5383](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5383)
+Defined in: [Developer/brk/modules/brk-client/index.js:5928](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5928)
+
+***
+
+### ppm
+
+> **ppm**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
+
+Defined in: [Developer/brk/modules/brk-client/index.js:5926](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5926)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5383](https://github.com/
 
 > **ratio**: [`SeriesPattern18`](../type-aliases/SeriesPattern18.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5382](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5382)
+Defined in: [Developer/brk/modules/brk-client/index.js:5927](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5927)

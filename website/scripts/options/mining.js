@@ -12,7 +12,7 @@ import {
   ROLLING_WINDOWS,
   percentRatio,
   percentRatioBaseline,
-  chartsFromCount,
+  chartsFromSumCumulative,
 } from "./series.js";
 import {
   satsBtcUsdFrom,
@@ -137,7 +137,7 @@ export function createMiningSection() {
           dominanceTree(title, "Dominance", pool.dominance),
           {
             name: "Blocks Mined",
-            tree: chartsFromCount({
+            tree: chartsFromSumCumulative({
               pattern: pool.blocksMined,
               title,
               metric: "Blocks Mined",
@@ -176,7 +176,7 @@ export function createMiningSection() {
           },
           {
             name: "Blocks Mined",
-            tree: chartsFromCount({
+            tree: chartsFromSumCumulative({
               pattern: pool.blocksMined,
               title,
               metric: "Blocks Mined",
@@ -412,14 +412,11 @@ export function createMiningSection() {
             tree: ROLLING_WINDOWS.map((w) => ({
               name: w.name,
               title: `${w.title} Fee-to-Subsidy Ratio`,
-              bottom: [
-                line({
-                  series: mining.rewards.fees.toSubsidyRatio[w.key].ratio,
-                  name: "Ratio",
-                  color: colors.mining.fee,
-                  unit: Unit.ratio,
-                }),
-              ],
+              bottom: percentRatio({
+                pattern: mining.rewards.fees.toSubsidy[w.key],
+                name: "Fees / Subsidy",
+                color: colors.mining.fee,
+              }),
             })),
           },
           {

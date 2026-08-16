@@ -92,7 +92,7 @@ impl ApiRoutes for ApiRouter<AppState> {
                             .description(
                                 "Compact OpenAPI specification optimized for LLM consumption. \
                                  Removes redundant fields while preserving essential API information. \
-                                 Full spec available at `/openapi.json`.",
+                                 The full specification is available at `GET /openapi.json`.",
                             )
                             .json_response::<serde_json::Value>()
                     },

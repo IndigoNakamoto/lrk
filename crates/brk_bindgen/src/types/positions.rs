@@ -26,7 +26,7 @@ pub enum PatternMode {
     /// Fields construct series names using a template with a discriminator placeholder.
     /// Factory takes two params: `acc` (base) and `disc` (discriminator).
     /// Formula: `_m(acc, template.replace("{disc}", disc))`
-    /// Example: template `"ratio_{disc}_bps"` with disc `"pct99"` → `_m(acc, "ratio_pct99_bps")`
+    /// Example: template `"ratio_{disc}_ppm"` with disc `"pct99"` → `_m(acc, "ratio_pct99_ppm")`
     Templated {
         /// Maps field name to its template string containing `{disc}` placeholder
         templates: BTreeMap<String, String>,

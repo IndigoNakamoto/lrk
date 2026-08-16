@@ -1,4 +1,4 @@
-use brk_error::{Error, OptionData, Result};
+use brk_error::{Error, Result};
 use brk_types::{Addr, AddrHash, AddrHashPrefixMatches, OutputType};
 
 use crate::Query;
@@ -16,19 +16,14 @@ impl Query {
         }
 
         let prefix = AddrHashPrefix::parse(prefix)?;
-        let store = self
-            .indexer()
-            .stores
-            .addr_type_to_addr_hash_to_addr_index
-            .get(addr_type)
-            .data()?;
+        let stores = self.indexer().stores();
         let safe_type_index = self.safe_lengths().to_type_index(addr_type);
-        let addr_readers = self.indexer().vecs.addrs.addr_readers();
+        let addr_readers = self.indexer().vecs().addrs.addr_readers();
         let mut addresses = Vec::new();
         let max_hash = AddrHash::new(u64::MAX);
 
         if let Some(upper) = prefix.upper {
-            for (_, type_index) in store.range(prefix.lower..upper) {
+            for (_, type_index) in stores.addr_hash_range(addr_type, prefix.lower..upper)? {
                 if type_index >= safe_type_index {
                     continue;
                 }
@@ -41,7 +36,7 @@ impl Query {
                 }
             }
         } else {
-            for (_, type_index) in store.range(prefix.lower..max_hash) {
+            for (_, type_index) in stores.addr_hash_range(addr_type, prefix.lower..max_hash)? {
                 if type_index >= safe_type_index {
                     continue;
                 }
@@ -55,7 +50,7 @@ impl Query {
             }
 
             if addresses.len() <= ADDR_HASH_PREFIX_MATCH_LIMIT
-                && let Some(type_index) = store.get(&max_hash)?.map(|cow| cow.into_owned())
+                && let Some(type_index) = stores.addr_index(addr_type, &max_hash)?
                 && type_index < safe_type_index
             {
                 let script = addr_readers.script_pubkey(addr_type, type_index);

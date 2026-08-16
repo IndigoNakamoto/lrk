@@ -32,6 +32,7 @@ pub fn create_openapi() -> OpenApi {
 - **Series**: Thousands of on-chain time-series across multiple indexes (date, block height, etc.)
 - **Multiple formats**: JSON and CSV output
 - **LLM-optimized**: [`/llms.txt`](/llms.txt) for discovery, [`/api.json`](/api.json) compact OpenAPI spec for tool use (full spec at [`/openapi.json`](/openapi.json))
+- **MCP**: Stateless, read-only access to these operations at [mcp.bitview.space](https://mcp.bitview.space/), with no authentication required
 
 ### Quick start
 
@@ -67,6 +68,7 @@ All errors return structured JSON with a consistent format:
 - [JavaScript](https://www.npmjs.com/package/brk-client)
 - [Python](https://pypi.org/project/brk-client/)
 - [Rust](https://crates.io/crates/brk_client)
+- [MCP](https://mcp.bitview.space/)
 
 ### Links
 
@@ -186,7 +188,7 @@ All errors return structured JSON with a consistent format:
                 or at any confirmed height: `raw` bins every output by value with no filtering, \
                 while `ema` is the smoothed round-dollar window the price is read from. The live \
                 price is also at `/api/mempool/price`. Confirmed per-height price history is at \
-                `/api/vecs/height-to-price`."
+                `/api/series/price/height`."
                     .to_string(),
             ),
             ..Default::default()
@@ -203,6 +205,12 @@ All errors return structured JSON with a consistent format:
                 - `raw`: one bucket per rounded price (default).\n\
                 - `lin200` / `lin500` / `lin1000`: linear buckets, $200 / $500 / $1000 wide.\n\
                 - `log10` / `log50` / `log100` / `log200`: logarithmic buckets, N bins per price decade.\n\n\
+                Weight supply with the `weight` query parameter:\n\
+                - `raw`: unweighted supply (default).\n\
+                - `cointime`: cointime-weighted supply.\n\
+                - `coinflow`: coinflow-weighted supply.\n\n\
+                Weighted `all`, `sth`, and `lth` snapshots are persisted. Weighted age-range \
+                cohorts are derived from their raw snapshot and daily cohort weight.\n\n\
                 Discovery flow: `GET /api/urpd` (cohorts), `GET /api/urpd/{cohort}` (latest), \
                 `GET /api/urpd/{cohort}/dates` (history), `GET /api/urpd/{cohort}/{date}` (specific)."
                     .to_string(),

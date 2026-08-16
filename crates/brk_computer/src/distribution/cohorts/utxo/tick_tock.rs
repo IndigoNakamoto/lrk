@@ -1,4 +1,4 @@
-use brk_cohort::{AGE_BOUNDARIES, AgeRange};
+use brk_cohort::{AGE_BOUNDARIES, AGE_RANGE_COUNT, AgeRange};
 use brk_types::{CostBasisSnapshot, ONE_HOUR_IN_SEC, Sats, Timestamp};
 use vecdb::{Rw, unlikely};
 
@@ -14,7 +14,7 @@ impl UTXOCohorts<Rw> {
     ///
     /// Uses cached positions per boundary to avoid binary search.
     /// Since timestamps are monotonic, positions only advance forward.
-    /// Complexity: O(k * c) where k = 20 boundaries, c = ~1 (forward scan steps).
+    /// Complexity: O(k * c), where k is the boundary count and c is ~1 forward scan step.
     ///
     /// Returns how many sats matured OUT OF each cohort into the older adjacent one.
     /// `over_15y` is always zero since nothing ages out of the oldest cohort.
@@ -35,12 +35,12 @@ impl UTXOCohorts<Rw> {
             return AgeRange::default();
         }
 
-        let mut matured = [Sats::ZERO; 21];
+        let mut matured = [Sats::ZERO; AGE_RANGE_COUNT];
 
-        // Get age_range cohort states (indexed 0..21)
+        // Get age_range cohort states (indexed 0..AGE_RANGE_COUNT)
         // Cohort i covers hours [BOUNDARIES[i-1], BOUNDARIES[i])
         // Cohort 0 covers [0, 1) hours
-        // Cohort 20 covers [15*365*24, infinity) hours
+        // The final cohort covers [15*365*24, infinity) hours
         let mut age_cohorts: Vec<_> = self.age_range.iter_mut().map(|v| &mut v.state).collect();
         let cached = &mut self.caches.tick_tock_cached_positions;
 

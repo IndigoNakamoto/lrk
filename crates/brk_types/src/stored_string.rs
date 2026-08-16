@@ -57,7 +57,6 @@ impl From<&StoredString> for ByteView {
         Self::new(value.as_bytes())
     }
 }
-
 impl PrintableIndex for StoredString {
     fn to_string() -> &'static str {
         "string"

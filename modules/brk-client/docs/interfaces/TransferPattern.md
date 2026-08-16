@@ -6,12 +6,12 @@
 
 # Interface: TransferPattern
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5229](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5229)
+Defined in: [Developer/brk/modules/brk-client/index.js:5754](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5754)
 
 ## Properties
 
 ### transferVolume
 
-> **transferVolume**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **transferVolume**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5230](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5230)
+Defined in: [Developer/brk/modules/brk-client/index.js:5755](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5755)

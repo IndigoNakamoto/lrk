@@ -107,7 +107,7 @@ pub trait LanguageSyntax {
     /// - `"pct99"` (static) → `'pct99'` (JS) / `"pct99".to_string()` (Rust)
     /// - `""` (empty) → `disc` (pass parent's disc through)
     /// - `"p1sd{disc}"` (suffix) → `_m('p1sd', disc)` (composed)
-    /// - `"ratio_{disc}_bps"` (embedded) → `` `ratio_${disc}_bps` `` (template literal)
+    /// - `"ratio_{disc}_ppm"` (embedded) → `` `ratio_${disc}_ppm` `` (template literal)
     fn disc_arg_expr(&self, template: &str) -> String;
 
     /// Format a templated mode expression: substitute `{disc}` at runtime.
@@ -117,6 +117,6 @@ pub trait LanguageSyntax {
     ///
     /// # Arguments
     /// * `acc_var` - The accumulator variable (e.g., "acc")
-    /// * `template` - Template like `"ratio_{disc}_bps"` or `"{disc}"`
+    /// * `template` - Template like `"ratio_{disc}_ppm"` or `"{disc}"`
     fn template_expr(&self, acc_var: &str, template: &str) -> String;
 }

@@ -1,4 +1,8 @@
 import { txColors } from "../../../../utils/colors.js";
+import {
+  OP_RETURN_KIND_FILTERS,
+  OP_RETURN_POLICY_FILTERS,
+} from "./op-return/model.js";
 
 export const FILTER_GROUPS = /** @type {const} */ ([
   { key: "version", label: "version" },
@@ -6,12 +10,18 @@ export const FILTER_GROUPS = /** @type {const} */ ([
   { key: "input", label: "input" },
   { key: "output", label: "output" },
   { key: "type", label: "type" },
+  { key: "behavior", label: "behavior" },
+  { key: "data", label: "data" },
+  { key: "sighash", label: "sighash" },
+  { key: "policy", label: "policy" },
+  { key: "op_return", label: "op return" },
 ]);
 
 const FILTER_DEFS = /** @type {const} */ ([
   ["version", "v1", "version:1", txColors.v1],
   ["version", "v2", "version:2", txColors.v2],
   ["version", "v3", "version:3", txColors.v3],
+  ["version", "other", "version:other", txColors.otherVersion],
   ["rbf", "yes", "rbf:yes", txColors.rbf],
   ["rbf", "no", "rbf:no", txColors.noRbf],
   ["input", "1", "input:one", txColors.oneInput],
@@ -29,10 +39,67 @@ const FILTER_DEFS = /** @type {const} */ ([
   ["type", "op ret", "type:op_return", txColors.opReturn],
   ["type", "empty", "type:empty", txColors.empty],
   ["type", "unknown", "type:unknown", txColors.unknown],
+  [
+    "behavior",
+    "paid by child",
+    "behavior:cpfp_parent",
+    txColors.behavior.cpfpParent,
+  ],
+  [
+    "behavior",
+    "pays parent",
+    "behavior:cpfp_child",
+    txColors.behavior.cpfpChild,
+  ],
+  ["behavior", "coinjoin", "behavior:coinjoin", txColors.behavior.coinjoin],
+  [
+    "behavior",
+    "consolidation",
+    "behavior:consolidation",
+    txColors.behavior.consolidation,
+  ],
+  ["behavior", "batch", "behavior:batch", txColors.behavior.batchPayout],
+  ["data", "fake pubkey", "data:fake_pubkey", txColors.data.fakePubkey],
+  [
+    "data",
+    "fake scripthash",
+    "data:fake_scripthash",
+    txColors.data.fakeScripthash,
+  ],
+  ["data", "inscription", "data:inscription", txColors.data.inscription],
+  ["data", "annex", "data:annex", txColors.data.annex],
+  ["data", "dust", "data:dust", txColors.data.dust],
+  ["sighash", "all", "sighash:all", txColors.sighash.all],
+  ["sighash", "none", "sighash:none", txColors.sighash.none],
+  ["sighash", "single", "sighash:single", txColors.sighash.single],
+  ["sighash", "default", "sighash:default", txColors.sighash.default],
+  [
+    "sighash",
+    "anyonecanpay",
+    "sighash:anyone_can_pay",
+    txColors.sighash.anyoneCanPay,
+  ],
+  [
+    "policy",
+    "nonstandard",
+    "policy:nonstandard",
+    txColors.policy.nonstandard,
+  ],
+  ...OP_RETURN_KIND_FILTERS.map(([label, kind, , color]) => {
+    return /** @type {const} */ (["op_return", label, `op_return:${kind}`, color]);
+  }),
+  ...OP_RETURN_POLICY_FILTERS.map(([label, policy, , color]) => {
+    return /** @type {const} */ ([
+      "op_return",
+      label,
+      `op_return_policy:${policy}`,
+      color,
+    ]);
+  }),
 ]);
 
 export const FILTERS = FILTER_DEFS.map(([group, label, key, color], index) => {
-  return /** @type {const} */ ({ bit: 1 << index, color, group, index, key, label });
+  return /** @type {const} */ ({ color, group, index, key, label });
 });
 
 export const FILTER_GROUP_FILTERS = FILTER_GROUPS.map((group) => {
@@ -46,31 +113,4 @@ export const FILTER_GROUP_LABELS = new Map(FILTER_GROUPS.map(({ key, label }) =>
   return [key, label];
 }));
 
-const FILTER_BITS = /** @type {Map<string, number>} */ (
-  new Map(FILTERS.map(({ bit, key }) => [key, bit]))
-);
-
-export const TYPE_FILTER_MASK = FILTERS
-  .filter(({ group }) => group === "type")
-  .reduce((mask, { bit }) => mask | bit, 0);
-
-export const TYPE_BITS = /** @type {const} */ ({
-  empty: getFilterBit("type:empty"),
-  multisig: getFilterBit("type:multisig"),
-  op_return: getFilterBit("type:op_return"),
-  p2a: getFilterBit("type:p2a"),
-  p2pk: getFilterBit("type:p2pk"),
-  p2pkh: getFilterBit("type:p2pkh"),
-  p2sh: getFilterBit("type:p2sh"),
-  unknown: getFilterBit("type:unknown"),
-  v0_p2wpkh: getFilterBit("type:p2wpkh"),
-  v0_p2wsh: getFilterBit("type:p2wsh"),
-  v1_p2tr: getFilterBit("type:taproot"),
-});
-
-/**
- * @param {string} key
- */
-export function getFilterBit(key) {
-  return FILTER_BITS.get(key) ?? 0;
-}
+/** @typedef {(typeof FILTERS)[number]} BlockPreviewFilter */

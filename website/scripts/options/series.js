@@ -1133,6 +1133,63 @@ export function chartsFromCount({ pattern, title = (s) => s, metric, unit, color
 }
 
 /**
+ * Windowed sums + cumulative chart for count patterns without averages.
+ * @param {Object} args
+ * @param {{ sum: { _24h: AnySeriesPattern, _1w: AnySeriesPattern, _1m: AnySeriesPattern, _1y: AnySeriesPattern }, cumulative: AnySeriesPattern }} args.pattern
+ * @param {(metric: string) => string} [args.title]
+ * @param {string} args.metric
+ * @param {Unit} args.unit
+ * @param {Color} [args.color]
+ * @returns {PartialOptionsTree}
+ */
+export function chartsFromSumCumulative({
+  pattern,
+  title = (s) => s,
+  metric,
+  unit,
+  color,
+}) {
+  return [
+    {
+      name: "Compare",
+      title: title(metric),
+      bottom: ROLLING_WINDOWS.map((w) =>
+        line({
+          series: pattern.sum[w.key],
+          name: w.name,
+          color: w.color,
+          unit,
+        }),
+      ),
+    },
+    ...ROLLING_WINDOWS.map((w) => ({
+      name: w.name,
+      title: title(`${w.title} ${metric}`),
+      bottom: [
+        line({
+          series: pattern.sum[w.key],
+          name: "Sum",
+          color: w.color,
+          unit,
+        }),
+      ],
+    })),
+    {
+      name: "Cumulative",
+      title: title(`Cumulative ${metric}`),
+      bottom: [
+        line({
+          series: pattern.cumulative,
+          name: "All Time",
+          color,
+          unit,
+        }),
+      ],
+    },
+  ];
+}
+
+/**
  * Percent + ratio per rolling window + cumulative, mirroring chartsFromCount for percent data.
  * @param {Object} args
  * @param {PercentRatioCumulativePattern} args.pattern
@@ -1256,7 +1313,7 @@ export function chartsFromPercentCumulativeEntries({
 }
 
 /**
- * Windowed sums + cumulative for multiple named entries (e.g. transaction versions)
+ * Windowed sums + optional averages + cumulative for multiple named entries.
  * @param {Object} args
  * @param {Array<[string, CountPattern<number>]>} args.entries
  * @param {(metric: string) => string} [args.title]
@@ -1269,15 +1326,24 @@ export function chartsFromCountEntries({ entries, title = (s) => s, metric, unit
     name,
     color: colors.at(i, arr.length),
     sum: data.sum,
+    average: data.average,
     cumulative: data.cumulative,
   }));
   return [
     ...ROLLING_WINDOWS.map((w) => ({
       name: w.name,
       title: title(`${w.title} ${metric}`),
-      bottom: items.map((e) =>
+      bottom: items.flatMap((e) => [
         line({ series: e.sum[w.key], name: e.name, color: e.color, unit }),
-      ),
+        line({
+          series: e.average[w.key],
+          name: `${e.name} Avg`,
+          color: e.color,
+          unit,
+          defaultActive: false,
+          style: 1,
+        }),
+      ]),
     })),
     {
       name: "Cumulative",

@@ -16,31 +16,6 @@ impl Vecs {
         let starting_lengths = indexer.safe_lengths();
         let close = &prices.spot.cents.height;
 
-        for (sma, period) in [
-            (&mut self.sma._1w, 7),
-            (&mut self.sma._8d, 8),
-            (&mut self.sma._13d, 13),
-            (&mut self.sma._21d, 21),
-            (&mut self.sma._1m, 30),
-            (&mut self.sma._34d, 34),
-            (&mut self.sma._55d, 55),
-            (&mut self.sma._89d, 89),
-            (&mut self.sma._111d, 111),
-            (&mut self.sma._144d, 144),
-            (&mut self.sma._200d, 200),
-            (&mut self.sma._350d, 350),
-            (&mut self.sma._1y, 365),
-            (&mut self.sma._2y, 2 * 365),
-            (&mut self.sma._200w, 200 * 7),
-            (&mut self.sma._4y, 4 * 365),
-        ] {
-            let window_starts = blocks.lookback.start_vec(period);
-            sma.compute_all(prices, &starting_lengths, exit, |v| {
-                v.compute_rolling_average(starting_lengths.height, window_starts, close, exit)?;
-                Ok(())
-            })?;
-        }
-
         for (ema, period) in [
             (&mut self.ema._1w, 7),
             (&mut self.ema._8d, 8),
@@ -60,10 +35,12 @@ impl Vecs {
             (&mut self.ema._4y, 4 * 365),
         ] {
             let window_starts = blocks.lookback.start_vec(period);
-            ema.compute_all(prices, &starting_lengths, exit, |v| {
-                v.compute_rolling_ema(starting_lengths.height, window_starts, close, exit)?;
-                Ok(())
-            })?;
+            ema.cents.height.compute_rolling_ema(
+                starting_lengths.height,
+                window_starts,
+                close,
+                exit,
+            )?;
         }
 
         Ok(())

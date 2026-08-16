@@ -5,6 +5,8 @@ use brk_chain::Chain;
 use brk_computer::Computer;
 use brk_indexer::Indexer;
 use brk_query::Vecs;
+use brk_reader::Reader;
+use brk_rpc::{Auth, Client};
 use brk_server::{ApiRoutes, finish_openapi, generate_bindings};
 
 pub fn main() -> color_eyre::Result<()> {
@@ -24,7 +26,9 @@ pub fn main() -> color_eyre::Result<()> {
         Chain::Bitcoin
     };
 
-    let indexer = Indexer::forced_import_with_chain(&tmp, chain)?;
+    let client = Client::new("http://127.0.0.1:1", Auth::None)?;
+    let reader = Reader::new_without_rlimit(tmp.join("blocks"), &client);
+    let indexer = Indexer::import(&tmp, &reader)?;
     let computer = Computer::forced_import(&tmp, &indexer)?;
     let vecs = Vecs::build_rw(&indexer, &computer);
 
@@ -38,8 +42,10 @@ pub fn main() -> color_eyre::Result<()> {
 
     let output_paths = brk_bindgen::ClientOutputPaths::new()
         .rust(workspace_root.join("crates/brk_client/src/lib.rs"))
-        .javascript(workspace_root.join("modules/brk-client/index.js"))
-        .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"));
+        .javascript(workspace_root.join("website/scripts/modules/brk-client/index.js"))
+        .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"))
+        .llm(workspace_root.join("website"))
+        .llm(workspace_root.join("website_next"));
 
     generate_bindings(&vecs, &openapi, &output_paths, chain)?;
 

@@ -1,9 +1,7 @@
 use std::collections::BTreeMap;
 
 use brk_error::{Error, Result};
-use brk_types::{
-    Cents, CheckedSub, Close, Date, Day1, Dollars, Height, High, Low, OHLCCents, Open, Timestamp,
-};
+use brk_types::{Cents, Close, Date, Day1, Dollars, Height, High, Low, OHLCCents, Open, Timestamp};
 use serde_json::Value;
 use tracing::info;
 use ureq::Agent;
@@ -38,22 +36,28 @@ const CHUNK_SIZE: usize = 10_000;
 
 impl BRK {
     pub fn get_from_height(&mut self, height: Height) -> Result<OHLCCents> {
-        let key = height.checked_sub(height % CHUNK_SIZE).unwrap();
+        let (key, offset) = Self::height_chunk(height);
 
-        #[allow(clippy::map_entry)]
-        if !self.height_to_ohlc.contains_key(&key)
-            || ((key + self.height_to_ohlc.get(&key).unwrap().len()) <= height)
-        {
+        let needs_fetch = self
+            .height_to_ohlc
+            .get(&key)
+            .is_none_or(|prices| key + prices.len() <= height);
+        if needs_fetch {
             self.height_to_ohlc
                 .insert(key, self.fetch_height_prices(key)?);
         }
 
         self.height_to_ohlc
             .get(&key)
-            .unwrap()
-            .get(usize::from(height.checked_sub(key).unwrap()))
+            .and_then(|prices| prices.get(offset))
             .cloned()
             .ok_or(Error::NotFound("Couldn't find height in BRK".into()))
+    }
+
+    fn height_chunk(height: Height) -> (Height, usize) {
+        let height = usize::from(height);
+        let offset = height % CHUNK_SIZE;
+        (Height::from(height - offset), offset)
     }
 
     fn fetch_height_prices(&self, height: Height) -> Result<Vec<OHLCCents>> {
@@ -79,22 +83,27 @@ impl BRK {
 
     pub fn get_from_date(&mut self, date: Date) -> Result<OHLCCents> {
         let day1 = Day1::try_from(date)?;
+        let (key, offset) = Self::day_chunk(day1);
 
-        let key = day1.checked_sub(day1 % CHUNK_SIZE).unwrap();
-
-        #[allow(clippy::map_entry)]
-        if !self.day1_to_ohlc.contains_key(&key)
-            || ((key + self.day1_to_ohlc.get(&key).unwrap().len()) <= day1)
-        {
+        let needs_fetch = self
+            .day1_to_ohlc
+            .get(&key)
+            .is_none_or(|prices| key + prices.len() <= day1);
+        if needs_fetch {
             self.day1_to_ohlc.insert(key, self.fetch_date_prices(key)?);
         }
 
         self.day1_to_ohlc
             .get(&key)
-            .unwrap()
-            .get(usize::from(day1.checked_sub(key).unwrap()))
+            .and_then(|prices| prices.get(offset))
             .cloned()
             .ok_or(Error::NotFound("Couldn't find date in BRK".into()))
+    }
+
+    fn day_chunk(day: Day1) -> (Day1, usize) {
+        let day = usize::from(day);
+        let offset = day % CHUNK_SIZE;
+        (Day1::from(day - offset), offset)
     }
 
     fn fetch_date_prices(&self, day1: Day1) -> Result<Vec<OHLCCents>> {

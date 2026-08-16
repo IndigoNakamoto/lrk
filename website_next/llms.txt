@@ -1,32 +1,34 @@
-# Litecoin Research Kit (LRK)
+# Bitcoin Research Kit (BRK)
 
-> Free, open-source Litecoin on-chain analytics API at https://litview.space. 8,000+ time-series (price, hashrate, supply, MVRV, HODL waves, and more), block explorer, address index, mempool stats, mining data. No auth required. JSON and CSV output.
+> Free, open-source Bitcoin analytics API and block explorer. 58022 on-chain time-series and 97 API operations. No authentication required.
 
-## API Documentation
+## API
 
-- [Full API reference (plain text)](https://litview.space/llms-full.txt): Every endpoint, parameter, and response shape
-- [OpenAPI spec (compact, LLM-optimized)](https://litview.space/api.json): Machine-readable, minimal spec for tool use
-- [OpenAPI spec (full)](https://litview.space/openapi.json): Complete OpenAPI 3.1 specification
-- [Interactive docs](https://litview.space/api): Scalar API explorer
+- Version: `v0.11.2`
+- Base URL: https://bitview.space
+- [Full plain-text reference](https://bitview.space/llms-full.txt)
+- [Compact OpenAPI](https://bitview.space/api.json)
+- [Full OpenAPI](https://bitview.space/openapi.json)
+- [Series catalog](https://bitview.space/api/series)
+- [Interactive documentation](https://bitview.space/api)
 
-## Quick Start
+Use OpenAPI for tool construction, `/api/series` for complete series metadata, and `llms-full.txt` for a readable reference.
 
-- [Search series](https://litview.space/api/series/search?q=price): `GET /api/series/search?q={query}`
-- [Get series data](https://litview.space/api/series/price/day?start=-30): `GET /api/series/{name}/{index}?start=-30`
-- [Latest value](https://litview.space/api/series/price/day/latest): `GET /api/series/{name}/{index}/latest`
-- [Bulk query](https://litview.space/api/series/bulk?index=day&series=price,market_cap&start=-7): `GET /api/series/bulk?index={index}&series={s1},{s2}`
-- [Block by height](https://litview.space/api/block-height/0): `GET /api/block-height/{height}`
-- [Transaction](https://litview.space/api/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b): `GET /api/tx/{txid}`
-- [Address](https://litview.space/api/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa): `GET /api/address/{address}`
-- [Fee estimates](https://litview.space/api/v1/fees/recommended): `GET /api/v1/fees/recommended`
-- [Live price](https://litview.space/api/mempool/price): `GET /api/mempool/price`
+## MCP
 
-## Client Libraries
+- Endpoint: https://mcp.bitview.space/
+- Transport: Streamable HTTP
+- Authentication: None
 
-- [JavaScript](https://www.npmjs.com/package/brk-client): npm install brk-client
-- [Python](https://pypi.org/project/brk-client/): pip install brk-client
-- [Rust](https://crates.io/crates/brk_client): cargo add brk_client
+The MCP server is stateless and read-only. Its tools are generated from these OpenAPI operations.
+
+## Clients
+
+- [JavaScript](https://www.npmjs.com/package/brk-client)
+- [Python](https://pypi.org/project/brk-client/)
+- [Rust](https://crates.io/crates/brk_client)
 
 ## Source
 
-- [GitHub](https://github.com/IndigoNakamoto/lrk): MIT licensed
+- [GitHub](https://github.com/bitcoinresearchkit/brk)
+- MIT licensed

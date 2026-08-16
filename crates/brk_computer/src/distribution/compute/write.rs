@@ -80,7 +80,7 @@ pub(crate) fn write(
         .chain(
             [
                 &mut vecs.supply_state as &mut dyn AnyStoredVec,
-                &mut vecs.coinblocks_destroyed.block,
+                vecs.coinblocks_destroyed.stored_mut(),
             ]
             .into_par_iter(),
         )

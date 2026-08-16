@@ -9,9 +9,8 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::{
     AggFold, AnyExportableVec, AnyVec, BytesVec, BytesVecValue, CachedVec, CompressionStrategy,
-    DeltaOp, EagerVec, Formattable, LazyAggVec, LazyDeltaVec, LazyVecFrom1, LazyVecFrom2,
-    LazyVecFrom3, RawStrategy, ReadOnlyCompressedVec, ReadOnlyRawVec, StoredVec, TypedVec,
-    VecIndex, VecValue,
+    DeltaOp, EagerVec, Formattable, LazyAggVec, LazyDeltaVec, LazyVec, RawStrategy,
+    ReadOnlyCompressedVec, ReadOnlyRawVec, StoredVec, TypedVec, VecIndex, VecValue,
 };
 
 pub trait Traversable {
@@ -24,8 +23,8 @@ pub trait Traversable {
     }
 }
 
-/// Helper to create a SeriesLeafWithSchema from a vec
-fn make_leaf<I: VecIndex, T: JsonSchema, V: AnyVec>(vec: &V) -> TreeNode {
+/// Creates a series leaf, including its value schema, from a vector.
+pub fn make_leaf<I: VecIndex, T: JsonSchema, V: AnyVec>(vec: &V) -> TreeNode {
     let index_str = I::to_string();
     let index = Index::try_from(index_str).ok();
     let indexes = index.into_iter().collect();
@@ -168,51 +167,12 @@ where
     }
 }
 
-impl<I, T, S1I, S1T> Traversable for LazyVecFrom1<I, T, S1I, S1T>
+impl<I, T, S1I, S1T> Traversable for LazyVec<I, T, S1I, S1T>
 where
     I: VecIndex,
     T: VecValue + Formattable + Serialize + JsonSchema,
     S1I: VecIndex,
     S1T: VecValue,
-{
-    fn iter_any_exportable(&self) -> impl Iterator<Item = &dyn AnyExportableVec> {
-        std::iter::once(self as &dyn AnyExportableVec)
-    }
-
-    fn to_tree_node(&self) -> TreeNode {
-        make_leaf::<I, T, _>(self)
-    }
-}
-
-impl<I, T, S1I, S1T, S2I, S2T> Traversable for LazyVecFrom2<I, T, S1I, S1T, S2I, S2T>
-where
-    I: VecIndex,
-    T: VecValue + Formattable + Serialize + JsonSchema,
-    S1I: VecIndex,
-    S1T: VecValue,
-    S2I: VecIndex,
-    S2T: VecValue,
-{
-    fn iter_any_exportable(&self) -> impl Iterator<Item = &dyn AnyExportableVec> {
-        std::iter::once(self as &dyn AnyExportableVec)
-    }
-
-    fn to_tree_node(&self) -> TreeNode {
-        make_leaf::<I, T, _>(self)
-    }
-}
-
-impl<I, T, S1I, S1T, S2I, S2T, S3I, S3T> Traversable
-    for LazyVecFrom3<I, T, S1I, S1T, S2I, S2T, S3I, S3T>
-where
-    I: VecIndex,
-    T: VecValue + Formattable + Serialize + JsonSchema,
-    S1I: VecIndex,
-    S1T: VecValue,
-    S2I: VecIndex,
-    S2T: VecValue,
-    S3I: VecIndex,
-    S3T: VecValue,
 {
     fn iter_any_exportable(&self) -> impl Iterator<Item = &dyn AnyExportableVec> {
         std::iter::once(self as &dyn AnyExportableVec)

@@ -8,13 +8,13 @@ use brk_types::{
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    AggFold, LazyAggVec, ReadOnlyClone, ReadableCloneableVec, ReadableVec, TypedVec, VecIndex,
-    VecValue,
+    AggFold, CachedVec, LazyAggVec, ReadOnlyClone, ReadableBoxedVec, ReadableCloneableVec,
+    ReadableVec, StoredVec, TypedVec, VecIndex, VecValue,
 };
 
 use crate::{
     indexes,
-    internal::{ComputedVecValue, NumericValue, PerResolution, cache_wrap},
+    internal::{PerResolution, cache_wrap},
 };
 
 /// Aggregation strategy for epoch-based indices (Halving, Epoch).
@@ -86,11 +86,11 @@ pub struct Resolutions<T>(
     >,
 )
 where
-    T: ComputedVecValue + PartialOrd + JsonSchema;
+    T: VecValue + PartialOrd + JsonSchema;
 
 impl<T> ReadOnlyClone for Resolutions<T>
 where
-    T: ComputedVecValue + PartialOrd + JsonSchema,
+    T: VecValue + PartialOrd + JsonSchema,
 {
     type ReadOnly = Self;
     fn read_only_clone(&self) -> Self {
@@ -100,8 +100,25 @@ where
 
 impl<T> Resolutions<T>
 where
-    T: NumericValue + JsonSchema,
+    T: VecValue + PartialOrd + JsonSchema + 'static,
 {
+    pub(crate) fn from_cached_height<V>(
+        name: &str,
+        height_source: &CachedVec<V>,
+        version: Version,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        V: StoredVec<I = Height, T = T>,
+    {
+        Self::from_boxed_height_source(
+            name,
+            height_source.read_only_boxed_clone(),
+            version,
+            indexes,
+        )
+    }
+
     pub(crate) fn forced_import<V>(
         name: &str,
         height_source: V,
@@ -113,10 +130,39 @@ where
     {
         let cached = cache_wrap(height_source);
         let height_source = cached.read_only_boxed_clone();
+        Self::from_boxed_height_source(name, height_source, version, indexes)
+    }
 
+    /// Build resolution views without materializing the height source in the
+    /// budgeted cache.
+    ///
+    /// This is for sources that already read from compact in-memory state.
+    pub(crate) fn forced_import_uncached<V>(
+        name: &str,
+        height_source: V,
+        version: Version,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        V: TypedVec<I = Height, T = T> + ReadableVec<Height, T> + Clone + 'static,
+    {
+        Self::from_boxed_height_source(
+            name,
+            height_source.read_only_boxed_clone(),
+            version,
+            indexes,
+        )
+    }
+
+    fn from_boxed_height_source(
+        name: &str,
+        height_source: ReadableBoxedVec<Height, T>,
+        version: Version,
+        indexes: &indexes::Vecs,
+    ) -> Self {
         macro_rules! res {
             ($field:expr) => {{
-                let cached = $field.read_only_clone();
+                let cached = $field.clone();
                 let mapping_version = cached.version();
                 LazyAggVec::new(
                     name,

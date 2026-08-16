@@ -1,4 +1,5 @@
 use crate::openapi::{Parameter, ResponseKind};
+use serde_json::Value;
 
 /// Request body shape for POST/PUT/PATCH endpoints.
 #[derive(Debug, Clone)]
@@ -30,6 +31,8 @@ pub struct Endpoint {
     pub request_body: Option<RequestBody>,
     /// Body kind for the 200 response.
     pub response_kind: ResponseKind,
+    /// Raw JSON schema for the application/json 200 response, when present.
+    pub json_response_schema: Option<Value>,
     /// Whether this endpoint is deprecated
     pub deprecated: bool,
     /// Whether this endpoint supports CSV format (text/csv content type)

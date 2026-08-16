@@ -10,6 +10,13 @@ impl FenwickNode for u32 {
     }
 }
 
+impl FenwickNode for f64 {
+    #[inline(always)]
+    fn add_assign(&mut self, other: &Self) {
+        *self += other;
+    }
+}
+
 /// Generic Fenwick tree (Binary Indexed Tree) over arbitrary node types.
 ///
 /// Uses 0-indexed buckets externally; 1-indexed internally.

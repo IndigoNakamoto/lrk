@@ -10,17 +10,24 @@ dialog[data-block-receipt] {
   position: fixed;
   inset: 0 0 auto;
   width: min(100% - 2rem, 28rem);
+  height: 100dvh;
   max-height: 100dvh;
   margin: 0 auto;
   border-radius: 0;
-  overflow-y: auto;
-  padding-block: var(--receipt-dialog-padding-block);
+  overflow: hidden;
+  padding: 0;
   color: var(--black);
   background: transparent;
   font-family: var(--font-mono);
-  overscroll-behavior: contain;
-  scrollbar-width: none;
   translate: none;
+
+  > main {
+    height: 100%;
+    overflow-y: auto;
+    padding-block: var(--receipt-dialog-padding-block);
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
 
   :is(
     [data-receipt-section] > h3,
@@ -190,7 +197,7 @@ dialog[data-block-receipt] {
   }
 
   [data-receipt-controls] {
-    position: fixed;
+    position: absolute;
     bottom: 0.5rem;
     left: 50%;
     z-index: 1;
@@ -265,6 +272,7 @@ dialog[data-block-receipt] {
     position: static;
     display: block;
     width: var(--receipt-page-width);
+    height: auto;
     max-width: none;
     max-height: none;
     margin: 0;
@@ -273,6 +281,12 @@ dialog[data-block-receipt] {
     color: black;
     background: white;
     overscroll-behavior: auto;
+  }
+
+  dialog[data-block-receipt] > main {
+    height: auto;
+    overflow: visible;
+    padding: 0;
   }
 
   dialog[data-block-receipt]::backdrop {

@@ -6,172 +6,188 @@
 
 # Interface: SeriesTree\_Cohorts\_Utxo\_Matured
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7807](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7807)
+Defined in: [Developer/brk/modules/brk-client/index.js:8254](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8254)
 
 ## Properties
 
 ### \_10yTo12y
 
-> **\_10yTo12y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_10yTo12y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7826](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7826)
+Defined in: [Developer/brk/modules/brk-client/index.js:8275](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8275)
 
 ***
 
 ### \_12yTo15y
 
-> **\_12yTo15y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_12yTo15y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7827](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7827)
+Defined in: [Developer/brk/modules/brk-client/index.js:8276](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8276)
+
+***
+
+### \_18mTo2y
+
+> **\_18mTo2y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:8267](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8267)
 
 ***
 
 ### \_1dTo1w
 
-> **\_1dTo1w**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_1dTo1w**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7810](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7810)
+Defined in: [Developer/brk/modules/brk-client/index.js:8257](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8257)
 
 ***
 
 ### \_1hTo1d
 
-> **\_1hTo1d**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_1hTo1d**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7809](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7809)
+Defined in: [Developer/brk/modules/brk-client/index.js:8256](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8256)
 
 ***
 
 ### \_1mTo2m
 
-> **\_1mTo2m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_1mTo2m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7812](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7812)
+Defined in: [Developer/brk/modules/brk-client/index.js:8259](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8259)
 
 ***
 
 ### \_1wTo1m
 
-> **\_1wTo1m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_1wTo1m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7811](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7811)
+Defined in: [Developer/brk/modules/brk-client/index.js:8258](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8258)
 
 ***
 
-### \_1yTo2y
+### \_1yTo18m
 
-> **\_1yTo2y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_1yTo18m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7818](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7818)
+Defined in: [Developer/brk/modules/brk-client/index.js:8266](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8266)
 
 ***
 
 ### \_2mTo3m
 
-> **\_2mTo3m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_2mTo3m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7813](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7813)
+Defined in: [Developer/brk/modules/brk-client/index.js:8260](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8260)
 
 ***
 
 ### \_2yTo3y
 
-> **\_2yTo3y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_2yTo3y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7819](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7819)
+Defined in: [Developer/brk/modules/brk-client/index.js:8268](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8268)
 
 ***
 
 ### \_3mTo4m
 
-> **\_3mTo4m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_3mTo4m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7814](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7814)
+Defined in: [Developer/brk/modules/brk-client/index.js:8261](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8261)
 
 ***
 
 ### \_3yTo4y
 
-> **\_3yTo4y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_3yTo4y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7820](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7820)
+Defined in: [Developer/brk/modules/brk-client/index.js:8269](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8269)
 
 ***
 
 ### \_4mTo5m
 
-> **\_4mTo5m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_4mTo5m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7815](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7815)
+Defined in: [Developer/brk/modules/brk-client/index.js:8262](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8262)
 
 ***
 
 ### \_4yTo5y
 
-> **\_4yTo5y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_4yTo5y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7821](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7821)
+Defined in: [Developer/brk/modules/brk-client/index.js:8270](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8270)
 
 ***
 
 ### \_5mTo6m
 
-> **\_5mTo6m**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_5mTo6m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7816](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7816)
+Defined in: [Developer/brk/modules/brk-client/index.js:8263](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8263)
 
 ***
 
 ### \_5yTo6y
 
-> **\_5yTo6y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_5yTo6y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7822](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7822)
+Defined in: [Developer/brk/modules/brk-client/index.js:8271](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8271)
 
 ***
 
-### \_6mTo1y
+### \_6mTo9m
 
-> **\_6mTo1y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_6mTo9m**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7817](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7817)
+Defined in: [Developer/brk/modules/brk-client/index.js:8264](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8264)
 
 ***
 
 ### \_6yTo7y
 
-> **\_6yTo7y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_6yTo7y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7823](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7823)
+Defined in: [Developer/brk/modules/brk-client/index.js:8272](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8272)
 
 ***
 
 ### \_7yTo8y
 
-> **\_7yTo8y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_7yTo8y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7824](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7824)
+Defined in: [Developer/brk/modules/brk-client/index.js:8273](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8273)
 
 ***
 
 ### \_8yTo10y
 
-> **\_8yTo10y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **\_8yTo10y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7825](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7825)
+Defined in: [Developer/brk/modules/brk-client/index.js:8274](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8274)
+
+***
+
+### \_9mTo1y
+
+> **\_9mTo1y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:8265](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8265)
 
 ***
 
 ### over15y
 
-> **over15y**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **over15y**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7828](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7828)
+Defined in: [Developer/brk/modules/brk-client/index.js:8277](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8277)
 
 ***
 
 ### under1h
 
-> **under1h**: [`AverageBlockCumulativeSumPattern3`](AverageBlockCumulativeSumPattern3.md)
+> **under1h**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7808](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7808)
+Defined in: [Developer/brk/modules/brk-client/index.js:8255](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8255)

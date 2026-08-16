@@ -181,7 +181,8 @@ fn ex(cmd: &str, note: &str) {
 }
 
 fn bold(s: &str) -> String {
-    s.if_supports_color(Stream::Stdout, |t| t.bold()).to_string()
+    s.if_supports_color(Stream::Stdout, |t| t.bold())
+        .to_string()
 }
 
 fn dim(s: &str) -> String {

@@ -14,8 +14,13 @@ impl Vecs {
     ) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
 
-        self.vsize
-            .derive_from(indexer, indexes, &starting_lengths, exit)?;
+        self.weight.derive_from(
+            indexer,
+            indexes,
+            &starting_lengths,
+            &indexer.vecs().transactions.weight,
+            exit,
+        )?;
 
         Ok(())
     }

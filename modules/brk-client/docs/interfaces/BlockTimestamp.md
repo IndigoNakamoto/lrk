@@ -6,7 +6,7 @@
 
 # Interface: BlockTimestamp
 
-Defined in: [Developer/brk/modules/brk-client/index.js:347](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L347)
+Defined in: [Developer/brk/modules/brk-client/index.js:319](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L319)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:347](https://github.com/b
 
 > **hash**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:349](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L349)
+Defined in: [Developer/brk/modules/brk-client/index.js:321](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L321)
 
 Block hash
 
@@ -24,7 +24,7 @@ Block hash
 
 > **height**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:348](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L348)
+Defined in: [Developer/brk/modules/brk-client/index.js:320](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L320)
 
 Block height
 
@@ -34,6 +34,6 @@ Block height
 
 > **timestamp**: `string`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:350](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L350)
+Defined in: [Developer/brk/modules/brk-client/index.js:322](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L322)
 
 Block timestamp in ISO 8601 format

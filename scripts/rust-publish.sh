@@ -1,54 +1,26 @@
 #!/bin/bash
-set -e
-
-# Order determined by topological sort of dependency graph
-CRATES=(
-    brk_alloc
-    brk_error
-    brk_logger
-    brk_types
-    brk_fetcher
-    brk_rpc
-    brk_reader
-    brk_iterator
-    brk_store
-    brk_traversable_derive
-    brk_traversable
-    brk_bencher
-    brk_cohort
-    brk_indexer
-    brk_oracle
-    brk_mempool
-    brk_computer
-    brk_query
-    brk_bindgen
-    brk_website
-    brk_server
-    brk_client
-    brk
-    brk_cli
-    blk
-    mmpl
-)
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CRATES_DIR="$SCRIPT_DIR/../crates"
+ROOT_DIR="$SCRIPT_DIR/.."
 
-cd "$CRATES_DIR" || { echo "Failed to cd to crates directory"; exit 1; }
-echo "Working from: $(pwd)"
+cd "$ROOT_DIR"
 
-for crate in "${CRATES[@]}"; do
-    cd "$crate"
-    cargo publish --allow-dirty --color=always 2>&1 | tee /tmp/publish_$$.log
-    if [ ${PIPESTATUS[0]} -ne 0 ]; then
-        if ! grep -q "already exists on" /tmp/publish_$$.log; then
-            rm -f /tmp/publish_$$.log
-            exit 1
-        fi
-    fi
-    rm -f /tmp/publish_$$.log
-    cd ..
-    echo ""
-done
+# brk_website embeds ignored assets through symlinks, so Cargo requires
+# --allow-dirty even when the Git worktree itself is clean.
+cargo release publish --package brk_logger --execute --no-confirm
+
+PUBLISH_LOG=$(mktemp -t brk-rust-publish)
+trap 'rm -f "$PUBLISH_LOG"' EXIT
+
+if cargo publish --package brk_website --allow-dirty 2>&1 | tee "$PUBLISH_LOG"; then
+    :
+elif grep -q "already exists on" "$PUBLISH_LOG"; then
+    echo "brk_website is already published; skipping"
+else
+    exit 1
+fi
+
+cargo release publish --workspace --execute --no-confirm
 
 echo "Done!"

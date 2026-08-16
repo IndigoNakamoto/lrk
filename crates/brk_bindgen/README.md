@@ -4,15 +4,18 @@ Code generation for BRK client libraries.
 
 ## What It Enables
 
-Generate typed client libraries for Rust, JavaScript, and Python from the OpenAPI specification. Keeps frontend code in sync with available metrics and API endpoints without manual maintenance.
+Generate clients for Rust, JavaScript, Python, LLMs, and MCP from the OpenAPI
+specification and metric tree. Keeps every consumer in sync with available
+metrics and API endpoints without manual maintenance.
 
 ## Key Features
 
-- **Multi-language**: Generates Rust, JavaScript, and Python clients
+- **Multi-client**: Generates Rust, JavaScript, Python, and LLM clients
+- **MCP catalog**: Generates the MCP tool manifest from the same OpenAPI operations
 - **OpenAPI-driven**: Extracts endpoints and schemas from the OpenAPI spec
 - **Metric catalog**: Includes all metric IDs and their supported indexes
 - **Type definitions**: Generates types/interfaces from JSON Schema
-- **Selective output**: Generate only the languages you need
+- **Selective output**: Generate only the clients you need
 
 ## Core API
 
@@ -22,7 +25,10 @@ use brk_bindgen::{generate_clients, ClientOutputPaths};
 let paths = ClientOutputPaths::new()
     .rust("crates/brk_client/src/lib.rs")
     .javascript("modules/brk-client/index.js")
-    .python("packages/brk_client/brk_client/__init__.py");
+    .python("packages/brk_client/brk_client/__init__.py")
+    .llm("website")
+    .llm("website_next")
+    .llm_manifest("crates/brk_mcp/generated/manifest.json");
 
 generate_clients(&vecs, &openapi_json, &paths)?;
 ```
@@ -34,11 +40,17 @@ generate_clients(&vecs, &openapi_json, &paths)?;
 | Rust | Typed API client using `brk_types`, metric catalog |
 | JavaScript | ES module with JSDoc types, metric catalog, fetch helpers |
 | Python | Typed client with dataclasses, metric catalog |
+| LLM/MCP | Plain-text API references and the MCP tool manifest |
 
-Each client includes:
+Language clients include:
 - All REST API endpoints as typed functions
 - Complete metric catalog with index information
 - Type definitions for request/response schemas
+
+The LLM client emits the standard discovery files and links to the live
+OpenAPI and series endpoints instead of duplicating their catalogs.
+The official generated MCP catalog is served through the stateless, read-only
+endpoint at [mcp.bitview.space](https://mcp.bitview.space/).
 
 ## Built On
 

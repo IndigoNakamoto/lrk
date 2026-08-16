@@ -1,74 +1,52 @@
 use std::path::Path;
 
-use brk_chain::Chain;
-use brk_cohort::{CohortContext, Filter, Filtered};
+use brk_cohort::{Filter, Filtered};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Cents, Height, Sats, StoredI64, StoredU64, Version};
+use brk_types::{Cents, Height, PartsPerMillionSigned64, StoredI64, StoredU64, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, WritableVec};
+use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
-use crate::{
-    distribution::state::{AddrCohortState, MinimalRealizedState},
-    indexes,
-    internal::{PerBlockWithDeltas, WindowStartVec, Windows},
-    price,
-};
+use crate::{distribution::state::AddrCohortState, internal::PerBlockWithDeltas, price};
 
-use crate::distribution::metrics::{ImportConfig, MinimalCohortMetrics};
+use crate::distribution::metrics::{AllSupplyCache, ImportConfig};
 
 use super::super::traits::{CohortVecs, DynCohortVecs};
+use super::metrics::AddrCohortMetrics;
+
 #[derive(Traversable)]
 pub struct AddrCohortVecs<M: StorageMode = Rw> {
     starting_height: Option<Height>,
 
     #[traversable(skip)]
-    pub state: Option<Box<AddrCohortState<MinimalRealizedState>>>,
+    pub state: Option<Box<AddrCohortState>>,
 
     #[traversable(flatten)]
-    pub metrics: MinimalCohortMetrics<M>,
+    pub metrics: AddrCohortMetrics<M>,
 
-    pub addr_count: PerBlockWithDeltas<StoredU64, StoredI64, BasisPointsSigned32, M>,
+    pub addr_count: PerBlockWithDeltas<StoredU64, StoredI64, PartsPerMillionSigned64, M>,
 }
 
 impl AddrCohortVecs {
     pub(crate) fn forced_import(
-        db: &Database,
-        filter: Filter,
-        name: &str,
-        version: Version,
-        indexes: &indexes::Vecs,
+        cfg: &ImportConfig,
         states_path: Option<&Path>,
-        cached_starts: &Windows<&WindowStartVec>,
-        chain: Chain,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
-        let full_name = CohortContext::Addr.full_name(&filter, name);
-
-        let cfg = ImportConfig {
-            db,
-            filter: &filter,
-            full_name: &full_name,
-            version,
-            indexes,
-            cached_starts,
-
-            chain,
-        };
-
         let addr_count = PerBlockWithDeltas::forced_import(
-            db,
+            cfg.db,
             &cfg.name("addr_count"),
-            version,
-            Version::ONE,
-            indexes,
-            cached_starts,
+            cfg.version,
+            Version::TWO,
+            cfg.indexes,
+            cfg.cached_starts,
         )?;
 
         Ok(Self {
             starting_height: None,
-            state: states_path.map(|path| Box::new(AddrCohortState::new(path, &full_name))),
-            metrics: MinimalCohortMetrics::forced_import(&cfg)?,
+            state: states_path.map(|path| Box::new(AddrCohortState::new(path, cfg.full_name))),
+            metrics: AddrCohortMetrics::forced_import(cfg, all_supply)?,
             addr_count,
         })
     }
@@ -229,22 +207,5 @@ impl CohortVecs for AddrCohortVecs {
             exit,
         )?;
         Ok(())
-    }
-
-    fn compute_rest_part2(
-        &mut self,
-        prices: &price::Vecs,
-        starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.metrics.compute_rest_part2(
-            prices,
-            starting_lengths,
-            all_supply_sats,
-            all_utxo_count,
-            exit,
-        )
     }
 }

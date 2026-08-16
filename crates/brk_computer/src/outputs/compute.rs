@@ -3,14 +3,13 @@ use brk_indexer::Indexer;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::{blocks, indexes, inputs, price};
+use crate::{blocks, inputs, price};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        indexes: &indexes::Vecs,
         inputs: &inputs::Vecs,
         blocks: &blocks::Vecs,
         prices: &price::Vecs,
@@ -20,8 +19,7 @@ impl Vecs {
 
         let starting_lengths = indexer.safe_lengths();
 
-        self.count.compute(indexer, indexes, blocks, exit)?;
-        self.per_sec.compute(&self.count, &starting_lengths, exit)?;
+        self.count.compute(indexer, blocks, exit)?;
         self.value.compute(indexer, prices, exit)?;
         self.mweb.compute(indexer, inputs, prices, exit)?;
         self.by_type.compute(indexer, exit)?;
@@ -33,7 +31,7 @@ impl Vecs {
             indexer,
             exit,
         )?;
-        let lock = self.spent.compute(indexer, inputs, exit)?;
+        let lock = self.spent.compute(indexer, exit)?;
         self.db.run_bg(move |db| {
             let _lock = lock;
             db.compact_deferred_default()

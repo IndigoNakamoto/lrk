@@ -6,44 +6,44 @@
 
 # Interface: SeriesCount
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1082](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1082)
+Defined in: [Developer/brk/modules/brk-client/index.js:1097](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1097)
 
 ## Properties
 
-### distinctSeries
+### distinct
 
-> **distinctSeries**: `number`
+> **distinct**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1083](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1083)
+Defined in: [Developer/brk/modules/brk-client/index.js:1098](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1098)
 
 Number of unique series available (e.g., realized_price, market_cap)
 
 ***
 
-### lazyEndpoints
+### lazy
 
-> **lazyEndpoints**: `number`
+> **lazy**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1085](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1085)
+Defined in: [Developer/brk/modules/brk-client/index.js:1100](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1100)
 
 Number of lazy (computed on-the-fly) series-index combinations
 
 ***
 
-### storedEndpoints
+### stored
 
-> **storedEndpoints**: `number`
+> **stored**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1086](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1086)
+Defined in: [Developer/brk/modules/brk-client/index.js:1101](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1101)
 
 Number of eager (stored on disk) series-index combinations
 
 ***
 
-### totalEndpoints
+### total
 
-> **totalEndpoints**: `number`
+> **total**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1084](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1084)
+Defined in: [Developer/brk/modules/brk-client/index.js:1099](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1099)
 
 Total number of series-index combinations across all timeframes

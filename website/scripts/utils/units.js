@@ -16,7 +16,7 @@ export const Unit = /** @type {const} */ ({
   cagr: { id: "cagr", name: "CAGR (%/year)" },
   ratio: { id: "ratio", name: "Ratio" },
   index: { id: "index", name: "Index" },
-  sd: { id: "sd", name: "Std Dev" },
+  state: { id: "state", name: "State" },
 
   // Relative percentages
   pctSupply: { id: "pct-supply", name: "% of circulating" },
@@ -30,6 +30,7 @@ export const Unit = /** @type {const} */ ({
   // Counts
   count: { id: "count", name: "Count" },
   blocks: { id: "blocks", name: "Blocks" },
+  sigopCost: { id: "sigop-cost", name: "Sigop Cost" },
 
   // Size
   bytes: { id: "bytes", name: "Bytes" },

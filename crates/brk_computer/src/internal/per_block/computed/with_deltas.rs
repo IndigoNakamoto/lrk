@@ -8,7 +8,8 @@ use vecdb::{Rw, StorageMode};
 use crate::{
     indexes,
     internal::{
-        BpsType, LazyRollingDeltasFromHeight, NumericValue, PerBlock, WindowStartVec, Windows,
+        CachedWindowStartVec, FixedRatio, LazyRollingDeltasFromHeight, NumericValue, PerBlock,
+        Windows,
     },
 };
 
@@ -17,7 +18,7 @@ pub struct PerBlockWithDeltas<S, C, B, M: StorageMode = Rw>
 where
     S: NumericValue + JsonSchema + Into<f64>,
     C: NumericValue + JsonSchema + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     #[deref]
     #[deref_mut]
@@ -29,7 +30,7 @@ impl<S, C, B> PerBlockWithDeltas<S, C, B>
 where
     S: NumericValue + JsonSchema + Into<f64>,
     C: NumericValue + JsonSchema + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub(crate) fn forced_import(
         db: &vecdb::Database,
@@ -37,7 +38,7 @@ where
         version: Version,
         delta_version_offset: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let base = PerBlock::forced_import(db, name, version, indexes)?;
 

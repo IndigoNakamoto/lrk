@@ -2,7 +2,6 @@ use brk_computer::Computer;
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_mempool::Mempool;
-use brk_reader::Reader;
 use tokio::task::spawn_blocking;
 
 use crate::Query;
@@ -11,13 +10,8 @@ use crate::Query;
 pub struct AsyncQuery(Query);
 
 impl AsyncQuery {
-    pub fn build(
-        reader: &Reader,
-        indexer: &Indexer,
-        computer: &Computer,
-        mempool: Option<Mempool>,
-    ) -> Self {
-        Self(Query::build(reader, indexer, computer, mempool))
+    pub fn build(indexer: &Indexer, computer: &Computer, mempool: Option<Mempool>) -> Self {
+        Self(Query::build(indexer, computer, mempool))
     }
 
     /// Run a blocking query operation on a spawn_blocking thread.

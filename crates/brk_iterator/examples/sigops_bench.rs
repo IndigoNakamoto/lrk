@@ -16,6 +16,7 @@
 //! Sample = N most recent blocks via `getblock` (verbosity 0 = raw bytes,
 //! decoded by the iterator).
 
+use brk_chain::primitives as bitcoin;
 use std::time::Instant;
 
 use bitcoin::{OutPoint, ScriptBuf, TxOut};

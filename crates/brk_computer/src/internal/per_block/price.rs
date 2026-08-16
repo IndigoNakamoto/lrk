@@ -8,12 +8,12 @@ use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Cents, Dollars, SatsFract, Version};
 use schemars::JsonSchema;
-use vecdb::{Database, ReadableCloneableVec, UnaryTransform};
+use vecdb::{Database, ReadableCloneableVec, ReadableVec, TypedVec, UnaryTransform};
 
 use super::{LazyPerBlock, PerBlock};
 use crate::{
     indexes,
-    internal::{CentsUnsignedToDollars, ComputedVecValue, DollarsToSatsFract, NumericValue},
+    internal::{CentsUnsignedToDollars, ComputedVecValue, DollarsToSatsFract},
 };
 
 /// Generic price metric with cents, USD, and sats representations.
@@ -48,23 +48,74 @@ impl Price<PerBlock<Cents>> {
     }
 }
 
-impl<ST> Price<LazyPerBlock<Cents, ST>>
-where
-    ST: ComputedVecValue + NumericValue + JsonSchema + 'static,
-{
-    /// Create from a computed source, applying a transform to produce Cents.
-    pub(crate) fn from_cents_source<F: UnaryTransform<ST, Cents>>(
+impl Price<LazyPerBlock<Cents, Cents>> {
+    pub(crate) fn from_lazy_cents_source<F, S>(
         name: &str,
         version: Version,
-        source: &PerBlock<ST>,
-    ) -> Self {
-        let cents = LazyPerBlock::from_computed::<F>(
+        source: &LazyPerBlock<Cents, S>,
+    ) -> Self
+    where
+        F: UnaryTransform<Cents, Cents>,
+        S: ComputedVecValue + JsonSchema,
+    {
+        let cents = LazyPerBlock::from_lazy::<F, S>(&format!("{name}_cents"), version, source);
+        let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(name, version, &cents);
+        let sats = LazyPerBlock::from_lazy::<DollarsToSatsFract, Cents>(
+            &format!("{name}_sats"),
+            version,
+            &usd,
+        );
+        Self { usd, cents, sats }
+    }
+}
+
+impl Price<LazyPerBlock<Cents>> {
+    pub(crate) fn from_height_source<V>(
+        name: &str,
+        version: Version,
+        source: V,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        V: TypedVec<I = brk_types::Height, T = Cents>
+            + ReadableVec<brk_types::Height, Cents>
+            + Clone
+            + 'static,
+    {
+        let cents = LazyPerBlock::from_height_source::<crate::internal::Identity<Cents>, _>(
             &format!("{name}_cents"),
             version,
-            source.height.read_only_boxed_clone(),
             source,
+            indexes,
         );
-        let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, ST>(name, version, &cents);
+        let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(name, version, &cents);
+        let sats = LazyPerBlock::from_lazy::<DollarsToSatsFract, Cents>(
+            &format!("{name}_sats"),
+            version,
+            &usd,
+        );
+        Self { usd, cents, sats }
+    }
+
+    pub(crate) fn from_uncached_height_source<V>(
+        name: &str,
+        version: Version,
+        source: V,
+        indexes: &indexes::Vecs,
+    ) -> Self
+    where
+        V: TypedVec<I = brk_types::Height, T = Cents>
+            + ReadableVec<brk_types::Height, Cents>
+            + Clone
+            + 'static,
+    {
+        let cents = LazyPerBlock::from_uncached_height_source::<crate::internal::Identity<Cents>, _>(
+            &format!("{name}_cents"),
+            version,
+            source,
+            indexes,
+        );
+        let usd = LazyPerBlock::from_lazy::<CentsUnsignedToDollars, Cents>(name, version, &cents);
         let sats = LazyPerBlock::from_lazy::<DollarsToSatsFract, Cents>(
             &format!("{name}_sats"),
             version,

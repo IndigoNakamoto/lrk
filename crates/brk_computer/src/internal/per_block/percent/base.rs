@@ -8,44 +8,39 @@ use vecdb::{
 
 use crate::{
     indexes,
-    internal::{BpsType, Percent, algo::ComputeDrawdown},
+    internal::{FixedRatio, Percent, algo::ComputeDrawdown},
 };
 
 use crate::internal::{LazyPerBlock, PerBlock};
 
-/// Basis-point storage with both ratio and percentage float views.
-///
-/// Stores integer basis points on disk (Pco-compressed),
-/// exposes two lazy StoredF32 views:
-/// - `ratio`: bps / 10000 (e.g., 4523 bps -> 0.4523)
-/// - `percent`: bps / 100 (e.g., 4523 bps -> 45.23%)
+/// Fixed-point storage with lazy ratio and percentage float views.
 #[derive(Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
-pub struct PercentPerBlock<B: BpsType, M: StorageMode = Rw>(
+pub struct PercentPerBlock<B: FixedRatio, M: StorageMode = Rw>(
     pub Percent<PerBlock<B, M>, LazyPerBlock<StoredF32, B>>,
 );
 
-impl<B: BpsType> PercentPerBlock<B> {
+impl<B: FixedRatio> PercentPerBlock<B> {
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let bps = PerBlock::forced_import(db, &format!("{name}_bps"), version, indexes)?;
-        let bps_clone = bps.height.read_only_boxed_clone();
+        let ppm = PerBlock::forced_import(db, &format!("{name}_{}", B::SUFFIX), version, indexes)?;
+        let ppm_clone = ppm.height.read_only_boxed_clone();
 
         let ratio = LazyPerBlock::from_computed::<B::ToRatio>(
             &format!("{name}_ratio"),
             version,
-            bps_clone.clone(),
-            &bps,
+            ppm_clone.clone(),
+            &ppm,
         );
 
-        let percent = LazyPerBlock::from_computed::<B::ToPercent>(name, version, bps_clone, &bps);
+        let percent = LazyPerBlock::from_computed::<B::ToPercent>(name, version, ppm_clone, &ppm);
 
         Ok(Self(Percent {
-            bps,
+            ppm,
             ratio,
             percent,
         }))
@@ -63,7 +58,7 @@ impl<B: BpsType> PercentPerBlock<B> {
         S2T: VecValue,
         F: BinaryTransform<S1T, S2T, B>,
     {
-        self.bps
+        self.ppm
             .compute_binary::<S1T, S2T, F>(max_from, source1, source2, exit)
     }
 
@@ -80,7 +75,7 @@ impl<B: BpsType> PercentPerBlock<B> {
         f64: From<C> + From<A>,
         vecdb::EagerVec<vecdb::PcoVec<Height, B>>: ComputeDrawdown<Height>,
     {
-        self.bps
+        self.ppm
             .height
             .compute_drawdown(max_from, current, ath, exit)
     }

@@ -19,6 +19,20 @@ pub struct ByType<T> {
 }
 
 impl<T> ByType<T> {
+    pub fn new<F>(mut create: F) -> Self
+    where
+        F: FnMut(Filter, &'static str) -> T,
+    {
+        Self {
+            spendable: SpendableType::new(&mut create),
+            unspendable: UnspendableType {
+                op_return: create(Filter::Type(OutputType::OpReturn), OP_RETURN),
+                mweb_peg_pool: create(Filter::Type(OutputType::MWEBPegPool), MWEB_PEG_POOL),
+                mweb_pegin: create(Filter::Type(OutputType::MWEBPegIn), MWEB_PEGIN),
+            },
+        }
+    }
+
     pub fn try_new<F, E>(mut create: F) -> Result<Self, E>
     where
         F: FnMut(Filter, &'static str) -> Result<T, E>,

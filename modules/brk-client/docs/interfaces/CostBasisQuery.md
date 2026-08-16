@@ -6,7 +6,7 @@
 
 # Interface: CostBasisQuery
 
-Defined in: [Developer/brk/modules/brk-client/index.js:426](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L426)
+Defined in: [Developer/brk/modules/brk-client/index.js:407](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L407)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:426](https://github.com/b
 
 > `optional` **bucket?**: [`UrpdAggregation`](../type-aliases/UrpdAggregation.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:427](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L427)
+Defined in: [Developer/brk/modules/brk-client/index.js:408](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L408)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:427](https://github.com/b
 
 > `optional` **value?**: [`CostBasisValue`](../type-aliases/CostBasisValue.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:428](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L428)
+Defined in: [Developer/brk/modules/brk-client/index.js:409](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L409)

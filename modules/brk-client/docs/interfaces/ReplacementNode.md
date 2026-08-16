@@ -6,7 +6,7 @@
 
 # Interface: ReplacementNode
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1030](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1030)
+Defined in: [Developer/brk/modules/brk-client/index.js:1045](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1045)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1030](https://github.com/
 
 > **fullRbf**: `boolean`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1034](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1034)
+Defined in: [Developer/brk/modules/brk-client/index.js:1049](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1049)
 
 Any predecessor in this subtree was non-signaling.
 
@@ -24,7 +24,7 @@ Any predecessor in this subtree was non-signaling.
 
 > `optional` **interval?**: `number` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1035](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1035)
+Defined in: [Developer/brk/modules/brk-client/index.js:1050](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1050)
 
 Seconds between this node's `time` and the successor that
 replaced it. Omitted on the root of an RBF response.
@@ -35,7 +35,7 @@ replaced it. Omitted on the root of an RBF response.
 
 > `optional` **mined?**: `boolean` \| `null`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1037](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1037)
+Defined in: [Developer/brk/modules/brk-client/index.js:1052](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1052)
 
 `Some(true)` iff this node's tx is currently confirmed. Absent
 on serialization otherwise.
@@ -46,7 +46,7 @@ on serialization otherwise.
 
 > **replaces**: `ReplacementNode`[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1039](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1039)
+Defined in: [Developer/brk/modules/brk-client/index.js:1054](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1054)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1039](https://github.com/
 
 > **time**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1032](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1032)
+Defined in: [Developer/brk/modules/brk-client/index.js:1047](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1047)
 
 First-seen timestamp, duplicated here to match mempool.space's
 on-the-wire shape.
@@ -65,4 +65,4 @@ on-the-wire shape.
 
 > **tx**: [`RbfTx`](RbfTx.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1031](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1031)
+Defined in: [Developer/brk/modules/brk-client/index.js:1046](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1046)

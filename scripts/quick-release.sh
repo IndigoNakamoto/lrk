@@ -22,6 +22,16 @@ RELEASE_ARG="$1"
 echo "Release argument: $RELEASE_ARG"
 echo ""
 
+CURRENT_VERSION=$(sed -n 's/^package\.version = "\([^"]*\)"/\1/p' "$ROOT_DIR/Cargo.toml")
+RESUME_RELEASE=false
+
+if [ "$RELEASE_ARG" = "$CURRENT_VERSION" ] &&
+    git -C "$ROOT_DIR" rev-parse --verify --quiet "refs/tags/v$CURRENT_VERSION" >/dev/null; then
+    RESUME_RELEASE=true
+    echo "Resuming v$CURRENT_VERSION"
+    echo ""
+fi
+
 # Load tokens
 if [ -f "$SCRIPT_DIR/.tokens" ]; then
     source "$SCRIPT_DIR/.tokens"
@@ -50,46 +60,48 @@ echo ""
 # 1. BUILD
 # ============================================================================
 
-echo "=== Building ==="
-echo ""
+if [ "$RESUME_RELEASE" = false ]; then
+    echo "=== Building ==="
+    echo ""
 
-echo "--- Rust ---"
-cd "$ROOT_DIR"
-cargo build --workspace --release
-echo ""
+    echo "--- Rust ---"
+    cd "$ROOT_DIR"
+    cargo build --workspace --release
+    echo ""
 
-echo "--- JavaScript ---"
-cd "$ROOT_DIR/modules/brk-client"
-# JS doesn't need build step, just verify it loads
-node -e "import('./index.js')"
-echo "OK"
-echo ""
+    echo "--- JavaScript ---"
+    cd "$ROOT_DIR/modules/brk-client"
+    # JS doesn't need build step, just verify it loads
+    node -e "import('./index.js')"
+    echo "OK"
+    echo ""
 
-echo "--- Python ---"
-cd "$ROOT_DIR/packages/brk_client"
-uv build
-echo ""
+    echo "--- Python ---"
+    cd "$ROOT_DIR/packages/brk_client"
+    uv build
+    echo ""
 
-# ============================================================================
-# 2. GENERATE DOCS
-# ============================================================================
+    # ============================================================================
+    # 2. GENERATE DOCS
+    # ============================================================================
 
-echo "=== Generating docs ==="
-echo ""
+    echo "=== Generating docs ==="
+    echo ""
 
-echo "--- JavaScript ---"
-"$SCRIPT_DIR/js-docs.sh"
-echo ""
+    echo "--- JavaScript ---"
+    "$SCRIPT_DIR/js-docs.sh"
+    echo ""
 
-echo "--- Python ---"
-"$SCRIPT_DIR/python-docs.sh"
-echo ""
+    echo "--- Python ---"
+    "$SCRIPT_DIR/python-docs.sh"
+    echo ""
 
-# Commit generated docs
-cd "$ROOT_DIR"
-git add -A
-git commit -m "docs: update generated docs" || echo "No doc changes to commit"
-echo ""
+    # Commit generated docs
+    cd "$ROOT_DIR"
+    git add -A
+    git commit -m "docs: update generated docs" || echo "No doc changes to commit"
+    echo ""
+fi
 
 # ============================================================================
 # 3. CARGO RELEASE (Rust crates)
@@ -100,14 +112,18 @@ echo ""
 
 cd "$ROOT_DIR"
 
-# Version bump, commit, and tag (but don't publish yet)
-cargo release "$RELEASE_ARG" --execute --no-publish --no-confirm
+if [ "$RESUME_RELEASE" = true ]; then
+    echo "Version v$CURRENT_VERSION and its tag already exist; skipping version bump and tag"
+    VERSION="$CURRENT_VERSION"
+else
+    # Version bump, commit, and tag (but don't publish yet)
+    cargo release "$RELEASE_ARG" --execute --no-publish --no-confirm
+    VERSION=$(grep '^package.version' "$ROOT_DIR/Cargo.toml" | sed 's/.*= *"//' | sed 's/".*//')
+fi
 
-# Publish crates with retry logic for rate limits
+# Publish crates, skipping versions already available in the registry
 "$SCRIPT_DIR/rust-publish.sh"
 
-# Extract actual version from Cargo.toml after release
-VERSION=$(grep '^package.version' "$ROOT_DIR/Cargo.toml" | sed 's/.*= *"//' | sed 's/".*//')
 echo ""
 echo "Released Rust crates at version: $VERSION"
 

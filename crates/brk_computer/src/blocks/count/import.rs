@@ -1,24 +1,27 @@
-use brk_error::Result;
-use brk_types::Version;
-use vecdb::Database;
+use brk_indexer::Indexer;
+use brk_types::{Height, StoredU64, Version, Weight};
 
 use super::Vecs;
 use crate::{
     indexes,
     internal::{
         BlockCountTarget1m, BlockCountTarget1w, BlockCountTarget1y, BlockCountTarget24h,
-        ConstantVecs, PerBlockCumulativeRolling, WindowStartVec, Windows,
+        CachedWindowStartVec, ConstantVecs, LazyPerBlockCumulativeRolling, Windows,
     },
 };
 
+fn cumulative_block_count(height: Height, _: Weight) -> StoredU64 {
+    StoredU64::from(u64::from(height) + 1)
+}
+
 impl Vecs {
-    pub(crate) fn forced_import(
-        db: &Database,
+    pub(crate) fn new(
         version: Version,
+        indexer: &Indexer,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-    ) -> Result<Self> {
-        Ok(Self {
+        cached_starts: &Windows<&CachedWindowStartVec>,
+    ) -> Self {
+        Self {
             target: Windows {
                 _24h: ConstantVecs::new::<BlockCountTarget24h>(
                     "block_count_target_24h",
@@ -41,13 +44,14 @@ impl Vecs {
                     indexes,
                 ),
             },
-            total: PerBlockCumulativeRolling::forced_import(
-                db,
+            total: LazyPerBlockCumulativeRolling::from_indexed_source(
                 "block_count",
                 version + Version::ONE,
-                indexes,
+                &indexer.vecs().blocks.weight,
+                cumulative_block_count,
                 cached_starts,
-            )?,
-        })
+                indexes,
+            ),
+        }
     }
 }

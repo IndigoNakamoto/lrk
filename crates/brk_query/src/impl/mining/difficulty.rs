@@ -16,7 +16,7 @@ impl Query {
     pub fn difficulty_adjustment(&self) -> Result<DifficultyAdjustment> {
         let indexer = self.indexer();
         let computer = self.computer();
-        let chain_constants = indexer.chain.constants();
+        let chain_constants = indexer.chain().constants();
         let blocks_per_epoch = chain_constants.blocks_per_diff_epoch;
         let target_block_time = chain_constants.seconds_per_block;
         let current_height = self.height();
@@ -50,7 +50,7 @@ impl Query {
             .collect_one(current_epoch)
             .data()?;
         let current_timestamp = indexer
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_one(current_height)
@@ -102,13 +102,13 @@ impl Query {
                 .data()?;
 
             let prev_difficulty = indexer
-                .vecs
+                .vecs()
                 .blocks
                 .difficulty
                 .collect_one(prev_epoch_start)
                 .data()?;
             let curr_difficulty = indexer
-                .vecs
+                .vecs()
                 .blocks
                 .difficulty
                 .collect_one(epoch_start_height)

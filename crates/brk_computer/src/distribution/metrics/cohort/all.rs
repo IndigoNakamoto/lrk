@@ -2,11 +2,11 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, Dollars, Height, Version};
-use vecdb::{AnyStoredVec, Exit, ReadOnlyClone, ReadableVec, Rw, StorageMode};
+use brk_types::{Cents, Height, Version};
+use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
 
 use crate::{
-    blocks,
+    distribution::AllChainCache,
     distribution::metrics::{
         ActivityFull, AdjustedSopr, CohortMetricsBase, CostBasis, ImportConfig, OutputsBase,
         RealizedFull, RelativeForAll, SupplyCore, UnrealizedFull,
@@ -76,12 +76,13 @@ impl AllCohortMetrics {
     pub(crate) fn forced_import_with_supply(
         cfg: &ImportConfig,
         supply: SupplyCore,
+        all_chain: &AllChainCache,
     ) -> Result<Self> {
-        let unrealized = UnrealizedFull::forced_import(cfg)?;
-        let realized = RealizedFull::forced_import(cfg)?;
+        let realized = RealizedFull::forced_import(cfg, all_chain)?;
+        let unrealized = UnrealizedFull::forced_import(cfg, &realized.price.ppm)?;
         let asopr = AdjustedSopr::forced_import(cfg)?;
 
-        let relative = RelativeForAll::forced_import(cfg)?;
+        let relative = RelativeForAll::forced_import(cfg, &unrealized, all_chain)?;
 
         Ok(Self {
             filter: cfg.filter.clone(),
@@ -99,43 +100,28 @@ impl AllCohortMetrics {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_rest_part2(
         &mut self,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        height_to_market_cap: &impl ReadableVec<Height, Dollars>,
         under_1h_value_created: &impl ReadableVec<Height, Cents>,
         under_1h_value_destroyed: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
-            blocks,
             prices,
             starting_lengths,
             &self.supply.total.btc.height,
-            height_to_market_cap,
             &self.activity.transfer_volume,
-            exit,
-        )?;
-
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
             exit,
         )?;
 
         self.asopr.compute_rest_part2(
             starting_lengths,
-            &self.activity.transfer_volume.block.cents,
-            &self.realized.core.sopr.value_destroyed.block,
+            &self.activity.transfer_volume.inner.cumulative.cents.height,
+            &self.realized.core.sopr.value_destroyed.cumulative.height,
             under_1h_value_created,
             under_1h_value_destroyed,
             exit,
         )?;
-
-        let all_utxo_count = self.outputs.unspent_count.height.read_only_clone();
-        self.outputs
-            .compute_part2(starting_lengths.height, &all_utxo_count, exit)?;
 
         self.cost_basis.compute_prices(
             starting_lengths,
@@ -152,16 +138,11 @@ impl AllCohortMetrics {
         self.unrealized
             .compute_sentiment(starting_lengths, &prices.spot.cents.height, exit)?;
 
-        let own_supply_sats = self.supply.total.sats.height.read_only_clone();
-        self.supply
-            .compute_dominance(starting_lengths.height, &own_supply_sats, exit)?;
-
         self.relative.compute(
             starting_lengths.height,
             &self.supply,
             &self.unrealized,
             &self.realized,
-            height_to_market_cap,
             exit,
         )?;
 

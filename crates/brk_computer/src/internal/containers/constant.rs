@@ -5,7 +5,7 @@ use brk_types::{
 };
 use schemars::JsonSchema;
 use serde::Serialize;
-use vecdb::{Formattable, LazyVecFrom1, ReadableCloneableVec, UnaryTransform, VecValue};
+use vecdb::{Formattable, LazyVec, ReadableCloneableVec, UnaryTransform, VecValue};
 
 use crate::indexes;
 
@@ -15,22 +15,22 @@ pub struct ConstantVecs<T>
 where
     T: VecValue + Formattable + Serialize + JsonSchema,
 {
-    pub height: LazyVecFrom1<Height, T, Height, Minute10>,
-    pub minute10: LazyVecFrom1<Minute10, T, Minute10, Height>,
-    pub minute30: LazyVecFrom1<Minute30, T, Minute30, Height>,
-    pub hour1: LazyVecFrom1<Hour1, T, Hour1, Height>,
-    pub hour4: LazyVecFrom1<Hour4, T, Hour4, Height>,
-    pub hour12: LazyVecFrom1<Hour12, T, Hour12, Height>,
-    pub day1: LazyVecFrom1<Day1, T, Day1, Height>,
-    pub day3: LazyVecFrom1<Day3, T, Day3, Height>,
-    pub week1: LazyVecFrom1<Week1, T, Week1, Height>,
-    pub month1: LazyVecFrom1<Month1, T, Month1, Height>,
-    pub month3: LazyVecFrom1<Month3, T, Month3, Height>,
-    pub month6: LazyVecFrom1<Month6, T, Month6, Height>,
-    pub year1: LazyVecFrom1<Year1, T, Year1, Height>,
-    pub year10: LazyVecFrom1<Year10, T, Year10, Height>,
-    pub halving: LazyVecFrom1<Halving, T, Halving, Height>,
-    pub epoch: LazyVecFrom1<Epoch, T, Epoch, Height>,
+    pub height: LazyVec<Height, T, Height, Minute10>,
+    pub minute10: LazyVec<Minute10, T, Minute10, Height>,
+    pub minute30: LazyVec<Minute30, T, Minute30, Height>,
+    pub hour1: LazyVec<Hour1, T, Hour1, Height>,
+    pub hour4: LazyVec<Hour4, T, Hour4, Height>,
+    pub hour12: LazyVec<Hour12, T, Hour12, Height>,
+    pub day1: LazyVec<Day1, T, Day1, Height>,
+    pub day3: LazyVec<Day3, T, Day3, Height>,
+    pub week1: LazyVec<Week1, T, Week1, Height>,
+    pub month1: LazyVec<Month1, T, Month1, Height>,
+    pub month3: LazyVec<Month3, T, Month3, Height>,
+    pub month6: LazyVec<Month6, T, Month6, Height>,
+    pub year1: LazyVec<Year1, T, Year1, Height>,
+    pub year10: LazyVec<Year10, T, Year10, Height>,
+    pub halving: LazyVec<Halving, T, Halving, Height>,
+    pub epoch: LazyVec<Epoch, T, Epoch, Height>,
 }
 
 impl<T: VecValue + Formattable + Serialize + JsonSchema> ConstantVecs<T> {
@@ -55,7 +55,7 @@ impl<T: VecValue + Formattable + Serialize + JsonSchema> ConstantVecs<T> {
     {
         macro_rules! period {
             ($idx:ident) => {
-                LazyVecFrom1::init(
+                LazyVec::init(
                     name,
                     version,
                     indexes.$idx.first_height.read_only_boxed_clone(),
@@ -65,7 +65,7 @@ impl<T: VecValue + Formattable + Serialize + JsonSchema> ConstantVecs<T> {
         }
 
         Self {
-            height: LazyVecFrom1::init(
+            height: LazyVec::init(
                 name,
                 version,
                 indexes.height.minute10.read_only_boxed_clone(),

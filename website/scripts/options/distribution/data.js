@@ -1,6 +1,7 @@
 import { colors } from "../../utils/colors.js";
 import { entries } from "../../utils/array.js";
 import { brk } from "../../utils/client.js";
+import { ageRanges } from "../age-ranges.js";
 
 /** @type {readonly AddressableType[]} */
 const ADDRESSABLE_TYPES = [
@@ -14,9 +15,13 @@ const ADDRESSABLE_TYPES = [
   "p2pk65",
 ];
 
-/** @type {(key: SpendableType) => key is AddressableType} */
-const isAddressable = (key) =>
-  /** @type {readonly string[]} */ (ADDRESSABLE_TYPES).includes(key);
+/**
+ * @param {SpendableType} key
+ * @returns {key is AddressableType}
+ */
+function isAddressable(key) {
+  return /** @type {readonly string[]} */ (ADDRESSABLE_TYPES).includes(key);
+}
 
 export function buildCohortData() {
   const utxoCohorts = brk.series.cohorts.utxo;
@@ -27,7 +32,6 @@ export function buildCohortData() {
     EPOCH_NAMES,
     UNDER_AGE_NAMES,
     OVER_AGE_NAMES,
-    AGE_RANGE_NAMES,
     OVER_AMOUNT_NAMES,
     UNDER_AMOUNT_NAMES,
     AMOUNT_RANGE_NAMES,
@@ -83,10 +87,8 @@ export function buildCohortData() {
     tree: utxoCohorts.overAge[key],
   }));
 
-  const ageRange = entries(AGE_RANGE_NAMES).map(([key, names], i, arr) => ({
-    name: names.short,
-    title: `UTXOs ${names.long}`,
-    color: colors.at(i, arr.length),
+  const ageRange = ageRanges.map(({ key, ...range }) => ({
+    ...range,
     tree: utxoCohorts.ageRange[key],
     matured: utxoCohorts.matured[key],
   }));

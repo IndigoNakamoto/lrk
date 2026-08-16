@@ -33,6 +33,8 @@ impl State {
         if let Some(e) = self.txs.entry(txid) {
             return Some(e.first_seen);
         }
-        self.graveyard.get_vanished(txid).map(|t| t.entry.first_seen)
+        self.graveyard
+            .get_vanished(txid)
+            .map(|t| t.entry.first_seen)
     }
 }

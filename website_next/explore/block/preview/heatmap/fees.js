@@ -1,4 +1,5 @@
 import { FEE_RATE_PERCENTILES } from "../../fee-rates.js";
+import { packCells } from "./pack.js";
 
 /**
  * @param {number[]} feeRates
@@ -24,4 +25,17 @@ export function orderTransactions(weights, feeRates) {
   }
 
   return order.sort((a, b) => feeRates[b] - feeRates[a] || weights[b] - weights[a]);
+}
+
+/**
+ * @template {{ span: number }} Cell
+ * @param {readonly Cell[]} cells
+ * @param {number} columns
+ * @param {number} rows
+ */
+export function packTransactions(cells, columns, rows) {
+  return {
+    layouts: packCells(cells, columns, rows),
+    resolvedCells: cells,
+  };
 }

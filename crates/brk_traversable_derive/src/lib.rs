@@ -163,7 +163,7 @@ fn type_contains_ident(ty: &Type, ident: &syn::Ident) -> bool {
                         matches!(arg, syn::GenericArgument::Type(inner) if type_contains_ident(inner, ident))
                     }),
                     syn::PathArguments::Parenthesized(args) => {
-                        args.inputs.iter().any(|inner| type_contains_ident(inner, ident))
+                        args.inputs.iter().any(|inner| type_contains_ident(&inner.ty, ident))
                             || matches!(&args.output, syn::ReturnType::Type(_, inner) if type_contains_ident(inner, ident))
                     }
                     syn::PathArguments::None => false,
@@ -339,7 +339,9 @@ fn analyze_fields<'a>(
             continue;
         };
 
-        if !matches!(field.vis, syn::Visibility::Public(_)) {
+        // Hidden fields stay out of the public tree but must remain in
+        // exportable traversal for storage retention.
+        if !hidden && !matches!(field.vis, syn::Visibility::Public(_)) {
             continue;
         }
 

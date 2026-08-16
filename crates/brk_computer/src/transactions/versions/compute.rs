@@ -1,89 +1,22 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{StoredU64, TxVersion};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::Exit;
 
 use super::Vecs;
 
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-
-        let dep_version = indexer.vecs.transactions.tx_version.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.txid.version();
-
-        for vec in [&mut self.v1.block, &mut self.v2.block, &mut self.v3.block] {
-            vec.validate_and_truncate(dep_version, starting_height)?;
+        let lengths = indexer.safe_lengths();
+        let starting_height = lengths.height;
+        let counts = &indexer.vecs().transaction_features.count;
+        for (metrics, source) in [
+            (&mut self.v1, &counts.v1),
+            (&mut self.v2, &counts.v2),
+            (&mut self.v3, &counts.v3),
+            (&mut self.other, &counts.other_version),
+        ] {
+            metrics.compute_cumulative(starting_height, source, exit)?;
         }
-
-        let skip = self
-            .v1
-            .block
-            .len()
-            .min(self.v2.block.len())
-            .min(self.v3.block.len());
-
-        let first_tx_index = &indexer.vecs.transactions.first_tx_index;
-        let end = first_tx_index.len();
-        if skip >= end {
-            return Ok(());
-        }
-
-        // Truncate all 3 to skip, then push (no per-element bounds checks).
-        self.v1.block.truncate_if_needed_at(skip)?;
-        self.v2.block.truncate_if_needed_at(skip)?;
-        self.v3.block.truncate_if_needed_at(skip)?;
-
-        // Single cursor over tx_version — scanned once for all 3 version counts.
-        let mut cursor = indexer.vecs.transactions.tx_version.cursor();
-        let fi_batch = first_tx_index.collect_range_at(skip, end);
-        let txid_len = indexer.vecs.transactions.txid.len();
-
-        for (j, first_index) in fi_batch.iter().enumerate() {
-            let next_first = fi_batch
-                .get(j + 1)
-                .map(|fi| fi.to_usize())
-                .unwrap_or(txid_len);
-
-            let mut c1: usize = 0;
-            let mut c2: usize = 0;
-            let mut c3: usize = 0;
-
-            let fi = first_index.to_usize();
-            cursor.advance(fi - cursor.position());
-            for _ in fi..next_first {
-                match cursor.next().unwrap() {
-                    TxVersion::ONE => c1 += 1,
-                    TxVersion::TWO => c2 += 1,
-                    TxVersion::THREE => c3 += 1,
-                    _ => {}
-                }
-            }
-
-            self.v1.block.push(StoredU64::from(c1 as u64));
-            self.v2.block.push(StoredU64::from(c2 as u64));
-            self.v3.block.push(StoredU64::from(c3 as u64));
-
-            if self.v1.block.batch_limit_reached() {
-                let _lock = exit.lock();
-                self.v1.block.write()?;
-                self.v2.block.write()?;
-                self.v3.block.write()?;
-            }
-        }
-
-        {
-            let _lock = exit.lock();
-            self.v1.block.write()?;
-            self.v2.block.write()?;
-            self.v3.block.write()?;
-        }
-
-        // Derive cumulative + sums from base
-        self.v1.compute_rest(starting_height, exit)?;
-        self.v2.compute_rest(starting_height, exit)?;
-        self.v3.compute_rest(starting_height, exit)?;
 
         Ok(())
     }

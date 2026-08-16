@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-pub enum Item<K, V> {
+pub(super) enum Item<K, V> {
     Value { key: K, value: V },
     Tomb(K),
 }

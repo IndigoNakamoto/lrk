@@ -2,19 +2,36 @@
  * @param {readonly PackCell[]} cells
  * @param {number} columns
  * @param {number} rows
- * @returns {PackLayout[] | null}
+ * @returns {PackLayout[]}
  */
 export function packCells(cells, columns, rows) {
   const occupied = new Uint8Array(columns * rows);
+  const cursors = new Uint32Array(columns + 1);
   const layouts = [];
 
   for (const cell of cells) {
-    const span = Math.min(cell.span, columns);
-    const position = findPosition(occupied, columns, rows, span);
+    let span = Math.min(cell.span, columns);
+    let position = findPosition(
+      occupied,
+      columns,
+      rows,
+      span,
+      cursors[span],
+    );
 
-    if (position === null) return null;
+    while (position === null) {
+      span -= 1;
+      position = findPosition(
+        occupied,
+        columns,
+        rows,
+        span,
+        cursors[span],
+      );
+    }
 
     fillCells(occupied, columns, position.x, position.y, span);
+    cursors[span] = position.index + span;
     layouts.push({ x: position.x, y: position.y, span });
   }
 
@@ -26,14 +43,22 @@ export function packCells(cells, columns, rows) {
  * @param {number} columns
  * @param {number} rows
  * @param {number} span
- * @returns {{ x: number, y: number } | null}
+ * @param {number} start
+ * @returns {{ index: number, x: number, y: number } | null}
  */
-function findPosition(occupied, columns, rows, span) {
+function findPosition(occupied, columns, rows, span, start) {
   const lastRow = rows - span;
+  const lastColumn = columns - span;
+  const startRow = Math.floor(start / columns);
+  const startColumn = start % columns;
 
-  for (let y = 0; y <= lastRow; y += 1) {
-    for (let x = 0; x <= columns - span; x += 1) {
-      if (canPlace(occupied, columns, x, y, span)) return { x, y };
+  for (let y = startRow; y <= lastRow; y += 1) {
+    const firstColumn = y === startRow ? startColumn : 0;
+
+    for (let x = firstColumn; x <= lastColumn; x += 1) {
+      if (canPlace(occupied, columns, x, y, span)) {
+        return { index: y * columns + x, x, y };
+      }
     }
   }
 

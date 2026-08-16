@@ -64,10 +64,10 @@ import { Unit } from "../units.js";
  *
  * @typedef {Object} Legend
  * @property {HTMLLegendElement} element
- * @property {function(HTMLElement): void} setPrefix
- * @property {function(): void} clearPrefix
- * @property {function({ series: AnySeries, name: string, order: number, colors: Color[] }): void} addOrReplace
- * @property {function(number): void} removeFrom
+ * @property {(element: HTMLElement) => void} setPrefix
+ * @property {() => void} clearPrefix
+ * @property {(args: { series: AnySeries, name: string, order: number, colors: Color[] }) => void} addOrReplace
+ * @property {(index: number) => void} removeFrom
  */
 
 const lineWidth = /** @type {1} */ (/** @type {unknown} */ (1.5));
@@ -234,7 +234,7 @@ export function createChart({ parent, brk, fitContent }) {
   const chartEl = document.createElement("div");
   root.append(chartEl);
 
-  const ichart = /** @type {CreateLCChart} */ (untypedLcCreateChart)(
+  const ichart = /** @type {typeof CreateLCChart} */ (untypedLcCreateChart)(
     chartEl,
     /** @satisfies {DeepPartial<ChartOptions>} */ ({
       autoSize: true,
@@ -641,7 +641,7 @@ export function createChart({ parent, brk, fitContent }) {
 
         /**
          * @param {number[]} indexes
-         * @param {(number | null | [number, number, number, number])[]} values
+         * @param {(number | boolean | null | [number, number, number, number])[]} values
          */
         function processData(indexes, values) {
           const length = Math.min(indexes.length, values.length);
@@ -675,6 +675,8 @@ export function createChart({ parent, brk, fitContent }) {
               return { time, value: NaN };
             } else if (typeof v === "number") {
               return { time, value: v };
+            } else if (typeof v === "boolean") {
+              return { time, value: Number(v) };
             } else {
               if (!Array.isArray(v) || v.length !== 4)
                 throw new Error(`Expected OHLC tuple, got: ${v}`);
@@ -757,7 +759,7 @@ export function createChart({ parent, brk, fitContent }) {
         async function fetchAndProcess() {
           /** @type {SeriesData<number> | null} */
           let timeData = null;
-          /** @type {(number | null | [number, number, number, number])[] | null} */
+          /** @type {(number | boolean | null | [number, number, number, number])[] | null} */
           let valuesData = null;
           /** @type {string | null} */
           let valuesStamp = null;
@@ -1706,5 +1708,5 @@ export function createChart({ parent, brk, fitContent }) {
 
 /**
  * @typedef {typeof createChart} CreateChart
- * @typedef {ReturnType<createChart>} Chart
+ * @typedef {ReturnType<typeof createChart>} Chart
  */

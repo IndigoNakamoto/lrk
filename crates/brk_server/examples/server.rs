@@ -23,7 +23,7 @@ pub fn main() -> Result<()> {
     )?;
 
     let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
-    let indexer = Indexer::forced_import(&outputs_dir)?;
+    let indexer = Indexer::import(&outputs_dir, &reader)?;
     let computer = Computer::forced_import(&outputs_dir, &indexer)?;
 
     let mempool = Mempool::new(&client);
@@ -35,7 +35,7 @@ pub fn main() -> Result<()> {
     let exit = Exit::new();
     exit.set_ctrlc_handler();
 
-    let query = AsyncQuery::build(&reader, &indexer, &computer, Some(mempool));
+    let query = AsyncQuery::build(&indexer, &computer, Some(mempool));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

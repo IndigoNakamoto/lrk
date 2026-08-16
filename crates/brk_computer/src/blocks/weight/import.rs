@@ -1,32 +1,43 @@
-use brk_error::Result;
-use brk_types::Version;
-use vecdb::Database;
+use brk_indexer::Indexer;
+use brk_types::{Height, PartsPerMillion32, Version, Weight};
 
 use super::Vecs;
 use crate::{
     blocks::SizeVecs,
     indexes,
-    internal::{LazyPerBlockRolling, PercentVec, VBytesToWeight, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, LazyPerBlockRolling, LazyPercentVec, VBytesToWeight, Windows,
+    },
 };
 
+fn block_fullness(_: Height, weight: Weight) -> PartsPerMillion32 {
+    PartsPerMillion32::from(weight.fullness())
+}
+
 impl Vecs {
-    pub(crate) fn forced_import(
-        db: &Database,
+    pub(crate) fn new(
         version: Version,
+        indexer: &Indexer,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         size: &SizeVecs,
-    ) -> Result<Self> {
-        let weight = LazyPerBlockRolling::from_per_block_full::<VBytesToWeight>(
+    ) -> Self {
+        let weight = LazyPerBlockRolling::from_full_parts::<VBytesToWeight>(
             "block_weight",
             version,
-            &size.vbytes,
+            &size.vbytes.cumulative,
+            &size.vbytes.rolling,
             cached_starts,
             indexes,
         );
 
-        let fullness = PercentVec::forced_import(db, "block_fullness", version)?;
+        let fullness = LazyPercentVec::from_indexed_source(
+            "block_fullness",
+            version,
+            &indexer.vecs().blocks.weight,
+            block_fullness,
+        );
 
-        Ok(Self { weight, fullness })
+        Self { weight, fullness }
     }
 }

@@ -24,7 +24,9 @@ const line = /** @type {const} */ ("line");
 export const utxoSetSection = {
   title: "UTXO Set",
   description:
-    "The UTXO set is the collection of all spendable litecoin outputs that exist right now. Each UTXO is a separate coin fragment created by a transaction and later consumed when it is spent. Counting UTXOs shows how Litecoin is split into pieces, which is different from counting how much LTC those pieces contain.",
+    "The UTXO set is the collection of all spendable litecoin outputs that exist right now. An ordinary transaction consumes existing UTXOs as inputs and creates new outputs; each spendable output remains a UTXO until a later transaction spends it. A wallet balance is the sum of the values in its controlled UTXOs, while UTXO count measures pieces, so the count can rise or fall independently of the LTC amount.",
+  example:
+    "Transaction A creates spendable output X, so X enters the UTXO set. Later, transaction B uses X as an input, so X leaves the set and B's new spendable outputs enter it.",
   chart: {
     title: "UTXO set",
     unit: units.utxos,

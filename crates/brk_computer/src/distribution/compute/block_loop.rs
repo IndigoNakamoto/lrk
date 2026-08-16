@@ -5,15 +5,14 @@ use brk_types::{
     Cents, Date, Height, ONE_DAY_IN_SEC, OutputType, Sats, StoredF64, Timestamp, TxIndex, TypeIndex,
 };
 use rayon::prelude::*;
-use rustc_hash::FxHashSet;
 use tracing::{debug, info};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec, unlikely};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, unlikely};
 
 use crate::{
     distribution::{
         addr::AddrMetricsState,
         block::{
-            AddrCache, InputsResult, process_inputs, process_outputs, process_received,
+            AddrCache, TransferAddressCache, process_inputs, process_outputs, process_received,
             process_sent,
         },
         compute::write::{process_addr_updates, write},
@@ -63,9 +62,9 @@ pub(crate) fn process_blocks(
         return Ok(());
     }
 
-    let height_to_first_tx_index = &indexer.vecs.transactions.first_tx_index;
-    let height_to_first_txout_index = &indexer.vecs.outputs.first_txout_index;
-    let height_to_first_txin_index = &indexer.vecs.inputs.first_txin_index;
+    let height_to_first_tx_index = &indexer.vecs().transactions.first_tx_index;
+    let height_to_first_txout_index = &indexer.vecs().outputs.first_txout_index;
+    let height_to_first_txin_index = &indexer.vecs().inputs.first_txin_index;
     let height_to_tx_count = &transactions.count.total.block;
     let height_to_output_count = &outputs.count.total.sum;
     let height_to_input_count = &inputs.count.sum;
@@ -73,7 +72,6 @@ pub(crate) fn process_blocks(
     let tx_index_to_input_count = &indexes.tx_index.input_count;
 
     let height_to_price_vec = cached_prices;
-    let height_to_timestamp_vec = cached_timestamps;
 
     let start_usize = starting_height.to_usize();
     let end_usize = last_height.to_usize() + 1;
@@ -107,7 +105,7 @@ pub(crate) fn process_blocks(
     debug!("VecsReaders created");
 
     // Extend tx_index_to_height RangeMap with new entries (incremental, O(new_blocks))
-    let target_len = indexer.vecs.transactions.first_tx_index.len();
+    let target_len = indexer.vecs().transactions.first_tx_index.len();
     let current_len = tx_index_to_height.len();
     if current_len < target_len {
         debug!(
@@ -115,7 +113,7 @@ pub(crate) fn process_blocks(
             current_len, target_len
         );
         let new_entries: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(current_len, target_len);
@@ -136,55 +134,55 @@ pub(crate) fn process_blocks(
 
     // Create reusable iterators and buffers for per-block reads
     let mut txout_iters = TxOutReaders::new(indexer);
-    let mut txin_iters = TxInReaders::new(indexer, inputs, tx_index_to_height);
+    let mut txin_iters = TxInReaders::new(indexer, &inputs.value, tx_index_to_height);
     let mut txout_to_tx_index_buf = IndexToTxIndexBuf::new();
     let mut txin_to_tx_index_buf = IndexToTxIndexBuf::new();
 
     // Pre-collect first address indexes per type for the block range
     let first_p2a_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2a
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pk33_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pk33
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pk65_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pk65
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2pkh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2pkh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2sh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2sh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2tr_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2tr
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2wpkh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2wpkh
         .first_index
         .collect_range_at(start_usize, end_usize);
     let first_p2wsh_vec = indexer
-        .vecs
+        .vecs()
         .addrs
         .p2wsh
         .first_index
@@ -212,15 +210,11 @@ pub(crate) fn process_blocks(
             .par_iter_vecs_mut()
             .chain(vecs.addr_cohorts.par_iter_vecs_mut())
             .chain(vecs.addrs.par_iter_height_mut())
-            .chain(rayon::iter::once(
-                &mut vecs.coinblocks_destroyed.block as &mut dyn AnyStoredVec,
-            ))
+            .chain(rayon::iter::once(vecs.coinblocks_destroyed.stored_mut()))
             .try_for_each(|v| v.any_truncate_if_needed_at(start))?;
     }
 
-    // Reusable hashsets (avoid per-block allocation)
-    let mut received_addrs = ByAddrType::<FxHashSet<TypeIndex>>::default();
-    let mut seen_senders = ByAddrType::<FxHashSet<TypeIndex>>::default();
+    let mut transfer_addresses = TransferAddressCache::default();
 
     // Track earliest chain_state modification from sends (for incremental supply_state writes)
     let mut min_supply_modified: Option<Height> = None;
@@ -264,17 +258,23 @@ pub(crate) fn process_blocks(
 
         state.reset_per_block();
 
-        // Process outputs, inputs, and tick-tock in parallel via rayon::join.
-        // Collection (build tx_index mappings + bulk mmap reads) is merged into the
-        // processing closures so outputs and inputs collection overlap each other
-        // and tick-tock, instead of running sequentially before the join.
-        let (matured, oi_result) = rayon::join(
+        debug_assert!(input_count > 0);
+
+        // Keep tick-tock concurrent with the block reads and address processing.
+        let (matured, (outputs_result, inputs_result)) = rayon::join(
             || {
                 vecs.utxo_cohorts
                     .tick_tock_next_block(chain_state, timestamp)
             },
-            || -> Result<_> {
-                let (outputs_result, inputs_result) = rayon::join(
+            || {
+                // Collect both sides concurrently, then load their shared addresses once.
+                let (
+                    (txout_index_to_tx_index, txout_data_vec),
+                    (
+                        txin_index_to_tx_index,
+                        (input_values, input_prev_heights, input_output_types, input_type_indexes),
+                    ),
+                ) = rayon::join(
                     || {
                         let txout_index_to_tx_index = txout_to_tx_index_buf.build(
                             first_tx_index,
@@ -283,64 +283,53 @@ pub(crate) fn process_blocks(
                         );
                         let txout_data_vec =
                             txout_iters.collect_block_outputs(first_txout_index, output_count);
-                        process_outputs(
-                            txout_index_to_tx_index,
-                            txout_data_vec,
-                            &first_addr_indexes,
-                            &cache,
-                            &vr,
-                            &vecs.any_addr_indexes,
-                            &vecs.addrs_data,
-                        )
+                        (txout_index_to_tx_index, txout_data_vec)
                     },
-                    || -> Result<_> {
-                        if input_count > 1 {
-                            let txin_index_to_tx_index = txin_to_tx_index_buf.build(
-                                first_tx_index,
-                                tx_count,
-                                tx_index_to_input_count,
-                            );
-                            let (
-                                input_values,
-                                input_prev_heights,
-                                input_output_types,
-                                input_type_indexes,
-                            ) = txin_iters.collect_block_inputs(
-                                first_txin_index + 1,
-                                input_count - 1,
-                                height,
-                            );
-                            process_inputs(
-                                input_count - 1,
-                                &txin_index_to_tx_index[1..],
-                                input_values,
-                                input_output_types,
-                                input_type_indexes,
-                                input_prev_heights,
-                                &first_addr_indexes,
-                                &cache,
-                                &vr,
-                                &vecs.any_addr_indexes,
-                                &vecs.addrs_data,
-                            )
-                        } else {
-                            Ok(InputsResult {
-                                height_to_sent: Default::default(),
-                                sent_data: Default::default(),
-                                addr_data: Default::default(),
-                                tx_index_vecs: Default::default(),
-                            })
-                        }
+                    || {
+                        let txin_index_to_tx_index = txin_to_tx_index_buf.build(
+                            first_tx_index,
+                            tx_count,
+                            tx_index_to_input_count,
+                        );
+                        let input_data = txin_iters.collect_block_inputs(
+                            first_txin_index + 1,
+                            input_count - 1,
+                            height,
+                        );
+                        (txin_index_to_tx_index, input_data)
                     },
                 );
-                Ok((outputs_result?, inputs_result?))
+
+                cache.load_block_addresses(
+                    txout_data_vec
+                        .iter()
+                        .map(|data| (data.output_type, data.type_index))
+                        .chain(
+                            input_output_types
+                                .iter()
+                                .copied()
+                                .zip(input_type_indexes.iter().copied()),
+                        ),
+                    &first_addr_indexes,
+                    &vr,
+                    &vecs.any_addr_indexes,
+                    &vecs.addrs_data,
+                );
+
+                rayon::join(
+                    || process_outputs(txout_index_to_tx_index, txout_data_vec),
+                    || {
+                        process_inputs(
+                            &txin_index_to_tx_index[1..],
+                            input_values,
+                            input_output_types,
+                            input_type_indexes,
+                            input_prev_heights,
+                        )
+                    },
+                )
             },
         );
-        let (outputs_result, inputs_result) = oi_result?;
-
-        // Merge new address data into current cache
-        cache.merge_funded(outputs_result.addr_data);
-        cache.merge_funded(inputs_result.addr_data);
 
         // Combine tx_index_vecs from outputs and inputs, then update tx_count
         let combined_tx_index_vecs = outputs_result
@@ -359,7 +348,7 @@ pub(crate) fn process_blocks(
             // BIP30: handle chain-specific duplicate coinbase heights
             let h = *height;
             for &(dup_height, orig_height) in
-                indexer.chain.constants().bip30_duplicate_heights.iter()
+                indexer.chain().constants().bip30_duplicate_heights.iter()
             {
                 if h == dup_height {
                     height_to_sent
@@ -394,7 +383,7 @@ pub(crate) fn process_blocks(
                     blocks_old as u128 * u64::from(sent.spendable_supply.value) as u128
                 })
                 .sum();
-            vecs.coinblocks_destroyed.block.push(StoredF64::from(
+            vecs.coinblocks_destroyed.push_block(StoredF64::from(
                 total_satblocks as f64 / Sats::ONE_BTC_U128 as f64,
             ));
         }
@@ -402,15 +391,7 @@ pub(crate) fn process_blocks(
         // Record maturation (sats crossing age boundaries)
         vecs.utxo_cohorts.push_maturation(&matured);
 
-        // Build set of addresses that received this block (for detecting "both" in sent)
-        // Reuse pre-allocated hashsets: clear preserves capacity, avoiding reallocation
-        received_addrs.values_mut().for_each(|set| set.clear());
-        for (output_type, vec) in outputs_result.received_data.iter() {
-            let set = received_addrs.get_mut_unwrap(output_type);
-            for (type_index, _) in vec {
-                set.insert(*type_index);
-            }
-        }
+        transfer_addresses.prepare(&outputs_result.received_data);
 
         // Process UTXO cohorts and Addr cohorts in parallel
         let (_, addr_result) = rayon::join(
@@ -442,14 +423,9 @@ pub(crate) fn process_blocks(
                     &mut vecs.addr_cohorts,
                     &mut lookup,
                     block_price,
-                    ctx.price_range_max,
                     &mut state,
-                    &received_addrs,
+                    &mut transfer_addresses,
                     height_to_price_vec,
-                    height_to_timestamp_vec,
-                    height,
-                    timestamp,
-                    &mut seen_senders,
                 )
             },
         );

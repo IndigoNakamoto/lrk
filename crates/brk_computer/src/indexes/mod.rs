@@ -1,4 +1,5 @@
 mod addr;
+mod chain_counts;
 mod height;
 mod resolution;
 pub mod timestamp;
@@ -13,37 +14,25 @@ use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
 use brk_types::{
-    Date, Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1,
-    Month3, Month6, Version, Week1, Year1, Year10,
+    Day1, Day3, Epoch, Halving, Height, Hour1, Hour4, Hour12, Minute10, Minute30, Month1, Month3,
+    Month6, StoredU64, TxInIndex, TxIndex, TxOutIndex, Version, Week1, Year1, Year10,
 };
-use vecdb::{Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyVec, CachedBoxedVec, CachedVec, Database, Exit, Rw, StorageMode, VecIndex};
 
-use crate::internal::db_utils::{finalize_db, open_db};
+use crate::internal::{
+    LazyCumulativeIndexVec,
+    db_utils::{finalize_db, open_db},
+};
 
 pub use addr::Vecs as AddrVecs;
+use chain_counts::CachedChainCounts;
 pub use height::Vecs as HeightVecs;
-pub use resolution::{DatedResolutionVecs, ResolutionVecs};
+pub use resolution::{CachedDateVec, CachedFirstHeightVec, DatedResolutionVecs, ResolutionVecs};
 pub use timestamp::Timestamps;
 pub use tx_heights::TxHeights;
 pub use tx_index::Vecs as TxIndexVecs;
 pub use txin_index::Vecs as TxInIndexVecs;
 pub use txout_index::Vecs as TxOutIndexVecs;
-
-pub type Minute10Vecs<M = Rw> = ResolutionVecs<Minute10, M>;
-pub type Minute30Vecs<M = Rw> = ResolutionVecs<Minute30, M>;
-pub type Hour1Vecs<M = Rw> = ResolutionVecs<Hour1, M>;
-pub type Hour4Vecs<M = Rw> = ResolutionVecs<Hour4, M>;
-pub type Hour12Vecs<M = Rw> = ResolutionVecs<Hour12, M>;
-pub type Day1Vecs<M = Rw> = DatedResolutionVecs<Day1, M>;
-pub type Day3Vecs<M = Rw> = DatedResolutionVecs<Day3, M>;
-pub type EpochVecs<M = Rw> = ResolutionVecs<Epoch, M>;
-pub type HalvingVecs<M = Rw> = ResolutionVecs<Halving, M>;
-pub type Week1Vecs<M = Rw> = DatedResolutionVecs<Week1, M>;
-pub type Month1Vecs<M = Rw> = DatedResolutionVecs<Month1, M>;
-pub type Month3Vecs<M = Rw> = DatedResolutionVecs<Month3, M>;
-pub type Month6Vecs<M = Rw> = DatedResolutionVecs<Month6, M>;
-pub type Year1Vecs<M = Rw> = DatedResolutionVecs<Year1, M>;
-pub type Year10Vecs<M = Rw> = DatedResolutionVecs<Year10, M>;
 
 pub const DB_NAME: &str = "indexes";
 
@@ -51,25 +40,27 @@ pub const DB_NAME: &str = "indexes";
 pub struct Vecs<M: StorageMode = Rw> {
     db: Database,
     #[traversable(skip)]
+    chain_counts: CachedChainCounts,
+    #[traversable(skip)]
     pub tx_heights: TxHeights,
     pub addr: AddrVecs,
-    pub height: HeightVecs<M>,
-    pub epoch: EpochVecs<M>,
-    pub halving: HalvingVecs<M>,
-    pub minute10: Minute10Vecs<M>,
-    pub minute30: Minute30Vecs<M>,
-    pub hour1: Hour1Vecs<M>,
-    pub hour4: Hour4Vecs<M>,
-    pub hour12: Hour12Vecs<M>,
-    pub day1: Day1Vecs<M>,
-    pub day3: Day3Vecs<M>,
-    pub week1: Week1Vecs<M>,
-    pub month1: Month1Vecs<M>,
-    pub month3: Month3Vecs<M>,
-    pub month6: Month6Vecs<M>,
-    pub year1: Year1Vecs<M>,
-    pub year10: Year10Vecs<M>,
-    pub tx_index: TxIndexVecs<M>,
+    pub height: HeightVecs,
+    pub epoch: ResolutionVecs<Epoch>,
+    pub halving: ResolutionVecs<Halving>,
+    pub minute10: ResolutionVecs<Minute10>,
+    pub minute30: ResolutionVecs<Minute30>,
+    pub hour1: ResolutionVecs<Hour1>,
+    pub hour4: ResolutionVecs<Hour4>,
+    pub hour12: ResolutionVecs<Hour12>,
+    pub day1: DatedResolutionVecs<Day1>,
+    pub day3: DatedResolutionVecs<Day3>,
+    pub week1: DatedResolutionVecs<Week1>,
+    pub month1: DatedResolutionVecs<Month1>,
+    pub month3: DatedResolutionVecs<Month3>,
+    pub month6: DatedResolutionVecs<Month6>,
+    pub year1: DatedResolutionVecs<Year1>,
+    pub year10: DatedResolutionVecs<Year10>,
+    pub tx_index: TxIndexVecs,
     pub txin_index: TxInIndexVecs,
     pub txout_index: TxOutIndexVecs,
     pub timestamp: Timestamps<M>,
@@ -86,32 +77,86 @@ impl Vecs {
         let version = parent_version;
 
         let addr = AddrVecs::forced_import(version, indexer);
-        let height = HeightVecs::forced_import(&db, version)?;
-        let epoch = ResolutionVecs::forced_import(&db, version)?;
-        let halving = ResolutionVecs::forced_import(&db, version)?;
-        let minute10 = ResolutionVecs::forced_import(&db, version)?;
-        let minute30 = ResolutionVecs::forced_import(&db, version)?;
-        let hour1 = ResolutionVecs::forced_import(&db, version)?;
-        let hour4 = ResolutionVecs::forced_import(&db, version)?;
-        let hour12 = ResolutionVecs::forced_import(&db, version)?;
-        let day1 = Day1Vecs::forced_import(&db, version)?;
-        let day3 = DatedResolutionVecs::forced_import(&db, version)?;
-        let week1 = DatedResolutionVecs::forced_import(&db, version)?;
-        let month1 = DatedResolutionVecs::forced_import(&db, version)?;
-        let month3 = DatedResolutionVecs::forced_import(&db, version)?;
-        let month6 = DatedResolutionVecs::forced_import(&db, version)?;
-        let year1 = DatedResolutionVecs::forced_import(&db, version)?;
-        let year10 = DatedResolutionVecs::forced_import(&db, version)?;
-        let tx_index = TxIndexVecs::forced_import(&db, version, indexer)?;
+        let monotonic = Timestamps::forced_import_monotonic(&db, version)?;
+        let chain_counts = CachedChainCounts::new(version, indexer);
+        let height = HeightVecs::new(
+            version,
+            monotonic.read_only_boxed_clone(),
+            Box::new(chain_counts.transaction_source()),
+        );
+        let epoch = ResolutionVecs::new(&height.epoch);
+        let halving = ResolutionVecs::new(&height.halving);
+        let minute10 = ResolutionVecs::new(&height.minute10);
+        let minute30 = ResolutionVecs::new(&height.minute30);
+        let hour1 = ResolutionVecs::new(&height.hour1);
+        let hour4 = ResolutionVecs::new(&height.hour4);
+        let hour12 = ResolutionVecs::new(&height.hour12);
+        let monotonic_source = monotonic.read_only_boxed_clone();
+        let day1 = DatedResolutionVecs::from_period_date(
+            &height.day1,
+            monotonic_source.clone(),
+            HeightVecs::day1_from_timestamp,
+        );
+        let day3 = DatedResolutionVecs::from_first_timestamp(
+            &height.day3,
+            monotonic_source.clone(),
+            Day3::from_timestamp,
+        );
+        let week1 = DatedResolutionVecs::from_first_timestamp(
+            &height.week1,
+            monotonic_source.clone(),
+            HeightVecs::week1_from_timestamp,
+        );
+        let month1 = DatedResolutionVecs::from_first_timestamp(
+            &height.month1,
+            monotonic_source.clone(),
+            HeightVecs::month1_from_timestamp,
+        );
+        let month3 = DatedResolutionVecs::from_first_timestamp(
+            &height.month3,
+            monotonic_source.clone(),
+            HeightVecs::month3_from_timestamp,
+        );
+        let month6 = DatedResolutionVecs::from_first_timestamp(
+            &height.month6,
+            monotonic_source.clone(),
+            HeightVecs::month6_from_timestamp,
+        );
+        let year1 = DatedResolutionVecs::from_first_timestamp(
+            &height.year1,
+            monotonic_source.clone(),
+            HeightVecs::year1_from_timestamp,
+        );
+        let year10 = DatedResolutionVecs::from_first_timestamp(
+            &height.year10,
+            monotonic_source,
+            HeightVecs::year10_from_timestamp,
+        );
+        let tx_index = TxIndexVecs::new(version, indexer);
         let txin_index = TxInIndexVecs::forced_import(version, indexer);
         let txout_index = TxOutIndexVecs::forced_import(version, indexer);
 
-        let timestamp = Timestamps::forced_import_from_locals(
-            &db, version, &minute10, &minute30, &hour1, &hour4, &hour12, &day1, &day3, &week1,
-            &month1, &month3, &month6, &year1, &year10,
-        )?;
+        let timestamp = Timestamps::from_locals(
+            version,
+            monotonic,
+            indexer.vecs().blocks.timestamp.read_only_boxed_clone(),
+            &minute10,
+            &minute30,
+            &hour1,
+            &hour4,
+            &hour12,
+            &day1,
+            &day3,
+            &week1,
+            &month1,
+            &month3,
+            &month6,
+            &year1,
+            &year10,
+        );
 
         let this = Self {
+            chain_counts,
             tx_heights: TxHeights::init(indexer),
             addr,
             height,
@@ -147,30 +192,17 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
 
         self.tx_heights.update(indexer, starting_height);
+        if starting_height.to_usize() < indexer.vecs().transactions.first_tx_index.len() {
+            self.chain_counts.clear();
+        }
 
         // timestamp_monotonic must be computed first — other mappings read it
-        self.timestamp
+        let rewrote_existing = self
+            .timestamp
             .compute_monotonic(indexer, starting_height, exit)?;
-
-        self.compute_tx_indexes(indexer, exit)?;
-        self.compute_height_indexes(indexer, exit)?;
-
-        let prev_height = starting_height.decremented().unwrap_or_default();
-
-        self.compute_timestamp_mappings(indexer, exit)?;
-
-        let starting_day1 = self.compute_calendar_mappings(indexer, prev_height, exit)?;
-
-        self.compute_period_vecs(indexer, prev_height, starting_day1, exit)?;
-
-        self.timestamp.compute_per_resolution(
-            indexer,
-            &self.height,
-            &self.halving,
-            &self.epoch,
-            &indexer.safe_lengths(),
-            exit,
-        )?;
+        if rewrote_existing {
+            self.invalidate_timestamp_dependents();
+        }
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {
@@ -180,227 +212,40 @@ impl Vecs {
         Ok(())
     }
 
-    fn compute_tx_indexes(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        let starting_lengths = indexer.safe_lengths();
-        let (r1, r2) = rayon::join(
-            || {
-                self.tx_index.input_count.compute_count_from_indexes(
-                    starting_lengths.tx_index,
-                    &indexer.vecs.transactions.first_txin_index,
-                    &indexer.vecs.inputs.outpoint,
-                    exit,
-                )
-            },
-            || {
-                self.tx_index.output_count.compute_count_from_indexes(
-                    starting_lengths.tx_index,
-                    &indexer.vecs.transactions.first_txout_index,
-                    &indexer.vecs.outputs.value,
-                    exit,
-                )
-            },
+    fn invalidate_timestamp_dependents(&self) {
+        self.height.invalidate_timestamp_caches();
+
+        macro_rules! period {
+            ($($field:ident),+ $(,)?) => {
+                $(self.$field.invalidate_timestamp_caches();)+
+            };
+        }
+
+        period!(
+            minute10, minute30, hour1, hour4, hour12, day1, day3, week1, month1, month3, month6,
+            year1, year10, halving, epoch,
         );
-        r1?;
-        r2?;
-        Ok(())
     }
 
-    fn compute_height_indexes(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-        self.height.tx_index_count.compute_count_from_indexes(
-            starting_height,
-            &indexer.vecs.transactions.first_tx_index,
-            &indexer.vecs.transactions.txid,
-            exit,
-        )?;
-        Ok(())
+    pub(crate) fn transaction_count_source(
+        &self,
+    ) -> CachedVec<LazyCumulativeIndexVec<Height, TxIndex>> {
+        self.chain_counts.transaction_source()
     }
 
-    fn compute_timestamp_mappings(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-
-        macro_rules! from_timestamp {
-            ($field:ident, $period:ty) => {
-                self.height.$field.compute_transform(
-                    starting_height,
-                    &self.timestamp.monotonic,
-                    |(h, ts, _)| (h, <$period>::from_timestamp(ts)),
-                    exit,
-                )?;
-            };
-        }
-
-        from_timestamp!(minute10, Minute10);
-        from_timestamp!(minute30, Minute30);
-        from_timestamp!(hour1, Hour1);
-        from_timestamp!(hour4, Hour4);
-        from_timestamp!(hour12, Hour12);
-        from_timestamp!(day3, Day3);
-
-        Ok(())
+    pub(crate) fn input_count_source(
+        &self,
+    ) -> CachedVec<LazyCumulativeIndexVec<Height, TxInIndex>> {
+        self.chain_counts.input_source()
     }
 
-    fn compute_calendar_mappings(
-        &mut self,
-        indexer: &Indexer,
-        prev_height: Height,
-        exit: &Exit,
-    ) -> Result<Day1> {
-        let starting_height = indexer.safe_lengths().height;
-
-        let starting_day1 = self
-            .height
-            .day1
-            .collect_one(prev_height)
-            .unwrap_or_default();
-
-        self.height.day1.compute_transform(
-            starting_height,
-            &self.timestamp.monotonic,
-            |(h, ts, ..)| (h, Day1::try_from(Date::from(ts)).unwrap()),
-            exit,
-        )?;
-
-        let starting_day1 = if let Some(day1) = self.height.day1.collect_one(prev_height) {
-            starting_day1.min(day1)
-        } else {
-            starting_day1
-        };
-
-        self.compute_epoch(indexer, exit)?;
-
-        self.height.week1.compute_transform(
-            starting_height,
-            &self.height.day1,
-            |(h, di, _)| (h, Week1::from(di)),
-            exit,
-        )?;
-        self.height.month1.compute_transform(
-            starting_height,
-            &self.height.day1,
-            |(h, di, _)| (h, Month1::from(di)),
-            exit,
-        )?;
-        self.height.month3.compute_transform(
-            starting_height,
-            &self.height.month1,
-            |(h, mi, _)| (h, Month3::from(mi)),
-            exit,
-        )?;
-        self.height.month6.compute_transform(
-            starting_height,
-            &self.height.month1,
-            |(h, mi, _)| (h, Month6::from(mi)),
-            exit,
-        )?;
-        self.height.year1.compute_transform(
-            starting_height,
-            &self.height.month1,
-            |(h, mi, _)| (h, Year1::from(mi)),
-            exit,
-        )?;
-        self.height.year10.compute_transform(
-            starting_height,
-            &self.height.year1,
-            |(h, yi, _)| (h, Year10::from(yi)),
-            exit,
-        )?;
-
-        Ok(starting_day1)
+    pub(crate) fn output_count(&self) -> CachedBoxedVec<Height, StoredU64> {
+        self.chain_counts.output()
     }
 
-    fn compute_epoch(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-
-        self.height
-            .epoch
-            .compute_from_index(starting_height, &indexer.vecs.blocks.weight, exit)?;
-        self.epoch.first_height.inner.compute_first_per_index(
-            starting_height,
-            &self.height.epoch,
-            exit,
-        )?;
-
-        self.height.halving.compute_from_index(
-            starting_height,
-            &indexer.vecs.blocks.weight,
-            exit,
-        )?;
-        self.halving.first_height.inner.compute_first_per_index(
-            starting_height,
-            &self.height.halving,
-            exit,
-        )?;
-        Ok(())
-    }
-
-    fn compute_period_vecs(
-        &mut self,
-        indexer: &Indexer,
-        prev_height: Height,
-        starting_day1: Day1,
-        exit: &Exit,
-    ) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-
-        macro_rules! basic_period {
-            ($period:ident) => {
-                self.$period.first_height.inner.compute_first_per_index(
-                    starting_height,
-                    &self.height.$period,
-                    exit,
-                )?;
-            };
-        }
-
-        basic_period!(minute10);
-        basic_period!(minute30);
-        basic_period!(hour1);
-        basic_period!(hour4);
-        basic_period!(hour12);
-
-        self.day1.first_height.inner.compute_first_per_index(
-            starting_height,
-            &self.height.day1,
-            exit,
-        )?;
-        self.day1.date.compute_transform(
-            starting_day1,
-            &self.day1.first_height,
-            |(di, ..)| (di, Date::from(di)),
-            exit,
-        )?;
-        let ts = &self.timestamp.monotonic;
-
-        macro_rules! dated_period {
-            ($period:ident) => {{
-                self.$period.first_height.inner.compute_first_per_index(
-                    starting_height,
-                    &self.height.$period,
-                    exit,
-                )?;
-                let start = self
-                    .height
-                    .$period
-                    .collect_one(prev_height)
-                    .unwrap_or_default();
-                self.$period.date.compute_transform(
-                    start,
-                    &self.$period.first_height,
-                    |(idx, first_h, _)| (idx, Date::from(ts.collect_one(first_h).unwrap())),
-                    exit,
-                )?;
-            }};
-        }
-
-        dated_period!(day3);
-        dated_period!(week1);
-        dated_period!(month1);
-        dated_period!(month3);
-        dated_period!(month6);
-        dated_period!(year1);
-        dated_period!(year10);
-
-        Ok(())
+    pub(crate) fn output_count_source(
+        &self,
+    ) -> CachedVec<LazyCumulativeIndexVec<Height, TxOutIndex>> {
+        self.chain_counts.output_source()
     }
 }

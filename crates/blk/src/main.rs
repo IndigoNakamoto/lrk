@@ -47,7 +47,7 @@ fn run() -> Result<()> {
         .map(|n| n.get())
         .unwrap_or(2)
         / 2)
-        .max(1);
+    .max(1);
     for block in reader.range_with(start, end, parser_threads)?.iter() {
         let block = block?;
         let line = formatter.format(&Ctx::new(&block, network, chain))?;

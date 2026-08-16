@@ -40,7 +40,7 @@ impl Query {
         let current_height = self.height();
 
         let current_difficulty = *indexer
-            .vecs
+            .vecs()
             .blocks
             .difficulty
             .collect_one(current_height)

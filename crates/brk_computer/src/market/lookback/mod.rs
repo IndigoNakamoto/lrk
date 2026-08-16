@@ -1,5 +1,4 @@
 mod by_period;
-mod compute;
 mod import;
 mod vecs;
 

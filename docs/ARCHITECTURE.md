@@ -7,6 +7,8 @@ blk*.dat ──▶ Reader ──┐
                       ├──▶ Indexer ──▶ Computer ──┐
          RPC Client ──┤                           ├──▶ Query ──▶ Server
                       └──▶ Mempool ───────────────┘
+
+MCP clients ──▶ MCP Adapter ──▶ Server
 ```
 
 ## Components
@@ -60,6 +62,14 @@ REST API exposing Query functionality:
 - JSON and CSV output formats
 - ETag caching
 - mempool.space compatible endpoints
+
+### MCP Adapter (`brk_mcp`)
+
+Provides stateless, read-only MCP tools generated from the server's OpenAPI
+operations. It forwards tool calls to the configured REST origin, allowing a
+Cloudflare-fronted API to keep serving cached responses. The official endpoint
+is [mcp.bitview.space](https://mcp.bitview.space/) and requires no
+authentication.
 
 ## Data Flow
 

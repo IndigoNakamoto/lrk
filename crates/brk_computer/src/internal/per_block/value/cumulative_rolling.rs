@@ -1,14 +1,14 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Height, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{Database, EagerVec, Exit, PcoVec, Rw, StorageMode};
+use vecdb::{Database, Exit, Rw, StorageMode};
 
 use crate::{
     indexes,
     internal::{
-        LazyRollingAvgsAmountFromHeight, LazyRollingSumsAmountFromHeight, ValuePerBlockCumulative,
-        WindowStartVec, Windows,
+        CachedWindowStartVec, LazyRollingAvgsAmountFromHeight, LazyRollingSumsAmountFromHeight,
+        ValuePerBlockCumulative, Windows,
     },
     price,
 };
@@ -31,7 +31,7 @@ impl ValuePerBlockCumulativeRolling {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -60,23 +60,12 @@ impl ValuePerBlockCumulativeRolling {
         })
     }
 
-    pub(crate) fn compute(
-        &mut self,
-        max_from: Height,
-        prices: &price::Vecs,
-        exit: &Exit,
-        compute_sats: impl FnOnce(&mut EagerVec<PcoVec<Height, Sats>>) -> Result<()>,
-    ) -> Result<()> {
-        compute_sats(&mut self.block.sats)?;
-        self.compute_rest(max_from, prices, exit)
-    }
-
     pub(crate) fn compute_rest(
         &mut self,
         max_from: Height,
         prices: &price::Vecs,
         exit: &Exit,
     ) -> Result<()> {
-        self.inner.compute(prices, max_from, exit)
+        self.inner.compute_cents(max_from, prices, exit)
     }
 }

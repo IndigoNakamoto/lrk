@@ -25,6 +25,7 @@
     * [index\_to\_date](#brk_client.BrkClient.index_to_date)
     * [date\_to\_index](#brk_client.BrkClient.date_to_index)
     * [address\_payload\_hash\_prefix](#brk_client.BrkClient.address_payload_hash_prefix)
+    * [get\_address\_payload\_hash\_prefix\_matches](#brk_client.BrkClient.get_address_payload_hash_prefix_matches)
     * [get\_health](#brk_client.BrkClient.get_health)
     * [get\_version](#brk_client.BrkClient.get_version)
     * [get\_sync\_status](#brk_client.BrkClient.get_sync_status)
@@ -48,7 +49,6 @@
     * [get\_difficulty\_adjustment](#brk_client.BrkClient.get_difficulty_adjustment)
     * [get\_prices](#brk_client.BrkClient.get_prices)
     * [get\_historical\_price](#brk_client.BrkClient.get_historical_price)
-    * [get\_address\_payload\_hash\_prefix\_matches](#brk_client.BrkClient.get_address_payload_hash_prefix_matches)
     * [get\_address\_hash\_prefix\_matches](#brk_client.BrkClient.get_address_hash_prefix_matches)
     * [get\_address](#brk_client.BrkClient.get_address)
     * [get\_address\_txs](#brk_client.BrkClient.get_address_txs)
@@ -262,11 +262,24 @@ Convert a date/datetime to an index value for date-based indexes.
 #### address\_payload\_hash\_prefix
 
 ```python
-def address_payload_hash_prefix(
-        payload: Union[bytes, bytearray, memoryview], nibbles: int) -> str
+@staticmethod
+def address_payload_hash_prefix(payload: Union[bytes, bytearray, memoryview],
+                                nibbles: int) -> str
 ```
 
 Compute the RapidHash v3 hash-prefix for raw address payload bytes.
+
+<a id="brk_client.BrkClient.get_address_payload_hash_prefix_matches"></a>
+
+#### get\_address\_payload\_hash\_prefix\_matches
+
+```python
+def get_address_payload_hash_prefix_matches(
+        addr_type: OutputType, payload: Union[bytes, bytearray, memoryview],
+        nibbles: int) -> AddrHashPrefixMatches
+```
+
+Fetch address hash-prefix matches from raw payload bytes matching addr_type length.
 
 <a id="brk_client.BrkClient.get_health"></a>
 
@@ -278,7 +291,7 @@ def get_health() -> Health
 
 Health check.
 
-Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.
+Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, request `GET /api/server/sync`.
 
 Endpoint: `GET /health`
 
@@ -443,7 +456,7 @@ def get_series_data(series: SeriesName,
 
 Get raw series data.
 
-Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as the standard endpoint.
+Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as `GET /api/series/{series}/{index}`.
 
 Endpoint: `GET /api/series/{series}/{index}/data`
 
@@ -528,12 +541,13 @@ Endpoint: `GET /api/urpd`
 #### list\_urpd\_dates
 
 ```python
-def list_urpd_dates(cohort: Cohort) -> List[Date]
+def list_urpd_dates(cohort: Cohort,
+                    weight: Optional[UrpdWeight] = None) -> List[Date]
 ```
 
 Available URPD dates.
 
-Dates for which a URPD snapshot is available for the cohort. One entry per UTC day, sorted ascending.
+Dates for which a URPD snapshot is available for the cohort and selected `weight`. One entry per UTC day, sorted ascending.
 
 Endpoint: `GET /api/urpd/{cohort}/dates`
 
@@ -542,14 +556,14 @@ Endpoint: `GET /api/urpd/{cohort}/dates`
 #### get\_urpd
 
 ```python
-def get_urpd(cohort: Cohort, agg: Optional[UrpdAggregation] = None) -> Urpd
+def get_urpd(cohort: Cohort,
+             agg: Optional[UrpdAggregation] = None,
+             weight: Optional[UrpdWeight] = None) -> Urpd
 ```
 
 Latest URPD.
 
-URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served.
-
-See the URPD tag description for the response shape and `agg` options.
+URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }`. `close` and each bucket's `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and bucket `supply` are BTC. `unrealized_pnl` can be negative.
 
 Endpoint: `GET /api/urpd/{cohort}`
 
@@ -560,14 +574,13 @@ Endpoint: `GET /api/urpd/{cohort}`
 ```python
 def get_urpd_at(cohort: Cohort,
                 date: str,
-                agg: Optional[UrpdAggregation] = None) -> Urpd
+                agg: Optional[UrpdAggregation] = None,
+                weight: Optional[UrpdWeight] = None) -> Urpd
 ```
 
 URPD at date.
 
-URPD for a (cohort, date) pair. Returns `{ cohort, date, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.
-
-See the URPD tag description for unit conventions and `agg` options.
+URPD for a (cohort, date) pair. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`. `close`, `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and `supply` are BTC. `unrealized_pnl` can be negative.
 
 Endpoint: `GET /api/urpd/{cohort}/{date}`
 
@@ -620,19 +633,6 @@ Get historical BTC/USD price. Optionally specify a UNIX timestamp to get the pri
 
 Endpoint: `GET /api/v1/historical-price`
 
-<a id="brk_client.BrkClient.get_address_payload_hash_prefix_matches"></a>
-
-#### get\_address\_payload\_hash\_prefix\_matches
-
-```python
-def get_address_payload_hash_prefix_matches(
-        addr_type: OutputType,
-        payload: Union[bytes, bytearray, memoryview],
-        nibbles: int) -> AddrHashPrefixMatches
-```
-
-Fetch address hash-prefix matches from raw payload bytes matching `addr_type` length.
-
 <a id="brk_client.BrkClient.get_address_hash_prefix_matches"></a>
 
 #### get\_address\_hash\_prefix\_matches
@@ -644,7 +644,7 @@ def get_address_hash_prefix_matches(addr_type: OutputType,
 
 Address hash-prefix matches.
 
-Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata for the returned addresses through `/api/address/{address}`.
+Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata with `GET /api/address/{address}`.
 
 Endpoint: `GET /api/address/hash-prefix/{addr_type}/{prefix}`
 
@@ -658,7 +658,7 @@ def get_address(address: Addr) -> AddrStats
 
 Address information.
 
-Retrieve address information including balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
 
 *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
 
@@ -674,7 +674,7 @@ def get_address_txs(address: Addr) -> List[Transaction]
 
 Address transactions.
 
-Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, use `/address/{address}/txs/chain/{last_seen_txid}`.
+Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
 
 *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions)*
 
@@ -690,7 +690,7 @@ def get_address_confirmed_txs(address: Addr) -> List[Transaction]
 
 Address confirmed transactions.
 
-Get the first 25 confirmed transactions for an address. For pagination, use the path-style form `/txs/chain/{last_seen_txid}`.
+Get the first 25 confirmed transactions for an address. For pagination, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
 
 *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions-chain)*
 
@@ -1444,7 +1444,7 @@ def get_fullrbf_replacements() -> List[ReplacementNode]
 
 Recent full-RBF replacements.
 
-Like `/api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
+Same response shape as `GET /api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
 
 *[Mempool.space docs](https://mempool.space/docs/api/rest#get-fullrbf-replacements)*
 
@@ -1460,7 +1460,7 @@ def get_block_template() -> BlockTemplate
 
 Projected next block template.
 
-Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
 
 Endpoint: `GET /api/v1/mempool/block-template`
 
@@ -1474,7 +1474,7 @@ def get_block_template_diff(hash: NextBlockHash) -> BlockTemplateDiff
 
 Block template diff since hash.
 
-Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `/api/v1/mempool/block-template`.
+Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `GET /api/v1/mempool/block-template`.
 
 Endpoint: `GET /api/v1/mempool/block-template/diff/{hash}`
 
@@ -1502,7 +1502,7 @@ def get_oracle_price() -> Dollars
 
 Live BTC/USD price.
 
-Current BTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
+Current BTC/USD price in dollars. Same value as `GET /api/mempool/price`. Confirmed per-height history is available at `GET /api/series/price/height`.
 
 Endpoint: `GET /api/oracle/price`
 
@@ -1792,6 +1792,7 @@ def get_api() -> Any
 
 Compact OpenAPI specification.
 
-Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. Full spec available at `/openapi.json`.
+Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. The full specification is available at `GET /openapi.json`.
 
 Endpoint: `GET /api.json`
+

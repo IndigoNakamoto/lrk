@@ -31,8 +31,6 @@ pub use vecs::Vecs;
 pub struct Query(Arc<QueryInner<'static>>);
 struct QueryInner<'a> {
     vecs: &'a Vecs<'a>,
-    client: Client,
-    reader: Reader,
     indexer: &'a Indexer<Ro>,
     computer: &'a Computer<Ro>,
     mempool: Option<Mempool>,
@@ -40,22 +38,13 @@ struct QueryInner<'a> {
 }
 
 impl Query {
-    pub fn build(
-        reader: &Reader,
-        indexer: &Indexer,
-        computer: &Computer,
-        mempool: Option<Mempool>,
-    ) -> Self {
-        let client = reader.client().clone();
-        let reader = reader.clone();
+    pub fn build(indexer: &Indexer, computer: &Computer, mempool: Option<Mempool>) -> Self {
         let indexer = Box::leak(Box::new(indexer.read_only_clone()));
         let computer = Box::leak(Box::new(computer.read_only_clone()));
         let vecs = Box::leak(Box::new(Vecs::build(indexer, computer)));
 
         Self(Arc::new(QueryInner {
             vecs,
-            client,
-            reader,
             indexer,
             computer,
             mempool,
@@ -105,7 +94,7 @@ impl Query {
         let blocks_behind = Height::from(tip_height.saturating_sub(*indexed_height));
         let last_indexed_at_unix = self
             .indexer()
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_one(self.height())
@@ -123,17 +112,17 @@ impl Query {
 
     #[inline]
     pub fn reader(&self) -> &Reader {
-        &self.0.reader
+        self.0.indexer.reader()
     }
 
     #[inline]
     pub fn client(&self) -> &Client {
-        &self.0.client
+        self.reader().client()
     }
 
     #[inline]
     pub fn blocks_dir(&self) -> &Path {
-        self.0.reader.blocks_dir()
+        self.reader().blocks_dir()
     }
 
     #[inline]

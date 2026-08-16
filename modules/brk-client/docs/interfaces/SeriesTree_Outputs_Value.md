@@ -6,7 +6,7 @@
 
 # Interface: SeriesTree\_Outputs\_Value
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5614](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5614)
+Defined in: [Developer/brk/modules/brk-client/index.js:6262](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6262)
 
 ## Properties
 
@@ -14,4 +14,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5614](https://github.com/
 
 > **opReturn**: [`BlockCumulativePattern`](BlockCumulativePattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5615](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5615)
+Defined in: [Developer/brk/modules/brk-client/index.js:6263](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6263)

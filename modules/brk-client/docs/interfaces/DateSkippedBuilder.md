@@ -6,7 +6,7 @@
 
 # Interface: DateSkippedBuilder\<T\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1737](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1737)
+Defined in: [Developer/brk/modules/brk-client/index.js:1778](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1778)
 
 ## Type Parameters
 
@@ -18,17 +18,21 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1737](https://github.com/
 
 ### fetch
 
-> **fetch**: (`onValue?`) => `Promise`\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
+> **fetch**: (`arg?`, `options?`) => `Promise`\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1739](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1739)
+Defined in: [Developer/brk/modules/brk-client/index.js:1780](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1780)
 
 Fetch from skipped position to end
 
 #### Parameters
 
-##### onValue?
+##### arg?
 
-(`value`) => `void`
+[`DateSeriesFetchArg`](../type-aliases/DateSeriesFetchArg.md)\<`T`\>
+
+##### options?
+
+[`ClientFetchOptions`](ClientFetchOptions.md)\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
 
 #### Returns
 
@@ -38,11 +42,17 @@ Fetch from skipped position to end
 
 ### fetchCsv
 
-> **fetchCsv**: () => `Promise`\<`string`\>
+> **fetchCsv**: (`options?`) => `Promise`\<`string`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1740](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1740)
+Defined in: [Developer/brk/modules/brk-client/index.js:1781](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1781)
 
 Fetch as CSV
+
+#### Parameters
+
+##### options?
+
+[`ClientFetchOptions`](ClientFetchOptions.md)\<`string`\>
 
 #### Returns
 
@@ -54,7 +64,7 @@ Fetch as CSV
 
 > **take**: (`n`) => [`DateRangeBuilder`](DateRangeBuilder.md)\<`T`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1738](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1738)
+Defined in: [Developer/brk/modules/brk-client/index.js:1779](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1779)
 
 Take n items after skipped position
 
@@ -74,6 +84,6 @@ Take n items after skipped position
 
 > **then**: [`DateThenable`](../type-aliases/DateThenable.md)\<`T`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1741](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1741)
+Defined in: [Developer/brk/modules/brk-client/index.js:1782](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1782)
 
 Thenable

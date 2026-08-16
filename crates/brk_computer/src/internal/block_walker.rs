@@ -9,9 +9,7 @@ use vecdb::VecIndex;
 
 /// Aggregated per-block counters produced by [`walk_blocks`].
 pub(crate) struct BlockAggregate {
-    pub entries_all: u64,
     pub entries_per_type: [u64; OutputType::COUNT],
-    pub txs_all: u64,
     pub txs_per_type: [u64; OutputType::COUNT],
 }
 
@@ -26,9 +24,6 @@ pub(crate) enum CoinbasePolicy {
 /// fills a `[u32; OutputType::COUNT]` with the per-output-type count for that
 /// tx), aggregating into a [`BlockAggregate`] and handing it to `store`.
 ///
-/// `entries_all` and `txs_all` aggregate over all output types
-/// indistinguishably; downstream consumers can cap to the spendable types if
-/// op_return is non-applicable.
 #[inline]
 pub(crate) fn walk_blocks(
     fi_batch: &[TxIndex],
@@ -51,30 +46,20 @@ pub(crate) fn walk_blocks(
 
         let mut entries_per_type = [0u64; OutputType::COUNT];
         let mut txs_per_type = [0u64; OutputType::COUNT];
-        let mut entries_all = 0u64;
-        let mut txs_all = 0u64;
 
         for tx_pos in start_tx..next_fi {
             let mut per_tx = [0u32; OutputType::COUNT];
             scan_tx(tx_pos, &mut per_tx)?;
-            let mut tx_has_any = false;
             for (i, &n) in per_tx.iter().enumerate() {
                 if n > 0 {
                     entries_per_type[i] += u64::from(n);
                     txs_per_type[i] += 1;
-                    entries_all += u64::from(n);
-                    tx_has_any = true;
                 }
-            }
-            if tx_has_any {
-                txs_all += 1;
             }
         }
 
         store(BlockAggregate {
-            entries_all,
             entries_per_type,
-            txs_all,
             txs_per_type,
         })?;
     }

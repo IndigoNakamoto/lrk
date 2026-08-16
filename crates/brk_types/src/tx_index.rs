@@ -4,7 +4,7 @@ use byteview::ByteView;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use super::StoredU32;
 
@@ -161,6 +161,10 @@ impl PrintableIndex for TxIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["tx", "tx_index"]
     }
+}
+
+impl VecIndex for TxIndex {
+    const INITIAL_CAPACITY: usize = 1_700_000_000;
 }
 
 impl std::fmt::Display for TxIndex {

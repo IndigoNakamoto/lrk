@@ -3,15 +3,14 @@ use brk_types::{Bitcoin, Dollars, Height, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    DeltaChange, DeltaRate, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec,
-    VecValue,
+    DeltaChange, DeltaRate, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec, VecValue,
 };
 
 use crate::{
     indexes,
     internal::{
-        AmountType, BpsType, DerivedResolutions, FiatType, LazyPerBlock, NumericValue, Percent,
-        Resolutions, WindowStartVec, Windows,
+        AmountType, CachedWindowStartVec, DerivedResolutions, FiatType, FixedRatio, LazyPerBlock,
+        NumericValue, Percent, Resolutions, Windows,
     },
 };
 
@@ -19,7 +18,7 @@ use crate::{
 ///
 /// Used as building block for both change and rate deltas.
 /// - Change: `LazyDeltaFromHeight<S, C, DeltaChange>`
-/// - Rate BPS: `LazyDeltaFromHeight<S, B, DeltaRate>`
+/// - Rate: `LazyDeltaFromHeight<S, B, DeltaRate>`
 #[derive(Clone, Traversable)]
 #[traversable(merge)]
 pub struct LazyDeltaFromHeight<S, T, Op: 'static>
@@ -32,9 +31,9 @@ where
     pub resolutions: Box<Resolutions<T>>,
 }
 
-/// Single-slot lazy delta percent: BPS delta + lazy ratio + lazy percent views.
+/// Single-slot lazy delta percent: fixed-point delta + lazy ratio + lazy percent views.
 ///
-/// Mirrors `PercentPerBlock<B>` but with lazy delta for the BPS source.
+/// Mirrors `PercentPerBlock<B>` but with a lazy delta source.
 #[derive(Clone, Deref, DerefMut, Traversable)]
 #[traversable(transparent)]
 pub struct LazyDeltaPercentFromHeight<S, B>(
@@ -42,7 +41,7 @@ pub struct LazyDeltaPercentFromHeight<S, B>(
 )
 where
     S: VecValue,
-    B: BpsType;
+    B: FixedRatio;
 
 /// Lazy rolling deltas for all 4 window durations (24h, 1w, 1m, 1y).
 ///
@@ -55,7 +54,7 @@ pub struct LazyRollingDeltasFromHeight<S, C, B>
 where
     S: VecValue,
     C: NumericValue + JsonSchema,
-    B: BpsType,
+    B: FixedRatio,
 {
     pub absolute: Windows<LazyDeltaFromHeight<S, C, DeltaChange>>,
     pub rate: Windows<LazyDeltaPercentFromHeight<S, B>>,
@@ -65,18 +64,18 @@ impl<S, C, B> LazyRollingDeltasFromHeight<S, C, B>
 where
     S: VecValue + Into<f64>,
     C: NumericValue + JsonSchema + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub fn new(
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -99,54 +98,52 @@ where
                 resolutions: Box::new(change_resolutions),
             };
 
-            // Rate BPS: (source[h] - source[ago]) / source[ago] as B (via f64)
-            let rate_bps_name = format!("{full_name}_rate_bps");
+            // Rate: (source[h] - source[ago]) / source[ago] as B (via f64)
+            let rate_raw_name = format!("{full_name}_rate_{}", B::SUFFIX);
             let rate_vec = LazyDeltaVec::<Height, S, B, DeltaRate>::new(
-                &rate_bps_name,
+                &rate_raw_name,
                 version,
                 src.clone(),
                 starts_version,
                 move || cached.cached(),
             );
             let rate_resolutions =
-                Resolutions::forced_import(&rate_bps_name, rate_vec.clone(), version, indexes);
-            let bps = LazyDeltaFromHeight {
+                Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
 
-            // Ratio: bps / 10000
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
-            // Percent: bps / 100
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                bps,
+                ppm,
                 ratio,
                 percent,
             });
@@ -186,7 +183,7 @@ pub struct LazyRollingDeltasAmountFromHeight<S, C, B>
 where
     S: VecValue,
     C: AmountType,
-    B: BpsType,
+    B: FixedRatio,
 {
     pub absolute: Windows<LazyDeltaAmountFromHeight<S, C>>,
     pub rate: Windows<LazyDeltaPercentFromHeight<S, B>>,
@@ -196,18 +193,18 @@ impl<S, C, B> LazyRollingDeltasAmountFromHeight<S, C, B>
 where
     S: VecValue + Into<f64>,
     C: AmountType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub fn new(
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -233,7 +230,7 @@ where
 
             // Absolute change (btc): lazy from sats delta
             let btc = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToBitcoin>(
+                height: LazyVec::transformed::<C::ToBitcoin>(
                     &full_name,
                     version,
                     sats.height.read_only_boxed_clone(),
@@ -247,52 +244,52 @@ where
 
             let absolute = LazyDeltaAmountFromHeight { btc, sats };
 
-            // Rate BPS: (source[h] - source[ago]) / source[ago] as B (via f64)
-            let rate_bps_name = format!("{full_name}_rate_bps");
+            // Rate: (source[h] - source[ago]) / source[ago] as B (via f64)
+            let rate_raw_name = format!("{full_name}_rate_{}", B::SUFFIX);
             let rate_vec = LazyDeltaVec::<Height, S, B, DeltaRate>::new(
-                &rate_bps_name,
+                &rate_raw_name,
                 version,
                 src.clone(),
                 starts_version,
                 move || cached.cached(),
             );
             let rate_resolutions =
-                Resolutions::forced_import(&rate_bps_name, rate_vec.clone(), version, indexes);
-            let bps = LazyDeltaFromHeight {
+                Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
 
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                bps,
+                ppm,
                 ratio,
                 percent,
             });
@@ -331,7 +328,7 @@ pub struct LazyRollingDeltasFiatFromHeight<S, C, B>
 where
     S: VecValue,
     C: FiatType,
-    B: BpsType,
+    B: FixedRatio,
 {
     pub absolute: Windows<LazyDeltaFiatFromHeight<S, C>>,
     pub rate: Windows<LazyDeltaPercentFromHeight<S, B>>,
@@ -341,18 +338,18 @@ impl<S, C, B> LazyRollingDeltasFiatFromHeight<S, C, B>
 where
     S: VecValue + Into<f64>,
     C: FiatType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub fn new(
         name: &str,
         version: Version,
         source: &(impl ReadableCloneableVec<Height, S> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let src = source.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -378,7 +375,7 @@ where
 
             // Absolute change (usd): lazy from cents delta
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToDollars>(
+                height: LazyVec::transformed::<C::ToDollars>(
                     &full_name,
                     version,
                     cents.height.read_only_boxed_clone(),
@@ -392,52 +389,52 @@ where
 
             let absolute = LazyDeltaFiatFromHeight { usd, cents };
 
-            // Rate BPS: (source[h] - source[ago]) / source[ago] as B (via f64)
-            let rate_bps_name = format!("{full_name}_rate_bps");
+            // Rate: (source[h] - source[ago]) / source[ago] as B (via f64)
+            let rate_raw_name = format!("{full_name}_rate_{}", B::SUFFIX);
             let rate_vec = LazyDeltaVec::<Height, S, B, DeltaRate>::new(
-                &rate_bps_name,
+                &rate_raw_name,
                 version,
                 src.clone(),
                 starts_version,
                 move || cached.cached(),
             );
             let rate_resolutions =
-                Resolutions::forced_import(&rate_bps_name, rate_vec.clone(), version, indexes);
-            let bps = LazyDeltaFromHeight {
+                Resolutions::forced_import(&rate_raw_name, rate_vec.clone(), version, indexes);
+            let ppm = LazyDeltaFromHeight {
                 height: rate_vec,
                 resolutions: Box::new(rate_resolutions),
             };
 
             let rate_ratio_name = format!("{full_name}_rate_ratio");
             let ratio = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToRatio>(
+                height: LazyVec::transformed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToRatio>(
                     &rate_ratio_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate_name = format!("{full_name}_rate");
             let percent = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<B::ToPercent>(
+                height: LazyVec::transformed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    bps.height.read_only_boxed_clone(),
+                    ppm.height.read_only_boxed_clone(),
                 ),
                 resolutions: Box::new(DerivedResolutions::from_derived_computed::<B::ToPercent>(
                     &rate_name,
                     version,
-                    &bps.resolutions,
+                    &ppm.resolutions,
                 )),
             };
 
             let rate = LazyDeltaPercentFromHeight(Percent {
-                bps,
+                ppm,
                 ratio,
                 percent,
             });

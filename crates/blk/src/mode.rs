@@ -16,9 +16,7 @@ impl Mode {
             ));
         }
         if compact && n_fields == 0 {
-            return Err(Error::Parse(
-                "--compact requires at least one field".into(),
-            ));
+            return Err(Error::Parse("--compact requires at least one field".into()));
         }
         Ok(if pretty {
             Self::Pretty

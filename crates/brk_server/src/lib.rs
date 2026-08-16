@@ -93,7 +93,7 @@ impl Server {
         #[cfg(feature = "bindgen")]
         let vecs = state.query.inner().vecs();
         #[cfg(feature = "bindgen")]
-        let bindgen_chain = state.query.inner().indexer().chain;
+        let bindgen_chain = state.query.inner().indexer().chain();
 
         let compression_layer = CompressionLayer::new()
             .br(true)
@@ -288,7 +288,9 @@ impl Server {
             let output_paths = brk_bindgen::ClientOutputPaths::new()
                 .rust(workspace_root.join("crates/brk_client/src/lib.rs"))
                 .javascript(workspace_root.join("modules/brk-client/index.js"))
-                .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"));
+                .python(workspace_root.join("packages/brk_client/brk_client/__init__.py"))
+                .llm(workspace_root.join("website"))
+                .llm(workspace_root.join("website_next"));
 
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 generate_bindings(vecs, &openapi, &output_paths, bindgen_chain)
@@ -336,7 +338,10 @@ pub fn generate_bindings(
 ) -> std::io::Result<()> {
     let openapi_json = serde_json::to_string(openapi)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    brk_bindgen::generate_clients_for_chain(vecs, &openapi_json, output_paths, chain)
+    let output_paths = output_paths.clone().llm_manifest(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../brk_mcp/generated/manifest.json"),
+    );
+    brk_bindgen::generate_clients_for_chain(vecs, &openapi_json, &output_paths, chain)
 }
 
 #[cfg(test)]

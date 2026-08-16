@@ -32,7 +32,7 @@ fn main() -> Result<()> {
 
     let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
 
-    let mut indexer = Indexer::forced_import(&outputs_dir)?;
+    let mut indexer = Indexer::import(&outputs_dir, &reader)?;
 
     let mut bencher =
         Bencher::from_cargo_env(env!("CARGO_PKG_NAME"), &outputs_dir.join("indexed"))?;
@@ -48,7 +48,8 @@ fn main() -> Result<()> {
 
     loop {
         let i = Instant::now();
-        indexer.index(&reader, &client, &exit)?;
+        indexer.index(&exit)?;
+        indexer.advance_safe_lengths()?;
         info!("Done in {:?}", i.elapsed());
 
         Mimalloc::collect();

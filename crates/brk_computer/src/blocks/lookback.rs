@@ -1,158 +1,138 @@
-use brk_error::Result;
-use brk_indexer::Indexer;
+mod cached_window_start;
+mod window_start;
+
 use brk_traversable::Traversable;
 use brk_types::{Height, Timestamp, Version};
-use vecdb::{
-    AnyVec, CachedVec, Cursor, Database, EagerVec, Exit, ImportableVec, PcoVec, ReadableVec, Rw,
-    StorageMode, VecIndex,
-};
+use vecdb::CachedBoxedVec;
 
-use crate::{
-    indexes,
-    internal::{WindowStartVec, WindowStarts, Windows},
-};
+use crate::internal::{WindowStarts, Windows};
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
-    pub _1h: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _24h: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 1d
-    pub _3d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _1w: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 7d
-    pub _8d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _9d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _12d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _13d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _2w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 14d
-    pub _21d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _26d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _1m: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 30d
-    pub _34d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _55d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _2m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 60d
-    pub _9w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 63d
-    pub _12w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 84d
-    pub _89d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _3m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 90d
-    pub _14w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 98d
-    pub _111d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _144d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _6m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 180d
-    pub _26w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 182d
-    pub _200d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _9m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 270d
-    pub _350d: M::Stored<EagerVec<PcoVec<Height, Height>>>,
-    pub _12m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 360d
-    pub _1y: CachedVec<M::Stored<EagerVec<PcoVec<Height, Height>>>>, // 365d
-    pub _14m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 420d
-    pub _2y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 730d
-    pub _26m: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 780d
-    pub _3y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1095d
-    pub _200w: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 1400d
-    pub _4y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1460d
-    pub _5y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 1825d
-    pub _6y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 2190d
-    pub _8y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 2920d
-    pub _9y: M::Stored<EagerVec<PcoVec<Height, Height>>>,  // 3285d
-    pub _10y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 3650d
-    pub _12y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 4380d
-    pub _14y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 5110d
-    pub _26y: M::Stored<EagerVec<PcoVec<Height, Height>>>, // 9490d
+pub use cached_window_start::CachedWindowStartVec;
+pub use window_start::LazyWindowStartVec;
+
+#[derive(Clone, Traversable)]
+pub struct Vecs {
+    pub _1h: LazyWindowStartVec,
+    pub _24h: CachedWindowStartVec,
+    pub _3d: LazyWindowStartVec,
+    pub _1w: CachedWindowStartVec,
+    pub _8d: LazyWindowStartVec,
+    pub _9d: LazyWindowStartVec,
+    pub _12d: LazyWindowStartVec,
+    pub _13d: LazyWindowStartVec,
+    pub _2w: LazyWindowStartVec,
+    pub _21d: LazyWindowStartVec,
+    pub _26d: LazyWindowStartVec,
+    pub _1m: CachedWindowStartVec,
+    pub _34d: LazyWindowStartVec,
+    pub _55d: LazyWindowStartVec,
+    pub _2m: LazyWindowStartVec,
+    pub _9w: LazyWindowStartVec,
+    pub _12w: LazyWindowStartVec,
+    pub _89d: LazyWindowStartVec,
+    pub _3m: CachedWindowStartVec,
+    pub _14w: LazyWindowStartVec,
+    pub _111d: LazyWindowStartVec,
+    pub _144d: LazyWindowStartVec,
+    pub _6m: CachedWindowStartVec,
+    pub _26w: LazyWindowStartVec,
+    pub _200d: LazyWindowStartVec,
+    pub _9m: LazyWindowStartVec,
+    pub _350d: LazyWindowStartVec,
+    pub _12m: LazyWindowStartVec,
+    pub _1y: CachedWindowStartVec,
+    pub _14m: LazyWindowStartVec,
+    pub _2y: CachedWindowStartVec,
+    pub _26m: LazyWindowStartVec,
+    pub _3y: CachedWindowStartVec,
+    pub _200w: LazyWindowStartVec,
+    pub _4y: CachedWindowStartVec,
+    pub _5y: CachedWindowStartVec,
+    pub _6y: CachedWindowStartVec,
+    pub _8y: CachedWindowStartVec,
+    pub _9y: LazyWindowStartVec,
+    pub _10y: CachedWindowStartVec,
+    pub _12y: LazyWindowStartVec,
+    pub _14y: LazyWindowStartVec,
+    pub _26y: LazyWindowStartVec,
 }
 
 impl Vecs {
-    pub(crate) fn forced_import(db: &Database, version: Version) -> Result<Self> {
-        let _1h = ImportableVec::forced_import(db, "height_1h_ago", version)?;
-        let _24h = ImportableVec::forced_import(db, "height_24h_ago", version)?;
-        let _3d = ImportableVec::forced_import(db, "height_3d_ago", version)?;
-        let _1w = ImportableVec::forced_import(db, "height_1w_ago", version)?;
-        let _8d = ImportableVec::forced_import(db, "height_8d_ago", version)?;
-        let _9d = ImportableVec::forced_import(db, "height_9d_ago", version)?;
-        let _12d = ImportableVec::forced_import(db, "height_12d_ago", version)?;
-        let _13d = ImportableVec::forced_import(db, "height_13d_ago", version)?;
-        let _2w = ImportableVec::forced_import(db, "height_2w_ago", version)?;
-        let _21d = ImportableVec::forced_import(db, "height_21d_ago", version)?;
-        let _26d = ImportableVec::forced_import(db, "height_26d_ago", version)?;
-        let _1m = ImportableVec::forced_import(db, "height_1m_ago", version)?;
-        let _34d = ImportableVec::forced_import(db, "height_34d_ago", version)?;
-        let _55d = ImportableVec::forced_import(db, "height_55d_ago", version)?;
-        let _2m = ImportableVec::forced_import(db, "height_2m_ago", version)?;
-        let _9w = ImportableVec::forced_import(db, "height_9w_ago", version)?;
-        let _12w = ImportableVec::forced_import(db, "height_12w_ago", version)?;
-        let _89d = ImportableVec::forced_import(db, "height_89d_ago", version)?;
-        let _3m = ImportableVec::forced_import(db, "height_3m_ago", version)?;
-        let _14w = ImportableVec::forced_import(db, "height_14w_ago", version)?;
-        let _111d = ImportableVec::forced_import(db, "height_111d_ago", version)?;
-        let _144d = ImportableVec::forced_import(db, "height_144d_ago", version)?;
-        let _6m = ImportableVec::forced_import(db, "height_6m_ago", version)?;
-        let _26w = ImportableVec::forced_import(db, "height_26w_ago", version)?;
-        let _200d = ImportableVec::forced_import(db, "height_200d_ago", version)?;
-        let _9m = ImportableVec::forced_import(db, "height_9m_ago", version)?;
-        let _350d = ImportableVec::forced_import(db, "height_350d_ago", version)?;
-        let _12m = ImportableVec::forced_import(db, "height_12m_ago", version)?;
-        let _1y = ImportableVec::forced_import(db, "height_1y_ago", version)?;
-        let _14m = ImportableVec::forced_import(db, "height_14m_ago", version)?;
-        let _2y = ImportableVec::forced_import(db, "height_2y_ago", version)?;
-        let _26m = ImportableVec::forced_import(db, "height_26m_ago", version)?;
-        let _3y = ImportableVec::forced_import(db, "height_3y_ago", version)?;
-        let _200w = ImportableVec::forced_import(db, "height_200w_ago", version)?;
-        let _4y = ImportableVec::forced_import(db, "height_4y_ago", version)?;
-        let _5y = ImportableVec::forced_import(db, "height_5y_ago", version)?;
-        let _6y = ImportableVec::forced_import(db, "height_6y_ago", version)?;
-        let _8y = ImportableVec::forced_import(db, "height_8y_ago", version)?;
-        let _9y = ImportableVec::forced_import(db, "height_9y_ago", version)?;
-        let _10y = ImportableVec::forced_import(db, "height_10y_ago", version)?;
-        let _12y = ImportableVec::forced_import(db, "height_12y_ago", version)?;
-        let _14y = ImportableVec::forced_import(db, "height_14y_ago", version)?;
-        let _26y = ImportableVec::forced_import(db, "height_26y_ago", version)?;
+    pub(crate) fn new(version: Version, timestamps: CachedBoxedVec<Height, Timestamp>) -> Self {
+        macro_rules! hours {
+            ($suffix:literal, $hours:literal) => {
+                LazyWindowStartVec::hours(
+                    concat!("height_", $suffix, "_ago"),
+                    version,
+                    $hours,
+                    timestamps.clone(),
+                )
+            };
+        }
+        macro_rules! days {
+            ($suffix:literal, $days:expr) => {
+                LazyWindowStartVec::days(
+                    concat!("height_", $suffix, "_ago"),
+                    version,
+                    $days,
+                    timestamps.clone(),
+                )
+            };
+        }
+        macro_rules! cached_days {
+            ($suffix:literal, $days:expr) => {
+                CachedWindowStartVec::new(days!($suffix, $days))
+            };
+        }
 
-        Ok(Self {
-            _1h,
-            _24h: CachedVec::wrap(_24h),
-            _3d,
-            _1w: CachedVec::wrap(_1w),
-            _8d,
-            _9d,
-            _12d,
-            _13d,
-            _2w,
-            _21d,
-            _26d,
-            _1m: CachedVec::wrap(_1m),
-            _34d,
-            _55d,
-            _2m,
-            _9w,
-            _12w,
-            _89d,
-            _3m,
-            _14w,
-            _111d,
-            _144d,
-            _6m,
-            _26w,
-            _200d,
-            _9m,
-            _350d,
-            _12m,
-            _1y: CachedVec::wrap(_1y),
-            _14m,
-            _2y,
-            _26m,
-            _3y,
-            _200w,
-            _4y,
-            _5y,
-            _6y,
-            _8y,
-            _9y,
-            _10y,
-            _12y,
-            _14y,
-            _26y,
-        })
+        Self {
+            _1h: hours!("1h", 1),
+            _24h: cached_days!("24h", 1),
+            _3d: days!("3d", 3),
+            _1w: cached_days!("1w", 7),
+            _8d: days!("8d", 8),
+            _9d: days!("9d", 9),
+            _12d: days!("12d", 12),
+            _13d: days!("13d", 13),
+            _2w: days!("2w", 14),
+            _21d: days!("21d", 21),
+            _26d: days!("26d", 26),
+            _1m: cached_days!("1m", 30),
+            _34d: days!("34d", 34),
+            _55d: days!("55d", 55),
+            _2m: days!("2m", 60),
+            _9w: days!("9w", 9 * 7),
+            _12w: days!("12w", 12 * 7),
+            _89d: days!("89d", 89),
+            _3m: cached_days!("3m", 90),
+            _14w: days!("14w", 14 * 7),
+            _111d: days!("111d", 111),
+            _144d: days!("144d", 144),
+            _6m: cached_days!("6m", 180),
+            _26w: days!("26w", 26 * 7),
+            _200d: days!("200d", 200),
+            _9m: days!("9m", 270),
+            _350d: days!("350d", 350),
+            _12m: days!("12m", 360),
+            _1y: cached_days!("1y", 365),
+            _14m: days!("14m", 420),
+            _2y: cached_days!("2y", 2 * 365),
+            _26m: days!("26m", 780),
+            _3y: cached_days!("3y", 3 * 365),
+            _200w: days!("200w", 200 * 7),
+            _4y: cached_days!("4y", 4 * 365),
+            _5y: cached_days!("5y", 5 * 365),
+            _6y: cached_days!("6y", 6 * 365),
+            _8y: cached_days!("8y", 8 * 365),
+            _9y: days!("9y", 9 * 365),
+            _10y: cached_days!("10y", 10 * 365),
+            _12y: days!("12y", 12 * 365),
+            _14y: days!("14y", 14 * 365),
+            _26y: days!("26y", 26 * 365),
+        }
     }
 
-    pub fn cached_window_starts(&self) -> Windows<&WindowStartVec> {
+    pub fn cached_window_starts(&self) -> Windows<&CachedWindowStartVec> {
         Windows {
             _24h: &self._24h,
             _1w: &self._1w,
@@ -162,19 +142,19 @@ impl Vecs {
     }
 
     pub fn window_starts(&self) -> WindowStarts<'_> {
-        WindowStarts {
-            _24h: &self._24h.inner,
-            _1w: &self._1w.inner,
-            _1m: &self._1m.inner,
-            _1y: &self._1y.inner,
-        }
+        WindowStarts(Windows {
+            _24h: self._24h.lazy(),
+            _1w: self._1w.lazy(),
+            _1m: self._1m.lazy(),
+            _1y: self._1y.lazy(),
+        })
     }
 
-    pub fn start_vec(&self, days: usize) -> &EagerVec<PcoVec<Height, Height>> {
+    pub fn start_vec(&self, days: usize) -> &LazyWindowStartVec {
         match days {
-            1 => &self._24h.inner,
+            1 => self._24h.lazy(),
             3 => &self._3d,
-            7 => &self._1w.inner,
+            7 => self._1w.lazy(),
             8 => &self._8d,
             9 => &self._9d,
             12 => &self._12d,
@@ -182,35 +162,35 @@ impl Vecs {
             14 => &self._2w,
             21 => &self._21d,
             26 => &self._26d,
-            30 => &self._1m.inner,
+            30 => self._1m.lazy(),
             34 => &self._34d,
             55 => &self._55d,
             60 => &self._2m,
             63 => &self._9w,
             84 => &self._12w,
             89 => &self._89d,
-            90 => &self._3m,
+            90 => self._3m.lazy(),
             98 => &self._14w,
             111 => &self._111d,
             144 => &self._144d,
-            180 => &self._6m,
+            180 => self._6m.lazy(),
             182 => &self._26w,
             200 => &self._200d,
             270 => &self._9m,
             350 => &self._350d,
             360 => &self._12m,
-            365 => &self._1y.inner,
+            365 => self._1y.lazy(),
             420 => &self._14m,
-            730 => &self._2y,
+            730 => self._2y.lazy(),
             780 => &self._26m,
-            1095 => &self._3y,
+            1095 => self._3y.lazy(),
             1400 => &self._200w,
-            1460 => &self._4y,
-            1825 => &self._5y,
-            2190 => &self._6y,
-            2920 => &self._8y,
+            1460 => self._4y.lazy(),
+            1825 => self._5y.lazy(),
+            2190 => self._6y.lazy(),
+            2920 => self._8y.lazy(),
             3285 => &self._9y,
-            3650 => &self._10y,
+            3650 => self._10y.lazy(),
             4380 => &self._12y,
             5110 => &self._14y,
             9490 => &self._26y,
@@ -218,128 +198,38 @@ impl Vecs {
         }
     }
 
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        indexes: &indexes::Vecs,
-        exit: &Exit,
-    ) -> Result<()> {
-        let starting_height = indexer.safe_lengths().height;
-        self.compute_rolling_start_hours(indexes, starting_height, exit, 1, |s| &mut s._1h)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1, |s| &mut s._24h.inner)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 3, |s| &mut s._3d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 7, |s| &mut s._1w.inner)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 8, |s| &mut s._8d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 9, |s| &mut s._9d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 12, |s| &mut s._12d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 13, |s| &mut s._13d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 14, |s| &mut s._2w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 21, |s| &mut s._21d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 26, |s| &mut s._26d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 30, |s| &mut s._1m.inner)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 34, |s| &mut s._34d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 55, |s| &mut s._55d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 60, |s| &mut s._2m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 63, |s| &mut s._9w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 84, |s| &mut s._12w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 89, |s| &mut s._89d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 90, |s| &mut s._3m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 98, |s| &mut s._14w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 111, |s| &mut s._111d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 144, |s| &mut s._144d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 180, |s| &mut s._6m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 182, |s| &mut s._26w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 200, |s| &mut s._200d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 270, |s| &mut s._9m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 350, |s| &mut s._350d)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 360, |s| &mut s._12m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 365, |s| &mut s._1y.inner)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 420, |s| &mut s._14m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 730, |s| &mut s._2y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 780, |s| &mut s._26m)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1095, |s| &mut s._3y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1400, |s| &mut s._200w)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1460, |s| &mut s._4y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 1825, |s| &mut s._5y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 2190, |s| &mut s._6y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 2920, |s| &mut s._8y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 3285, |s| &mut s._9y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 3650, |s| &mut s._10y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 4380, |s| &mut s._12y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 5110, |s| &mut s._14y)?;
-        self.compute_rolling_start(indexes, starting_height, exit, 9490, |s| &mut s._26y)?;
-
-        Ok(())
+    pub fn cached_start_vec(&self, days: usize) -> &CachedWindowStartVec {
+        match days {
+            1 => &self._24h,
+            7 => &self._1w,
+            30 => &self._1m,
+            90 => &self._3m,
+            180 => &self._6m,
+            365 => &self._1y,
+            730 => &self._2y,
+            1095 => &self._3y,
+            1460 => &self._4y,
+            1825 => &self._5y,
+            2190 => &self._6y,
+            2920 => &self._8y,
+            3650 => &self._10y,
+            _ => panic!("No cached start vec for {days} days"),
+        }
     }
 
-    fn compute_rolling_start<F>(
-        &mut self,
-        indexes: &indexes::Vecs,
-        starting_height: Height,
-        exit: &Exit,
-        days: usize,
-        get_field: F,
-    ) -> Result<()>
-    where
-        F: FnOnce(&mut Self) -> &mut EagerVec<PcoVec<Height, Height>>,
-    {
-        self.compute_rolling_start_inner(indexes, starting_height, exit, get_field, |t, prev_ts| {
-            t.difference_in_days_between(prev_ts) >= days
-        })
-    }
-
-    fn compute_rolling_start_hours<F>(
-        &mut self,
-        indexes: &indexes::Vecs,
-        starting_height: Height,
-        exit: &Exit,
-        hours: usize,
-        get_field: F,
-    ) -> Result<()>
-    where
-        F: FnOnce(&mut Self) -> &mut EagerVec<PcoVec<Height, Height>>,
-    {
-        self.compute_rolling_start_inner(indexes, starting_height, exit, get_field, |t, prev_ts| {
-            t.difference_in_hours_between(prev_ts) >= hours
-        })
-    }
-
-    fn compute_rolling_start_inner<F, D>(
-        &mut self,
-        indexes: &indexes::Vecs,
-        starting_height: Height,
-        exit: &Exit,
-        get_field: F,
-        expired: D,
-    ) -> Result<()>
-    where
-        F: FnOnce(&mut Self) -> &mut EagerVec<PcoVec<Height, Height>>,
-        D: Fn(Timestamp, Timestamp) -> bool,
-    {
-        let field = get_field(self);
-        let resume_from = field.len().min(starting_height.to_usize());
-        let mut prev = if resume_from > 0 {
-            field.collect_one_at(resume_from - 1).unwrap()
-        } else {
-            Height::ZERO
-        };
-        let mut cursor = Cursor::new(&indexes.timestamp.monotonic);
-        cursor.advance(prev.to_usize());
-        let mut prev_ts = cursor.next().unwrap();
-        Ok(field.compute_transform(
-            starting_height,
-            &indexes.timestamp.monotonic,
-            |(h, t, ..)| {
-                while expired(t, prev_ts) {
-                    prev.increment();
-                    prev_ts = cursor.next().unwrap();
-                    if prev > h {
-                        unreachable!()
-                    }
-                }
-                (h, prev)
-            },
-            exit,
-        )?)
+    pub(crate) fn clear_caches(&self) {
+        self._24h.clear();
+        self._1w.clear();
+        self._1m.clear();
+        self._3m.clear();
+        self._6m.clear();
+        self._1y.clear();
+        self._2y.clear();
+        self._3y.clear();
+        self._4y.clear();
+        self._5y.clear();
+        self._6y.clear();
+        self._8y.clear();
+        self._10y.clear();
     }
 }

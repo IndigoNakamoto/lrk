@@ -7,7 +7,7 @@ use brk_types::{
 use tracing::info;
 use vecdb::{AnyStoredVec, PcoVec, PcoVecValue, ReadableVec, VecIndex, VecValue, WritableVec};
 
-use crate::{Stores, Vecs};
+use crate::{Stores, Vecs, stores::IndexerStores as _};
 
 /// Pipeline-wide length/count snapshot. Lengths semantics:
 /// `bound.f = N` means positions `0..N` are fully written; readers
@@ -30,6 +30,11 @@ pub struct Lengths {
     pub txin_index: TxInIndex,
     pub txout_index: TxOutIndex,
     pub unknown_output_index: UnknownOutputIndex,
+}
+
+pub trait IndexerLengths: Sized {
+    fn from_local(vecs: &Vecs, stores: &Stores) -> Result<Option<Self>>;
+    fn resume_at(required_height: Height, vecs: &Vecs, stores: &Stores) -> Result<Option<Self>>;
 }
 
 impl Lengths {
@@ -76,82 +81,84 @@ impl Lengths {
         }
     }
 
-    pub fn checked_push(&self, vecs: &mut Vecs) -> Result<()> {
+    pub fn push(&self, vecs: &mut Vecs) {
         let height = self.height;
         vecs.transactions
             .first_tx_index
-            .checked_push(height, self.tx_index)?;
+            .debug_checked_push(height, self.tx_index);
         vecs.inputs
             .first_txin_index
-            .checked_push(height, self.txin_index)?;
+            .debug_checked_push(height, self.txin_index);
         vecs.outputs
             .first_txout_index
-            .checked_push(height, self.txout_index)?;
+            .debug_checked_push(height, self.txout_index);
         vecs.scripts
             .empty
             .first_index
-            .checked_push(height, self.empty_output_index)?;
+            .debug_checked_push(height, self.empty_output_index);
         vecs.scripts
             .p2ms
             .first_index
-            .checked_push(height, self.p2ms_output_index)?;
-        vecs.scripts
-            .op_return
+            .debug_checked_push(height, self.p2ms_output_index);
+        vecs.op_return
             .first_index
-            .checked_push(height, self.op_return_index)?;
+            .debug_checked_push(height, self.op_return_index);
         vecs.addrs
             .p2a
             .first_index
-            .checked_push(height, self.p2a_addr_index)?;
+            .debug_checked_push(height, self.p2a_addr_index);
         vecs.scripts
             .unknown
             .first_index
-            .checked_push(height, self.unknown_output_index)?;
+            .debug_checked_push(height, self.unknown_output_index);
         vecs.addrs
             .p2pk33
             .first_index
-            .checked_push(height, self.p2pk33_addr_index)?;
+            .debug_checked_push(height, self.p2pk33_addr_index);
         vecs.addrs
             .p2pk65
             .first_index
-            .checked_push(height, self.p2pk65_addr_index)?;
+            .debug_checked_push(height, self.p2pk65_addr_index);
         vecs.addrs
             .p2pkh
             .first_index
-            .checked_push(height, self.p2pkh_addr_index)?;
+            .debug_checked_push(height, self.p2pkh_addr_index);
         vecs.addrs
             .p2sh
             .first_index
-            .checked_push(height, self.p2sh_addr_index)?;
+            .debug_checked_push(height, self.p2sh_addr_index);
         vecs.addrs
             .p2tr
             .first_index
-            .checked_push(height, self.p2tr_addr_index)?;
+            .debug_checked_push(height, self.p2tr_addr_index);
         vecs.addrs
             .p2wpkh
             .first_index
-            .checked_push(height, self.p2wpkh_addr_index)?;
+            .debug_checked_push(height, self.p2wpkh_addr_index);
         vecs.addrs
             .p2wsh
             .first_index
-            .checked_push(height, self.p2wsh_addr_index)?;
-
-        Ok(())
+            .debug_checked_push(height, self.p2wsh_addr_index);
     }
 
     /// Read current local lengths. `None` pre-genesis.
-    pub fn from_local(vecs: &Vecs, stores: &Stores) -> Option<Self> {
-        let height = vecs.next_height().min(stores.next_height());
-        Self::collect_at(height, vecs)
+    fn read_local(vecs: &Vecs, stores: &Stores) -> Result<Option<Self>> {
+        let Some(height) = matching_height(vecs.next_height(), stores.next_height()?) else {
+            return Ok(None);
+        };
+        Ok(Self::collect_at(height, vecs))
     }
 
     /// Read lengths to resume at `required_height`. Reorg-aware:
+    /// - if vector and store checkpoints differ, return `None` (full reset);
     /// - if local is ahead, clamp down to `required_height`;
     /// - if local is behind, return `None` (caller must full-reset).
-    pub fn resume_at(required_height: Height, vecs: &Vecs, stores: &Stores) -> Option<Self> {
-        let local = vecs.next_height().min(stores.next_height());
+    fn read_resume(required_height: Height, vecs: &Vecs, stores: &Stores) -> Result<Option<Self>> {
+        let Some(local) = matching_height(vecs.next_height(), stores.next_height()?) else {
+            return Ok(None);
+        };
         if local < required_height {
-            return None;
+            return Ok(None);
         }
         let height = if local > required_height {
             info!(
@@ -162,7 +169,7 @@ impl Lengths {
         } else {
             local
         };
-        Self::collect_at(height, vecs)
+        Ok(Self::collect_at(height, vecs))
     }
 
     pub(crate) fn collect_at(height: Height, vecs: &Vecs) -> Option<Self> {
@@ -179,8 +186,8 @@ impl Lengths {
                 height,
             )?,
             op_return_index: next_index(
-                &vecs.scripts.op_return.first_index,
-                &vecs.scripts.op_return.to_tx_index,
+                &vecs.op_return.first_index,
+                &vecs.op_return.to_tx_index,
                 height,
             )?,
             p2pk33_addr_index: next_index(
@@ -235,6 +242,29 @@ impl Lengths {
     }
 }
 
+impl IndexerLengths for Lengths {
+    fn from_local(vecs: &Vecs, stores: &Stores) -> Result<Option<Self>> {
+        Self::read_local(vecs, stores)
+    }
+
+    fn resume_at(required_height: Height, vecs: &Vecs, stores: &Stores) -> Result<Option<Self>> {
+        Self::read_resume(required_height, vecs, stores)
+    }
+}
+
+fn matching_height(vec_height: Height, store_height: Option<Height>) -> Option<Height> {
+    let store_height = store_height?;
+    if vec_height == store_height {
+        Some(vec_height)
+    } else {
+        info!(
+            "Indexer checkpoint mismatch: vectors at {}, stores at {}; full reset required",
+            vec_height, store_height
+        );
+        None
+    }
+}
+
 /// Per-type next-to-write counter at `next_height`. `None` pre-genesis.
 fn next_index<I, T>(
     height_to_index: &PcoVec<Height, I>,
@@ -246,11 +276,58 @@ where
     T: VecValue,
 {
     let h = Height::from(height_to_index.stamp());
-    if h.is_zero() {
+    if next_height.is_zero() {
         None
-    } else if h + 1_u32 == next_height {
+    } else if h.incremented() == next_height {
         Some(I::from(index_to_else.len()))
     } else {
         height_to_index.collect_one(next_height)
+    }
+}
+
+#[cfg(test)]
+mod checkpoint_tests {
+    use super::*;
+    use brk_types::StoredU32;
+    use vecdb::{Database, ImportableVec, Stamp, Version};
+
+    #[test]
+    fn matching_checkpoint_is_accepted() {
+        let height = Height::new(42);
+        assert_eq!(matching_height(height, Some(height)), Some(height));
+    }
+
+    #[test]
+    fn mismatched_checkpoint_requires_reset() {
+        assert_eq!(
+            matching_height(Height::new(42), Some(Height::new(41))),
+            None
+        );
+        assert_eq!(
+            matching_height(Height::new(41), Some(Height::new(42))),
+            None
+        );
+        assert_eq!(matching_height(Height::ZERO, None), None);
+    }
+
+    #[test]
+    fn genesis_stamp_uses_current_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(dir.path()).unwrap();
+        let mut first_index =
+            PcoVec::<Height, TxIndex>::forced_import(&db, "first_index", Version::ONE).unwrap();
+        let mut values =
+            PcoVec::<TxIndex, StoredU32>::forced_import(&db, "values", Version::ONE).unwrap();
+
+        first_index.push(TxIndex::ZERO);
+        values.push(StoredU32::from(1_u32));
+        values.push(StoredU32::from(2_u32));
+        first_index.stamped_write(Stamp::from(0_u64)).unwrap();
+
+        assert_eq!(
+            next_index(&first_index, &values, Height::new(1)),
+            Some(TxIndex::new(2))
+        );
+        assert_eq!(next_index(&first_index, &values, Height::ZERO), None);
     }
 }

@@ -47,8 +47,10 @@ import {
 } from "./holdings.js";
 import {
   createValuationSection,
+  createValuationSectionBase,
   createValuationSectionFull,
   createGroupedValuationSection,
+  createGroupedValuationSectionBase,
   createGroupedValuationSectionWithOwnMarketCap,
 } from "./valuation.js";
 import {
@@ -63,12 +65,14 @@ import {
 } from "./cost-basis.js";
 import {
   createProfitabilitySection,
+  createProfitabilitySectionRealized,
   createProfitabilitySectionAll,
   createProfitabilitySectionFull,
   createProfitabilitySectionWithProfitLoss,
   createProfitabilitySectionWithInvestedCapitalPct,
   createProfitabilitySectionLongTerm,
   createGroupedProfitabilitySection,
+  createGroupedProfitabilitySectionRealized,
   createGroupedProfitabilitySectionWithProfitLoss,
   createGroupedProfitabilitySectionWithNupl,
   createGroupedProfitabilitySectionWithInvestedCapitalPct,
@@ -132,11 +136,11 @@ export function createCohortFolderFull(cohort) {
 }
 
 /**
- * Adjusted folder: adjustedSopr only, no percentiles
- * @param {CohortWithAdjusted} cohort
+ * Core cohort folder.
+ * @param {CohortCore} cohort
  * @returns {PartialOptionsGroup}
  */
-export function createCohortFolderWithAdjusted(cohort) {
+export function createCohortFolderCore(cohort) {
   const title = formatCohortTitle(cohort.title);
   return {
     name: cohort.name || "all",
@@ -146,26 +150,6 @@ export function createCohortFolderWithAdjusted(cohort) {
       createPricesSectionBasic({ cohort, title }),
       createProfitabilitySectionWithInvestedCapitalPct({ cohort, title }),
       createActivitySectionWithActivity({ cohort, title }),
-    ],
-  };
-}
-
-/**
- * Folder for cohorts with nupl + percentiles
- * @param {CohortWithNuplPercentiles} cohort
- * @returns {PartialOptionsGroup}
- */
-export function createCohortFolderWithNupl(cohort) {
-  const title = formatCohortTitle(cohort.title);
-  return {
-    name: cohort.name || "all",
-    tree: [
-      ...createHoldingsSectionWithRelative({ cohort, title }),
-      createValuationSectionFull({ cohort, title }),
-      createPricesSectionFull({ cohort, title }),
-      createCostBasisSectionWithPercentiles({ cohort, title }),
-      createProfitabilitySection({ cohort, title }),
-      createActivitySection({ cohort, title }),
     ],
   };
 }
@@ -290,7 +274,7 @@ export function createCohortFolderWithoutRelative(cohort) {
 }
 
 /**
- * Address amount cohort folder: has NUPL + addrCount
+ * Address-balance cohort folder.
  * @param {AddrCohortObject} cohort
  * @returns {PartialOptionsGroup}
  */
@@ -300,9 +284,8 @@ export function createAddressCohortFolder(cohort) {
     name: cohort.name || "all",
     tree: [
       ...createHoldingsSectionAddressAmount({ cohort, title }),
-      createValuationSection({ cohort, title }),
-      createPricesSectionBasic({ cohort, title }),
-      createProfitabilitySection({ cohort, title }),
+      createValuationSectionBase({ cohort, title }),
+      createProfitabilitySectionRealized({ cohort, title }),
       createActivitySectionMinimal({ cohort, title }),
     ],
   };
@@ -313,10 +296,10 @@ export function createAddressCohortFolder(cohort) {
 // ============================================================================
 
 /**
- * @param {CohortGroupWithAdjusted} args
+ * @param {CohortGroupCore} args
  * @returns {PartialOptionsGroup}
  */
-export function createGroupedCohortFolderWithAdjusted({
+export function createGroupedCohortFolderCore({
   name,
   title: groupTitle,
   list,
@@ -490,9 +473,8 @@ export function createGroupedAddressCohortFolder({
     name: name || "all",
     tree: [
       ...createGroupedHoldingsSectionAddressAmount({ list, all, title }),
-      createGroupedValuationSection({ list, all, title }),
-      createGroupedPricesSection({ list, all, title }),
-      createGroupedProfitabilitySection({ list, all, title }),
+      createGroupedValuationSectionBase({ list, all, title }),
+      createGroupedProfitabilitySectionRealized({ list, all, title }),
       createGroupedActivitySectionMinimal({ list, all, title }),
     ],
   };

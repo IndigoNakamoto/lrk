@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use brk_types::{
-    BasisPoints16, Bitcoin, Cents, Dollars, Sats, StoredF32, StoredF64, StoredI8, StoredU16,
+    Bitcoin, Cents, Dollars, PartsPerMillion32, Sats, StoredF32, StoredF64, StoredI8, StoredU16,
     StoredU32, StoredU64, VSize, Weight,
 };
 use vecdb::{BinaryTransform, UnaryTransform, VecValue};
@@ -64,6 +64,17 @@ impl BinaryTransform<StoredU32, Sats, Sats> for MaskSats {
     }
 }
 
+impl BinaryTransform<StoredU64, Sats, Sats> for MaskSats {
+    #[inline]
+    fn apply(mask: StoredU64, value: Sats) -> Sats {
+        if u64::from(mask) != 0 {
+            value
+        } else {
+            Sats::ZERO
+        }
+    }
+}
+
 pub struct ReturnF32Tenths<const V: u16>;
 
 impl<S, const V: u16> UnaryTransform<S, StoredF32> for ReturnF32Tenths<V> {
@@ -109,12 +120,50 @@ impl UnaryTransform<StoredU32, StoredF32> for BlocksToDaysF32 {
     }
 }
 
+pub struct StoredU64ToStoredU32;
+
+impl UnaryTransform<StoredU64, StoredU32> for StoredU64ToStoredU32 {
+    #[inline(always)]
+    fn apply(value: StoredU64) -> StoredU32 {
+        let value = u64::from(value);
+        debug_assert!(u32::try_from(value).is_ok());
+        StoredU32::new(value as u32)
+    }
+}
+
+pub struct StoredU16ToStoredU64;
+
+impl UnaryTransform<StoredU16, StoredU64> for StoredU16ToStoredU64 {
+    #[inline(always)]
+    fn apply(value: StoredU16) -> StoredU64 {
+        StoredU64::from(u64::from(*value))
+    }
+}
+
+pub struct PerSecond<const SECONDS: u32>;
+
+impl<const SECONDS: u32> UnaryTransform<StoredU64, StoredF32> for PerSecond<SECONDS> {
+    #[inline(always)]
+    fn apply(value: StoredU64) -> StoredF32 {
+        StoredF32::from(u64::from(value) as f64 / SECONDS as f64)
+    }
+}
+
 pub struct OneMinusF64;
 
 impl UnaryTransform<StoredF64, StoredF64> for OneMinusF64 {
     #[inline(always)]
     fn apply(v: StoredF64) -> StoredF64 {
         StoredF64::from(1.0 - *v)
+    }
+}
+
+pub struct OddsF64;
+
+impl UnaryTransform<StoredF64, StoredF64> for OddsF64 {
+    #[inline(always)]
+    fn apply(value: StoredF64) -> StoredF64 {
+        value / StoredF64::from(1.0 - *value)
     }
 }
 
@@ -128,12 +177,12 @@ impl UnaryTransform<StoredF64, StoredF64> for DifficultyToHashF64 {
     }
 }
 
-pub struct OneMinusBp16;
+pub struct OneMinusPpm;
 
-impl UnaryTransform<BasisPoints16, BasisPoints16> for OneMinusBp16 {
+impl UnaryTransform<PartsPerMillion32, PartsPerMillion32> for OneMinusPpm {
     #[inline(always)]
-    fn apply(v: BasisPoints16) -> BasisPoints16 {
-        BasisPoints16::ONE - v
+    fn apply(value: PartsPerMillion32) -> PartsPerMillion32 {
+        PartsPerMillion32::ONE - value
     }
 }
 
@@ -146,11 +195,24 @@ impl UnaryTransform<StoredU64, Weight> for VBytesToWeight {
     }
 }
 
-pub struct VSizeToWeight;
+pub struct WeightToVSize;
 
-impl UnaryTransform<VSize, Weight> for VSizeToWeight {
+impl UnaryTransform<Weight, VSize> for WeightToVSize {
     #[inline(always)]
-    fn apply(vsize: VSize) -> Weight {
-        Weight::from(vsize)
+    fn apply(weight: Weight) -> VSize {
+        VSize::from(weight)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn odds_are_the_ratio_to_the_complement() {
+        assert_eq!(OddsF64::apply(StoredF64::from(0.0)), StoredF64::from(0.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(0.5)), StoredF64::from(1.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(0.75)), StoredF64::from(3.0));
+        assert_eq!(OddsF64::apply(StoredF64::from(1.0)), StoredF64::NAN);
     }
 }

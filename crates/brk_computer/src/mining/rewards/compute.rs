@@ -1,14 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{CheckedSub, Dollars, Halving, Sats};
+use brk_types::{CheckedSub, Halving, Sats};
 use vecdb::{Exit, ReadableVec, VecIndex};
 
 use super::Vecs;
-use crate::{
-    blocks, indexes,
-    internal::{RatioDollarsBp32, RatioSatsBp16},
-    price, transactions,
-};
+use crate::{blocks, indexes, price, transactions};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -27,67 +23,64 @@ impl Vecs {
         let window_starts = lookback.window_starts();
         let (r_coinbase, r_fees) = rayon::join(
             || {
-                self.coinbase.compute(starting_height, prices, exit, |vec| {
-                    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
-                    let mut count_cursor = indexes.tx_index.output_count.cursor();
+                self.coinbase.compute_from(
+                    starting_height,
+                    prices,
+                    &indexer.vecs().transactions.first_tx_index,
+                    |_, tx_index| {
+                        let mut txout_cursor = indexer
+                            .vecs()
+                            .transactions
+                            .first_txout_index
+                            .reader()
+                            .cursor();
+                        let mut count_cursor = indexes.tx_index.output_count.cursor();
 
-                    vec.compute_transform(
-                        starting_height,
-                        &indexer.vecs.transactions.first_tx_index,
-                        |(height, tx_index, ..)| {
-                            let ti = tx_index.to_usize();
+                        let ti = tx_index.to_usize();
 
-                            txout_cursor.advance(ti - txout_cursor.position());
-                            let first_txout_index = txout_cursor.next().unwrap().to_usize();
+                        txout_cursor.advance(ti - txout_cursor.position());
+                        let first_txout_index = txout_cursor.next().unwrap().to_usize();
 
-                            count_cursor.advance(ti - count_cursor.position());
-                            let output_count: usize = count_cursor.next().unwrap().into();
+                        count_cursor.advance(ti - count_cursor.position());
+                        let output_count: usize = count_cursor.next().unwrap().into();
 
-                            let sats = indexer.vecs.outputs.value.fold_range_at(
-                                first_txout_index,
-                                first_txout_index + output_count,
-                                Sats::ZERO,
-                                |acc, v| acc + v,
-                            );
-                            (height, sats)
-                        },
-                        exit,
-                    )?;
-                    Ok(())
-                })
+                        indexer.vecs().outputs.value.fold_range_at(
+                            first_txout_index,
+                            first_txout_index + output_count,
+                            Sats::ZERO,
+                            |acc, v| acc + v,
+                        )
+                    },
+                    exit,
+                )
             },
             || {
-                self.fees
-                    .compute(starting_height, &window_starts, prices, exit, |vec| {
-                        vec.compute_sum_from_indexes(
-                            starting_height,
-                            &indexer.vecs.transactions.first_tx_index,
-                            &indexes.height.tx_index_count,
-                            &transactions.fees.fee.tx_index,
-                            exit,
-                        )?;
-                        Ok(())
-                    })
+                self.fees.compute_from_indexes(
+                    starting_height,
+                    &window_starts,
+                    prices,
+                    &indexer.vecs().transactions.first_tx_index,
+                    &indexes.height.tx_index_count,
+                    &transactions.fees.fee.tx_index,
+                    exit,
+                )
             },
         );
         r_coinbase?;
         r_fees?;
 
-        self.subsidy.block.sats.compute_transform2(
+        self.subsidy.compute_from_pair(
             starting_height,
+            prices,
             &self.coinbase.block.sats,
             &self.fees.block.sats,
-            |(height, coinbase, fees, ..)| {
-                (
-                    height,
-                    coinbase.checked_sub(fees).unwrap_or_else(|| {
-                        panic!("coinbase {coinbase:?} < fees {fees:?} at {height:?}")
-                    }),
-                )
+            |height, coinbase, fees| {
+                coinbase.checked_sub(fees).unwrap_or_else(|| {
+                    panic!("coinbase {coinbase:?} < fees {fees:?} at {height:?}")
+                })
             },
             exit,
         )?;
-        self.subsidy.compute_rest(starting_height, prices, exit)?;
 
         // `transfer_volume` excludes MWEB peg inputs (the HogEx pool re-spend),
         // while `fees` is derived from full per-tx input value. For blocks whose
@@ -109,35 +102,17 @@ impl Vecs {
             exit,
         )?;
 
-        self.unclaimed.block.sats.compute_transform(
+        self.unclaimed.compute_from(
             starting_height,
+            prices,
             &self.subsidy.block.sats,
-            |(height, subsidy, ..)| {
+            |height, subsidy| {
                 let halving = Halving::from(height);
                 let expected = Sats::FIFTY_BTC / 2_usize.pow(halving.to_usize() as u32);
-                (height, expected.checked_sub(subsidy).unwrap())
+                expected.checked_sub(subsidy).unwrap()
             },
             exit,
         )?;
-        self.unclaimed.compute(prices, starting_height, exit)?;
-
-        self.fee_dominance
-            .compute_binary::<Sats, Sats, RatioSatsBp16, _, _, _, _>(
-                starting_height,
-                &self.fees.cumulative.sats.height,
-                &self.coinbase.cumulative.sats.height,
-                self.fees.sum.as_array().map(|w| &w.sats.height),
-                self.coinbase.sum.as_array().map(|w| &w.sats.height),
-                exit,
-            )?;
-
-        self.fee_to_subsidy_ratio
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32, _, _>(
-                starting_height,
-                self.coinbase.sum.as_array().map(|w| &w.usd.height),
-                self.fees.sum.as_array().map(|w| &w.usd.height),
-                exit,
-            )?;
 
         Ok(())
     }

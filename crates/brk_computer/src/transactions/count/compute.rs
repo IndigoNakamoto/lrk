@@ -15,15 +15,7 @@ impl Vecs {
         let starting_height = indexer.safe_lengths().height;
 
         let window_starts = lookback.window_starts();
-        self.total
-            .compute(starting_height, &window_starts, exit, |height| {
-                Ok(height.compute_count_from_indexes(
-                    starting_height,
-                    &indexer.vecs.transactions.first_tx_index,
-                    &indexer.vecs.transactions.txid,
-                    exit,
-                )?)
-            })?;
+        self.total.compute(starting_height, &window_starts, exit)?;
 
         Ok(())
     }

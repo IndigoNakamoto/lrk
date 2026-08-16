@@ -6,23 +6,15 @@
 
 # Interface: SeriesTree\_Cohorts\_Utxo\_All\_Outputs
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6878](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6878)
+Defined in: [Developer/brk/modules/brk-client/index.js:7864](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7864)
 
 ## Properties
 
-### spendingRate
-
-> **spendingRate**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:6881](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6881)
-
-***
-
 ### spentCount
 
-> **spentCount**: [`AverageBlockCumulativeSumPattern2`](AverageBlockCumulativeSumPattern2.md)
+> **spentCount**: [`AverageBlockCumulativeSumPattern`](AverageBlockCumulativeSumPattern.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6880](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6880)
+Defined in: [Developer/brk/modules/brk-client/index.js:7866](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7866)
 
 ***
 
@@ -30,4 +22,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:6880](https://github.com/
 
 > **unspentCount**: [`BaseDeltaPattern`](BaseDeltaPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6879](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6879)
+Defined in: [Developer/brk/modules/brk-client/index.js:7865](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7865)

@@ -6,7 +6,7 @@ use vecdb::{Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{BpsType, LazyRollingDeltasFiatFromHeight, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, FixedRatio, LazyRollingDeltasFiatFromHeight, Windows},
 };
 
 use super::{FiatPerBlockCumulativeWithSums, FiatType};
@@ -16,7 +16,7 @@ pub struct FiatPerBlockCumulativeWithSumsAndDeltas<C, CS, B, M: StorageMode = Rw
 where
     C: FiatType + Into<f64>,
     CS: FiatType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     #[deref]
     #[deref_mut]
@@ -29,7 +29,7 @@ impl<C, CS, B> FiatPerBlockCumulativeWithSumsAndDeltas<C, CS, B>
 where
     C: FiatType + Into<f64>,
     CS: FiatType + From<f64>,
-    B: BpsType + From<f64>,
+    B: FixedRatio + From<f64>,
 {
     pub(crate) fn forced_import(
         db: &Database,
@@ -37,7 +37,7 @@ where
         version: Version,
         delta_version_offset: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let inner = FiatPerBlockCumulativeWithSums::forced_import(
             db,

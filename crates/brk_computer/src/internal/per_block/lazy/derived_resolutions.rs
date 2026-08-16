@@ -63,10 +63,7 @@ where
         name: &str,
         version: Version,
         source: &Resolutions<S1T>,
-    ) -> Self
-    where
-        S1T: NumericValue,
-    {
+    ) -> Self {
         macro_rules! period {
             ($p:ident) => {
                 LazyTransformLast::from_boxed::<MapOption<F>>(

@@ -20,6 +20,7 @@ function walkSeries(node, map, path) {
         key === "emaFast" ||
         kn === "cents" ||
         kn === "bps" ||
+        kn === "ppm" ||
         kn === "constants" ||
         kn === "ohlc" ||
         kn === "split" ||
@@ -34,9 +35,9 @@ function walkSeries(node, map, path) {
       const joined = newPath.join(".");
       if (
         joined.endsWith(".count.total.average") ||
-        joined.endsWith(".versions.v1.average") ||
-        joined.endsWith(".versions.v2.average") ||
-        joined.endsWith(".versions.v3.average")
+        joined === "cohorts.utxo.all.supply.dominance" ||
+        joined === "models.capitalSentiment.phase" ||
+        joined === "cohorts.utxo.all.outputs.spentCount.average"
       )
         continue;
       walkSeries(/** @type {TreeNode | null | undefined} */ (value), map, newPath);

@@ -89,7 +89,7 @@ impl LanguageSyntax for JavaScriptSyntax {
             format!("_m({}, '{}')", var_name, template)
         } else {
             // Template with {disc}: use nested _m for proper separator handling
-            // "ratio_{disc}_bps" → split on {disc} → _m(_m(acc, 'ratio'), disc) then _bps
+            // "ratio_{disc}_ppm" → split on {disc} → _m(_m(acc, 'ratio'), disc) then _ppm
             // But this is complex. For embedded disc, use string interpolation.
             // For suffix disc (ends with {disc}), use _m composition.
             if let Some(static_part) = template.strip_suffix("{disc}") {

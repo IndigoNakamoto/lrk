@@ -101,9 +101,7 @@ mod tests {
             total_size: vsize,
             total_vsize: VSize::from(vsize),
             total_fee: Sats::from((vsize as f64 * median_fee) as u64),
-            fee_range: [
-                median, median, median, median, median, median, median,
-            ],
+            fee_range: [median, median, median, median, median, median, median],
         }
     }
 

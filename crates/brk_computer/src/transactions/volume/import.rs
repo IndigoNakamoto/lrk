@@ -1,11 +1,14 @@
 use brk_error::Result;
-use brk_types::Version;
+use brk_types::{StoredU64, Version};
 use vecdb::Database;
 
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlock, ValuePerBlockCumulativeRolling, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, LazyPerSecondWindows, LazyRollingSumsFromHeight,
+        ValuePerBlockCumulativeRolling, Windows,
+    },
 };
 
 impl Vecs {
@@ -13,7 +16,8 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        tx_count_sums: &LazyRollingSumsFromHeight<StoredU64>,
     ) -> Result<Self> {
         let v = version + Version::TWO;
         Ok(Self {
@@ -24,9 +28,7 @@ impl Vecs {
                 indexes,
                 cached_starts,
             )?,
-            tx_per_sec: Windows::try_from_fn(|suffix| {
-                PerBlock::forced_import(db, &format!("tx_per_sec_{suffix}"), v, indexes)
-            })?,
+            tx_per_sec: LazyPerSecondWindows::new("tx_per_sec", v, tx_count_sums),
         })
     }
 }

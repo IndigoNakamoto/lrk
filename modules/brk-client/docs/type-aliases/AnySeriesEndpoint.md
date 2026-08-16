@@ -8,6 +8,6 @@
 
 > **AnySeriesEndpoint** = [`SeriesEndpoint`](../interfaces/SeriesEndpoint.md)\<`any`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1716](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1716)
+Defined in: [Developer/brk/modules/brk-client/index.js:1745](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1745)
 
 ## Type Parameters

@@ -6,108 +6,108 @@
 
 # Interface: SeriesTree\_Market\_Returns\_Periods
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6442](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6442)
+Defined in: [Developer/brk/modules/brk-client/index.js:7427](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7427)
 
 ## Properties
 
 ### \_10y
 
-> **\_10y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_10y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6455](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6455)
+Defined in: [Developer/brk/modules/brk-client/index.js:7440](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7440)
 
 ***
 
 ### \_1m
 
-> **\_1m**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_1m**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6445](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6445)
+Defined in: [Developer/brk/modules/brk-client/index.js:7430](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7430)
 
 ***
 
 ### \_1w
 
-> **\_1w**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_1w**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6444](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6444)
+Defined in: [Developer/brk/modules/brk-client/index.js:7429](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7429)
 
 ***
 
 ### \_1y
 
-> **\_1y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_1y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6448](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6448)
+Defined in: [Developer/brk/modules/brk-client/index.js:7433](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7433)
 
 ***
 
 ### \_24h
 
-> **\_24h**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_24h**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6443](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6443)
+Defined in: [Developer/brk/modules/brk-client/index.js:7428](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7428)
 
 ***
 
 ### \_2y
 
-> **\_2y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_2y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6449](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6449)
+Defined in: [Developer/brk/modules/brk-client/index.js:7434](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7434)
 
 ***
 
 ### \_3m
 
-> **\_3m**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_3m**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6446](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6446)
+Defined in: [Developer/brk/modules/brk-client/index.js:7431](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7431)
 
 ***
 
 ### \_3y
 
-> **\_3y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_3y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6450](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6450)
+Defined in: [Developer/brk/modules/brk-client/index.js:7435](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7435)
 
 ***
 
 ### \_4y
 
-> **\_4y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_4y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6451](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6451)
+Defined in: [Developer/brk/modules/brk-client/index.js:7436](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7436)
 
 ***
 
 ### \_5y
 
-> **\_5y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_5y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6452](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6452)
+Defined in: [Developer/brk/modules/brk-client/index.js:7437](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7437)
 
 ***
 
 ### \_6m
 
-> **\_6m**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_6m**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6447](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6447)
+Defined in: [Developer/brk/modules/brk-client/index.js:7432](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7432)
 
 ***
 
 ### \_6y
 
-> **\_6y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_6y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6453](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6453)
+Defined in: [Developer/brk/modules/brk-client/index.js:7438](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7438)
 
 ***
 
 ### \_8y
 
-> **\_8y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_8y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:6454](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L6454)
+Defined in: [Developer/brk/modules/brk-client/index.js:7439](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L7439)

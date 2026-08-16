@@ -9,6 +9,8 @@ use crate::Error;
 /// per-day variant, choosing the matching cache strategy.
 #[derive(Deserialize, JsonSchema)]
 pub struct HeightOrDateParam {
+    /// Confirmed block height as decimal digits (`840000`) or calendar date in
+    /// `YYYY-MM-DD` format.
     #[schemars(example = &"840000")]
     pub point: String,
 }

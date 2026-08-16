@@ -6,60 +6,60 @@
 
 # Interface: \_10y2y3y4y5y6y8yPattern
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2989](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2989)
+Defined in: [Developer/brk/modules/brk-client/index.js:3273](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3273)
 
 ## Properties
 
 ### \_10y
 
-> **\_10y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_10y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2990](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2990)
+Defined in: [Developer/brk/modules/brk-client/index.js:3274](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3274)
 
 ***
 
 ### \_2y
 
-> **\_2y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_2y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2991](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2991)
+Defined in: [Developer/brk/modules/brk-client/index.js:3275](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3275)
 
 ***
 
 ### \_3y
 
-> **\_3y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_3y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2992](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2992)
+Defined in: [Developer/brk/modules/brk-client/index.js:3276](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3276)
 
 ***
 
 ### \_4y
 
-> **\_4y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_4y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2993](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2993)
+Defined in: [Developer/brk/modules/brk-client/index.js:3277](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3277)
 
 ***
 
 ### \_5y
 
-> **\_5y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_5y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2994](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2994)
+Defined in: [Developer/brk/modules/brk-client/index.js:3278](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3278)
 
 ***
 
 ### \_6y
 
-> **\_6y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_6y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2995](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2995)
+Defined in: [Developer/brk/modules/brk-client/index.js:3279](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3279)
 
 ***
 
 ### \_8y
 
-> **\_8y**: [`BpsPercentRatioPattern`](BpsPercentRatioPattern.md)
+> **\_8y**: [`PercentPpmRatioPattern`](PercentPpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:2996](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L2996)
+Defined in: [Developer/brk/modules/brk-client/index.js:3280](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L3280)

@@ -2,11 +2,13 @@ use std::ops::Sub;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use vecdb::unlikely;
 
 use super::{Cents, Dollars};
 
 /// Compact unsigned cents (u32) - memory-efficient for map keys.
-/// Supports values from $0.00 to $42,949,672.95 (u32::MAX / 100).
+/// Supports finite values from $0.00 to $42,949,672.94.
+/// `u32::MAX` is reserved as a NaN sentinel.
 #[derive(
     Debug,
     Default,
@@ -25,36 +27,67 @@ pub struct CentsCompact(u32);
 
 impl CentsCompact {
     pub const ZERO: Self = Self(0);
-    pub const MAX: Self = Self(u32::MAX);
+    pub const MAX_FINITE: Self = Self(u32::MAX - 1);
+    pub const NAN: Self = Self(u32::MAX);
+    pub const MAX: Self = Self::NAN;
 
     #[inline]
     pub const fn new(value: u32) -> Self {
+        assert!(
+            value != u32::MAX,
+            "u32::MAX is reserved as CentsCompact::NAN"
+        );
         Self(value)
     }
 
     #[inline]
+    pub const fn is_nan(self) -> bool {
+        self.0 == u32::MAX
+    }
+
+    #[inline]
+    pub const fn finite_inner(self) -> Option<u32> {
+        if self.is_nan() { None } else { Some(self.0) }
+    }
+
+    #[inline]
     pub const fn inner(self) -> u32 {
-        self.0
+        match self.finite_inner() {
+            Some(value) => value,
+            None => panic!("CentsCompact::NAN has no finite integer representation"),
+        }
     }
 
     #[inline(always)]
     pub const fn as_u128(self) -> u128 {
-        self.0 as u128
+        self.inner() as u128
     }
 
     #[inline]
     pub fn to_dollars(self) -> Dollars {
-        Dollars::from(self.0 as f64 / 100.0)
+        if unlikely(self.is_nan()) {
+            Dollars::NAN
+        } else {
+            Dollars::from(self.0 as f64 / 100.0)
+        }
     }
 
     #[inline]
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
-        self.0.checked_sub(rhs.0).map(Self)
+        if unlikely(self.is_nan() || rhs.is_nan()) {
+            Some(Self::NAN)
+        } else {
+            self.0.checked_sub(rhs.0).map(Self)
+        }
     }
 
     #[inline]
     pub fn saturating_sub(self, rhs: Self) -> Self {
-        Self(self.0.saturating_sub(rhs.0))
+        if unlikely(self.is_nan() || rhs.is_nan()) {
+            Self::NAN
+        } else {
+            Self(self.0.saturating_sub(rhs.0))
+        }
     }
 
     /// Round to N significant digits.
@@ -62,13 +95,17 @@ impl CentsCompact {
     /// E.g., 12345 (= $123.45) with round_to(3) → 12300 (= $123.00)
     #[inline]
     pub fn round_to(self, digits: i32) -> Self {
-        let v = self.0;
+        if unlikely(self.is_nan()) {
+            return Self::NAN;
+        }
+
+        let v = self.0 as u64;
         let ilog10 = v.checked_ilog10().unwrap_or(0) as i32;
         if ilog10 >= digits {
             let log_diff = ilog10 - digits + 1;
-            let pow = 10u32.pow(log_diff as u32);
+            let pow = 10u64.pow(log_diff as u32);
             // Add half for rounding
-            Self(((v + pow / 2) / pow) * pow)
+            Self::from_finite_u64(((v + pow / 2) / pow) * pow)
         } else {
             self
         }
@@ -79,18 +116,31 @@ impl CentsCompact {
     /// E.g., 1234567 (= $12345.67) → 1234600 (= $12346.00) with 5 digits
     #[inline]
     pub fn round_to_dollar(self, digits: i32) -> Self {
+        if unlikely(self.is_nan()) {
+            return Self::NAN;
+        }
+
         // Round to nearest dollar (nearest 100 cents)
-        let dollars = (self.0 + 50) / 100;
+        let dollars = (self.0 as u64 + 50) / 100;
         // Apply significant digit rounding to dollars, then convert back to cents
         let ilog10 = dollars.checked_ilog10().unwrap_or(0) as i32;
         let rounded_dollars = if ilog10 >= digits {
             let log_diff = ilog10 - digits + 1;
-            let pow = 10u32.pow(log_diff as u32);
+            let pow = 10u64.pow(log_diff as u32);
             ((dollars + pow / 2) / pow) * pow
         } else {
             dollars
         };
-        Self(rounded_dollars * 100)
+        Self::from_finite_u64(rounded_dollars * 100)
+    }
+
+    #[inline]
+    fn from_finite_u64(value: u64) -> Self {
+        assert!(
+            value < u32::MAX as u64,
+            "CentsCompact finite value exceeds compact range"
+        );
+        Self(value as u32)
     }
 }
 
@@ -98,14 +148,15 @@ impl From<Dollars> for CentsCompact {
     #[inline]
     fn from(value: Dollars) -> Self {
         let f = f64::from(value);
-        if f.is_nan() || f < 0.0 {
+        if unlikely(!f.is_finite()) {
+            Self::NAN
+        } else if f < 0.0 {
             Self::ZERO
         } else {
             let cents = (f * 100.0).round();
-            debug_assert!(
-                cents <= u32::MAX as f64,
-                "Price ${} exceeds CentsUnsignedCompact max (~$42.9M)",
-                f
+            assert!(
+                cents < u32::MAX as f64,
+                "price ${f} exceeds CentsCompact finite range"
             );
             Self(cents as u32)
         }
@@ -122,41 +173,47 @@ impl From<CentsCompact> for Dollars {
 impl From<u32> for CentsCompact {
     #[inline]
     fn from(value: u32) -> Self {
-        Self(value)
+        Self::new(value)
     }
 }
 
 impl From<CentsCompact> for u32 {
     #[inline]
     fn from(value: CentsCompact) -> Self {
-        value.0
+        value.inner()
     }
 }
 
 impl From<CentsCompact> for f64 {
     #[inline]
     fn from(value: CentsCompact) -> Self {
-        value.0 as f64
+        if unlikely(value.is_nan()) {
+            f64::NAN
+        } else {
+            value.0 as f64
+        }
     }
 }
 
 impl From<Cents> for CentsCompact {
     #[inline]
     fn from(value: Cents) -> Self {
-        let v = value.inner();
-        debug_assert!(
-            v <= u32::MAX as u64,
-            "CentsUnsigned {} exceeds CentsUnsignedCompact max",
-            v
-        );
-        Self(v as u32)
+        if unlikely(value.is_nan()) {
+            Self::NAN
+        } else {
+            Self::from_finite_u64(value.inner())
+        }
     }
 }
 
 impl From<CentsCompact> for Cents {
     #[inline]
     fn from(value: CentsCompact) -> Self {
-        Cents::new(value.0 as u64)
+        if unlikely(value.is_nan()) {
+            Cents::NAN
+        } else {
+            Cents::new(value.inner() as u64)
+        }
     }
 }
 
@@ -164,7 +221,11 @@ impl Sub for CentsCompact {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
-        Self(self.0 - rhs.0)
+        if unlikely(self.is_nan() || rhs.is_nan()) {
+            Self::NAN
+        } else {
+            Self(self.0 - rhs.0)
+        }
     }
 }
 
@@ -173,5 +234,37 @@ impl std::fmt::Display for CentsCompact {
         let mut buf = itoa::Buffer::new();
         let str = buf.format(self.0);
         f.write_str(str)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nan_round_trips_between_cent_types() {
+        assert_eq!(CentsCompact::from(Cents::NAN), CentsCompact::NAN);
+        assert_eq!(Cents::from(CentsCompact::NAN), Cents::NAN);
+        assert!(f64::from(CentsCompact::NAN).is_nan());
+        assert!(f64::from(Dollars::from(CentsCompact::NAN)).is_nan());
+    }
+
+    #[test]
+    fn nan_propagates_through_arithmetic() {
+        let finite = CentsCompact::new(100);
+        assert_eq!(CentsCompact::NAN - finite, CentsCompact::NAN);
+        assert_eq!(
+            CentsCompact::NAN.checked_sub(finite),
+            Some(CentsCompact::NAN)
+        );
+        assert_eq!(CentsCompact::NAN.saturating_sub(finite), CentsCompact::NAN);
+        assert_eq!(CentsCompact::NAN.round_to(3), CentsCompact::NAN);
+        assert_eq!(CentsCompact::NAN.round_to_dollar(3), CentsCompact::NAN);
+    }
+
+    #[test]
+    #[should_panic(expected = "u32::MAX is reserved as CentsCompact::NAN")]
+    fn new_rejects_nan_sentinel() {
+        CentsCompact::new(u32::MAX);
     }
 }

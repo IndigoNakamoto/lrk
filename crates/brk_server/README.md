@@ -6,6 +6,8 @@ HTTP API server for Bitcoin on-chain analytics.
 
 - **OpenAPI spec**: Auto-generated docs at `/api` with full spec at `/openapi.json`
 - **LLM-optimized**: Compact spec at `/api.json` for AI tools
+- **MCP-ready**: The same OpenAPI operations are available through the official
+  stateless, read-only endpoint at [mcp.bitview.space](https://mcp.bitview.space/)
 - **Response caching**: ETag-based with LRU cache (1000 entries by default, configurable via `ServerConfig::cache_size`)
 - **Compression**: Brotli, gzip, deflate, zstd
 - **Static files**: Optional web interface hosting

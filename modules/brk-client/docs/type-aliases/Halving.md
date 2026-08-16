@@ -8,6 +8,6 @@
 
 > **Halving** = `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:622](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L622)
+Defined in: [Developer/brk/modules/brk-client/index.js:604](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L604)
 
 ## Type Parameters

@@ -6,15 +6,23 @@
 
 # Interface: SeriesTree\_Transactions\_Fees
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5436](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5436)
+Defined in: [Developer/brk/modules/brk-client/index.js:6049](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6049)
 
 ## Properties
+
+### count
+
+> **count**: [`SeriesTree_Transactions_Fees_Count`](SeriesTree_Transactions_Fees_Count.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6050](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6050)
+
+***
 
 ### effectiveFeeRate
 
 > **effectiveFeeRate**: [`_6bBlockTxPattern`](6bBlockTxPattern.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5441](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5441)
+Defined in: [Developer/brk/modules/brk-client/index.js:6055](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6055)
 
 ***
 
@@ -22,7 +30,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5441](https://github.com/
 
 > **fee**: [`_6bBlockTxPattern`](6bBlockTxPattern.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5439](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5439)
+Defined in: [Developer/brk/modules/brk-client/index.js:6053](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6053)
 
 ***
 
@@ -30,7 +38,7 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5439](https://github.com/
 
 > **feeRate**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5440](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5440)
+Defined in: [Developer/brk/modules/brk-client/index.js:6054](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6054)
 
 ***
 
@@ -38,7 +46,23 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5440](https://github.com/
 
 > **inputValue**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5437](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5437)
+Defined in: [Developer/brk/modules/brk-client/index.js:6051](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6051)
+
+***
+
+### isCpfpChild
+
+> **isCpfpChild**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`boolean`\>
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6057](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6057)
+
+***
+
+### isCpfpParent
+
+> **isCpfpParent**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`boolean`\>
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6056](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6056)
 
 ***
 
@@ -46,4 +70,4 @@ Defined in: [Developer/brk/modules/brk-client/index.js:5437](https://github.com/
 
 > **outputValue**: [`SeriesPattern19`](../type-aliases/SeriesPattern19.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5438](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5438)
+Defined in: [Developer/brk/modules/brk-client/index.js:6052](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6052)

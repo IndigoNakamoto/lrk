@@ -5,7 +5,9 @@ use vecdb::Database;
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, ValuePerBlockCumulativeRolling, WindowStartVec, Windows},
+    internal::{
+        CachedWindowStartVec, PerBlockCumulativeRolling, ValuePerBlockCumulativeRolling, Windows,
+    },
 };
 
 impl Vecs {
@@ -13,7 +15,7 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             tx_count: PerBlockCumulativeRolling::forced_import(

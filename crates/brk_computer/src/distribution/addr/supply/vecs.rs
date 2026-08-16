@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::Version;
+use brk_types::{Cents, Height, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{Database, Rw, StorageMode};
+use vecdb::{CachedBoxedVec, Database, Rw, StorageMode};
 
 use crate::{
     indexes,
-    internal::{ValuePerBlock, WithAddrTypes},
+    internal::{SpotValuePerBlock, WithAddrTypes},
 };
 
 use super::AddrTypeToSupply;
@@ -17,7 +17,7 @@ use super::AddrTypeToSupply;
 /// sats × spot price.
 #[derive(Deref, DerefMut, Traversable)]
 pub struct AddrSupplyVecs<M: StorageMode = Rw>(
-    #[traversable(flatten)] pub WithAddrTypes<ValuePerBlock<M>>,
+    #[traversable(flatten)] pub WithAddrTypes<SpotValuePerBlock<M>>,
 );
 
 impl AddrSupplyVecs {
@@ -26,12 +26,14 @@ impl AddrSupplyVecs {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
     ) -> Result<Self> {
-        Ok(Self(WithAddrTypes::<ValuePerBlock>::forced_import(
+        Ok(Self(WithAddrTypes::<SpotValuePerBlock>::forced_import(
             db,
             &format!("{name}_addr_supply"),
             version,
             indexes,
+            spot_price,
         )?))
     }
 

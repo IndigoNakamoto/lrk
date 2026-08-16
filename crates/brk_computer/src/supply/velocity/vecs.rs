@@ -1,11 +1,10 @@
 use brk_traversable::Traversable;
 use brk_types::StoredF64;
-use vecdb::{Rw, StorageMode};
 
-use crate::internal::PerBlock;
+use crate::internal::LazyPerBlock;
 
-#[derive(Traversable)]
-pub struct Vecs<M: StorageMode = Rw> {
-    pub native: PerBlock<StoredF64, M>,
-    pub fiat: PerBlock<StoredF64, M>,
+#[derive(Clone, Traversable)]
+pub struct Vecs {
+    pub native: LazyPerBlock<StoredF64>,
+    pub fiat: LazyPerBlock<StoredF64>,
 }

@@ -4,7 +4,7 @@
  * Capability tiers:
  * - Full (All/STH/LTH): full unrealized with rel series, invested capital, sentiment;
  *   full realized with relToRcap, peakRegret, profitToLossRatio, grossPnl
- * - Mid (AgeRange/MaxAge): unrealized profit/loss/netPnl/nupl (no rel, no invested, no sentiment);
+ * - Mid (Core/AgeRange): unrealized profit/loss/netPnl/nupl (no rel, no invested, no sentiment);
  *   realized with netPnl + delta (no relToRcap, no peakRegret)
  * - Basic (UtxoAmount, Empty, Address): nupl only unrealized;
  *   basic realized profit/loss (no netPnl, no relToRcap)
@@ -501,7 +501,7 @@ function realizedOverviewFolder({
 
 /**
  * Full realized subfolder (All/STH/LTH)
- * @param {RealizedPattern | LthRealizedPattern} r
+ * @param {FullRealizedProfitabilityPattern} r
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
  */
@@ -640,7 +640,7 @@ function realizedSubfolderFull(r, title) {
 }
 
 /**
- * Mid realized subfolder (AgeRange/MaxAge — has netPnl + delta, no relToRcap/peakRegret)
+ * Mid realized subfolder (Core/AgeRange — has netPnl + delta, no relToRcap/peakRegret)
  * @param {MidRealizedPattern} r
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
@@ -680,7 +680,7 @@ function realizedSubfolderMid(r, title) {
 
 /**
  * Basic realized subfolder (no netPnl, no relToRcap)
- * @param {BasicRealizedPattern} r
+ * @param {BasicRealizedProfitabilityPattern} r
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
  */
@@ -726,6 +726,18 @@ export function createProfitabilitySection({ cohort, title }) {
       { name: "Unrealized", tree: [{ name: "NUPL", title: title("NUPL"), bottom: nuplSeries(cohort.tree.unrealized.nupl) }] },
       realizedSubfolderBasic(cohort.tree.realized, title),
     ],
+  };
+}
+
+/**
+ * Realized profit and loss without unrealized metrics.
+ * @param {{ cohort: AddrCohortObject, title: (name: string) => string }} args
+ * @returns {PartialOptionsGroup}
+ */
+export function createProfitabilitySectionRealized({ cohort, title }) {
+  return {
+    name: "Profitability",
+    tree: [realizedSubfolderBasic(cohort.tree.realized, title)],
   };
 }
 
@@ -808,8 +820,9 @@ export function createProfitabilitySectionAll({ cohort, title }) {
 }
 
 /**
- * Section for Full cohorts (STH)
- * @param {{ cohort: CohortFull, title: (name: string) => string }} args
+ * Section for cohorts with full realized and unrealized profitability data.
+ * This section does not use SOPR, whose shape differs between STH and LTH.
+ * @param {{ cohort: { tree: { unrealized: FullRelativePattern, realized: FullRealizedProfitabilityPattern } }, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createProfitabilitySectionFull({ cohort, title }) {
@@ -879,17 +892,8 @@ export function createProfitabilitySectionWithInvestedCapitalPct({
 // ============================================================================
 
 /**
- * Grouped realized subfolder (basic)
- * @template {{ name: string, color: Color, tree: { realized: { profit: RealizedProfitLossPattern, loss: RealizedProfitLossPattern } } }} T
- * @template {{ name: string, color: Color, tree: { realized: { profit: RealizedProfitLossPattern, loss: RealizedProfitLossPattern } } }} A
- * @param {readonly T[]} list
- * @param {A} all
- * @param {(name: string) => string} title
- * @returns {PartialOptionsGroup}
- */
-/**
  * Grouped realized profit + loss items
- * @param {readonly UtxoCohortObject[]} list
+ * @param {readonly CohortWithRealizedProfitLoss[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsTree}
@@ -903,7 +907,7 @@ function groupedRealizedProfitLossItems(list, all, title) {
 
 /**
  * Grouped realized net item
- * @param {readonly (CohortAgeRange | CohortWithAdjusted | CohortAll | CohortFull | CohortLongTerm)[]} list
+ * @param {readonly (CohortAgeRange | CohortCore | CohortAll | CohortFull | CohortLongTerm)[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
@@ -913,7 +917,7 @@ function groupedRealizedNetItem(list, all, title) {
 }
 
 /**
- * @param {readonly UtxoCohortObject[]} list
+ * @param {readonly CohortWithRealizedProfitLoss[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
@@ -923,7 +927,7 @@ function groupedRealizedSubfolder(list, all, title) {
 }
 
 /**
- * @param {readonly (CohortAgeRange | CohortWithAdjusted)[]} list
+ * @param {readonly (CohortAgeRange | CohortCore)[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsGroup}
@@ -1067,7 +1071,7 @@ function groupedNuplCharts(list, all, title) {
 
 /**
  * Grouped unrealized: Net → NUPL → Profit → Loss (no relative)
- * @param {readonly (CohortAgeRange | CohortWithAdjusted)[]} list
+ * @param {readonly (CohortAgeRange | CohortCore)[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
  * @returns {PartialOptionsTree}
@@ -1216,6 +1220,22 @@ export function createGroupedProfitabilitySection({ list, all, title }) {
 }
 
 /**
+ * Grouped realized profit and loss without unrealized metrics.
+ * @param {{ list: readonly AddrCohortObject[], all: CohortAll, title: (name: string) => string }} args
+ * @returns {PartialOptionsGroup}
+ */
+export function createGroupedProfitabilitySectionRealized({
+  list,
+  all,
+  title,
+}) {
+  return {
+    name: "Profitability",
+    tree: [groupedRealizedSubfolder(list, all, title)],
+  };
+}
+
+/**
  * Grouped profitability with unrealized profit/loss + NUPL
  * For: CohortWithoutRelative (p2ms, unknown, empty)
  * @param {{ list: readonly CohortWithoutRelative[], all: CohortAll, title: (name: string) => string }} args
@@ -1266,8 +1286,8 @@ export function createGroupedProfitabilitySectionWithProfitLoss({
 
 
 /**
- * Grouped section for ageRange/maxAge cohorts
- * @param {{ list: readonly (CohortAgeRange | CohortWithAdjusted)[], all: CohortAll, title: (name: string) => string }} args
+ * Grouped section for Core/AgeRange cohorts
+ * @param {{ list: readonly (CohortAgeRange | CohortCore)[], all: CohortAll, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createGroupedProfitabilitySectionWithInvestedCapitalPct({

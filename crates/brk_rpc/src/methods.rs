@@ -1,6 +1,6 @@
-use brk_chain::primitives as bitcoin;
 use std::{thread::sleep, time::Duration};
 
+use brk_chain::primitives as bitcoin;
 use bitcoin::{consensus::encode, hex::FromHex};
 use brk_error::{Error, Result};
 use brk_types::{
@@ -14,22 +14,9 @@ use corepc_types::{
         GetBlockHeaderVerbose, GetBlockTemplate, GetBlockVerboseOne, GetBlockVerboseZero,
         GetRawMempool, GetTxOut,
     },
-    v24::MempoolEntry,
+    v24::{GetMempoolInfo, MempoolEntry},
+    v28::GetBlockchainInfo,
 };
-
-/// Minimal `getblockchaininfo` response.  We only use `chain`, `blocks`, and
-/// `headers`; the `softforks` map is kept as a raw `Value` so that
-/// chain-specific softfork types (e.g. Litecoin's `bip8`) do not cause a
-/// deserialization error.
-#[derive(serde::Deserialize)]
-pub struct GetBlockchainInfo {
-    pub chain: String,
-    pub blocks: i64,
-    pub headers: i64,
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub softforks: serde_json::Value,
-}
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use tracing::{debug, info};
@@ -122,8 +109,8 @@ fn build_gbt(raw: GetBlockTemplate) -> Result<Vec<BlockTemplateTx>> {
 /// via integer sat/kvB (bitcoind's native CFeeRate unit) so the f64 drift
 /// in the JSON-decoded value can't push 1.0 sat/vB to 1.0...e-13 above 1.0
 /// and trip `ceil_to(0.001)` downstream.
-fn build_min_fee(mempool_min_fee: f64) -> FeeRate {
-    let sat_per_kvb = (mempool_min_fee * 100_000_000.0).round() as u64;
+fn build_min_fee(raw: GetMempoolInfo) -> FeeRate {
+    let sat_per_kvb = (raw.mempool_min_fee * 100_000_000.0).round() as u64;
     FeeRate::from(sat_per_kvb as f64 / 1000.0)
 }
 
@@ -147,9 +134,8 @@ impl Client {
         let r: GetBlockVerboseZero = self
             .0
             .call_with_retry("getblock", &[serde_json::to_value(hash)?, Value::from(0u8)])?;
-        // Decode the raw block hex with the active chain's decoder
-        // (`primitives`) rather than corepc's `bitcoin`-typed `block()`.
-        // This keeps Litecoin MWEB blocks parseable.
+        // Decode with the active chain's decoder (`primitives`) rather than
+        // corepc's bitcoin-typed `block()`, so Litecoin MWEB blocks parse.
         encode::deserialize_hex::<bitcoin::Block>(&r.0)
             .map_err(|e| Error::Parse(format!("decode getblock: {e}")))
     }
@@ -330,9 +316,8 @@ impl Client {
                 self.0.call_batch_per_item("getrawtransaction", args)?;
 
             for (txid, res) in chunk.iter().zip(results) {
-                match res.and_then(|hex| {
-                    Ok(encode::deserialize_hex::<bitcoin::Transaction>(&hex)?)
-                }) {
+                match res.and_then(|hex| Ok(encode::deserialize_hex::<bitcoin::Transaction>(&hex)?))
+                {
                     Ok(tx) => {
                         out.insert(*txid, tx);
                     }
@@ -376,14 +361,11 @@ impl Client {
     /// batched round-trip: `getblocktemplate` + `getrawmempool false`
     /// + `getmempoolinfo`.
     pub fn fetch_mempool_state(&self) -> Result<(MempoolState, Vec<BlockTemplateTx>)> {
-        // Litecoin's `getblocktemplate` rejects a segwit-only rule set with
-        // RPC error -8; it requires the `mweb` rule as well.
-        #[cfg(not(feature = "litecoin"))]
-        let gbt_rules = serde_json::json!({ "rules": ["segwit"] });
-        #[cfg(feature = "litecoin")]
-        let gbt_rules = serde_json::json!({ "rules": ["segwit", "mweb"] });
         let requests: [(&str, Vec<Value>); 3] = [
-            ("getblocktemplate", vec![gbt_rules]),
+            (
+                "getblocktemplate",
+                vec![serde_json::json!({ "rules": ["segwit"] })],
+            ),
             ("getrawmempool", vec![Value::Bool(false)]),
             ("getmempoolinfo", vec![]),
         ];
@@ -399,21 +381,12 @@ impl Client {
             .collect::<Result<Vec<_>>>()?;
         let template: GetBlockTemplate = serde_json::from_str(template_raw.get())?;
         let tip_hash = Self::parse_block_hash(&template.previous_block_hash, "previousblockhash")?;
-        let tip_height = Height::from(u64::try_from(template.height - 1).map_err(|_| {
-            Error::Parse(format!("gbt height out of range: {}", template.height))
-        })?);
+        let tip_height =
+            Height::from(u64::try_from(template.height - 1).map_err(|_| {
+                Error::Parse(format!("gbt height out of range: {}", template.height))
+            })?);
         let block_template = build_gbt(template)?;
-        // Only `mempoolminfee` is needed. Deserializing corepc's full
-        // `GetMempoolInfo` fails on Litecoin 0.21, whose `getmempoolinfo`
-        // response omits the newer `total_fee` field.
-        let info_val: Value = serde_json::from_str(info_raw.get())?;
-        let mempool_min_fee = info_val
-            .get("mempoolminfee")
-            .and_then(|v| v.as_f64())
-            .ok_or(Error::Parse(
-                "getmempoolinfo missing mempoolminfee".into(),
-            ))?;
-        let min_fee = build_min_fee(mempool_min_fee);
+        let min_fee = build_min_fee(serde_json::from_str(info_raw.get())?);
 
         Ok((
             MempoolState {

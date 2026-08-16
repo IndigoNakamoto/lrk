@@ -4,7 +4,10 @@ use brk_types::{Dollars, Height};
 use derive_more::{Deref, DerefMut};
 use vecdb::{Exit, ReadableVec, Rw, StorageMode};
 
-use crate::distribution::metrics::{ImportConfig, RealizedFull, SupplyCore, UnrealizedFull};
+use crate::distribution::{
+    AllChainCache,
+    metrics::{ImportConfig, RealizedFull, SupplyCore, UnrealizedFull},
+};
 
 use super::{
     RelativeExtendedOwnMarketCap, RelativeExtendedOwnPnl, RelativeFull, RelativeInvestedCapital,
@@ -27,10 +30,17 @@ pub struct RelativeWithExtended<M: StorageMode = Rw> {
 }
 
 impl RelativeWithExtended {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        unrealized: &UnrealizedFull,
+        all_chain: &AllChainCache,
+    ) -> Result<Self> {
         Ok(Self {
-            base: RelativeFull::forced_import(cfg)?,
-            extended_own_market_cap: RelativeExtendedOwnMarketCap::forced_import(cfg)?,
+            base: RelativeFull::forced_import(cfg, &unrealized.inner.basic, all_chain)?,
+            extended_own_market_cap: RelativeExtendedOwnMarketCap::forced_import(
+                cfg,
+                &unrealized.inner,
+            )?,
             extended_own_pnl: RelativeExtendedOwnPnl::forced_import(cfg)?,
             invested_capital: RelativeInvestedCapital::forced_import(cfg)?,
         })
@@ -43,12 +53,10 @@ impl RelativeWithExtended {
         supply: &SupplyCore,
         unrealized: &UnrealizedFull,
         realized: &RealizedFull,
-        market_cap: &impl ReadableVec<Height, Dollars>,
         own_market_cap: &impl ReadableVec<Height, Dollars>,
         exit: &Exit,
     ) -> Result<()> {
-        self.base
-            .compute(max_from, supply, &unrealized.inner.basic, market_cap, exit)?;
+        self.base.compute(max_from, supply, exit)?;
         self.extended_own_market_cap
             .compute(max_from, &unrealized.inner, own_market_cap, exit)?;
         self.extended_own_pnl.compute(

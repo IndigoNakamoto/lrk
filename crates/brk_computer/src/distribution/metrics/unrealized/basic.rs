@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, Dollars, Version};
+use brk_types::{Cents, Dollars, PartsPerMillion64, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableCloneableVec, Rw, StorageMode, WritableVec};
 
@@ -17,7 +17,7 @@ pub struct UnrealizedBasic<M: StorageMode = Rw> {
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
-    pub minimal: UnrealizedMinimal<M>,
+    pub minimal: UnrealizedMinimal,
     pub profit: FiatPerBlock<Cents, M>,
     pub loss: FiatPerBlock<Cents, M>,
     #[traversable(wrap = "loss", rename = "negative")]
@@ -25,7 +25,10 @@ pub struct UnrealizedBasic<M: StorageMode = Rw> {
 }
 
 impl UnrealizedBasic {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        mvrv: &LazyPerBlock<PartsPerMillion64>,
+    ) -> Result<Self> {
         let v1 = Version::ONE;
 
         let loss: FiatPerBlock<Cents> = cfg.import("unrealized_loss", v1)?;
@@ -38,7 +41,7 @@ impl UnrealizedBasic {
         );
 
         Ok(Self {
-            minimal: UnrealizedMinimal::forced_import(cfg)?,
+            minimal: UnrealizedMinimal::new(cfg, mvrv),
             profit: cfg.import("unrealized_profit", v1)?,
             loss,
             neg_loss,

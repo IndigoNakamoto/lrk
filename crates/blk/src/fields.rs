@@ -112,7 +112,8 @@ impl<'a> Ctx<'a> {
         for &name in BLOCK_FIELDS {
             obj.insert(
                 name.into(),
-                self.block_field(name, None, &[]).expect("known block field"),
+                self.block_field(name, None, &[])
+                    .expect("known block field"),
             );
         }
         Value::Object(obj)

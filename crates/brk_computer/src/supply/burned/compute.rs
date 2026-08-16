@@ -17,24 +17,21 @@ impl Vecs {
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.total
-            .compute_with(starting_height, prices, exit, |sats| {
-                Ok(sats.compute_transform2(
-                    starting_height,
-                    &outputs.value.op_return.block.sats,
-                    &mining.rewards.unclaimed.block.sats,
-                    |(h, op_return, unclaimed, ..)| {
-                        let genesis = if h.to_usize() == 0 {
-                            Sats::FIFTY_BTC
-                        } else {
-                            Sats::ZERO
-                        };
-                        (h, genesis + op_return + unclaimed)
-                    },
-                    exit,
-                )?)
-            })?;
-
+        self.total.compute_from_pair(
+            starting_height,
+            prices,
+            &outputs.value.op_return.block.sats,
+            &mining.rewards.unclaimed.block.sats,
+            |height, op_return, unclaimed| {
+                let genesis = if height.to_usize() == 0 {
+                    Sats::FIFTY_BTC
+                } else {
+                    Sats::ZERO
+                };
+                genesis + op_return + unclaimed
+            },
+            exit,
+        )?;
         Ok(())
     }
 }

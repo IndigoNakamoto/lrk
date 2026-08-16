@@ -2,7 +2,8 @@ use std::path::Path;
 
 use brk_error::Result;
 use brk_traversable::Traversable;
-use vecdb::{Database, PAGE_SIZE};
+use brk_types::Version;
+use vecdb::{AnyStoredVec, Database, PAGE_SIZE};
 
 pub(crate) fn open_db(
     parent_path: &Path,
@@ -22,5 +23,19 @@ pub(crate) fn finalize_db(db: &Database, traversable: &impl Traversable) -> Resu
             .collect(),
     )?;
     db.compact()?;
+    Ok(())
+}
+
+pub(crate) fn validate_any_computed_version_or_reset(
+    vec: &mut dyn AnyStoredVec,
+    dependency_version: Version,
+) -> Result<()> {
+    let computed_version = vec.header().vec_version() + dependency_version;
+    if computed_version != vec.header().computed_version() {
+        vec.mut_header().update_computed_version(computed_version);
+        if !vec.is_empty() {
+            vec.any_reset()?;
+        }
+    }
     Ok(())
 }

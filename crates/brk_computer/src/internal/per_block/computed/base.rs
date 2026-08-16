@@ -5,19 +5,19 @@ use brk_types::{Height, Version};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use vecdb::{
-    BinaryTransform, Database, EagerVec, Exit, ImportableVec, PcoVec, ReadOnlyClone, ReadableVec,
-    Rw, StorageMode, VecValue,
+    BinaryTransform, Database, EagerVec, Exit, ImportableVec, PcoVec, PcoVecValue, ReadOnlyClone,
+    ReadableVec, Rw, StorageMode, VecValue,
 };
 
 use crate::indexes;
 
-use crate::internal::{ComputedVecValue, NumericValue, Resolutions};
+use crate::internal::Resolutions;
 
 #[derive(Deref, DerefMut, Traversable)]
 #[traversable(merge)]
 pub struct PerBlock<T, M: StorageMode = Rw>
 where
-    T: ComputedVecValue + PartialOrd + JsonSchema,
+    T: PcoVecValue + PartialOrd + JsonSchema,
 {
     pub height: M::Stored<EagerVec<PcoVec<Height, T>>>,
     #[deref]
@@ -28,7 +28,7 @@ where
 
 impl<T> PerBlock<T>
 where
-    T: NumericValue + JsonSchema,
+    T: PcoVecValue + PartialOrd + JsonSchema + 'static,
 {
     pub(crate) fn forced_import(
         db: &Database,

@@ -20,7 +20,7 @@ pub(crate) fn update_tx_counts(
 ) {
     // First, deduplicate tx_index_vecs for addresses that appear multiple times in a block
     for (_, map) in tx_index_vecs.iter_mut() {
-        for (_, tx_index_vec) in map.iter_mut() {
+        for tx_index_vec in map.values_mut() {
             if tx_index_vec.len() > 1 {
                 tx_index_vec.sort_unstable();
                 tx_index_vec.dedup();

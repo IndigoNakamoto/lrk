@@ -291,7 +291,7 @@ fn collect_instance_analyses(
 ///
 /// Supports two cases:
 /// 1. **Embedded discriminator**: a substring varies per instance within field_parts.
-///    E.g., `ratio_pct99_bps` vs `ratio_pct1_bps` → template `ratio_{disc}_bps`
+///    E.g., `ratio_pct99_ppm` vs `ratio_pct1_ppm` → template `ratio_{disc}_ppm`
 /// 2. **Suffix discriminator**: a common suffix is appended to all field_parts.
 ///    E.g., `ratio_sd` vs `ratio_sd_4y` → template `ratio_sd{disc}`
 fn try_detect_template(
@@ -307,11 +307,11 @@ fn try_detect_template(
         return Some(mode);
     }
 
-    // Strategy 2: embedded discriminator (e.g., ratio_pct99_bps vs ratio_pct1_bps)
+    // Strategy 2: embedded discriminator (e.g., ratio_pct99_ppm vs ratio_pct1_ppm)
     try_embedded_disc(majority, fields)
 }
 
-/// Strategy 1: embedded discriminator (e.g., pct99 inside ratio_pct99_bps)
+/// Strategy 1: embedded discriminator (e.g., pct99 inside ratio_pct99_ppm)
 fn try_embedded_disc(
     majority: &[&InstanceAnalysis],
     fields: &[PatternField],
@@ -772,7 +772,7 @@ mod tests {
         use std::collections::BTreeSet;
         let fields = vec![
             PatternField {
-                name: "bps".into(),
+                name: "ppm".into(),
                 rust_type: "T".into(),
                 json_type: "n".into(),
                 indexes: BTreeSet::new(),
@@ -796,7 +796,7 @@ mod tests {
         let pct99 = InstanceAnalysis {
             base: "realized_price".into(),
             field_parts: [
-                ("bps".into(), "ratio_pct99_bps".into()),
+                ("ppm".into(), "ratio_pct99_ppm".into()),
                 ("price".into(), "pct99".into()),
                 ("ratio".into(), "ratio_pct99".into()),
             ]
@@ -808,7 +808,7 @@ mod tests {
         let pct1 = InstanceAnalysis {
             base: "realized_price".into(),
             field_parts: [
-                ("bps".into(), "ratio_pct1_bps".into()),
+                ("ppm".into(), "ratio_pct1_ppm".into()),
                 ("price".into(), "pct1".into()),
                 ("ratio".into(), "ratio_pct1".into()),
             ]
@@ -821,7 +821,7 @@ mod tests {
         assert!(mode.is_some());
         match mode.unwrap() {
             PatternMode::Templated { templates } => {
-                assert_eq!(templates.get("bps").unwrap(), "ratio_{disc}_bps");
+                assert_eq!(templates.get("ppm").unwrap(), "ratio_{disc}_ppm");
                 assert_eq!(templates.get("price").unwrap(), "{disc}");
                 assert_eq!(templates.get("ratio").unwrap(), "ratio_{disc}");
             }
@@ -1131,8 +1131,8 @@ mod tests {
 
     #[test]
     fn test_all_empty_same_type_marks_outlier() {
-        // RatioPerBlockStdDevBands: all children are the same type (StdDevPerBlockExtended)
-        // and all return the same base → all-empty field_parts.
+        // A wrapper whose children share one type and return the same base
+        // produces all-empty field_parts.
         // Should be marked as outlier so the tree inlines instead of using a
         // factory that can't differentiate the children.
         let mut child_bases = BTreeMap::new();
@@ -1184,7 +1184,8 @@ mod tests {
 
     #[test]
     fn test_extract_disc_from_instance() {
-        // StdDevPerBlockExtended 4y instance: field_parts include "0sd_4y", "p1sd_4y", "ratio_sd_4y".
+        // A discriminated instance has field_parts such as "0sd_4y", "p1sd_4y",
+        // and "ratio_sd_4y".
         // Templates are "0sd{disc}", "p1sd{disc}", "ratio_sd{disc}".
         // The extracted disc should be "_4y", not "0sd_4y" (the shortest field_part).
         use crate::StructuralPattern;

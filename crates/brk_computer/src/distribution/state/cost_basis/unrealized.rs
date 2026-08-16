@@ -54,6 +54,8 @@ fn div_btc(raw: u128) -> Cents {
 /// Trait for accumulating profit/loss across BTreeMap entries.
 /// `WithoutCapital` skips capital tracking; `WithCapital` tracks all fields.
 pub trait Accumulate: Default + Clone + Send + Sync + 'static {
+    const TRACK_CAPITAL: bool;
+
     fn to_output(&self) -> UnrealizedState;
     fn core(&self) -> &WithoutCapital;
     fn core_mut(&mut self) -> &mut WithoutCapital;
@@ -78,6 +80,8 @@ pub trait Accumulate: Default + Clone + Send + Sync + 'static {
 }
 
 impl Accumulate for WithoutCapital {
+    const TRACK_CAPITAL: bool = false;
+
     fn to_output(&self) -> UnrealizedState {
         UnrealizedState {
             supply_in_profit: self.supply_in_profit,
@@ -114,6 +118,8 @@ impl Accumulate for WithoutCapital {
 }
 
 impl Accumulate for WithCapital {
+    const TRACK_CAPITAL: bool = true;
+
     fn to_output(&self) -> UnrealizedState {
         UnrealizedState {
             capitalized_cap_in_profit_raw: self.capitalized_cap_in_profit,

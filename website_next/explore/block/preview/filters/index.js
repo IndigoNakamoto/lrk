@@ -15,15 +15,6 @@ function setActive(button, active) {
 }
 
 /**
- * @param {HTMLButtonElement} button
- */
-function setPending(button) {
-  button.disabled = true;
-  button.setAttribute("aria-pressed", "false");
-  button.removeAttribute("data-muted");
-}
-
-/**
  * @param {string[]} labels
  */
 function formatSummaryValue(labels) {
@@ -35,12 +26,12 @@ function formatSummaryValue(labels) {
 }
 
 /**
- * @param {number} disabledMask
+ * @param {Set<string>} hiddenKeys
  * @param {HTMLElement} value
  */
-function updateSummaryValue(disabledMask, value) {
+function updateSummaryValue(hiddenKeys, value) {
   const labels = FILTERS
-    .filter(({ bit }) => disabledMask & bit)
+    .filter(({ key }) => hiddenKeys.has(key))
     .map(({ group, label }) => {
       return `${FILTER_GROUP_LABELS.get(group)} ${label}`;
     });
@@ -94,109 +85,133 @@ export function createPendingPreviewFilters() {
 }
 
 /**
- * @param {() => Promise<BlockPreviewFilterState>} loadFilters
+ * @param {BlockPreviewFilterData} data
  * @param {BlockPreviewHeatmap} heatmap
  */
-export function createPreviewFilters(loadFilters, heatmap) {
+export function createPreviewFilters(data, heatmap) {
   const { panel, summary, summaryValue } = createFilterPanel();
-  let disabledMask = 0;
+  const appliedKeys = new Set();
+  const hiddenKeys = new Set();
   let live = true;
   let loading = false;
-  let state = /** @type {BlockPreviewFilterState | null} */ (null);
+  let counts = /** @type {Uint32Array | null} */ (null);
   let previewButton = /** @type {HTMLButtonElement | null} */ (null);
 
-  updateSummaryValue(disabledMask, summaryValue);
+  updateSummaryValue(hiddenKeys, summaryValue);
 
   function resetPreview() {
     previewButton?.removeAttribute("data-preview");
     previewButton = null;
-    heatmap.setPreviewMask(null);
+    heatmap.setPreviewMembership(null);
   }
 
   /**
    * @param {HTMLButtonElement} button
-   * @param {number} nextMask
+   * @param {BlockPreviewFilter} filter
    */
-  function preview(button, nextMask) {
+  function preview(button, filter) {
     resetPreview();
     previewButton = button;
-    button.dataset.preview = "";
-    heatmap.setPreviewMask(nextMask);
+    button.setAttribute("aria-busy", "true");
+
+    void data.loadMembership(filter)
+      .then((membership) => {
+        button.removeAttribute("aria-busy");
+        if (!live || previewButton !== button) return;
+
+        button.dataset.preview = "";
+        heatmap.setPreviewMembership(membership);
+      })
+      .catch((error) => {
+        button.removeAttribute("aria-busy");
+        if (!live) return;
+
+        resetPreview();
+        console.error(error);
+      });
   }
 
   /**
-   * @param {BlockPreviewFilterState | null} filterState
+   * @param {BlockPreviewFilter} filter
+   * @param {Uint8Array} membership
    */
-  function renderFilters(filterState) {
+  function syncHidden(filter, membership) {
+    const hidden = hiddenKeys.has(filter.key);
+    const applied = appliedKeys.has(filter.key);
+
+    if (hidden === applied) return;
+
+    heatmap.setFilterHidden(membership, hidden);
+    if (hidden) appliedKeys.add(filter.key);
+    else appliedKeys.delete(filter.key);
+  }
+
+  /** @param {Uint32Array} filterCounts */
+  function renderFilters(filterCounts) {
     clearGroups(panel, summary);
+    const canPreview = CAN_HOVER.matches;
 
     for (const { label, filters } of FILTER_GROUP_FILTERS) {
-      const group = createFilterGroup(label);
+      let group = /** @type {HTMLDivElement | null} */ (null);
 
       for (const filter of filters) {
+        const count = filterCounts[filter.index];
+        if (count === 0) continue;
+
+        group ??= createFilterGroup(label);
         const { button, value } = createLegendItem({
           ariaLabel: filter.label,
           color: filter.color,
           label: filter.label,
         });
 
-        value.textContent = filterState === null
-          ? "..."
-          : formatNumber(filterState.counts[filter.index]);
+        value.textContent = formatNumber(count);
+        button.addEventListener("click", () => {
+          resetPreview();
+          if (hiddenKeys.has(filter.key)) hiddenKeys.delete(filter.key);
+          else hiddenKeys.add(filter.key);
 
-        if (filterState === null) {
-          setPending(button);
-        } else {
-          const canPreview = CAN_HOVER.matches;
+          setActive(button, !hiddenKeys.has(filter.key));
+          updateSummaryValue(hiddenKeys, summaryValue);
+          void data.loadMembership(filter)
+            .then((membership) => {
+              if (live) syncHidden(filter, membership);
+            })
+            .catch(console.error);
+        });
 
-          button.addEventListener("click", () => {
-            const active = (disabledMask & filter.bit) === 0;
-
-            resetPreview();
-            disabledMask = active
-              ? disabledMask | filter.bit
-              : disabledMask & ~filter.bit;
-            setActive(button, !active);
-            updateSummaryValue(disabledMask, summaryValue);
-            heatmap.setDisabledMask(disabledMask);
+        if (canPreview) {
+          button.addEventListener("pointerenter", () => {
+            preview(button, filter);
           });
-
-          if (canPreview) {
-            button.addEventListener("pointerenter", () => {
-              preview(button, filter.bit);
-            });
-            button.addEventListener("pointerleave", resetPreview);
-          }
-
-          button.addEventListener("focus", () => {
-            preview(button, filter.bit);
-          });
-          button.addEventListener("blur", resetPreview);
-          setActive(button, (disabledMask & filter.bit) === 0);
+          button.addEventListener("pointerleave", resetPreview);
         }
 
+        button.addEventListener("focus", () => {
+          preview(button, filter);
+        });
+        button.addEventListener("blur", resetPreview);
+        setActive(button, !hiddenKeys.has(filter.key));
         group.append(button);
       }
 
-      panel.append(group);
+      if (group !== null) panel.append(group);
     }
   }
 
   function load() {
-    if (loading || state !== null) return;
+    if (loading || counts !== null) return;
 
     loading = true;
     summaryValue.textContent = "loading";
-    renderFilters(null);
-    void loadFilters()
-      .then((nextState) => {
+    void data.loadCounts()
+      .then((nextCounts) => {
         if (!live) return;
 
         loading = false;
-        state = nextState;
-        heatmap.setFilterState(nextState);
-        updateSummaryValue(disabledMask, summaryValue);
-        renderFilters(nextState);
+        counts = nextCounts;
+        updateSummaryValue(hiddenKeys, summaryValue);
+        renderFilters(nextCounts);
       })
       .catch((error) => {
         if (!live) return;
@@ -210,6 +225,7 @@ export function createPreviewFilters(loadFilters, heatmap) {
 
   panel.addEventListener("toggle", () => {
     if (panel.open) load();
+    else resetPreview();
   });
 
   return /** @type {const} */ ({
@@ -221,11 +237,11 @@ export function createPreviewFilters(loadFilters, heatmap) {
   });
 }
 
-/** @typedef {import("../data.js").BlockPreviewFilterState} BlockPreviewFilterState */
+/** @typedef {import("./data.js").BlockPreviewFilterData} BlockPreviewFilterData */
+/** @typedef {import("./model.js").BlockPreviewFilter} BlockPreviewFilter */
 
 /**
  * @typedef {Object} BlockPreviewHeatmap
- * @property {(mask: number | null) => void} setPreviewMask
- * @property {(mask: number) => void} setDisabledMask
- * @property {(state: BlockPreviewFilterState) => void} setFilterState
+ * @property {(membership: Uint8Array | null) => void} setPreviewMembership
+ * @property {(membership: Uint8Array, hidden: boolean) => void} setFilterHidden
  */

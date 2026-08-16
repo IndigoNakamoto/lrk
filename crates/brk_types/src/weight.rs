@@ -39,15 +39,17 @@ pub struct Weight(u64);
 impl Weight {
     /// Maximum block weight in Bitcoin (4 million weight units).
     /// Note: Pre-SegWit 1MB blocks have weight = size * 4 = 4M, so this is consistent across all blocks.
-    pub const MAX_BLOCK: Self = Self(4_000_000);
+    pub const MAX_BLOCK: Self = Self(bitcoin::Weight::MAX_BLOCK.to_wu());
 
     /// Compute weight from base size and total size.
-    /// Formula: weight = base_size * 3 + total_size
-    /// (since total_size = base_size + witness_size, this equals base_size * 4 + witness_size)
     #[inline]
     pub fn from_sizes(base_size: u32, total_size: u32) -> Self {
-        let wu = base_size as u64 * 3 + total_size as u64;
-        Self(wu)
+        let base_size = u64::from(base_size);
+        let witness_size = u64::from(total_size) - base_size;
+        Self::from(
+            bitcoin::Weight::from_non_witness_data_size(base_size)
+                + bitcoin::Weight::from_witness_data_size(witness_size),
+        )
     }
 
     pub fn to_vbytes_ceil(&self) -> u64 {
@@ -182,5 +184,16 @@ impl Formattable for Weight {
     fn write_to(&self, buf: &mut Vec<u8>) {
         let mut b = itoa::Buffer::new();
         buf.extend_from_slice(b.format(self.0).as_bytes());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Weight;
+
+    #[test]
+    fn derives_weight_from_base_and_witness_sizes() {
+        assert_eq!(*Weight::from_sizes(100, 100), 400);
+        assert_eq!(*Weight::from_sizes(100, 125), 425);
     }
 }

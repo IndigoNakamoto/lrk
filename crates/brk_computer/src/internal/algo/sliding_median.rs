@@ -72,7 +72,7 @@ where
                 window.advance(v, start_usize, &partial_values, range_start);
 
                 let median = window.percentile(0.50);
-                this.checked_push_at(i, T::from(median))?;
+                this.push(T::from(median));
 
                 if this.batch_limit_reached() {
                     break;

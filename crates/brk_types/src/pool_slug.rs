@@ -212,6 +212,7 @@ pub enum PoolSlug {
     #[serde(rename = "solopoolcom")]
     SoloPool,
     Noderunners,
+    Dmnd,
     // Litecoin-specific pools (from litecoinspace.org). Variant names lowercase
     // to their litecoinspace slug so `pools-ltc-v1.json` ids resolve correctly.
     Kupool,
@@ -363,8 +364,6 @@ pub enum PoolSlug {
     Dummy253,
     #[serde(skip)]
     Dummy254,
-    #[serde(skip)]
-    Dummy255,
 }
 
 impl PoolSlug {

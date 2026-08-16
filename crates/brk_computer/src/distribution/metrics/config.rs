@@ -1,18 +1,19 @@
-use brk_chain::Chain;
 use brk_cohort::Filter;
 use brk_error::Result;
-use brk_types::{BasisPoints16, BasisPoints32, BasisPointsSigned32, Cents, Height, Version};
+use brk_types::{
+    Cents, Height, PartsPerMillion32, PartsPerMillionSigned32, PartsPerMillionSigned64, Version,
+};
 use schemars::JsonSchema;
-use vecdb::{BytesVec, BytesVecValue, Database, ImportableVec};
+use vecdb::{BytesVec, BytesVecValue, CachedBoxedVec, Database, ImportableVec};
 
 use crate::{
     indexes,
     internal::{
-        FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue, PerBlock,
-        PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
-        PriceWithRatioExtendedPerBlock, PriceWithRatioPerBlock, RatioPerBlock,
-        RollingWindow24hPerBlock, RollingWindows, RollingWindowsFrom1w, ValuePerBlock,
-        ValuePerBlockCumulative, ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
+        CachedWindowStartVec, FiatPerBlock, FiatPerBlockCumulativeWithSums, FiatType, NumericValue,
+        PerBlock, PerBlockCumulativeRolling, PercentPerBlock, PercentRollingWindows, Price,
+        PriceWithRatioPerBlock, RatioPerBlock, RollingWindow24hPerBlock, RollingWindows,
+        RollingWindowsFrom1w, SpotValuePerBlock, ValuePerBlock, ValuePerBlockCumulative,
+        ValuePerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -38,19 +39,35 @@ macro_rules! impl_config_import {
 impl_config_import!(
     ValuePerBlock,
     ValuePerBlockCumulative,
-    PriceWithRatioPerBlock,
-    RatioPerBlock<BasisPoints32>,
-    RatioPerBlock<BasisPointsSigned32>,
-    PercentPerBlock<BasisPoints16>,
-    PercentPerBlock<BasisPoints32>,
-    PercentPerBlock<BasisPointsSigned32>,
-    PercentRollingWindows<BasisPoints32>,
+    RatioPerBlock<PartsPerMillionSigned32>,
+    PercentPerBlock<PartsPerMillion32>,
+    PercentPerBlock<PartsPerMillionSigned32>,
+    PercentPerBlock<PartsPerMillionSigned64>,
+    PercentRollingWindows<PartsPerMillion32>,
     Price<PerBlock<Cents>>,
 );
 
-impl ConfigImport for PriceWithRatioExtendedPerBlock {
+impl ConfigImport for PriceWithRatioPerBlock {
     fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
-        Self::forced_import(cfg.db, &cfg.name(suffix), cfg.version + offset, cfg.indexes, cfg.chain)
+        Self::forced_import(
+            cfg.db,
+            &cfg.name(suffix),
+            cfg.version + offset,
+            cfg.indexes,
+            cfg.spot_price,
+        )
+    }
+}
+
+impl ConfigImport for SpotValuePerBlock {
+    fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
+        Self::forced_import(
+            cfg.db,
+            &cfg.name(suffix),
+            cfg.version + offset,
+            cfg.indexes,
+            cfg.spot_price,
+        )
     }
 }
 
@@ -60,10 +77,9 @@ impl<T: NumericValue + JsonSchema> ConfigImport for PerBlock<T> {
         Self::forced_import(cfg.db, &cfg.name(suffix), cfg.version + offset, cfg.indexes)
     }
 }
-impl<T, C> ConfigImport for PerBlockCumulativeRolling<T, C>
+impl<T> ConfigImport for PerBlockCumulativeRolling<T>
 where
-    T: NumericValue + JsonSchema + Into<C>,
-    C: NumericValue + JsonSchema,
+    T: NumericValue + JsonSchema,
 {
     fn config_import(cfg: &ImportConfig, suffix: &str, offset: Version) -> Result<Self> {
         Self::forced_import(
@@ -134,8 +150,8 @@ pub struct ImportConfig<'a> {
     pub full_name: &'a str,
     pub version: Version,
     pub indexes: &'a indexes::Vecs,
-    pub cached_starts: &'a Windows<&'a WindowStartVec>,
-    pub chain: Chain,
+    pub cached_starts: &'a Windows<&'a CachedWindowStartVec>,
+    pub spot_price: &'a CachedBoxedVec<Height, Cents>,
 }
 
 impl<'a> ImportConfig<'a> {

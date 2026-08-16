@@ -6,20 +6,20 @@
 
 # Interface: SeriesTree\_Cohorts\_Utxo\_Entry
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7420](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7420)
+Defined in: [Developer/brk/modules/brk-client/index.js:8113](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8113)
 
 ## Properties
 
 ### discount
 
-> **discount**: [`SeriesTree_Cohorts_Utxo_Entry_Discount`](SeriesTree_Cohorts_Utxo_Entry_Discount.md)
+> **discount**: [`ActivityOutputsRealizedSupplyUnrealizedPattern`](ActivityOutputsRealizedSupplyUnrealizedPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7421](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7421)
+Defined in: [Developer/brk/modules/brk-client/index.js:8114](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8114)
 
 ***
 
 ### premium
 
-> **premium**: [`SeriesTree_Cohorts_Utxo_Entry_Premium`](SeriesTree_Cohorts_Utxo_Entry_Premium.md)
+> **premium**: [`ActivityOutputsRealizedSupplyUnrealizedPattern`](ActivityOutputsRealizedSupplyUnrealizedPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:7422](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L7422)
+Defined in: [Developer/brk/modules/brk-client/index.js:8115](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8115)

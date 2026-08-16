@@ -2,23 +2,23 @@ use brk_traversable::Traversable;
 use brk_types::{Cents, Dollars, OHLCCents, OHLCDollars, OHLCSats, Sats};
 use vecdb::{Rw, StorageMode};
 
-use crate::internal::{CachedPerBlock, EagerIndexes, LazyEagerIndexes, LazyPerBlock, Resolutions};
+use crate::internal::{CachedPerBlock, LazyIndexes, LazyPerBlock, Resolutions};
 
-use super::ohlcs::{LazyOhlcVecs, OhlcVecs};
+use super::ohlcs::{LazyOhlcCentsVecs, LazyOhlcVecs};
 
-#[derive(Traversable)]
-pub struct SplitByUnit<M: StorageMode = Rw> {
-    pub open: SplitIndexesByUnit<M>,
-    pub high: SplitIndexesByUnit<M>,
-    pub low: SplitIndexesByUnit<M>,
+#[derive(Clone, Traversable)]
+pub struct SplitByUnit {
+    pub open: SplitIndexesByUnit,
+    pub high: SplitIndexesByUnit,
+    pub low: SplitIndexesByUnit,
     pub close: SplitCloseByUnit,
 }
 
-#[derive(Traversable)]
-pub struct SplitIndexesByUnit<M: StorageMode = Rw> {
-    pub usd: LazyEagerIndexes<Dollars, Cents>,
-    pub cents: EagerIndexes<Cents, M>,
-    pub sats: LazyEagerIndexes<Sats, Cents>,
+#[derive(Clone, Traversable)]
+pub struct SplitIndexesByUnit {
+    pub usd: LazyIndexes<Dollars, Cents>,
+    pub cents: LazyIndexes<Cents, OHLCCents>,
+    pub sats: LazyIndexes<Sats, Cents>,
 }
 
 #[derive(Clone, Traversable)]
@@ -28,10 +28,10 @@ pub struct SplitCloseByUnit {
     pub sats: Resolutions<Sats>,
 }
 
-#[derive(Traversable)]
-pub struct OhlcByUnit<M: StorageMode = Rw> {
+#[derive(Clone, Traversable)]
+pub struct OhlcByUnit {
     pub usd: LazyOhlcVecs<OHLCDollars, OHLCCents>,
-    pub cents: OhlcVecs<OHLCCents, M>,
+    pub cents: LazyOhlcCentsVecs,
     pub sats: LazyOhlcVecs<OHLCSats, OHLCCents>,
 }
 

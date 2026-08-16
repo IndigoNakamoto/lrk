@@ -289,7 +289,8 @@ impl ApiSeriesRoutes for ApiRouter<AppState> {
                     .summary("Get raw series data")
                     .description(
                         "Returns just the data array without the SeriesData wrapper. \
-                        Supports the same range and format parameters as the standard endpoint."
+                        Supports the same range and format parameters as \
+                        `GET /api/series/{series}/{index}`."
                     )
                     .json_response::<Vec<serde_json::Value>>()
                     .csv_response()

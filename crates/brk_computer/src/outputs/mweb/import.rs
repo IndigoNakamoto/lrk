@@ -7,7 +7,7 @@ use crate::{
     indexes,
     internal::{
         PerBlockCumulativeRolling, ValuePerBlock, ValuePerBlockCumulative,
-        ValuePerBlockCumulativeRolling, WindowStartVec, Windows,
+        CachedWindowStartVec, ValuePerBlockCumulativeRolling, Windows,
     },
 };
 
@@ -39,7 +39,7 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         Ok(Self {
             outputs_value: ValuePerBlockCumulative::forced_import(

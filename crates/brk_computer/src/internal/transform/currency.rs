@@ -1,5 +1,5 @@
 use brk_types::{Bitcoin, Cents, CentsSigned, Dollars, Sats, SatsFract, SatsSigned, StoredF32};
-use vecdb::{BinaryTransform, UnaryTransform};
+use vecdb::{BinaryTransform, UnaryTransform, unlikely};
 
 pub struct SatsToBitcoin;
 
@@ -42,7 +42,11 @@ pub struct SatsToCents;
 impl BinaryTransform<Sats, Cents, Cents> for SatsToCents {
     #[inline(always)]
     fn apply(sats: Sats, price_cents: Cents) -> Cents {
-        Cents::from(sats.as_u128() * price_cents.as_u128() / Sats::ONE_BTC_U128)
+        if unlikely(price_cents.is_nan()) {
+            Cents::NAN
+        } else {
+            Cents::from(sats.as_u128() * price_cents.as_u128() / Sats::ONE_BTC_U128)
+        }
     }
 }
 
@@ -78,6 +82,9 @@ pub struct CentsUnsignedToSats;
 impl UnaryTransform<Cents, Sats> for CentsUnsignedToSats {
     #[inline(always)]
     fn apply(cents: Cents) -> Sats {
+        if unlikely(cents.is_nan()) {
+            panic!("Cents::NAN cannot be converted to whole Sats");
+        }
         let dollars = Dollars::from(cents);
         if dollars == Dollars::ZERO {
             Sats::ZERO
@@ -92,7 +99,13 @@ pub struct CentsSubtractToCentsSigned;
 impl BinaryTransform<Cents, Cents, CentsSigned> for CentsSubtractToCentsSigned {
     #[inline(always)]
     fn apply(a: Cents, b: Cents) -> CentsSigned {
-        CentsSigned::from(a.inner() as i64 - b.inner() as i64)
+        if unlikely(a.is_nan() || b.is_nan()) {
+            panic!("Cents::NAN cannot be converted to CentsSigned");
+        }
+        let difference = i128::from(a.inner()) - i128::from(b.inner());
+        CentsSigned::new(
+            i64::try_from(difference).expect("Cents subtraction overflowed CentsSigned"),
+        )
     }
 }
 
@@ -101,7 +114,11 @@ pub struct CentsTimesTenths<const V: u16>;
 impl<const V: u16> UnaryTransform<Cents, Cents> for CentsTimesTenths<V> {
     #[inline(always)]
     fn apply(c: Cents) -> Cents {
-        Cents::from(c.as_u128() * V as u128 / 10)
+        if unlikely(c.is_nan()) {
+            Cents::NAN
+        } else {
+            Cents::from(c.as_u128() * V as u128 / 10)
+        }
     }
 }
 
@@ -111,5 +128,28 @@ impl UnaryTransform<Dollars, SatsFract> for DollarsToSatsFract {
     #[inline(always)]
     fn apply(usd: Dollars) -> SatsFract {
         SatsFract::ONE_BTC / usd
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cents_outputs_propagate_nan() {
+        assert!(SatsToCents::apply(Sats::ONE_BTC, Cents::NAN).is_nan());
+        assert!(CentsTimesTenths::<24>::apply(Cents::NAN).is_nan());
+    }
+
+    #[test]
+    #[should_panic(expected = "Cents::NAN cannot be converted to whole Sats")]
+    fn whole_sats_reject_nan() {
+        CentsUnsignedToSats::apply(Cents::NAN);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cents::NAN cannot be converted to CentsSigned")]
+    fn signed_cents_reject_nan() {
+        CentsSubtractToCentsSigned::apply(Cents::NAN, Cents::ZERO);
     }
 }

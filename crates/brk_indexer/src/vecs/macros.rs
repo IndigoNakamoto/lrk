@@ -1,5 +1,5 @@
 /// Imports multiple items in parallel using thread::scope.
-/// Each expression must return Result<T>.
+/// Each expression must return `Result<T>`.
 ///
 /// # Example
 /// ```ignore

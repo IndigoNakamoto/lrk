@@ -1,12 +1,11 @@
-use brk_cohort::ByType;
 use brk_error::Result;
-use brk_types::{StoredU64, Version};
+use brk_types::Version;
 use vecdb::Database;
 
-use super::{Vecs, WithOutputTypes};
+use super::{CachedSpendableOutputCount, Vecs, WithOutputTypes, with_output_types::identity};
 use crate::{
     indexes,
-    internal::{PerBlockCumulativeRolling, PercentCumulativeRolling, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, Windows},
 };
 
 impl Vecs {
@@ -14,52 +13,49 @@ impl Vecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
-        let output_count =
-            WithOutputTypes::<PerBlockCumulativeRolling<StoredU64, StoredU64>>::forced_import_with(
-                db,
-                "output_count_bis",
-                |t| format!("{t}_output_count"),
-                version,
-                indexes,
-                cached_starts,
-            )?;
-        let tx_count =
-            WithOutputTypes::<PerBlockCumulativeRolling<StoredU64, StoredU64>>::forced_import_with(
-                db,
-                "tx_count_bis",
-                |t| format!("tx_count_with_{t}_output"),
-                version,
-                indexes,
-                cached_starts,
-            )?;
-
-        let spendable_output_count = PerBlockCumulativeRolling::forced_import(
+        let output_count_source = indexes.output_count_source();
+        let output_count = WithOutputTypes::forced_import_counts(
             db,
-            "spendable_output_count",
+            "output_count_bis",
+            |t| format!("{t}_output_count"),
             version,
+            (output_count_source, identity),
             indexes,
             cached_starts,
         )?;
+        let output_share = output_count.lazy_shares(
+            version,
+            |name| format!("{name}_output_share"),
+            cached_starts,
+            indexes,
+        );
+        let transaction_count_source = indexes.transaction_count_source();
+        let tx_count = WithOutputTypes::forced_import(
+            db,
+            "tx_count_bis",
+            |t| format!("tx_count_with_{t}_output"),
+            version,
+            (transaction_count_source, identity),
+            indexes,
+            cached_starts,
+        )?;
+        let tx_share = tx_count.lazy_shares(
+            version,
+            |name| format!("tx_share_with_{name}_output"),
+            cached_starts,
+            indexes,
+        );
 
-        let output_share = ByType::try_new(|_, name| {
-            PercentCumulativeRolling::forced_import(
-                db,
-                &format!("{name}_output_share"),
-                version,
-                indexes,
-            )
-        })?;
+        let op_return_count = output_count
+            .by_type
+            .unspendable
+            .op_return
+            .cached_cumulative();
+        let spendable_output_count =
+            CachedSpendableOutputCount::new(version, &op_return_count, indexes, cached_starts);
 
-        let tx_share = ByType::try_new(|_, name| {
-            PercentCumulativeRolling::forced_import(
-                db,
-                &format!("tx_share_with_{name}_output"),
-                version,
-                indexes,
-            )
-        })?;
         Ok(Self {
             output_count,
             spendable_output_count,

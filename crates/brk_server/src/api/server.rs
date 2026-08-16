@@ -29,7 +29,7 @@ impl ServerRoutes for ApiRouter<AppState> {
                     let uptime = state.started_instant.elapsed();
                     let started_at = state.started_at.to_string();
                     let chain_constants =
-                        state.query.inner().indexer().chain.constants();
+                        state.query.inner().indexer().chain().constants();
                     let (chain_str, ticker_str, coin_name_str) = (
                         chain_constants.coin_name.to_lowercase(),
                         chain_constants.ticker,
@@ -61,7 +61,7 @@ impl ServerRoutes for ApiRouter<AppState> {
                     op.id("get_health")
                         .server_tag()
                         .summary("Health check")
-                        .description("Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.")
+                        .description("Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, request `GET /api/server/sync`.")
                         .json_response::<Health>()
                 },
             ),

@@ -4,7 +4,7 @@
  * Capabilities by cohort type:
  * - All/STH: activity (full), SOPR (rolling + adjusted), sell side risk, value (flows + breakdown), coins
  * - LTH: activity (full), SOPR (rolling), sell side risk, value (flows + breakdown), coins
- * - AgeRange/MaxAge: activity (basic), SOPR (24h only), value (no flows/breakdown), coins
+ * - Core/AgeRange: activity, SOPR (24h only), value, coins
  * - Others (UtxoAmount, Empty, Address): no activity, value only
  */
 
@@ -243,7 +243,7 @@ function singleSellSideRiskTree(sellSideRisk, title) {
 // ============================================================================
 
 /**
- * Single activity tree items shared between WithAdjusted and basic
+ * Single activity tree items shared by adjusted and unadjusted full cohorts
  * @param {CohortAll | CohortFull | CohortLongTerm} cohort
  * @param {(name: string) => string} title
  * @param {PartialOptionsGroup} volumeItem
@@ -317,8 +317,8 @@ export function createActivitySection({ cohort, title }) {
 }
 
 /**
- * Activity section for cohorts with activity but basic realized (AgeRange/MaxAge — 24h SOPR only)
- * @param {{ cohort: CohortAgeRange | CohortWithAdjusted, title: (name: string) => string }} args
+ * Activity section for Core/AgeRange cohorts (24h SOPR only)
+ * @param {{ cohort: CohortAgeRange | CohortCore, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createActivitySectionWithActivity({ cohort, title }) {
@@ -578,7 +578,7 @@ function groupedValueDestroyedFolderWithAdjusted(list, all, title, getValueDestr
 // ============================================================================
 
 /**
- * Grouped activity tree items shared between WithAdjusted and basic
+ * Grouped activity tree items shared by adjusted and unadjusted full cohorts
  * @param {readonly (CohortFull | CohortLongTerm)[]} list
  * @param {CohortAll} all
  * @param {(name: string) => string} title
@@ -683,8 +683,8 @@ function groupedActivitySharedItems(list, all, title) {
 }
 
 /**
- * Grouped activity for cohorts with activity but basic realized (AgeRange/MaxAge)
- * @param {{ list: readonly (CohortAgeRange | CohortWithAdjusted)[], all: CohortAll, title: (name: string) => string }} args
+ * Grouped activity for Core/AgeRange cohorts
+ * @param {{ list: readonly (CohortAgeRange | CohortCore)[], all: CohortAll, title: (name: string) => string }} args
  * @returns {PartialOptionsGroup}
  */
 export function createGroupedActivitySectionWithActivity({ list, all, title }) {

@@ -1,10 +1,12 @@
-#![allow(
-    unreachable_patterns,
-    reason = "P2PK65 and P2PK33 both serialize as 'p2pk'"
-)]
-
 use brk_chain::primitives as bitcoin;
-use bitcoin::{AddressType, ScriptBuf, opcodes::all::OP_PUSHBYTES_2};
+use bitcoin::{
+    AddressType, ScriptBuf,
+    opcodes::all::{
+        OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_HASH160, OP_PUSHBYTES_0, OP_PUSHBYTES_2,
+        OP_PUSHBYTES_20, OP_PUSHBYTES_32, OP_PUSHBYTES_33, OP_PUSHBYTES_65, OP_PUSHNUM_1,
+        OP_RETURN,
+    },
+};
 use brk_error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -32,12 +34,34 @@ use crate::AddrBytes;
 #[repr(u8)]
 /// Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
 pub enum OutputType {
-    #[serde(rename = "p2pk")]
-    #[strum(serialize = "p2pk")]
     P2PK65,
-    #[serde(rename = "p2pk")]
-    #[strum(serialize = "p2pk")]
     P2PK33,
+    P2PKH,
+    P2MS,
+    P2SH,
+    OpReturn,
+    P2WPKH,
+    P2WSH,
+    P2TR,
+    P2A,
+    Empty,
+    /// Litecoin MWEB peg-pool output (witness v8 / HogAddr macro balance).
+    #[serde(rename = "mweb_peg_pool")]
+    #[strum(serialize = "mweb_peg_pool")]
+    MWEBPegPool,
+    /// Litecoin MWEB peg-in output (witness v9).
+    #[serde(rename = "mweb_pegin")]
+    #[strum(serialize = "mweb_pegin")]
+    MWEBPegIn,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, Display, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Hash)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+/// Output type names used by Esplora and mempool.space.
+pub enum OutputTypeNormalized {
+    P2PK,
     P2PKH,
     #[serde(rename = "multisig")]
     #[strum(serialize = "multisig")]
@@ -55,13 +79,13 @@ pub enum OutputType {
     #[serde(rename = "v1_p2tr")]
     #[strum(serialize = "v1_p2tr")]
     P2TR,
+    #[serde(rename = "anchor")]
+    #[strum(serialize = "anchor")]
     P2A,
     Empty,
-    /// Litecoin MWEB peg-pool output (witness v8 / HogAddr macro balance).
     #[serde(rename = "mweb_peg_pool")]
     #[strum(serialize = "mweb_peg_pool")]
     MWEBPegPool,
-    /// Litecoin MWEB peg-in output (witness v9).
     #[serde(rename = "mweb_pegin")]
     #[strum(serialize = "mweb_pegin")]
     MWEBPegIn,
@@ -70,9 +94,7 @@ pub enum OutputType {
 
 impl OutputType {
     /// Number of `OutputType` variants. Used to size per-type arrays indexed by
-    /// `otype as usize`. `Unknown` is the last (highest-discriminant) variant,
-    /// so this stays correct if variants are added/removed (e.g. the Litecoin
-    /// `MWEB` variant, which bumped this from 12 to 13).
+    /// `otype as usize`. `Unknown` is the last (highest-discriminant) variant.
     pub const COUNT: usize = Self::Unknown as usize + 1;
 
     pub const ADDR_TYPES: [Self; 8] = [
@@ -108,10 +130,6 @@ impl OutputType {
         }
     }
 
-    pub fn is_mweb(self) -> bool {
-        matches!(self, Self::MWEBPegPool | Self::MWEBPegIn)
-    }
-
     pub fn is_addr(&self) -> bool {
         match self {
             Self::P2PK65 => true,
@@ -136,6 +154,24 @@ impl OutputType {
 
     pub fn is_unspendable(&self) -> bool {
         !self.is_spendable()
+    }
+
+    pub const fn normalized(self) -> OutputTypeNormalized {
+        match self {
+            Self::P2PK65 | Self::P2PK33 => OutputTypeNormalized::P2PK,
+            Self::P2PKH => OutputTypeNormalized::P2PKH,
+            Self::P2MS => OutputTypeNormalized::P2MS,
+            Self::P2SH => OutputTypeNormalized::P2SH,
+            Self::OpReturn => OutputTypeNormalized::OpReturn,
+            Self::P2WPKH => OutputTypeNormalized::P2WPKH,
+            Self::P2WSH => OutputTypeNormalized::P2WSH,
+            Self::P2TR => OutputTypeNormalized::P2TR,
+            Self::P2A => OutputTypeNormalized::P2A,
+            Self::Empty => OutputTypeNormalized::Empty,
+            Self::MWEBPegPool => OutputTypeNormalized::MWEBPegPool,
+            Self::MWEBPegIn => OutputTypeNormalized::MWEBPegIn,
+            Self::Unknown => OutputTypeNormalized::Unknown,
+        }
     }
 
     /// Whether the address type's public key is revealed at funding time
@@ -164,6 +200,10 @@ impl OutputType {
             Self::MWEBPegIn,
             Self::Unknown,
         ]
+    }
+
+    pub fn is_mweb(self) -> bool {
+        matches!(self, Self::MWEBPegPool | Self::MWEBPegIn)
     }
 
     /// Returns `true` if this is a Litecoin MWEB peg-pool script (witness v8).
@@ -204,45 +244,45 @@ impl OutputType {
 impl From<&ScriptBuf> for OutputType {
     #[inline]
     fn from(script: &ScriptBuf) -> Self {
-        if script.is_p2pkh() {
-            Self::P2PKH
-        } else if script.is_p2wpkh() {
-            Self::P2WPKH
-        } else if script.is_p2wsh() {
-            Self::P2WSH
-        } else if script.is_p2tr() {
-            Self::P2TR
-        } else if script.is_p2sh() {
-            Self::P2SH
-        } else if script.is_op_return() {
-            Self::OpReturn
-        } else if script.is_p2pk() {
-            let bytes = script.as_bytes();
+        let bytes = script.as_bytes();
 
-            match bytes.len() {
-                67 => Self::P2PK65,
-                35 => Self::P2PK33,
-                _ => {
-                    dbg!(bytes);
-                    unreachable!()
-                }
+        match bytes.len() {
+            0 => Self::Empty,
+            4 if bytes == [OP_PUSHNUM_1.to_u8(), OP_PUSHBYTES_2.to_u8(), 78, 115] => Self::P2A,
+            22 if bytes[0] == OP_PUSHBYTES_0.to_u8() && bytes[1] == OP_PUSHBYTES_20.to_u8() => {
+                Self::P2WPKH
             }
-        } else if script.is_multisig() {
-            Self::P2MS
-        } else if script.witness_version() == Some(bitcoin::WitnessVersion::V1)
-            && script.len() == 4
-            && script.as_bytes()[1] == OP_PUSHBYTES_2.to_u8()
-            && script.as_bytes()[2..4] == [78, 115]
-        {
-            Self::P2A
-        } else if Self::is_mweb_peg_pool_script(script) {
-            Self::MWEBPegPool
-        } else if Self::is_mweb_pegin_script(script) {
-            Self::MWEBPegIn
-        } else if script.is_empty() {
-            Self::Empty
-        } else {
-            Self::Unknown
+            23 if bytes[0] == OP_HASH160.to_u8()
+                && bytes[1] == OP_PUSHBYTES_20.to_u8()
+                && bytes[22] == OP_EQUAL.to_u8() =>
+            {
+                Self::P2SH
+            }
+            25 if bytes[0] == OP_DUP.to_u8()
+                && bytes[1] == OP_HASH160.to_u8()
+                && bytes[2] == OP_PUSHBYTES_20.to_u8()
+                && bytes[23] == OP_EQUALVERIFY.to_u8()
+                && bytes[24] == OP_CHECKSIG.to_u8() =>
+            {
+                Self::P2PKH
+            }
+            34 if bytes[0] == OP_PUSHBYTES_0.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::P2WSH
+            }
+            34 if bytes[0] == OP_PUSHNUM_1.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::P2TR
+            }
+            35 if bytes[0] == OP_PUSHBYTES_33.to_u8() && bytes[34] == OP_CHECKSIG.to_u8() => {
+                Self::P2PK33
+            }
+            67 if bytes[0] == OP_PUSHBYTES_65.to_u8() && bytes[66] == OP_CHECKSIG.to_u8() => {
+                Self::P2PK65
+            }
+            _ if bytes[0] == OP_RETURN.to_u8() => Self::OpReturn,
+            _ if script.is_multisig() => Self::P2MS,
+            _ if Self::is_mweb_peg_pool_script(script) => Self::MWEBPegPool,
+            _ if Self::is_mweb_pegin_script(script) => Self::MWEBPegIn,
+            _ => Self::Unknown,
         }
     }
 }
@@ -288,10 +328,6 @@ impl TryFrom<OutputType> for AddressType {
             OutputType::P2TR => Self::P2tr,
             OutputType::P2WPKH => Self::P2wpkh,
             OutputType::P2WSH => Self::P2wsh,
-            OutputType::MWEBPegPool => {
-                return Err(Error::UnsupportedType("mweb_peg_pool".into()))
-            }
-            OutputType::MWEBPegIn => return Err(Error::UnsupportedType("mweb_pegin".into())),
             _ => return Err(Error::UnsupportedType(format!("{:?}", value))),
         })
     }
@@ -344,11 +380,110 @@ impl Pco for OutputType {
 
 impl TransparentPco<u8> for OutputType {}
 
-#[cfg(all(test, feature = "litecoin"))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Builds a raw witness-program script: `<version opcode> <push N> <N bytes>`.
+    #[test]
+    fn native_and_normalized_names_are_distinct() {
+        let cases = [
+            (
+                OutputType::P2PK65,
+                "p2pk65",
+                OutputTypeNormalized::P2PK,
+                "p2pk",
+            ),
+            (
+                OutputType::P2PK33,
+                "p2pk33",
+                OutputTypeNormalized::P2PK,
+                "p2pk",
+            ),
+            (
+                OutputType::P2PKH,
+                "p2pkh",
+                OutputTypeNormalized::P2PKH,
+                "p2pkh",
+            ),
+            (
+                OutputType::P2MS,
+                "p2ms",
+                OutputTypeNormalized::P2MS,
+                "multisig",
+            ),
+            (OutputType::P2SH, "p2sh", OutputTypeNormalized::P2SH, "p2sh"),
+            (
+                OutputType::OpReturn,
+                "opreturn",
+                OutputTypeNormalized::OpReturn,
+                "op_return",
+            ),
+            (
+                OutputType::P2WPKH,
+                "p2wpkh",
+                OutputTypeNormalized::P2WPKH,
+                "v0_p2wpkh",
+            ),
+            (
+                OutputType::P2WSH,
+                "p2wsh",
+                OutputTypeNormalized::P2WSH,
+                "v0_p2wsh",
+            ),
+            (
+                OutputType::P2TR,
+                "p2tr",
+                OutputTypeNormalized::P2TR,
+                "v1_p2tr",
+            ),
+            (OutputType::P2A, "p2a", OutputTypeNormalized::P2A, "anchor"),
+            (
+                OutputType::Empty,
+                "empty",
+                OutputTypeNormalized::Empty,
+                "empty",
+            ),
+            (
+                OutputType::Unknown,
+                "unknown",
+                OutputTypeNormalized::Unknown,
+                "unknown",
+            ),
+        ];
+
+        for (native, native_name, normalized, normalized_name) in cases {
+            assert_eq!(native.to_string(), native_name);
+            assert_eq!(native.normalized(), normalized);
+            assert_eq!(
+                serde_json::to_string(&native).unwrap(),
+                format!(r#""{native_name}""#)
+            );
+            assert_eq!(
+                serde_json::from_str::<OutputType>(&format!(r#""{native_name}""#)).unwrap(),
+                native
+            );
+            assert_eq!(normalized.to_string(), normalized_name);
+            assert_eq!(
+                serde_json::to_string(&normalized).unwrap(),
+                format!(r#""{normalized_name}""#)
+            );
+            assert_eq!(
+                serde_json::from_str::<OutputTypeNormalized>(&format!(r#""{normalized_name}""#))
+                    .unwrap(),
+                normalized
+            );
+        }
+
+        assert!(serde_json::from_str::<OutputType>(r#""p2pk""#).is_err());
+        assert!(serde_json::from_str::<OutputType>(r#""anchor""#).is_err());
+        assert!(serde_json::from_str::<OutputTypeNormalized>(r#""p2a""#).is_err());
+    }
+}
+
+#[cfg(all(test, feature = "litecoin"))]
+mod mweb_tests {
+    use super::*;
+
     fn witness_script(version_opcode: u8, program_len: usize) -> ScriptBuf {
         let mut bytes = vec![version_opcode, program_len as u8];
         bytes.extend(std::iter::repeat(0u8).take(program_len));
@@ -357,7 +492,6 @@ mod tests {
 
     #[test]
     fn litecoin_mweb_outputs_classify_by_witness_version() {
-        // OP_PUSHNUM_8 = 0x58 (peg-pool), OP_PUSHNUM_9 = 0x59 (peg-in).
         let v8 = witness_script(0x58, 32);
         let v9 = witness_script(0x59, 32);
         assert_eq!(OutputType::from(&v8), OutputType::MWEBPegPool);
@@ -370,7 +504,6 @@ mod tests {
 
     #[test]
     fn other_witness_versions_are_not_mweb() {
-        // v2 (0x52) is a plain future witness program, not MWEB.
         let v2 = witness_script(0x52, 32);
         assert!(!OutputType::from(&v2).is_mweb());
     }

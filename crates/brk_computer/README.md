@@ -45,7 +45,7 @@ let realized_cap = computer.distribution.utxo_cohorts.all.metrics.realized.unwra
 ## Cohort System
 
 UTXO and address cohorts support filtering by:
-- **Age**: STH (<150d), LTH (≥150d), 21 age bands (<1h, 1h-1d, 1d-1w, 1w-1m, 1m-2m, ..., 6m-1y, 1y-2y, ..., 12y-15y, 15y+)
+- **Age**: STH (<150d), LTH (≥150d), 23 age bands (<1h, 1h-1d, 1d-1w, 1w-1m, 1m-2m, ..., 6m-9m, 9m-1y, 1y-18m, 18m-2y, ..., 12y-15y, 15y+)
 - **Amount**: 0-0.001 BTC, 0.001-0.01, ..., 10k+ BTC
 - **Type**: P2PK, P2PKH, P2MS, P2SH, P2WPKH, P2WSH, P2TR, P2A
 - **Epoch**: By halving epoch

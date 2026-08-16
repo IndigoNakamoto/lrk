@@ -3,7 +3,7 @@ use std::ops::Add;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use crate::TypeIndex;
 
@@ -102,6 +102,10 @@ impl PrintableIndex for P2SHAddrIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["shaddr", "p2shaddr", "p2sh_addr_index"]
     }
+}
+
+impl VecIndex for P2SHAddrIndex {
+    const INITIAL_CAPACITY: usize = 500_000_000;
 }
 
 impl std::fmt::Display for P2SHAddrIndex {

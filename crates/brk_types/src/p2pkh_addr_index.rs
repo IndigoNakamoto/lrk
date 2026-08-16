@@ -3,7 +3,7 @@ use std::ops::Add;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use crate::TypeIndex;
 
@@ -95,6 +95,10 @@ impl PrintableIndex for P2PKHAddrIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["pkhaddr", "p2pkhaddr", "p2pkh_addr_index"]
     }
+}
+
+impl VecIndex for P2PKHAddrIndex {
+    const INITIAL_CAPACITY: usize = 750_000_000;
 }
 
 impl std::fmt::Display for P2PKHAddrIndex {

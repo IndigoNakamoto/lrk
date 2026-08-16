@@ -6,7 +6,6 @@ use vecdb::Exit;
 use super::Vecs;
 use crate::{
     inputs,
-    internal::PerBlockCumulativeRolling,
     outputs::{ByTypeVecs, CountVecs},
 };
 
@@ -20,10 +19,9 @@ impl Vecs {
         indexer: &Indexer,
         exit: &Exit,
     ) -> Result<()> {
-        let op_return: &PerBlockCumulativeRolling<StoredU64, StoredU64> =
-            &by_type.output_count.by_type.unspendable.op_return;
+        let op_return = &by_type.output_count.by_type.unspendable.op_return;
 
-        let bip30_dups = indexer.chain.constants().bip30_duplicate_heights;
+        let bip30_dups = indexer.chain().constants().bip30_duplicate_heights;
 
         // Note: unspendable Litecoin MWEB outputs are naturally kept out of the
         // spendable UTXO set here because every MWEB output that gets spent

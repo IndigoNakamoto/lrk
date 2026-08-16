@@ -100,8 +100,10 @@ const AGE_BANDS = [
   { name: "3m to 4m", cohort: "utxos_3m_to_4m_old" },
   { name: "4m to 5m", cohort: "utxos_4m_to_5m_old" },
   { name: "5m to 6m", cohort: "utxos_5m_to_6m_old" },
-  { name: "6m to 1y", cohort: "utxos_6m_to_1y_old" },
-  { name: "1y to 2y", cohort: "utxos_1y_to_2y_old" },
+  { name: "6m to 9m", cohort: "utxos_6m_to_9m_old" },
+  { name: "9m to 1y", cohort: "utxos_9m_to_1y_old" },
+  { name: "1y to 18m", cohort: "utxos_1y_to_18m_old" },
+  { name: "18m to 2y", cohort: "utxos_18m_to_2y_old" },
   { name: "2y to 3y", cohort: "utxos_2y_to_3y_old" },
   { name: "3y to 4y", cohort: "utxos_3y_to_4y_old" },
   { name: "4y to 5y", cohort: "utxos_4y_to_5y_old" },
@@ -114,38 +116,89 @@ const AGE_BANDS = [
   { name: "Over 15y", cohort: "utxos_over_15y_old" },
 ];
 
-export const urpdAllHeatmapOptions = createCohortHeatmapOptions({
-  cohort: "all",
+export const rawUrpdHeatmapTree = createUrpdHeatmapTree();
+export const cointimeWeightedUrpdHeatmapTree = createUrpdHeatmapTree({
+  weight: "cointime",
+  weightTitle: "Cointime-Weighted",
 });
-export const urpdSthHeatmapOptions = createCohortHeatmapOptions({
-  cohort: "sth",
-  titlePrefix: "STH",
+export const coinflowWeightedUrpdHeatmapTree = createUrpdHeatmapTree({
+  weight: "coinflow",
+  weightTitle: "Coinflow-Weighted",
 });
-export const urpdLthHeatmapOptions = createCohortHeatmapOptions({
-  cohort: "lth",
-  titlePrefix: "LTH",
-});
-export const urpdAgeBandHeatmapFolders = AGE_BANDS.map(({ name, cohort }) => ({
-  name,
-  tree: createCohortHeatmapOptions({ cohort, titlePrefix: name }),
-}));
+
+/**
+ * @param {Object} args
+ * @param {UrpdWeight} [args.weight]
+ * @param {string} [args.weightTitle]
+ * @returns {PartialOptionsTree}
+ */
+function createUrpdHeatmapTree({ weight, weightTitle } = {}) {
+  return [
+    ...createCohortHeatmapOptions({ cohort: "all", weight, weightTitle }),
+    {
+      name: "STH",
+      tree: createCohortHeatmapOptions({
+        cohort: "sth",
+        titlePrefix: "STH",
+        weight,
+        weightTitle,
+      }),
+    },
+    {
+      name: "LTH",
+      tree: createCohortHeatmapOptions({
+        cohort: "lth",
+        titlePrefix: "LTH",
+        weight,
+        weightTitle,
+      }),
+    },
+    {
+      name: "Age Bands",
+      tree: AGE_BANDS.map(({ name, cohort }) => ({
+        name,
+        tree: createCohortHeatmapOptions({
+          cohort,
+          titlePrefix: name,
+          weight,
+          weightTitle,
+        }),
+      })),
+    },
+  ];
+}
 
 /**
  * @param {Object} args
  * @param {UrpdCohort} args.cohort
  * @param {string} [args.titlePrefix]
+ * @param {UrpdWeight} [args.weight]
+ * @param {string} [args.weightTitle]
  * @returns {PartialHeatmapOption[]}
  */
-function createCohortHeatmapOptions({ cohort, titlePrefix }) {
+function createCohortHeatmapOptions({
+  cohort,
+  titlePrefix,
+  weight,
+  weightTitle,
+}) {
   return METRICS.map((metric) => {
-    const title = titlePrefix
-      ? `${titlePrefix} ${metric.title} Distribution`
-      : `${metric.title} Distribution`;
+    const title = [weightTitle, titlePrefix, metric.title, "Distribution"]
+      .filter(Boolean)
+      .join(" ");
+    const tooltip = weightTitle
+      ? {
+          ...metric.tooltip,
+          valueLabel: `${weightTitle} ${metric.tooltip.valueLabel.toLowerCase()}`,
+        }
+      : metric.tooltip;
 
     return createUrpdHeatmapOption({
       ...metric,
       cohort,
       title,
+      tooltip,
+      weight,
     });
   });
 }
@@ -155,6 +208,7 @@ function createCohortHeatmapOptions({ cohort, titlePrefix }) {
  * @param {UrpdCohort} args.cohort
  * @param {string} args.name
  * @param {string} args.title
+ * @param {UrpdWeight} [args.weight]
  * @param {(bucket: Urpd["buckets"][number]) => number} args.getValue
  * @param {HeatmapColorFn} args.color
  * @param {{ valueLabel?: string, formatValue?: (value: number) => string }} args.tooltip
@@ -164,6 +218,7 @@ function createUrpdHeatmapOption({
   cohort,
   name,
   title,
+  weight,
   getValue,
   color,
   tooltip,
@@ -174,7 +229,7 @@ function createUrpdHeatmapOption({
     title,
     points: {
       fetch: (date, signal, onPoints) =>
-        fetchUrpdPoints(cohort, date, signal, getValue, onPoints),
+        fetchUrpdPoints(cohort, date, weight, signal, getValue, onPoints),
     },
     grid: createAverageGrid({
       yMin: MIN_LOG,
@@ -202,23 +257,37 @@ function createUrpdHeatmapOption({
 /**
  * @param {UrpdCohort} cohort
  * @param {string} date
+ * @param {UrpdWeight} [weight]
  * @param {AbortSignal} signal
  * @param {(bucket: Urpd["buckets"][number]) => number} getValue
  * @param {(points: HeatmapPoints) => void} [onPoints]
  * @returns {Promise<HeatmapPoints>}
  */
-async function fetchUrpdPoints(cohort, date, signal, getValue, onPoints) {
+async function fetchUrpdPoints(
+  cohort,
+  date,
+  weight,
+  signal,
+  getValue,
+  onPoints,
+) {
   /** @type {HeatmapPoints | undefined} */
   let points;
-  const urpd = await brk.getUrpdAt(cohort, date, AGGREGATION, {
-    signal,
-    onValue: onPoints
-      ? (urpd) => {
-          points = toPoints(urpd, getValue);
-          onPoints(points);
-        }
-      : undefined,
-  });
+  const urpd = await brk.getUrpdAt(
+    cohort,
+    date,
+    AGGREGATION,
+    weight,
+    {
+      signal,
+      onValue: onPoints
+        ? (urpd) => {
+            points = toPoints(urpd, getValue);
+            onPoints(points);
+          }
+        : undefined,
+    },
+  );
 
   return points ?? toPoints(urpd, getValue);
 }

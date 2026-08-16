@@ -4,7 +4,7 @@
  * Supply pattern capabilities by cohort type:
  * - DeltaHalfInRelTotalPattern2 (STH/LTH): inProfit + inLoss + dominance + share
  * - SeriesTree_Cohorts_Utxo_All_Supply (All): inProfit + inLoss + share (no dominance)
- * - DeltaHalfInRelTotalPattern (AgeRange/MaxAge/Epoch): inProfit + inLoss + dominance (no share)
+ * - Core/AgeRange: inProfit + inLoss + dominance (no share)
  * - DeltaHalfInTotalPattern2 (Type.*): inProfit + inLoss (no rel)
  * - DeltaHalfTotalPattern (Empty/UtxoAmount/AddrAmount): total + half only
  */
@@ -51,6 +51,25 @@ function simpleSupplySeries(supply) {
  * @param {(name: string) => string} title
  */
 function groupedOutputsFolder(list, all, title) {
+  const folder = groupedUnspentOutputsFolder(list, all, title);
+  folder.tree.push({
+    name: "Spent",
+    tree: groupedWindowsCumulativeWithAll({
+      list, all, title, metricTitle: "Spent UTXO Count",
+      getWindowSeries: (c, key) => c.tree.outputs.spentCount.sum[key],
+      getCumulativeSeries: (c) => c.tree.outputs.spentCount.cumulative,
+      seriesFn: line, unit: Unit.count,
+    }),
+  });
+  return folder;
+}
+
+/**
+ * @param {readonly (UtxoCohortObject | AddrCohortObject | CohortWithoutRelative)[]} list
+ * @param {CohortAll} all
+ * @param {(name: string) => string} title
+ */
+function groupedUnspentOutputsFolder(list, all, title) {
   return {
     name: "Outputs",
     tree: [
@@ -66,22 +85,6 @@ function groupedOutputsFolder(list, all, title) {
           },
           ...groupedDeltaItems(list, all, (c) => c.tree.outputs.unspentCount.delta, Unit.count, title, "UTXO Count"),
         ],
-      },
-      {
-        name: "Spent",
-        tree: groupedWindowsCumulativeWithAll({
-          list, all, title, metricTitle: "Spent UTXO Count",
-          getWindowSeries: (c, key) => c.tree.outputs.spentCount.sum[key],
-          getCumulativeSeries: (c) => c.tree.outputs.spentCount.cumulative,
-          seriesFn: line, unit: Unit.count,
-        }),
-      },
-      {
-        name: "Spending Rate",
-        title: title("Spending Rate"),
-        bottom: mapCohortsWithAll(list, all, ({ name, color, tree }) =>
-          line({ series: tree.outputs.spendingRate, name, color, unit: Unit.ratio }),
-        ),
       },
     ],
   };
@@ -299,21 +302,25 @@ function dominanceChart(supply, color, title) {
  * @returns {PartialOptionsGroup}
  */
 function outputsFolder(outputs, color, title) {
+  const folder = unspentOutputsFolder(outputs, color, title);
+  folder.tree.push({
+    name: "Spent",
+    tree: chartsFromCount({ pattern: outputs.spentCount, title, metric: "Spent UTXO Count", unit: Unit.count, color }),
+  });
+  return folder;
+}
+
+/**
+ * @param {{ unspentCount: { base: AnySeriesPattern, delta: DeltaPattern } }} outputs
+ * @param {Color} color
+ * @param {(name: string) => string} title
+ * @returns {PartialOptionsGroup}
+ */
+function unspentOutputsFolder(outputs, color, title) {
   return {
     name: "Outputs",
     tree: [
       countFolder(outputs.unspentCount, "Unspent", "UTXO Count", color, title),
-      {
-        name: "Spent",
-        tree: chartsFromCount({ pattern: outputs.spentCount, title, metric: "Spent UTXO Count", unit: Unit.count, color }),
-      },
-      {
-        name: "Spending Rate",
-        title: title("Spending Rate"),
-        bottom: [
-          line({ series: outputs.spendingRate, name: "Rate", color, unit: Unit.ratio }),
-        ],
-      },
     ],
   };
 }
@@ -399,7 +406,7 @@ export function createHoldingsSectionAll({ cohort, title }) {
         ...singleAmountDeltaItems(supply.delta, title, "Supply"),
       ],
     },
-    outputsFolder(cohort.tree.outputs, cohort.color, title),
+    unspentOutputsFolder(cohort.tree.outputs, cohort.color, title),
     countFolder(cohort.addressCount, "Addresses", "Address Count", cohort.color, title),
   ];
 }
@@ -435,7 +442,7 @@ export function createHoldingsSectionWithRelative({ cohort, title }) {
 }
 
 /**
- * @param {{ cohort: CohortWithAdjusted | CohortAgeRange, title: (name: string) => string }} args
+ * @param {{ cohort: CohortCore | CohortAgeRange, title: (name: string) => string }} args
  * @returns {PartialOptionsTree}
  */
 export function createHoldingsSectionWithOwnSupply({ cohort, title }) {
@@ -535,7 +542,7 @@ export function createHoldingsSectionAddressAmount({ cohort, title }) {
         ...singleAmountDeltaItems(supply.delta, title, "Supply"),
       ],
     },
-    outputsFolder(cohort.tree.outputs, cohort.color, title),
+    unspentOutputsFolder(cohort.tree.outputs, cohort.color, title),
     countFolder(cohort.addressCount, "Addresses", "Address Count", cohort.color, title),
   ];
 }
@@ -658,7 +665,7 @@ export function createGroupedHoldingsSectionAddressAmount({ list, all, title }) 
         ...groupedAmountDeltaItems(list, all, (c) => c.tree.supply.delta, title, "Supply"),
       ],
     },
-    groupedOutputsFolder(list, all, title),
+    groupedUnspentOutputsFolder(list, all, title),
     {
       name: "Addresses",
       tree: [
@@ -709,7 +716,7 @@ export function createGroupedHoldingsSectionWithProfitLoss({ list, all, title })
   ];
 }
 
-/** @param {{ list: readonly (CohortWithAdjusted | CohortAgeRange)[], all: CohortAll, title: (name: string) => string }} args */
+/** @param {{ list: readonly (CohortCore | CohortAgeRange)[], all: CohortAll, title: (name: string) => string }} args */
 export function createGroupedHoldingsSectionWithOwnSupply({ list, all, title }) {
   return [
     {

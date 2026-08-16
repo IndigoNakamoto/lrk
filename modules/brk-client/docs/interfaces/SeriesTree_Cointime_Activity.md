@@ -6,52 +6,12 @@
 
 # Interface: SeriesTree\_Cointime\_Activity
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5968](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5968)
+Defined in: [Developer/brk/modules/brk-client/index.js:8346](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8346)
 
 ## Properties
-
-### coinblocksCreated
-
-> **coinblocksCreated**: [`AverageBlockCumulativeSumPattern`](AverageBlockCumulativeSumPattern.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5969](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5969)
-
-***
 
 ### coinblocksDestroyed
 
 > **coinblocksDestroyed**: [`AverageBlockCumulativeSumPattern`](AverageBlockCumulativeSumPattern.md)\<`number`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5974](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5974)
-
-***
-
-### coinblocksStored
-
-> **coinblocksStored**: [`AverageBlockCumulativeSumPattern`](AverageBlockCumulativeSumPattern.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5970](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5970)
-
-***
-
-### liveliness
-
-> **liveliness**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5971](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5971)
-
-***
-
-### ratio
-
-> **ratio**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5973](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5973)
-
-***
-
-### vaultedness
-
-> **vaultedness**: [`SeriesPattern1`](../type-aliases/SeriesPattern1.md)\<`number`\>
-
-Defined in: [Developer/brk/modules/brk-client/index.js:5972](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5972)
+Defined in: [Developer/brk/modules/brk-client/index.js:8347](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L8347)

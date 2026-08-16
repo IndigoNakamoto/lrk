@@ -3,7 +3,7 @@ use std::ops::{Add, AddAssign};
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use super::Vin;
 
@@ -119,6 +119,10 @@ impl PrintableIndex for TxInIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["txi", "txin", "txin_index"]
     }
+}
+
+impl VecIndex for TxInIndex {
+    const INITIAL_CAPACITY: usize = 4_200_000_000;
 }
 
 impl std::fmt::Display for TxInIndex {

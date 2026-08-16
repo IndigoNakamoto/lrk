@@ -1,8 +1,6 @@
 //! Tx-keyed reads.
 
-use brk_types::{
-    MempoolRecentTx, OutpointPrefix, Transaction, Txid, TxidPrefix, Vin, Vout,
-};
+use brk_types::{MempoolRecentTx, OutpointPrefix, Transaction, Txid, TxidPrefix, Vin, Vout};
 
 use crate::Mempool;
 

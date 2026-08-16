@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
-use brk_types::{BasisPoints32, Cents, StoredF32, StoredF64};
-use vecdb::{BinaryTransform, UnaryTransform};
+use brk_types::{Cents, PartsPerMillionSigned64, StoredF32, StoredF64};
+use vecdb::{BinaryTransform, UnaryTransform, unlikely};
+
+use crate::internal::FixedRatio;
 
 pub struct DaysToYears;
 
@@ -9,6 +11,18 @@ impl UnaryTransform<StoredF32, StoredF32> for DaysToYears {
     #[inline(always)]
     fn apply(v: StoredF32) -> StoredF32 {
         StoredF32::from(*v / 365.0)
+    }
+}
+
+pub struct Cagr<const YEARS: u8>;
+
+impl<const YEARS: u8> UnaryTransform<PartsPerMillionSigned64, PartsPerMillionSigned64>
+    for Cagr<YEARS>
+{
+    #[inline(always)]
+    fn apply(value: PartsPerMillionSigned64) -> PartsPerMillionSigned64 {
+        let ratio = f64::from(value);
+        PartsPerMillionSigned64::from((ratio + 1.0).powf(1.0 / YEARS as f64) - 1.0)
     }
 }
 
@@ -45,21 +59,12 @@ impl<D: SqrtDays> UnaryTransform<StoredF32, StoredF32> for TimesSqrt<D> {
     }
 }
 
-pub struct PriceTimesRatioCents;
+pub struct PriceTimesRatio<R>(PhantomData<R>);
 
-impl BinaryTransform<Cents, StoredF32, Cents> for PriceTimesRatioCents {
+impl<R: FixedRatio> BinaryTransform<Cents, R, Cents> for PriceTimesRatio<R> {
     #[inline(always)]
-    fn apply(price: Cents, ratio: StoredF32) -> Cents {
-        Cents::from(f64::from(price) * f64::from(ratio))
-    }
-}
-
-pub struct PriceTimesRatioBp32Cents;
-
-impl BinaryTransform<Cents, BasisPoints32, Cents> for PriceTimesRatioBp32Cents {
-    #[inline(always)]
-    fn apply(price: Cents, ratio: BasisPoints32) -> Cents {
-        Cents::from(f64::from(price) * f64::from(ratio))
+    fn apply(price: Cents, ratio: R) -> Cents {
+        Cents::from(f64::from(price) * ratio.into())
     }
 }
 
@@ -68,10 +73,22 @@ pub struct RatioCents64;
 impl BinaryTransform<Cents, Cents, StoredF64> for RatioCents64 {
     #[inline(always)]
     fn apply(numerator: Cents, denominator: Cents) -> StoredF64 {
-        if denominator == Cents::ZERO {
+        let denominator = f64::from(denominator);
+        if unlikely(denominator == 0.0) {
             StoredF64::from(1.0)
         } else {
-            StoredF64::from(numerator.inner() as f64 / denominator.inner() as f64)
+            StoredF64::from(f64::from(numerator) / denominator)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cents_ratio_64_propagates_nan() {
+        assert!(RatioCents64::apply(Cents::NAN, Cents::new(100)).is_nan());
+        assert!(RatioCents64::apply(Cents::new(100), Cents::NAN).is_nan());
     }
 }

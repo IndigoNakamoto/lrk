@@ -7,13 +7,14 @@
 
 use std::path::PathBuf;
 
-use brk_indexer::Indexer;
 use brk_oracle::{
-    Config, HistogramEma, HistogramRaw, NUM_BINS, START_HEIGHT_FAST, bin_to_cents, cents_to_bin,
-    pre_oracle_price_cents, PaymentFilter,
+    Config, HistogramEma, HistogramRaw, NUM_BINS, PaymentFilter, START_HEIGHT_FAST, bin_to_cents,
+    cents_to_bin, pre_oracle_price_cents,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};
+
+mod common;
 
 /// Day1 1 = Jan 9, 2009 (block 1). For dates after genesis week:
 /// day1 = floor(timestamp / 86400) - 14252.
@@ -542,8 +543,8 @@ fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(5000);
 
-    let indexer = Indexer::forced_import(&data_dir).expect("Failed to load indexer");
-    let total_heights = indexer.vecs.blocks.timestamp.len();
+    let indexer = common::import_indexer(&data_dir);
+    let total_heights = indexer.vecs().blocks.timestamp.len();
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
 
     let height_ohlc: Vec<[f64; 4]> = serde_json::from_str(
@@ -572,7 +573,7 @@ fn main() {
         .collect();
 
     // Read block timestamps for year + day1 mapping.
-    let timestamps: Vec<brk_types::Timestamp> = indexer.vecs.blocks.timestamp.collect();
+    let timestamps: Vec<brk_types::Timestamp> = indexer.vecs().blocks.timestamp.collect();
     let height_years: Vec<u16> = timestamps
         .iter()
         .map(|ts| timestamp_to_year(**ts))
@@ -835,14 +836,19 @@ fn main() {
     let mut sharp_ema = HistogramEma::zeros();
     eprintln!("  sharp: span={sharp_span:.0} window={sharp_window} alpha={sharp_alpha:.5}");
 
-    let total_txs = indexer.vecs.transactions.txid.len();
-    let total_outputs = indexer.vecs.outputs.value.len();
+    let total_txs = indexer.vecs().transactions.txid.len();
+    let total_outputs = indexer.vecs().outputs.value.len();
 
     // Pre-collect height-indexed vecs (small). Transaction-indexed vecs are too
     // large, so the tx-indexed first_txout_index is read through a forward cursor.
-    let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
-    let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
-    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+    let first_tx_index: Vec<TxIndex> = indexer.vecs().transactions.first_tx_index.collect();
+    let out_first: Vec<TxOutIndex> = indexer.vecs().outputs.first_txout_index.collect();
+    let mut txout_cursor = indexer
+        .vecs()
+        .transactions
+        .first_txout_index
+        .reader()
+        .cursor();
     let mut tx_starts: Vec<usize> = Vec::new();
 
     let mut year_stats: Vec<YearStats> = Vec::new();
@@ -888,12 +894,12 @@ fn main() {
         let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
         let values: Vec<Sats> = indexer
-            .vecs
+            .vecs()
             .outputs
             .value
             .collect_range_at(out_start, out_end);
         let output_types: Vec<OutputType> = indexer
-            .vecs
+            .vecs()
             .outputs
             .output_type
             .collect_range_at(out_start, out_end);

@@ -1,5 +1,5 @@
 use std::{
-    fs, io,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -7,17 +7,13 @@ use brk_error::{Error, Result};
 use brk_types::Version;
 use fjall::Keyspace;
 
-use super::Height;
-
 #[derive(Debug, Clone)]
-pub struct StoreMeta {
+pub(super) struct StoreMeta {
     pathbuf: PathBuf,
-    version: Version,
-    height: Option<Height>,
 }
 
 impl StoreMeta {
-    pub fn checked_open<F>(
+    pub(super) fn checked_open<F>(
         path: &Path,
         version: Version,
         open_partition_handle: F,
@@ -41,25 +37,14 @@ impl StoreMeta {
 
         let slf = Self {
             pathbuf: path.to_owned(),
-            version,
-            height: Height::try_from(Self::path_height_(path).as_path()).ok(),
         };
 
-        slf.version.write(&slf.path_version())?;
+        version.write(&slf.path_version())?;
 
         Ok((slf, partition))
     }
 
-    pub fn version(&self) -> Version {
-        self.version
-    }
-
-    pub fn export(&mut self, height: Height) -> io::Result<()> {
-        self.height = Some(height);
-        height.write(&self.path_height())
-    }
-
-    pub fn path(&self) -> &Path {
+    pub(super) fn path(&self) -> &Path {
         &self.pathbuf
     }
 
@@ -68,32 +53,5 @@ impl StoreMeta {
     }
     fn path_version_(path: &Path) -> PathBuf {
         path.join("version")
-    }
-
-    #[inline]
-    pub fn height(&self) -> Option<Height> {
-        self.height
-    }
-    #[inline]
-    pub fn needs(&self, height: Height) -> bool {
-        self.height.is_none_or(|self_height| height > self_height)
-    }
-    #[inline]
-    pub fn has(&self, height: Height) -> bool {
-        !self.needs(height)
-    }
-    pub fn reset(&mut self) -> io::Result<()> {
-        self.height = None;
-        let path = self.path_height();
-        if path.exists() {
-            fs::remove_file(&path)?;
-        }
-        Ok(())
-    }
-    fn path_height(&self) -> PathBuf {
-        Self::path_height_(&self.pathbuf)
-    }
-    fn path_height_(path: &Path) -> PathBuf {
-        path.join("height")
     }
 }

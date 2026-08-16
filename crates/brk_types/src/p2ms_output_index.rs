@@ -3,7 +3,7 @@ use std::ops::Add;
 use derive_more::{Deref, DerefMut};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
+use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
 use crate::TypeIndex;
 
@@ -74,6 +74,10 @@ impl PrintableIndex for P2MSOutputIndex {
     fn to_possible_strings() -> &'static [&'static str] {
         &["msout", "p2msout", "p2ms_output_index"]
     }
+}
+
+impl VecIndex for P2MSOutputIndex {
+    const INITIAL_CAPACITY: usize = 4_000_000;
 }
 
 impl std::fmt::Display for P2MSOutputIndex {

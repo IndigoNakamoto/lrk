@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Bitcoin, Cents, CentsSats, CentsSigned, Cohort, Date, Dollars, Sats, UrpdAggregation,
-    UrpdBucket, UrpdRaw,
+    UrpdBucket, UrpdRaw, UrpdWeight,
 };
 
 /// UTXO Realized Price Distribution for a cohort on a specific date.
@@ -17,6 +17,8 @@ use crate::{
 pub struct Urpd {
     pub cohort: Cohort,
     pub date: Date,
+    /// Weighting applied to the source supply.
+    pub weight: UrpdWeight,
     /// Aggregation strategy applied to the buckets.
     pub aggregation: UrpdAggregation,
     /// Close price on `date`, in USD. Anchor for `unrealized_pnl`.
@@ -37,6 +39,7 @@ impl Urpd {
     pub fn build(
         cohort: Cohort,
         date: Date,
+        weight: UrpdWeight,
         close_cents: Cents,
         raw: &UrpdRaw,
         aggregation: UrpdAggregation,
@@ -77,6 +80,7 @@ impl Urpd {
         Self {
             cohort,
             date,
+            weight,
             aggregation,
             close,
             total_supply: Bitcoin::from(total_supply),

@@ -1,4 +1,8 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use brk_error::Result;
 use pco::{
@@ -9,7 +13,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use vecdb::Bytes;
 
-use crate::{CentsCompact, Sats};
+use crate::{CentsCompact, Date, Sats};
 
 /// Raw on-disk URPD: a map of price (cents) to supply (sats).
 /// Processed into [`crate::Urpd`] for API responses.
@@ -19,6 +23,56 @@ pub struct UrpdRaw {
 }
 
 impl UrpdRaw {
+    pub fn dir(states_path: &Path, name: &str) -> PathBuf {
+        states_path.join(name).join("urpd")
+    }
+
+    pub fn path(states_path: &Path, name: &str, date: Date) -> PathBuf {
+        Self::dir(states_path, name).join(date.to_string())
+    }
+
+    pub fn read(states_path: &Path, name: &str, date: Date) -> Result<Self> {
+        let path = Self::path(states_path, name, date);
+        let bytes = fs::read(&path).map_err(|error| {
+            std::io::Error::new(
+                error.kind(),
+                format!("Cannot read URPD '{}': {error}", path.display()),
+            )
+        })?;
+        Self::deserialize(&bytes)
+    }
+
+    pub fn write(
+        states_path: &Path,
+        name: &str,
+        date: Date,
+        entries: impl Iterator<Item = (CentsCompact, Sats)>,
+    ) -> Result<()> {
+        let dir = Self::dir(states_path, name);
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join(date.to_string()), Self::serialize_iter(entries)?)?;
+        Ok(())
+    }
+
+    /// Apply one scalar weight to every price bucket, flooring to whole sats.
+    pub fn apply_weight(mut self, weight: f64) -> Self {
+        debug_assert!(weight.is_finite() && weight >= 0.0);
+
+        if weight == 1.0 {
+            return self;
+        }
+        if weight == 0.0 {
+            self.map.clear();
+            return self;
+        }
+
+        self.map.retain(|_, sats| {
+            *sats = Sats::from((u64::from(*sats) as f64 * weight).floor() as u64);
+            *sats != Sats::ZERO
+        });
+        self
+    }
+
     /// Deserialize from the pco-compressed format, returning remaining bytes.
     pub fn deserialize_with_rest(data: &[u8]) -> Result<(Self, &[u8])> {
         if data.len() < 24 {
@@ -85,5 +139,51 @@ impl UrpdRaw {
         buffer.extend(compressed_values);
 
         Ok(buffer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_roundtrip() {
+        let root = std::env::temp_dir().join(format!("brk-urpd-file-{}", std::process::id()));
+        let date = Date::new(2026, 8, 4);
+        let expected = BTreeMap::from([
+            (CentsCompact::new(100), Sats::from(21_u64)),
+            (CentsCompact::new(200), Sats::from(34_u64)),
+        ]);
+
+        UrpdRaw::write(
+            &root,
+            "test",
+            date,
+            expected.iter().map(|(&price, &sats)| (price, sats)),
+        )
+        .unwrap();
+        let actual = UrpdRaw::read(&root, "test", date).unwrap();
+
+        assert_eq!(actual.map, expected);
+
+        UrpdRaw::write(&root, "empty", date, std::iter::empty()).unwrap();
+        assert!(UrpdRaw::read(&root, "empty", date).unwrap().map.is_empty());
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn scalar_weight_floors_each_bucket() {
+        let raw = UrpdRaw {
+            map: BTreeMap::from([
+                (CentsCompact::new(100), Sats::from(3_u64)),
+                (CentsCompact::new(200), Sats::from(1_u64)),
+            ]),
+        };
+
+        assert_eq!(
+            raw.apply_weight(0.5).map,
+            BTreeMap::from([(CentsCompact::new(100), Sats::from(1_u64))])
+        );
     }
 }

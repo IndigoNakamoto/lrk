@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use brk_chain::Chain;
 use brk_cohort::{ByAddrType, EntryPrice, Filter};
 use brk_error::Result;
 use brk_indexer::Indexer;
@@ -12,12 +11,11 @@ use brk_types::{
 use rayon::prelude::*;
 use tracing::{debug, info};
 use vecdb::{
-    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportableVec, LazyVecFrom1, ReadOnlyClone,
+    AnyStoredVec, AnyVec, BytesVec, Database, Exit, ImportOptions, ImportableVec, LazyVec,
     ReadableCloneableVec, ReadableVec, Rw, Stamp, StorageMode, WritableVec,
 };
 
 use crate::{
-    blocks,
     distribution::{
         compute::{
             PriceRangeMax, StartMode, determine_start_mode, process_blocks, recover_state,
@@ -27,7 +25,7 @@ use crate::{
     },
     indexes, inputs,
     internal::{
-        PerBlockCumulativeRolling, WindowStartVec, Windows, WithAddrTypes,
+        CachedWindowStartVec, PerBlockCumulativeRolling, Windows,
         db_utils::{finalize_db, open_db},
     },
     outputs, price, transactions,
@@ -39,10 +37,10 @@ use super::{
         AddrActivityVecs, AddrCountsVecs, AddrMetricsState, DeltaVecs, ExposedAddrVecs,
         NewAddrCountVecs, ReusedAddrVecs, TotalAddrCountVecs,
     },
-    metrics::AvgAmountMetrics,
+    metrics::AvgAmountVecs,
 };
 
-const VERSION: Version = Version::new(24 + brk_oracle::VERSION);
+const VERSION: Version = Version::new(30 + brk_oracle::VERSION);
 
 #[derive(Traversable)]
 pub struct AddrMetricsVecs<M: StorageMode = Rw> {
@@ -50,17 +48,16 @@ pub struct AddrMetricsVecs<M: StorageMode = Rw> {
     pub empty: AddrCountsVecs<M>,
     pub activity: AddrActivityVecs<M>,
     pub total: TotalAddrCountVecs<M>,
-    pub new: NewAddrCountVecs<M>,
+    pub new: NewAddrCountVecs,
     pub reused: ReusedAddrVecs<M>,
     pub respent: ReusedAddrVecs<M>,
     pub exposed: ExposedAddrVecs<M>,
     pub delta: DeltaVecs,
-    pub avg_amount: WithAddrTypes<AvgAmountMetrics<M>>,
+    pub avg_amount: AvgAmountVecs<M>,
     #[traversable(wrap = "indexes", rename = "funded")]
-    pub funded_index:
-        LazyVecFrom1<FundedAddrIndex, FundedAddrIndex, FundedAddrIndex, FundedAddrData>,
+    pub funded_index: LazyVec<FundedAddrIndex, FundedAddrIndex, FundedAddrIndex, FundedAddrData>,
     #[traversable(wrap = "indexes", rename = "empty")]
-    pub empty_index: LazyVecFrom1<EmptyAddrIndex, EmptyAddrIndex, EmptyAddrIndex, EmptyAddrData>,
+    pub empty_index: LazyVec<EmptyAddrIndex, EmptyAddrIndex, EmptyAddrIndex, EmptyAddrData>,
 }
 
 impl AddrMetricsVecs {
@@ -146,7 +143,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(wrap = "cohorts", rename = "addr")]
     pub addr_cohorts: AddrCohorts<M>,
     #[traversable(wrap = "cointime/activity")]
-    pub coinblocks_destroyed: PerBlockCumulativeRolling<StoredF64, StoredF64, M>,
+    pub coinblocks_destroyed: PerBlockCumulativeRolling<StoredF64, M>,
     pub addrs: AddrMetricsVecs<M>,
 
     /// In-memory state that does NOT survive rollback.
@@ -172,14 +169,25 @@ struct DistributionTransientState {
 }
 
 const SAVED_STAMPED_CHANGES: u16 = 10;
+/// Version of the fixed-width `FundedAddrData` record layout.
+const FUNDED_ADDR_DATA_VERSION: Version = Version::ONE;
 
 impl Vecs {
+    pub(crate) fn all_chain_cache(&self, prices: &price::Vecs) -> super::AllChainCache {
+        super::AllChainCache::new(
+            self.utxo_cohorts.all_supply_cache(),
+            &prices.spot.cents.height.read_only_cached_boxed_clone(),
+        )
+    }
+
     pub(crate) fn forced_import(
         parent: &Path,
         parent_version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
-        chain: Chain,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        prices: &price::Vecs,
+        inputs_by_type: &inputs::ByTypeVecs,
+        outputs_by_type: &outputs::ByTypeVecs,
     ) -> Result<Self> {
         let db_path = parent.join(super::DB_NAME);
         let states_path = db_path.join("states");
@@ -188,31 +196,46 @@ impl Vecs {
         db.set_min_regions(50_000)?;
 
         let version = parent_version + VERSION;
+        let spot_price = prices.spot.cents.height.read_only_cached_boxed_clone();
 
-        let utxo_cohorts =
-            UTXOCohorts::forced_import(&db, version, indexes, &states_path, cached_starts, chain)?;
+        let utxo_cohorts = UTXOCohorts::forced_import(
+            &db,
+            version,
+            indexes,
+            &states_path,
+            cached_starts,
+            &spot_price,
+        )?;
 
-        let addr_cohorts =
-            AddrCohorts::forced_import(&db, version, indexes, &states_path, cached_starts, chain)?;
+        let addr_cohorts = AddrCohorts::forced_import(
+            &db,
+            version,
+            indexes,
+            &states_path,
+            cached_starts,
+            &spot_price,
+            utxo_cohorts.all_supply_cache(),
+        )?;
 
         // Create address data BytesVecs first so we can also use them for identity mappings
+        let funded_addr_data_version = version + FUNDED_ADDR_DATA_VERSION;
         let funded_addr_index_to_funded_addr_data = BytesVec::forced_import_with(
-            vecdb::ImportOptions::new(&db, "funded_addr_data", version)
+            ImportOptions::new(&db, "funded_addr_data", funded_addr_data_version)
                 .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
         )?;
         let empty_addr_index_to_empty_addr_data = BytesVec::forced_import_with(
-            vecdb::ImportOptions::new(&db, "empty_addr_data", version)
+            ImportOptions::new(&db, "empty_addr_data", version)
                 .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
         )?;
 
         // Identity mappings for traversable
-        let funded_addr_index = LazyVecFrom1::init(
+        let funded_addr_index = LazyVec::init(
             "funded_addr_index",
-            version,
+            funded_addr_data_version,
             funded_addr_index_to_funded_addr_data.read_only_boxed_clone(),
             |index, _| index,
         );
-        let empty_addr_index = LazyVecFrom1::init(
+        let empty_addr_index = LazyVec::init(
             "empty_addr_index",
             version,
             empty_addr_index_to_empty_addr_data.read_only_boxed_clone(),
@@ -228,29 +251,63 @@ impl Vecs {
         let total_addr_count = TotalAddrCountVecs::forced_import(&db, version, indexes)?;
 
         // Per-block delta of total (global + per-type)
-        let new_addr_count = NewAddrCountVecs::forced_import(&db, version, indexes, cached_starts)?;
+        let new_addr_count =
+            NewAddrCountVecs::new(version, &total_addr_count, indexes, cached_starts);
 
         // Reused address tracking (counts + per-block uses + percent).
         // `reused_*` uses the receive-side predicate (funded_txo_count > 1,
         // industry standard). `respent_*` uses the spend-side counterpart
         // (spent_txo_count > 1, strictly more restrictive).
-        let reused_addr_count =
-            ReusedAddrVecs::forced_import(&db, "reused", version, indexes, cached_starts)?;
-        let respent_addr_count =
-            ReusedAddrVecs::forced_import(&db, "respent", version, indexes, cached_starts)?;
+        let reused_addr_count = ReusedAddrVecs::forced_import(
+            &db,
+            "reused",
+            version,
+            indexes,
+            cached_starts,
+            &spot_price,
+            outputs_by_type,
+            inputs_by_type,
+            utxo_cohorts.all_supply_cache(),
+        )?;
+        let respent_addr_count = ReusedAddrVecs::forced_import(
+            &db,
+            "respent",
+            version,
+            indexes,
+            cached_starts,
+            &spot_price,
+            outputs_by_type,
+            inputs_by_type,
+            utxo_cohorts.all_supply_cache(),
+        )?;
 
         // Exposed address tracking (counts + supply) - quantum / pubkey-exposure sense
-        let exposed_addr_vecs = ExposedAddrVecs::forced_import(&db, version, indexes)?;
+        let exposed_addr_vecs = ExposedAddrVecs::forced_import(
+            &db,
+            version,
+            indexes,
+            &spot_price,
+            utxo_cohorts.all_supply_cache(),
+        )?;
 
         // Growth rate: delta change + rate (global + per-type)
         let delta = DeltaVecs::new(version, &addr_count, cached_starts, indexes);
 
         // Average amount (supply / utxo_count, supply / funded_addr_count) for `all` and per addr type.
-        let avg_amount = WithAddrTypes::<AvgAmountMetrics>::forced_import(&db, version, indexes)?;
+        let all_chain = super::AllChainCache::new(utxo_cohorts.all_supply_cache(), &spot_price);
+        let avg_amount = AvgAmountVecs::forced_import(
+            &db,
+            version,
+            indexes,
+            &spot_price,
+            &all_chain,
+            &utxo_cohorts.all.metrics.outputs.unspent_count.height,
+            &addr_count.all.height,
+        )?;
 
         let this = Self {
             supply_state: BytesVec::forced_import_with(
-                vecdb::ImportOptions::new(&db, "supply_state", version)
+                ImportOptions::new(&db, "supply_state", version)
                     .with_saved_stamped_changes(SAVED_STAMPED_CHANGES),
             )?,
 
@@ -317,11 +374,48 @@ impl Vecs {
         inputs: &inputs::Vecs,
         outputs: &outputs::Vecs,
         transactions: &transactions::Vecs,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         self.db.sync_bg_tasks()?;
+
+        let base_version = VERSION
+            + [
+                prices.spot.cents.height.version(),
+                indexes.timestamp.monotonic.version(),
+                indexer.vecs().transactions.first_tx_index.version(),
+                indexer.vecs().outputs.first_txout_index.version(),
+                indexer.vecs().inputs.first_txin_index.version(),
+                transactions.count.total.block.version(),
+                outputs.count.total.sum.version(),
+                inputs.count.sum.version(),
+                indexes.tx_index.output_count.version(),
+                indexes.tx_index.input_count.version(),
+                indexer.vecs().outputs.value.version(),
+                indexer.vecs().outputs.output_type.version(),
+                indexer.vecs().outputs.type_index.version(),
+                inputs.value.version(),
+                indexer.vecs().inputs.outpoint.version(),
+                indexer.vecs().inputs.output_type.version(),
+                indexer.vecs().inputs.type_index.version(),
+                indexer.vecs().addrs.p2pk65.first_index.version(),
+                indexer.vecs().addrs.p2pk33.first_index.version(),
+                indexer.vecs().addrs.p2pkh.first_index.version(),
+                indexer.vecs().addrs.p2sh.first_index.version(),
+                indexer.vecs().addrs.p2wpkh.first_index.version(),
+                indexer.vecs().addrs.p2wsh.first_index.version(),
+                indexer.vecs().addrs.p2tr.first_index.version(),
+                indexer.vecs().addrs.p2a.first_index.version(),
+            ]
+            .into_iter()
+            .sum::<Version>();
+
+        debug!("validating computed versions");
+        self.supply_state
+            .validate_computed_version_or_reset(base_version)?;
+        self.utxo_cohorts.validate_computed_versions(base_version)?;
+        self.addr_cohorts.validate_computed_versions(base_version)?;
+        debug!("computed versions validated");
 
         let starting_lengths = indexer.safe_lengths();
 
@@ -476,15 +570,8 @@ impl Vecs {
             recovered_height
         };
 
-        // 2c. Validate computed versions
-        debug!("validating computed versions");
-        let base_version = VERSION;
-        self.utxo_cohorts.validate_computed_versions(base_version)?;
-        self.addr_cohorts.validate_computed_versions(base_version)?;
-        debug!("computed versions validated");
-
         // 3. Get last height from indexer
-        let last_height = Height::from(indexer.vecs.blocks.blockhash.len().saturating_sub(1));
+        let last_height = Height::from(indexer.vecs().blocks.blockhash.len().saturating_sub(1));
         debug!(
             "last_height={}, starting_height={}",
             last_height, starting_height
@@ -556,10 +643,6 @@ impl Vecs {
             r2?;
         }
 
-        // 5b. Compute coinblocks_destroyed cumulative from raw
-        self.coinblocks_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
-
         // 6. Compute rest part1 (day1 mappings)
         info!("Computing rest part 1...");
         {
@@ -587,43 +670,17 @@ impl Vecs {
             };
             &t.get(ot).metrics.supply.total.sats.height
         });
-        let all_supply_sats = &self.utxo_cohorts.all.metrics.supply.total.sats.height;
-        self.addrs.reused.compute_rest(
-            &starting_lengths,
-            &outputs.by_type,
-            &inputs.by_type,
-            prices,
-            all_supply_sats,
-            &type_supply_sats,
-            exit,
-        )?;
-        self.addrs.respent.compute_rest(
-            &starting_lengths,
-            &outputs.by_type,
-            &inputs.by_type,
-            prices,
-            all_supply_sats,
-            &type_supply_sats,
-            exit,
-        )?;
-        self.addrs.exposed.compute_rest(
-            &starting_lengths,
-            prices,
-            all_supply_sats,
-            &type_supply_sats,
-            exit,
-        )?;
+        self.addrs
+            .reused
+            .compute_rest(&starting_lengths, &type_supply_sats, exit)?;
+        self.addrs
+            .respent
+            .compute_rest(&starting_lengths, &type_supply_sats, exit)?;
+        self.addrs
+            .exposed
+            .compute_rest(&starting_lengths, &type_supply_sats, exit)?;
 
         // Average amount (supply / utxo_count, supply / funded_addr_count) for `all` and per addr type.
-        let all_m = &self.utxo_cohorts.all.metrics;
-        self.addrs.avg_amount.all.compute(
-            prices,
-            &all_m.supply.total.sats.height,
-            &all_m.outputs.unspent_count.height,
-            &self.addrs.funded.all.height,
-            starting_lengths.height,
-            exit,
-        )?;
         for ((ot, avg), (_, funded)) in self
             .addrs
             .avg_amount
@@ -633,7 +690,6 @@ impl Vecs {
         {
             let type_m = &t.get(ot).metrics;
             avg.compute(
-                prices,
                 &type_m.supply.total.sats.height,
                 &type_m.outputs.unspent_count.height,
                 &funded.height,
@@ -650,57 +706,10 @@ impl Vecs {
             exit,
         )?;
 
-        self.addrs
-            .activity
-            .compute_rest(starting_lengths.height, exit)?;
-        self.addrs
-            .new
-            .compute(starting_lengths.height, &self.addrs.total, exit)?;
-
         // 7. Compute rest part2 (relative metrics)
-        let height_to_market_cap = self
-            .utxo_cohorts
-            .all
-            .metrics
-            .supply
-            .total
-            .usd
-            .height
-            .read_only_clone();
-
         info!("Computing rest part 2...");
-        self.utxo_cohorts.compute_rest_part2(
-            blocks,
-            prices,
-            &starting_lengths,
-            &height_to_market_cap,
-            exit,
-        )?;
-
-        let all_supply_sats = self
-            .utxo_cohorts
-            .all
-            .metrics
-            .supply
-            .total
-            .sats
-            .height
-            .read_only_clone();
-        let all_utxo_count = self
-            .utxo_cohorts
-            .all
-            .metrics
-            .outputs
-            .unspent_count
-            .height
-            .read_only_clone();
-        self.addr_cohorts.compute_rest_part2(
-            prices,
-            &starting_lengths,
-            &all_supply_sats,
-            &all_utxo_count,
-            exit,
-        )?;
+        self.utxo_cohorts
+            .compute_rest_part2(prices, &starting_lengths, exit)?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {

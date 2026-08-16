@@ -19,10 +19,10 @@ pub struct TxHeights(Arc<RwLock<RangeMap<TxIndex, Height>>>);
 impl TxHeights {
     /// Build from the full `first_tx_index` vec at startup.
     pub fn init(indexer: &Indexer) -> Self {
-        let len = indexer.vecs.transactions.first_tx_index.len();
+        let len = indexer.vecs().transactions.first_tx_index.len();
         let entries: Vec<TxIndex> = if len > 0 {
             indexer
-                .vecs
+                .vecs()
                 .transactions
                 .first_tx_index
                 .collect_range_at(0, len)
@@ -39,11 +39,11 @@ impl TxHeights {
         if inner.len() > reorg_len {
             inner.truncate(reorg_len);
         }
-        let target_len = indexer.vecs.transactions.first_tx_index.len();
+        let target_len = indexer.vecs().transactions.first_tx_index.len();
         let current_len = inner.len();
         if current_len < target_len {
             let new_entries: Vec<TxIndex> = indexer
-                .vecs
+                .vecs()
                 .transactions
                 .first_tx_index
                 .collect_range_at(current_len, target_len);

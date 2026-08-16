@@ -6,11 +6,25 @@ use brk_types::{
 };
 use rayon::prelude::*;
 use vecdb::{
-    AnyStoredVec, BytesVec, CachedVec, Database, ImportableVec, PcoVec, Rw, Stamp, StorageMode,
-    WritableVec,
+    AnyStoredVec, AnyVec, BytesVec, CachedVec, Database, ImportableVec, PcoVec, Rw, Stamp,
+    StorageMode, TypedVec, VecIndex, VecValue, WritableVec,
 };
 
 use crate::parallel_import;
+
+fn truncate_cached<I, T, V>(vec: &mut CachedVec<V>, index: I, stamp: Stamp) -> Result<()>
+where
+    I: VecIndex,
+    T: VecValue,
+    V: TypedVec<I = I, T = T> + WritableVec<I, T>,
+{
+    let truncates = index.to_usize() < vec.len();
+    vec.inner.truncate_if_needed_with_stamp(index, stamp)?;
+    if truncates {
+        vec.clear();
+    }
+    Ok(())
+}
 
 #[derive(Traversable)]
 pub struct BlocksVecs<M: StorageMode = Rw> {
@@ -72,16 +86,12 @@ impl BlocksVecs {
     }
 
     pub fn truncate(&mut self, height: Height, stamp: Stamp) -> Result<()> {
-        self.blockhash
-            .inner
-            .truncate_if_needed_with_stamp(height, stamp)?;
+        truncate_cached(&mut self.blockhash, height, stamp)?;
         self.coinbase_tag
             .truncate_if_needed_with_stamp(height, stamp)?;
         self.difficulty
             .truncate_if_needed_with_stamp(height, stamp)?;
-        self.timestamp
-            .inner
-            .truncate_if_needed_with_stamp(height, stamp)?;
+        truncate_cached(&mut self.timestamp, height, stamp)?;
         self.total.truncate_if_needed_with_stamp(height, stamp)?;
         self.weight.truncate_if_needed_with_stamp(height, stamp)?;
         self.position.truncate_if_needed_with_stamp(height, stamp)?;
@@ -124,5 +134,35 @@ impl BlocksVecs {
             &self.segwit_weight,
         ]
         .into_iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vecdb::ReadableVec;
+
+    use super::*;
+
+    #[test]
+    fn truncate_cached_invalidates_same_length_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(dir.path()).unwrap();
+        let inner =
+            PcoVec::<Height, Timestamp>::forced_import(&db, "timestamp", Version::ONE).unwrap();
+        let mut timestamps = CachedVec::wrap(inner);
+
+        for timestamp in [10_u32, 20, 30] {
+            timestamps.inner.push(Timestamp::from(timestamp));
+        }
+        assert_eq!(timestamps.collect(), [10_u32, 20, 30].map(Timestamp::from));
+
+        truncate_cached(&mut timestamps, Height::from(1_usize), Stamp::from(0_u64)).unwrap();
+        timestamps.inner.push(Timestamp::from(200_u32));
+        timestamps.inner.push(Timestamp::from(300_u32));
+
+        assert_eq!(
+            timestamps.collect(),
+            [10_u32, 200, 300].map(Timestamp::from)
+        );
     }
 }

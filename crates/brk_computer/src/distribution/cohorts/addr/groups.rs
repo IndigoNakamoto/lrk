@@ -1,19 +1,23 @@
 use std::path::Path;
 
-use brk_chain::Chain;
-use brk_cohort::{AddrGroups, AmountRange, Filter, Filtered, OverAmount, UnderAmount};
+use brk_cohort::{
+    AddrGroups, AmountRange, CohortContext, Filter, Filtered, OverAmount, UnderAmount,
+};
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, StoredU64, Version};
+use brk_types::{Cents, Height, Version};
 use derive_more::{Deref, DerefMut};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, CachedBoxedVec, Database, Exit, Rw, StorageMode};
 
 use crate::{
-    distribution::DynCohortVecs,
+    distribution::{
+        DynCohortVecs,
+        metrics::{AllSupplyCache, ImportConfig},
+    },
     indexes,
-    internal::{WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, Windows},
     price,
 };
 
@@ -32,8 +36,9 @@ impl AddrCohorts {
         version: Version,
         indexes: &indexes::Vecs,
         states_path: &Path,
-        cached_starts: &Windows<&WindowStartVec>,
-        chain: Chain,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
         let v = version + VERSION;
 
@@ -41,7 +46,17 @@ impl AddrCohorts {
         let create =
             |filter: Filter, name: &'static str, has_state: bool| -> Result<AddrCohortVecs> {
                 let sp = if has_state { Some(states_path) } else { None };
-                AddrCohortVecs::forced_import(db, filter, name, v, indexes, sp, cached_starts, chain)
+                let full_name = CohortContext::Addr.full_name(&filter, name);
+                let cfg = ImportConfig {
+                    db,
+                    filter: &filter,
+                    full_name: &full_name,
+                    version: v,
+                    indexes,
+                    cached_starts,
+                    spot_price,
+                };
+                AddrCohortVecs::forced_import(&cfg, sp, all_supply)
             };
 
         let full = |f: Filter, name: &'static str| create(f, name, true);
@@ -105,26 +120,6 @@ impl AddrCohorts {
             .try_for_each(|v| v.compute_rest_part1(prices, starting_lengths, exit))?;
 
         Ok(())
-    }
-
-    /// Second phase of post-processing: compute relative metrics.
-    pub(crate) fn compute_rest_part2(
-        &mut self,
-        prices: &price::Vecs,
-        starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.0.par_iter_mut().try_for_each(|v| {
-            v.compute_rest_part2(
-                prices,
-                starting_lengths,
-                all_supply_sats,
-                all_utxo_count,
-                exit,
-            )
-        })
     }
 
     /// Returns a parallel iterator over all vecs for parallel writing.

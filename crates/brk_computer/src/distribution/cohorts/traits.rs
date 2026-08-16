@@ -1,7 +1,7 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
-use brk_types::{Cents, Height, Sats, StoredU64, Version};
-use vecdb::{Exit, ReadableVec};
+use brk_types::{Cents, Height, Version};
+use vecdb::Exit;
 
 use crate::price;
 
@@ -55,16 +55,6 @@ pub trait CohortVecs: DynCohortVecs {
         &mut self,
         starting_lengths: &Lengths,
         others: &[&Self],
-        exit: &Exit,
-    ) -> Result<()>;
-
-    /// Second phase of post-processing computations.
-    fn compute_rest_part2(
-        &mut self,
-        prices: &price::Vecs,
-        starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()>;
 }

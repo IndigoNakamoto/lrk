@@ -22,15 +22,23 @@ const MAX_LOG_AGE_DAYS: u64 = 7;
 /// tracing level. The directory is created if it does not exist, and any
 /// `*.txt` file older than 7 days is pruned on startup.
 pub fn init(dir: Option<&Path>) -> io::Result<()> {
-    tracing_log::LogTracer::init().ok();
-    install_panic_hook();
-
     #[cfg(debug_assertions)]
     const DEFAULT_LEVEL: &str = "debug";
     #[cfg(not(debug_assertions))]
     const DEFAULT_LEVEL: &str = "info";
 
-    let level = std::env::var("LOG").unwrap_or_else(|_| DEFAULT_LEVEL.to_string());
+    init_with_default_level(dir, DEFAULT_LEVEL)
+}
+
+/// Initialize the logger with a caller-selected fallback level.
+///
+/// `LOG` and `RUST_LOG` still take precedence. This is useful for services
+/// whose normal debug traffic is too verbose for their default execution mode.
+pub fn init_with_default_level(dir: Option<&Path>, default_level: &str) -> io::Result<()> {
+    tracing_log::LogTracer::init().ok();
+    install_panic_hook();
+
+    let level = std::env::var("LOG").unwrap_or_else(|_| default_level.to_string());
 
     let directives = std::env::var("RUST_LOG").unwrap_or_else(|_| {
         format!(

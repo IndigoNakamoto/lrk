@@ -136,7 +136,10 @@ mod tests {
             snap_tx(0x30, 100, 100),
         ];
         let blocks = Partitioner::partition(&txs, &FxHashSet::default(), 1);
-        let txids: Vec<u8> = blocks[0].iter().map(|i| txs[i.as_usize()].txid[0]).collect();
+        let txids: Vec<u8> = blocks[0]
+            .iter()
+            .map(|i| txs[i.as_usize()].txid[0])
+            .collect();
         assert_eq!(txids, vec![0x10, 0x20, 0x30]);
     }
 }

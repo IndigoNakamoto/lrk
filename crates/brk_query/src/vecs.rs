@@ -26,8 +26,8 @@ pub struct Vecs<'a> {
 impl<'a> Vecs<'a> {
     pub fn build(indexer: &'a Indexer<Ro>, computer: &'a Computer<Ro>) -> Self {
         Self::build_from(
-            indexer.vecs.iter_any_visible(),
-            indexer.vecs.to_tree_node(),
+            indexer.vecs().iter_any_visible(),
+            indexer.vecs().to_tree_node(),
             computer.iter_named_visible(),
             computer.to_tree_node(),
         )
@@ -35,8 +35,8 @@ impl<'a> Vecs<'a> {
 
     pub fn build_rw(indexer: &'a Indexer, computer: &'a Computer) -> Self {
         Self::build_from(
-            indexer.vecs.iter_any_visible(),
-            indexer.vecs.to_tree_node(),
+            indexer.vecs().iter_any_visible(),
+            indexer.vecs().to_tree_node(),
             computer.iter_named_visible(),
             computer.to_tree_node(),
         )
@@ -51,7 +51,7 @@ impl<'a> Vecs<'a> {
         let mut builder = Builder::default();
         indexed_vecs.for_each(|vec| builder.insert(vec, "indexed"));
         computed_vecs.for_each(|(db, vec)| builder.insert(vec, db));
-        builder.counts.distinct_series = builder.series_to_index_to_vec.len();
+        builder.counts.distinct = builder.series_to_index_to_vec.len();
         let Builder {
             series_to_index_to_vec,
             index_to_series_to_vec,
@@ -205,17 +205,17 @@ impl<'a> Builder<'a> {
 
         let is_lazy = vec.region_names().is_empty();
         let by_db = self.counts_by_db.entry(db.to_string()).or_default();
-        self.counts.total_endpoints += 1;
-        by_db.total_endpoints += 1;
+        self.counts.total += 1;
+        by_db.total += 1;
         if is_lazy {
-            self.counts.lazy_endpoints += 1;
-            by_db.lazy_endpoints += 1;
+            self.counts.lazy += 1;
+            by_db.lazy += 1;
         } else {
-            self.counts.stored_endpoints += 1;
-            by_db.stored_endpoints += 1;
+            self.counts.stored += 1;
+            by_db.stored += 1;
         }
         if self.seen_by_db.entry(db).or_default().insert(name) {
-            by_db.distinct_series += 1;
+            by_db.distinct += 1;
         }
     }
 }

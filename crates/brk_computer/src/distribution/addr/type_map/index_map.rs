@@ -40,25 +40,6 @@ impl<T> AddrTypeToTypeIndexMap<T> {
         })
     }
 
-    fn merge_single(own: &mut FxHashMap<TypeIndex, T>, other: &mut FxHashMap<TypeIndex, T>) {
-        if own.len() < other.len() {
-            mem::swap(own, other);
-        }
-        own.extend(other.drain());
-    }
-
-    /// Merge another map into self, consuming other.
-    pub(crate) fn merge_mut(&mut self, mut other: Self) {
-        Self::merge_single(&mut self.p2a, &mut other.p2a);
-        Self::merge_single(&mut self.p2pk33, &mut other.p2pk33);
-        Self::merge_single(&mut self.p2pk65, &mut other.p2pk65);
-        Self::merge_single(&mut self.p2pkh, &mut other.p2pkh);
-        Self::merge_single(&mut self.p2sh, &mut other.p2sh);
-        Self::merge_single(&mut self.p2tr, &mut other.p2tr);
-        Self::merge_single(&mut self.p2wpkh, &mut other.p2wpkh);
-        Self::merge_single(&mut self.p2wsh, &mut other.p2wsh);
-    }
-
     /// Insert a value for a specific address type and type_index.
     pub(crate) fn insert_for_type(
         &mut self,

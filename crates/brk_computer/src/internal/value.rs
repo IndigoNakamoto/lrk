@@ -1,29 +1,29 @@
 use brk_traversable::Traversable;
 use brk_types::{Bitcoin, Cents, Dollars, Height, Sats, Version};
-use vecdb::{LazyVecFrom1, ReadableCloneableVec, UnaryTransform, VecIndex};
+use vecdb::{LazyVec, ReadableCloneableVec, UnaryTransform, VecIndex};
 
-use crate::internal::ValuePerBlock;
+use crate::internal::SpotValuePerBlock;
 
 /// Fully lazy value type at height level.
 ///
 /// All fields are lazy transforms from existing sources - no storage.
 #[derive(Clone, Traversable)]
 pub struct LazyValue<I: VecIndex> {
-    pub btc: LazyVecFrom1<I, Bitcoin, I, Sats>,
-    pub sats: LazyVecFrom1<I, Sats, I, Sats>,
-    pub usd: LazyVecFrom1<I, Dollars, I, Dollars>,
-    pub cents: LazyVecFrom1<I, Cents, I, Cents>,
+    pub btc: LazyVec<I, Bitcoin, I, Sats>,
+    pub sats: LazyVec<I, Sats, I, Sats>,
+    pub usd: LazyVec<I, Dollars, I, Dollars>,
+    pub cents: LazyVec<I, Cents, I, Cents>,
 }
 
 impl LazyValue<Height> {
-    pub(crate) fn from_block_source<
+    pub(crate) fn from_spot_block_source<
         SatsTransform,
         BitcoinTransform,
         CentsTransform,
         DollarsTransform,
     >(
         name: &str,
-        source: &ValuePerBlock,
+        source: &SpotValuePerBlock,
         version: Version,
     ) -> Self
     where
@@ -32,25 +32,25 @@ impl LazyValue<Height> {
         CentsTransform: UnaryTransform<Cents, Cents>,
         DollarsTransform: UnaryTransform<Dollars, Dollars>,
     {
-        let sats = LazyVecFrom1::transformed::<SatsTransform>(
+        let sats = LazyVec::transformed::<SatsTransform>(
             &format!("{name}_sats"),
             version,
             source.sats.height.read_only_boxed_clone(),
         );
 
-        let btc = LazyVecFrom1::transformed::<BitcoinTransform>(
+        let btc = LazyVec::transformed::<BitcoinTransform>(
             name,
             version,
             source.sats.height.read_only_boxed_clone(),
         );
 
-        let cents = LazyVecFrom1::transformed::<CentsTransform>(
+        let cents = LazyVec::transformed::<CentsTransform>(
             &format!("{name}_cents"),
             version,
             source.cents.height.read_only_boxed_clone(),
         );
 
-        let usd = LazyVecFrom1::transformed::<DollarsTransform>(
+        let usd = LazyVec::transformed::<DollarsTransform>(
             &format!("{name}_usd"),
             version,
             source.usd.height.read_only_boxed_clone(),

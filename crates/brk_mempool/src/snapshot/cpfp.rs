@@ -42,7 +42,8 @@ impl Snapshot {
             .max_by_key(|e| FeeRate::from((e.fee, e.weight)))
             .cloned();
 
-        let (cluster, effective_fee_per_vsize) = Self::build_cpfp_cluster(&self.txs, seed_idx, seed);
+        let (cluster, effective_fee_per_vsize) =
+            Self::build_cpfp_cluster(&self.txs, seed_idx, seed);
         let vsize = VSize::from(seed.weight);
 
         CpfpInfo {
@@ -216,7 +217,10 @@ mod tests {
         assert!(parent_info.effective_fee_per_vsize > parent_isolated);
         // Same package -> child's reported chunk rate matches parent's.
         let child_info = mempool.cpfp_info(&TxidPrefix::from(&child)).unwrap();
-        assert_eq!(parent_info.effective_fee_per_vsize, child_info.effective_fee_per_vsize);
+        assert_eq!(
+            parent_info.effective_fee_per_vsize,
+            child_info.effective_fee_per_vsize
+        );
     }
 
     #[test]

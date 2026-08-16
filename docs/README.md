@@ -38,6 +38,17 @@ Query metrics and blockchain data in JSON or CSV. No rate limit.
 
 [Documentation](https://litview.space/api) · [JavaScript](https://www.npmjs.com/package/brk-client) · [Python](https://pypi.org/project/brk-client) · [Rust](https://crates.io/crates/brk_client) · [llms.txt](https://litview.space/llms.txt) · [LLM-friendly schema](https://litview.space/api.json)
 
+### MCP
+
+Connect any Streamable HTTP MCP client to:
+
+```text
+https://mcp.bitview.space/
+```
+
+The server is stateless, read-only, and requires no authentication. Its tools
+are generated from the same OpenAPI operations as the typed clients.
+
 ### Self-host
 
 LRK must be built with the `litecoin` Cargo feature so the MWEB-aware block/transaction decoder is selected at compile time. A default (Bitcoin) build will fail to index once it reaches the first MWEB block.

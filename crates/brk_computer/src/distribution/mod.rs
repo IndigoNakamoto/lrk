@@ -1,4 +1,5 @@
 pub mod addr;
+mod all_chain_cache;
 mod block;
 pub mod cohorts;
 pub mod compute;
@@ -6,6 +7,7 @@ pub mod metrics;
 mod state;
 mod vecs;
 
+pub(crate) use all_chain_cache::AllChainCache;
 pub use brk_types::RangeMap;
 pub use vecs::Vecs;
 

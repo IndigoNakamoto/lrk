@@ -1,8 +1,7 @@
 use brk_traversable::Traversable;
 use brk_types::{Dollars, Version};
-use vecdb::ReadableCloneableVec;
 
-use crate::internal::{FiatType, Identity, LazyPerBlock, NumericValue, PerBlock};
+use crate::internal::{FiatType, Identity, LazyPerBlock, NumericValue};
 
 /// Lazy fiat: both cents and usd are lazy views of a stored source.
 /// Zero extra stored vecs.
@@ -13,22 +12,13 @@ pub struct LazyFiatPerBlock<C: FiatType> {
 }
 
 impl<C: FiatType> LazyFiatPerBlock<C> {
-    pub(crate) fn from_computed(name: &str, version: Version, source: &PerBlock<C>) -> Self
+    pub(crate) fn from_lazy(name: &str, version: Version, source: &LazyPerBlock<C>) -> Self
     where
         C: NumericValue,
     {
-        let cents = LazyPerBlock::from_computed::<Identity<C>>(
-            &format!("{name}_cents"),
-            version,
-            source.height.read_only_boxed_clone(),
-            source,
-        );
-        let usd = LazyPerBlock::from_computed::<C::ToDollars>(
-            name,
-            version,
-            source.height.read_only_boxed_clone(),
-            source,
-        );
+        let cents =
+            LazyPerBlock::from_lazy::<Identity<C>, C>(&format!("{name}_cents"), version, source);
+        let usd = LazyPerBlock::from_lazy::<C::ToDollars, C>(name, version, source);
         Self { usd, cents }
     }
 }

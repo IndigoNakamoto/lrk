@@ -2,9 +2,12 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use crate::{Chain, PoolSlug};
+use crate::{Chain, PoolSlug, Version};
 
 use super::Pool;
+
+/// Increment when pool IDs, payout addresses, or coinbase tags change.
+pub const POOL_ATTRIBUTION_VERSION: Version = Version::ONE;
 
 const JSON_BTC: &str = include_str!("../pools-v2.json");
 const JSON_LTC: &str = include_str!("../pools-ltc-v1.json");
@@ -85,7 +88,14 @@ fn parse_pools(json: &str, pool_count: usize, skip_ids: &[u16]) -> Pools {
     let entries: Vec<JsonPoolEntry> =
         serde_json::from_str(json).expect("Failed to parse pools JSON");
 
-    let mut pools: Vec<Pool> = (0..pool_count).map(empty_pool).collect();
+    let max_id = entries.iter().map(|entry| entry.id).max().unwrap_or(0);
+    assert!(
+        max_id <= u8::MAX as u16,
+        "pool ID {max_id} exceeds PoolSlug's u8 range"
+    );
+    let mut pools: Vec<Pool> = (0..pool_count.max(usize::from(max_id) + 1))
+        .map(empty_pool)
+        .collect();
 
     pools[0] = Pool {
         slug: PoolSlug::Unknown,
@@ -151,5 +161,37 @@ pub fn pools_for_chain(chain: Chain) -> &'static Pools {
                 parse_pools(JSON_LTC, POOL_COUNT_LTC, &[])
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundled_json_entries_have_named_slugs() {
+        let entries: Vec<JsonPoolEntry> =
+            serde_json::from_str(JSON_BTC).expect("valid pools-v2.json");
+
+        for entry in entries {
+            if TESTNET_IDS.contains(&entry.id) {
+                continue;
+            }
+            let id = u8::try_from(entry.id).expect("pool ID fits PoolSlug");
+            let slug = PoolSlug::from(id);
+            assert!(
+                serde_json::to_string(&slug).is_ok(),
+                "pool ID {} ({}) still maps to {slug:?}",
+                entry.id,
+                entry.name
+            );
+        }
+    }
+
+    #[test]
+    fn dmnd_uses_upstream_id_171() {
+        let dmnd = pools().get(PoolSlug::Dmnd);
+        assert_eq!(dmnd.name, "DMND");
+        assert_eq!(dmnd.mempool_unique_id(), 171);
     }
 }

@@ -128,7 +128,7 @@ impl StructuralPattern {
 }
 
 /// Extract the discriminator value by matching a template against a concrete string.
-/// E.g., template `"ratio_{disc}_bps"` matched against `"ratio_pct99_bps"` yields `"pct99"`.
+/// E.g., template `"ratio_{disc}_ppm"` matched against `"ratio_pct99_ppm"` yields `"pct99"`.
 fn extract_disc(template: &str, value: &str) -> Option<String> {
     let (prefix, suffix) = template.split_once("{disc}")?;
     if value.starts_with(prefix) && value.ends_with(suffix) {

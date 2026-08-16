@@ -1,0 +1,49 @@
+[**brk-client**](../README.md)
+
+***
+
+[brk-client](../globals.md) / SeriesTree\_Models\_RarityMeter
+
+# Interface: SeriesTree\_Models\_RarityMeter
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6962](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6962)
+
+## Properties
+
+### components
+
+> **components**: [`SeriesTree_Models_RarityMeter_Components`](SeriesTree_Models_RarityMeter_Components.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6963](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6963)
+
+***
+
+### cycle
+
+> **cycle**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6967](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6967)
+
+***
+
+### extremes
+
+> **extremes**: [`SeriesTree_Models_RarityMeter_Extremes`](SeriesTree_Models_RarityMeter_Extremes.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6964](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6964)
+
+***
+
+### full
+
+> **full**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6965](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6965)
+
+***
+
+### local
+
+> **local**: [`IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern`](IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern.md)
+
+Defined in: [Developer/brk/modules/brk-client/index.js:6966](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L6966)

@@ -1,13 +1,13 @@
 use brk_traversable::Traversable;
 use brk_types::{Bitcoin, Cents, Dollars, Height, Sats, StoredF32, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{DeltaAvg, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec};
+use vecdb::{DeltaAvg, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
     internal::{
-        AvgCentsToUsd, AvgSatsToBtc, DerivedResolutions, LazyPerBlock, LazyRollingAvgFromHeight,
-        Resolutions, WindowStartVec, Windows,
+        AvgCentsToUsd, AvgSatsToBtc, CachedWindowStartVec, DerivedResolutions, LazyPerBlock,
+        LazyRollingAvgFromHeight, Resolutions, Windows,
     },
 };
 
@@ -31,13 +31,13 @@ impl LazyRollingAvgsAmountFromHeight {
         version: Version,
         cumulative_sats: &(impl ReadableCloneableVec<Height, Sats> + 'static),
         cumulative_cents: &(impl ReadableCloneableVec<Height, Cents> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_sats = cumulative_sats.read_only_boxed_clone();
         let cum_cents = cumulative_cents.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -66,7 +66,7 @@ impl LazyRollingAvgsAmountFromHeight {
 
             // Btc: f64 sats avg / 1e8
             let btc = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<AvgSatsToBtc>(
+                height: LazyVec::transformed::<AvgSatsToBtc>(
                     &full_name,
                     version,
                     sats.height.read_only_boxed_clone(),
@@ -99,7 +99,7 @@ impl LazyRollingAvgsAmountFromHeight {
 
             // Usd: f64 cents avg / 100
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<AvgCentsToUsd>(
+                height: LazyVec::transformed::<AvgCentsToUsd>(
                     &format!("{full_name}_usd"),
                     version,
                     cents.height.read_only_boxed_clone(),

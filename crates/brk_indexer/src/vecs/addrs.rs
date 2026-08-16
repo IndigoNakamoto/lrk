@@ -14,8 +14,7 @@ use vecdb::{
     PcoVecValue, ReadableVec, Ro, Rw, Stamp, StorageMode, VecIndex, WritableVec,
 };
 
-use crate::parallel_import;
-use crate::readers::AddrReaders;
+use crate::{parallel_import, readers::AddrReaders};
 
 #[derive(Traversable)]
 pub struct AddrTypeVecs<
@@ -233,59 +232,58 @@ impl AddrsVecs {
             OutputType::P2PK65 => self
                 .p2pk65
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2pk65)
+                .get_append_only(type_index.into(), &readers.p2pk65)
                 .map(AddrBytes::from),
             OutputType::P2PK33 => self
                 .p2pk33
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2pk33)
+                .get_append_only(type_index.into(), &readers.p2pk33)
                 .map(AddrBytes::from),
             OutputType::P2PKH => self
                 .p2pkh
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2pkh)
+                .get_append_only(type_index.into(), &readers.p2pkh)
                 .map(AddrBytes::from),
             OutputType::P2SH => self
                 .p2sh
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2sh)
+                .get_append_only(type_index.into(), &readers.p2sh)
                 .map(AddrBytes::from),
             OutputType::P2WPKH => self
                 .p2wpkh
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2wpkh)
+                .get_append_only(type_index.into(), &readers.p2wpkh)
                 .map(AddrBytes::from),
             OutputType::P2WSH => self
                 .p2wsh
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2wsh)
+                .get_append_only(type_index.into(), &readers.p2wsh)
                 .map(AddrBytes::from),
             OutputType::P2TR => self
                 .p2tr
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2tr)
+                .get_append_only(type_index.into(), &readers.p2tr)
                 .map(AddrBytes::from),
             OutputType::P2A => self
                 .p2a
                 .bytes
-                .get_pushed_or_read(type_index.into(), &readers.p2a)
+                .get_append_only(type_index.into(), &readers.p2a)
                 .map(AddrBytes::from),
             _ => unreachable!("get_bytes_by_type called with non-address type"),
         }
     }
 
-    pub fn push_bytes_if_needed(&mut self, index: TypeIndex, bytes: AddrBytes) -> Result<()> {
+    pub fn push_bytes_if_needed(&mut self, index: TypeIndex, bytes: AddrBytes) {
         match bytes {
-            AddrBytes::P2PK65(bytes) => self.p2pk65.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2PK33(bytes) => self.p2pk33.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2PKH(bytes) => self.p2pkh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2SH(bytes) => self.p2sh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2WPKH(bytes) => self.p2wpkh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2WSH(bytes) => self.p2wsh.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2TR(bytes) => self.p2tr.bytes.checked_push(index.into(), bytes)?,
-            AddrBytes::P2A(bytes) => self.p2a.bytes.checked_push(index.into(), bytes)?,
+            AddrBytes::P2PK65(bytes) => self.p2pk65.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2PK33(bytes) => self.p2pk33.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2PKH(bytes) => self.p2pkh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2SH(bytes) => self.p2sh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2WPKH(bytes) => self.p2wpkh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2WSH(bytes) => self.p2wsh.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2TR(bytes) => self.p2tr.bytes.debug_checked_push(index.into(), bytes),
+            AddrBytes::P2A(bytes) => self.p2a.bytes.debug_checked_push(index.into(), bytes),
         };
-        Ok(())
     }
 
     /// Iterate address hashes starting from a given height (for rollback).
@@ -302,7 +300,7 @@ impl AddrsVecs {
                     Some(mut index) => {
                         let reader = $addr.bytes.reader();
                         Ok(Box::new(std::iter::from_fn(move || {
-                            reader.try_get(index.to_usize()).map(|typedbytes| {
+                            reader.try_get(index).map(|typedbytes| {
                                 let bytes = AddrBytes::from(typedbytes);
                                 index.increment();
                                 AddrHash::from(&bytes)

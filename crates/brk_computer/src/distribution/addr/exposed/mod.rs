@@ -37,15 +37,15 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Cents, Height, Sats, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode};
 
 use super::{
     count::AddrCountFundedTotalVecs,
     supply::{AddrSupplyShareVecs, AddrSupplyVecs},
 };
-use crate::{indexes, price};
+use crate::{distribution::metrics::AllSupplyCache, indexes};
 
 mod state;
 
@@ -66,11 +66,19 @@ impl ExposedAddrVecs {
         db: &Database,
         version: Version,
         indexes: &indexes::Vecs,
+        spot_price: &CachedBoxedVec<Height, Cents>,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
+        let count = AddrCountFundedTotalVecs::forced_import(db, "exposed", version, indexes)?;
+        let supply = AddrSupplyVecs::forced_import(db, "exposed", version, indexes, spot_price)?;
+        let supply_share = AddrSupplyShareVecs::forced_import(
+            db, "exposed", version, indexes, &supply, all_supply,
+        )?;
+
         Ok(Self {
-            count: AddrCountFundedTotalVecs::forced_import(db, "exposed", version, indexes)?,
-            supply: AddrSupplyVecs::forced_import(db, "exposed", version, indexes)?,
-            supply_share: AddrSupplyShareVecs::forced_import(db, "exposed", version, indexes)?,
+            count,
+            supply,
+            supply_share,
         })
     }
 
@@ -104,18 +112,13 @@ impl ExposedAddrVecs {
     pub(crate) fn compute_rest(
         &mut self,
         starting_lengths: &Lengths,
-        prices: &price::Vecs,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
     ) -> Result<()> {
         self.count.compute_rest(starting_lengths, exit)?;
-        self.supply
-            .compute_rest(starting_lengths.height, prices, exit)?;
         self.supply_share.compute_rest(
             starting_lengths.height,
             &self.supply,
-            all_supply_sats,
             type_supply_sats,
             exit,
         )?;

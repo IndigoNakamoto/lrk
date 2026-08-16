@@ -1,24 +1,22 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
-use brk_types::{OutputType, StoredU64};
-use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
-use super::{Vecs, WithOutputTypes};
-use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
+use super::Vecs;
+use crate::internal::{CoinbasePolicy, walk_blocks};
+
+const WRITE_INTERVAL: usize = 10_000;
 
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
 
-        let dep_version = indexer.vecs.outputs.output_type.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.first_txout_index.version()
-            + indexer.vecs.transactions.txid.version();
+        let dep_version = indexer.vecs().outputs.output_type.version()
+            + indexer.vecs().transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_txout_index.version()
+            + indexer.vecs().transactions.txid.version();
 
         self.output_count
-            .validate_and_truncate(dep_version, starting_lengths.height)?;
-        self.spendable_output_count
-            .block
             .validate_and_truncate(dep_version, starting_lengths.height)?;
         self.tx_count
             .validate_and_truncate(dep_version, starting_lengths.height)?;
@@ -26,24 +24,26 @@ impl Vecs {
         let skip = self
             .output_count
             .min_stateful_len()
-            .min(self.spendable_output_count.block.len())
             .min(self.tx_count.min_stateful_len());
 
-        let first_tx_index = &indexer.vecs.transactions.first_tx_index;
+        let first_tx_index = &indexer.vecs().transactions.first_tx_index;
         let end = first_tx_index.len();
         if skip < end {
             self.output_count.truncate_if_needed_at(skip)?;
-            self.spendable_output_count
-                .block
-                .truncate_if_needed_at(skip)?;
             self.tx_count.truncate_if_needed_at(skip)?;
 
             let fi_batch = first_tx_index.collect_range_at(skip, end);
-            let txid_len = indexer.vecs.transactions.txid.len();
-            let total_txout_len = indexer.vecs.outputs.output_type.len();
+            let txid_len = indexer.vecs().transactions.txid.len();
+            let total_txout_len = indexer.vecs().outputs.output_type.len();
 
-            let mut otype_cursor = indexer.vecs.outputs.output_type.cursor();
-            let mut fo_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+            let mut otype_cursor = indexer.vecs().outputs.output_type.reader().cursor();
+            let fo_cursor = indexer
+                .vecs()
+                .transactions
+                .first_txout_index
+                .reader()
+                .cursor();
+            let mut height = skip;
 
             walk_blocks(
                 &fi_batch,
@@ -65,24 +65,12 @@ impl Vecs {
                     Ok(())
                 },
                 |agg| {
-                    push_block(
-                        &mut self.output_count,
-                        agg.entries_all,
-                        &agg.entries_per_type,
-                    );
-                    push_block(&mut self.tx_count, agg.txs_all, &agg.txs_per_type);
-                    let spendable_total = agg.entries_all
-                        - agg.entries_per_type[OutputType::OpReturn as usize]
-                        - agg.entries_per_type[OutputType::MWEBPegPool as usize]
-                        - agg.entries_per_type[OutputType::MWEBPegIn as usize];
-                    self.spendable_output_count
-                        .block
-                        .push(StoredU64::from(spendable_total));
-
-                    if self.output_count.all.block.batch_limit_reached() {
+                    self.output_count.push_block(&agg.entries_per_type);
+                    self.tx_count.push_block(&agg.txs_per_type);
+                    height += 1;
+                    if height.is_multiple_of(WRITE_INTERVAL) {
                         let _lock = exit.lock();
                         self.output_count.write()?;
-                        self.spendable_output_count.block.write()?;
                         self.tx_count.write()?;
                     }
                     Ok(())
@@ -92,46 +80,11 @@ impl Vecs {
             {
                 let _lock = exit.lock();
                 self.output_count.write()?;
-                self.spendable_output_count.block.write()?;
                 self.tx_count.write()?;
             }
-
-            self.output_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.spendable_output_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.tx_count.compute_rest(starting_lengths.height, exit)?;
+            self.spendable_output_count.clear();
         }
 
-        for (otype, source) in self.output_count.by_type.iter_typed() {
-            self.output_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.output_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
-
-        for (otype, source) in self.tx_count.by_type.iter_typed() {
-            self.tx_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.tx_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
         Ok(())
-    }
-}
-
-#[inline]
-fn push_block(
-    metric: &mut WithOutputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
-    total: u64,
-    per_type: &[u64; OutputType::COUNT],
-) {
-    metric.all.block.push(StoredU64::from(total));
-    for (otype, vec) in metric.by_type.iter_typed_mut() {
-        vec.block.push(StoredU64::from(per_type[otype as usize]));
     }
 }

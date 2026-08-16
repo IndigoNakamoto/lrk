@@ -1,10 +1,10 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{Bitcoin, Dollars, StoredF32};
+use brk_types::{Dollars, PartsPerMillion64, StoredF32};
 use vecdb::Exit;
 
 use super::{Vecs, gini};
-use crate::{distribution, internal::RatioDollarsBp32, market, mining, transactions};
+use crate::{distribution, internal::RatioDollars, market, mining};
 
 impl Vecs {
     #[allow(clippy::too_many_arguments)]
@@ -13,7 +13,6 @@ impl Vecs {
         indexer: &Indexer,
         mining: &mining::Vecs,
         distribution: &distribution::Vecs,
-        transactions: &transactions::Vecs,
         market: &market::Vecs,
         exit: &Exit,
     ) -> Result<()> {
@@ -23,8 +22,8 @@ impl Vecs {
 
         // Puell Multiple: daily_subsidy_usd / sma_365d_subsidy_usd
         self.puell_multiple
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
+            .ppm
+            .compute_binary::<Dollars, Dollars, RatioDollars<PartsPerMillion64>>(
                 starting_lengths.height,
                 &mining.rewards.subsidy.block.usd,
                 &mining.rewards.subsidy.average._1y.usd.height,
@@ -35,152 +34,52 @@ impl Vecs {
         gini::compute(&mut self.gini, distribution, indexer, exit)?;
 
         // RHODL Ratio: 1d-1w realized cap / 1y-2y realized cap
-        self.rhodl_ratio
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
-                starting_lengths.height,
-                &distribution
-                    .utxo_cohorts
-                    .age_range
-                    ._1d_to_1w
-                    .metrics
-                    .realized
-                    .cap
-                    .usd
-                    .height,
-                &distribution
-                    .utxo_cohorts
-                    .age_range
-                    ._1y_to_2y
-                    .metrics
-                    .realized
-                    .cap
-                    .usd
-                    .height,
-                exit,
-            )?;
-
-        // NVT: market_cap / tx_volume_24h
-        let market_cap = &distribution
-            .utxo_cohorts
-            .all
-            .metrics
-            .supply
-            .total
-            .usd
-            .height;
-        self.nvt
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
-                starting_lengths.height,
-                market_cap,
-                &transactions.volume.transfer_volume.sum._24h.usd.height,
-                exit,
-            )?;
-
-        // Thermocap Multiple: market_cap / thermo_cap
-        self.thermo_cap_multiple
-            .bps
-            .compute_binary::<Dollars, Dollars, RatioDollarsBp32>(
-                starting_lengths.height,
-                market_cap,
-                &mining.rewards.subsidy.cumulative.usd.height,
-                exit,
-            )?;
+        self.rhodl_ratio.ppm.height.compute_transform3(
+            starting_lengths.height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._1d_to_1w
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._1y_to_18m
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            &distribution
+                .utxo_cohorts
+                .age_range
+                ._18m_to_2y
+                .metrics
+                .realized
+                .cap
+                .usd
+                .height,
+            |(i, young_cap, year1_cap, month18_cap, ..)| {
+                let denominator = year1_cap + month18_cap;
+                let ratio = f64::from(young_cap) / f64::from(denominator);
+                (
+                    i,
+                    if ratio.is_finite() {
+                        PartsPerMillion64::from(ratio)
+                    } else {
+                        PartsPerMillion64::default()
+                    },
+                )
+            },
+            exit,
+        )?;
 
         let all_metrics = &distribution.utxo_cohorts.all.metrics;
-        let all_activity = &all_metrics.activity;
         let supply_total_sats = &all_metrics.supply.total.sats.height;
-
-        // Supply-Adjusted CDD = sum_24h(CDD) / circulating_supply_btc
-        self.coindays_destroyed_supply_adj
-            .height
-            .compute_transform2(
-                starting_lengths.height,
-                &all_activity.coindays_destroyed.sum._24h.height,
-                supply_total_sats,
-                |(i, cdd_24h, supply_sats, ..)| {
-                    let supply = f64::from(Bitcoin::from(supply_sats));
-                    if supply == 0.0 {
-                        (i, StoredF32::from(0.0f32))
-                    } else {
-                        (i, StoredF32::from((f64::from(cdd_24h) / supply) as f32))
-                    }
-                },
-                exit,
-            )?;
-
-        // Supply-Adjusted CYD = CYD / circulating_supply_btc
-        self.coinyears_destroyed_supply_adj
-            .height
-            .compute_transform2(
-                starting_lengths.height,
-                &all_activity.coinyears_destroyed.height,
-                supply_total_sats,
-                |(i, cyd, supply_sats, ..)| {
-                    let supply = f64::from(Bitcoin::from(supply_sats));
-                    if supply == 0.0 {
-                        (i, StoredF32::from(0.0f32))
-                    } else {
-                        (i, StoredF32::from((f64::from(cyd) / supply) as f32))
-                    }
-                },
-                exit,
-            )?;
-
-        // Supply-Adjusted Dormancy = dormancy / circulating_supply_btc
-        self.dormancy.supply_adj.height.compute_transform2(
-            starting_lengths.height,
-            &all_activity.dormancy._24h.height,
-            supply_total_sats,
-            |(i, dormancy, supply_sats, ..)| {
-                let supply = f64::from(Bitcoin::from(supply_sats));
-                if supply == 0.0 {
-                    (i, StoredF32::from(0.0f32))
-                } else {
-                    (i, StoredF32::from((f64::from(dormancy) / supply) as f32))
-                }
-            },
-            exit,
-        )?;
-
-        // Stock-to-Flow: supply / annual_issuance
-        // annual_issuance ≈ subsidy_per_block × 52560 (blocks/year)
-        self.stock_to_flow.height.compute_transform2(
-            starting_lengths.height,
-            supply_total_sats,
-            &mining.rewards.subsidy.block.sats,
-            |(i, supply_sats, subsidy_sats, ..)| {
-                let annual_flow =
-                    subsidy_sats.as_u128() as f64 * indexer.chain.constants().blocks_per_year as f64;
-                if annual_flow == 0.0 {
-                    (i, StoredF32::from(0.0f32))
-                } else {
-                    (
-                        i,
-                        StoredF32::from((supply_sats.as_u128() as f64 / annual_flow) as f32),
-                    )
-                }
-            },
-            exit,
-        )?;
-
-        // Dormancy Flow: supply_btc / dormancy
-        self.dormancy.flow.height.compute_transform2(
-            starting_lengths.height,
-            supply_total_sats,
-            &all_activity.dormancy._24h.height,
-            |(i, supply_sats, dormancy, ..)| {
-                let d = f64::from(dormancy);
-                if d == 0.0 {
-                    (i, StoredF32::from(0.0f32))
-                } else {
-                    let supply = f64::from(Bitcoin::from(supply_sats));
-                    (i, StoredF32::from((supply / d) as f32))
-                }
-            },
-            exit,
-        )?;
 
         // Seller Exhaustion Constant: % supply_in_profit × 30d_volatility
         self.seller_exhaustion.height.compute_transform3(

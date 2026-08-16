@@ -6,12 +6,12 @@
 
 # Interface: NuplPattern
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5178](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5178)
+Defined in: [Developer/brk/modules/brk-client/index.js:5652](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5652)
 
 ## Properties
 
 ### nupl
 
-> **nupl**: [`BpsRatioPattern`](BpsRatioPattern.md)
+> **nupl**: [`PpmRatioPattern`](PpmRatioPattern.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:5179](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L5179)
+Defined in: [Developer/brk/modules/brk-client/index.js:5653](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L5653)

@@ -1,8 +1,10 @@
-use std::{cmp::Reverse, collections::BinaryHeap, fs, path::Path};
+use std::{cmp::Reverse, collections::BinaryHeap, path::Path};
 
-use brk_cohort::{AGE_RANGE_NAMES, CohortContext, Filtered, PROFITABILITY_RANGE_COUNT, TERM_NAMES};
+use brk_cohort::{
+    AGE_RANGE_NAMES, CohortContext, Filtered, PROFITABILITY_RANGE_COUNT, TERM_NAMES, UTXO_ALL_NAME,
+};
 use brk_error::Result;
-use brk_types::{BasisPoints16, Cents, CentsCompact, Date, Dollars, Sats, UrpdRaw};
+use brk_types::{Cents, CentsCompact, Date, Dollars, PartsPerMillion32, Sats, UrpdRaw};
 use rayon::prelude::*;
 
 use crate::distribution::metrics::{CostBasis, ProfitabilityMetrics};
@@ -37,6 +39,28 @@ impl UTXOCohorts {
         Ok(())
     }
 
+    /// Iterate over the current in-memory age-cohort URPD entries.
+    ///
+    /// Prices use the same rounding as the persisted daily distributions, so
+    /// consumers can avoid writing and immediately rereading the current day.
+    pub(crate) fn age_range_urpd_entries(
+        &self,
+    ) -> impl Iterator<Item = (usize, bool, CentsCompact, Sats)> + '_ {
+        let sth_filter = &self.sth.metrics.filter;
+        self.age_range
+            .iter()
+            .enumerate()
+            .flat_map(move |(age, cohort)| {
+                let is_sth = sth_filter.includes(cohort.filter());
+                cohort.state.iter().flat_map(move |state| {
+                    state
+                        .cost_basis_map()
+                        .iter()
+                        .map(move |(&price, &sats)| (age, is_sth, rounded_urpd_price(price), sats))
+                })
+            })
+    }
+
     /// Push all Fenwick-derived per-block results: percentiles, density, profitability.
     fn push_fenwick_results(&mut self, spot_price: Cents) {
         let (all_d, sth_d, lth_d) = self.caches.fenwick.density(spot_price);
@@ -49,22 +73,6 @@ impl UTXOCohorts {
 
         let lth = self.caches.fenwick.percentiles_lth();
         push_cost_basis(&lth, lth_d, &mut self.lth.metrics.cost_basis);
-
-        let (discount_d, premium_d) = self.caches.fenwick.entry_density(spot_price);
-
-        let discount = self.caches.fenwick.percentiles_discount_entry();
-        push_cost_basis(
-            &discount,
-            discount_d,
-            &mut self.entry.discount.metrics.cost_basis,
-        );
-
-        let premium = self.caches.fenwick.percentiles_premium_entry();
-        push_cost_basis(
-            &premium,
-            premium_d,
-            &mut self.entry.premium.metrics.cost_basis,
-        );
 
         let prof = self.caches.fenwick.profitability(spot_price);
         push_profitability(&prof, &mut self.profitability);
@@ -85,7 +93,7 @@ impl UTXOCohorts {
                 };
                 let mut merged: Vec<(CentsCompact, Sats)> = Vec::new();
                 for (&price, &sats) in state.cost_basis_map().iter() {
-                    let rounded = price.round_to_dollar(COST_BASIS_PRICE_DIGITS);
+                    let rounded = rounded_urpd_price(price);
                     if let Some(last) = merged.last_mut()
                         && last.0 == rounded
                     {
@@ -95,7 +103,7 @@ impl UTXOCohorts {
                     }
                 }
                 let full = CohortContext::Utxo.prefixed(name.id);
-                write_distribution(states_path, &full, date, merged)
+                UrpdRaw::write(states_path, &full, date, merged.into_iter())
             })?;
 
         let maps: Vec<_> = self
@@ -126,23 +134,34 @@ impl UTXOCohorts {
         merge_k_way(&maps, &mut targets);
 
         [
-            ("all", targets.all.merged),
+            (UTXO_ALL_NAME.id, targets.all.merged),
             (TERM_NAMES.short.id, targets.sth.merged),
             (TERM_NAMES.long.id, targets.lth.merged),
         ]
         .into_par_iter()
-        .try_for_each(|(name, merged)| write_distribution(states_path, name, date, merged))?;
+        .try_for_each(|(name, merged)| {
+            UrpdRaw::write(states_path, name, date, merged.into_iter())
+        })?;
 
         Ok(())
     }
 }
 
+#[inline]
+fn rounded_urpd_price(price: CentsCompact) -> CentsCompact {
+    price.round_to_dollar(COST_BASIS_PRICE_DIGITS)
+}
+
 /// Push percentiles + density to cost basis vecs.
 #[inline(always)]
-fn push_cost_basis(percentiles: &PercentileResult, density_bps: u16, cost_basis: &mut CostBasis) {
+fn push_cost_basis(
+    percentiles: &PercentileResult,
+    density: PartsPerMillion32,
+    cost_basis: &mut CostBasis,
+) {
     cost_basis.push_minmax(percentiles.min_price, percentiles.max_price);
     cost_basis.push_percentiles(&percentiles.sat_prices, &percentiles.usd_prices);
-    cost_basis.push_density(BasisPoints16::from(density_bps));
+    cost_basis.push_density(density);
 }
 
 #[inline(always)]
@@ -163,21 +182,6 @@ fn push_profitability(
             raw_usd_to_dollars(r.sth_usd),
         );
     }
-}
-
-fn write_distribution(
-    states_path: &Path,
-    full_name: &str,
-    date: Date,
-    merged: Vec<(CentsCompact, Sats)>,
-) -> Result<()> {
-    let dir = states_path.join(full_name).join("urpd");
-    fs::create_dir_all(&dir)?;
-    fs::write(
-        dir.join(date.to_string()),
-        UrpdRaw::serialize_iter(merged.into_iter())?,
-    )?;
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -221,9 +225,9 @@ impl MergeTarget {
         self.price_sats += amount;
     }
 
-    fn finalize_price(&mut self, price: Cents) {
+    fn finalize_price(&mut self, price: CentsCompact) {
         if self.price_sats > 0 {
-            let rounded: CentsCompact = price.round_to_dollar(COST_BASIS_PRICE_DIGITS).into();
+            let rounded = rounded_urpd_price(price);
             if let Some((lp, ls)) = self.merged.last_mut()
                 && *lp == rounded
             {
@@ -265,7 +269,7 @@ fn merge_k_way(
         if let Some(prev) = current_price
             && prev != price
         {
-            targets.for_each_mut(|t| t.finalize_price(prev.into()));
+            targets.for_each_mut(|t| t.finalize_price(prev));
         }
 
         current_price = Some(price);
@@ -278,6 +282,6 @@ fn merge_k_way(
     }
 
     if let Some(price) = current_price {
-        targets.for_each_mut(|t| t.finalize_price(price.into()));
+        targets.for_each_mut(|t| t.finalize_price(price));
     }
 }

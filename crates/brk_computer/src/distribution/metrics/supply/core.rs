@@ -1,17 +1,17 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Version};
+use brk_types::Version;
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, Exit, Rw, StorageMode, WritableVec};
 
-use crate::{distribution::state::UnrealizedState, price};
+use crate::distribution::state::UnrealizedState;
 
 use crate::internal::{
-    HalveCents, HalveDollars, HalveSats, HalveSatsToBitcoin, LazyValuePerBlock, ValuePerBlock,
+    HalveCents, HalveDollars, HalveSats, HalveSatsToBitcoin, LazyValuePerBlock, SpotValuePerBlock,
 };
 
-use crate::distribution::metrics::ImportConfig;
+use crate::distribution::metrics::{AllSupplyCache, ImportConfig};
 
 use super::SupplyBase;
 
@@ -24,16 +24,23 @@ pub struct SupplyCore<M: StorageMode = Rw> {
     pub base: SupplyBase<M>,
 
     pub half: LazyValuePerBlock,
-    pub in_profit: ValuePerBlock<M>,
-    pub in_loss: ValuePerBlock<M>,
+    pub in_profit: SpotValuePerBlock<M>,
+    pub in_loss: SpotValuePerBlock<M>,
 }
 
 impl SupplyCore {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        let v0 = Version::ZERO;
-        let base = SupplyBase::forced_import(cfg)?;
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
+        Self::forced_import_with_base(cfg, SupplyBase::forced_import(cfg, all_supply)?)
+    }
 
-        let half = LazyValuePerBlock::from_block_source::<
+    pub(crate) fn forced_import_all(cfg: &ImportConfig) -> Result<Self> {
+        Self::forced_import_with_base(cfg, SupplyBase::forced_import_all(cfg)?)
+    }
+
+    fn forced_import_with_base(cfg: &ImportConfig, base: SupplyBase) -> Result<Self> {
+        let v0 = Version::ZERO;
+
+        let half = LazyValuePerBlock::from_spot_block_source::<
             HalveSats,
             HalveSatsToBitcoin,
             HalveCents,
@@ -64,22 +71,8 @@ impl SupplyCore {
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let mut vecs = self.base.collect_vecs_mut();
         vecs.push(&mut self.in_profit.sats.height as &mut dyn AnyStoredVec);
-        vecs.push(&mut self.in_profit.cents.height);
         vecs.push(&mut self.in_loss.sats.height);
-        vecs.push(&mut self.in_loss.cents.height);
         vecs
-    }
-
-    pub(crate) fn compute(
-        &mut self,
-        prices: &price::Vecs,
-        max_from: Height,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.base.compute(prices, max_from, exit)?;
-        self.in_profit.compute(prices, max_from, exit)?;
-        self.in_loss.compute(prices, max_from, exit)?;
-        Ok(())
     }
 
     pub(crate) fn validate_computed_versions(&mut self, _base_version: Version) -> Result<()> {

@@ -9,7 +9,7 @@ use byteview::ByteView;
 use derive_more::Deref;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Bytes, CheckedSub, Formattable, Pco, PrintableIndex, Stamp};
+use vecdb::{Bytes, CheckedSub, Formattable, Pco, PrintableIndex, Stamp, VecIndex};
 
 use crate::{BLOCKS_PER_DIFF_EPOCHS, FromCoarserIndex, halving::blocks_per_halving};
 
@@ -276,6 +276,10 @@ impl PrintableIndex for Height {
     fn to_possible_strings() -> &'static [&'static str] {
         &["h", "height", "blk", "block"]
     }
+}
+
+impl VecIndex for Height {
+    const INITIAL_CAPACITY: usize = 1_200_000;
 }
 
 impl std::fmt::Display for Height {

@@ -1,52 +1,54 @@
-use brk_error::Result;
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned32, Cents, Height, Version};
-use vecdb::{Exit, ReadableVec, Rw, StorageMode};
+use brk_types::{PartsPerMillion64, PartsPerMillionSigned32, Version};
+use vecdb::UnaryTransform;
 
-use crate::internal::RatioPerBlock;
+use crate::internal::{LazyPerBlock, LazyRatioPerBlock};
 
 use crate::distribution::metrics::ImportConfig;
 
-#[derive(Traversable)]
-pub struct UnrealizedMinimal<M: StorageMode = Rw> {
-    pub nupl: RatioPerBlock<BasisPointsSigned32, M>,
+const VERSION: Version = Version::new(5);
+
+#[derive(Clone, Traversable)]
+pub struct UnrealizedMinimal {
+    pub nupl: LazyRatioPerBlock<PartsPerMillionSigned32, PartsPerMillion64>,
 }
 
 impl UnrealizedMinimal {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
-        Ok(Self {
-            nupl: RatioPerBlock::forced_import_raw(
-                cfg.db,
+    pub(crate) fn new(cfg: &ImportConfig, mvrv: &LazyPerBlock<PartsPerMillion64>) -> Self {
+        Self {
+            nupl: LazyRatioPerBlock::from_lazy_source::<MvrvToNupl, PartsPerMillion64>(
                 &cfg.name("nupl"),
-                cfg.version + Version::ONE,
-                cfg.indexes,
-            )?,
-        })
+                cfg.version + VERSION,
+                mvrv,
+            ),
+        }
     }
+}
 
-    pub(crate) fn compute(
-        &mut self,
-        max_from: Height,
-        spot_price: &impl ReadableVec<Height, Cents>,
-        realized_price: &impl ReadableVec<Height, Cents>,
-        exit: &Exit,
-    ) -> Result<()> {
-        self.nupl.bps.height.compute_transform2(
-            max_from,
-            spot_price,
-            realized_price,
-            |(i, price, realized_price, ..)| {
-                let p = price.as_u128();
-                if p == 0 {
-                    (i, BasisPointsSigned32::ZERO)
-                } else {
-                    let rp = realized_price.as_u128();
-                    let nupl_bps = ((p as i128 - rp as i128) * 10000) / p as i128;
-                    (i, BasisPointsSigned32::from(nupl_bps as i32))
-                }
-            },
-            exit,
-        )?;
-        Ok(())
+struct MvrvToNupl;
+
+impl UnaryTransform<PartsPerMillion64, PartsPerMillionSigned32> for MvrvToNupl {
+    #[inline(always)]
+    fn apply(mvrv: PartsPerMillion64) -> PartsPerMillionSigned32 {
+        PartsPerMillionSigned32::from(1.0 - 1.0 / f64::from(mvrv))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nupl_is_derived_from_mvrv() {
+        assert_eq!(
+            MvrvToNupl::apply(PartsPerMillion64::from(2.0)),
+            PartsPerMillionSigned32::from(0.5),
+        );
+        assert_eq!(
+            MvrvToNupl::apply(PartsPerMillion64::from(1.0)),
+            PartsPerMillionSigned32::ZERO,
+        );
+        assert!(MvrvToNupl::apply(PartsPerMillion64::NAN).is_nan());
+        assert!(MvrvToNupl::apply(PartsPerMillion64::ZERO).is_nan());
     }
 }

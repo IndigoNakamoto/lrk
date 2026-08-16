@@ -8,7 +8,7 @@ use brk_types::{Cohort, Date, Urpd, Version};
 use crate::{
     CacheStrategy,
     extended::TransformResponseExtended,
-    params::{Empty, UrpdCohortParam, UrpdParams, UrpdQuery},
+    params::{Empty, UrpdCohortParam, UrpdParams, UrpdQuery, UrpdWeightQuery},
 };
 
 use super::AppState;
@@ -47,11 +47,11 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                 async |uri: Uri,
                        headers: HeaderMap,
                        Path(params): Path<UrpdCohortParam>,
-                       _: Empty,
+                       Query(query): Query<UrpdWeightQuery>,
                        State(state): State<AppState>| {
                     state
                         .respond_json(&headers, CacheStrategy::Tip, &uri, move |q| {
-                            q.urpd_dates(&params.cohort)
+                            q.urpd_dates_with_weight(&params.cohort, query.weight)
                         })
                         .await
                 },
@@ -60,8 +60,8 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                         .urpd_tag()
                         .summary("Available URPD dates")
                         .description(
-                            "Dates for which a URPD snapshot is available for the cohort. \
-                            One entry per UTC day, sorted ascending.",
+                            "Dates for which a URPD snapshot is available for the cohort and \
+                            selected `weight`. One entry per UTC day, sorted ascending.",
                         )
                         .json_response::<Vec<Date>>()
                         .not_modified()
@@ -80,7 +80,11 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                        State(state): State<AppState>| {
                     state
                         .respond_json(&headers, CacheStrategy::Tip, &uri, move |q| {
-                            q.urpd_latest(&params.cohort, query.aggregation)
+                            q.urpd_latest_with_weight(
+                                &params.cohort,
+                                query.aggregation,
+                                query.weight,
+                            )
                         })
                         .await
                 },
@@ -90,8 +94,11 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                         .summary("Latest URPD")
                         .description(
                             "URPD for the most recent available date in the cohort. \
-                            The response's `date` field echoes which date was served.\n\n\
-                            See the URPD tag description for the response shape and `agg` options.",
+                            The response's `date` field echoes which date was served. Returns \
+                            `{ cohort, date, weight, aggregation, close, total_supply, buckets }`. \
+                            `close` and each bucket's `price_floor`, `realized_cap`, and \
+                            `unrealized_pnl` are USD; `total_supply` and bucket `supply` are BTC. \
+                            `unrealized_pnl` can be negative.",
                         )
                         .json_response::<Urpd>()
                         .not_modified()
@@ -108,10 +115,15 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                        Path(params): Path<UrpdParams>,
                        Query(query): Query<UrpdQuery>,
                        State(state): State<AppState>| {
-                    let strategy = state.date_strategy(Version::ONE, params.date);
+                    let strategy = state.date_strategy(Version::TWO, params.date);
                     state
                         .respond_json(&headers, strategy, &uri, move |q| {
-                            q.urpd_at(&params.cohort, params.date, query.aggregation)
+                            q.urpd_at_with_weight(
+                                &params.cohort,
+                                params.date,
+                                query.aggregation,
+                                query.weight,
+                            )
                         })
                         .await
                 },
@@ -121,9 +133,10 @@ impl ApiUrpdRoutes for ApiRouter<AppState> {
                         .summary("URPD at date")
                         .description(
                             "URPD for a (cohort, date) pair. Returns \
-                            `{ cohort, date, aggregation, close, total_supply, buckets }` where \
-                            each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.\n\n\
-                            See the URPD tag description for unit conventions and `agg` options.",
+                            `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where \
+                            each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`. \
+                            `close`, `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; \
+                            `total_supply` and `supply` are BTC. `unrealized_pnl` can be negative.",
                         )
                         .json_response::<Urpd>()
                         .not_modified()

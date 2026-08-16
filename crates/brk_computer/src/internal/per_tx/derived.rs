@@ -96,7 +96,7 @@ where
         self.block.compute_with_skip(
             starting_lengths.height,
             tx_index_source,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
             exit,
             skip_count,
@@ -105,7 +105,7 @@ where
         self.distribution._6b.compute_from_nblocks(
             starting_lengths.height,
             tx_index_source,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
             6,
             exit,
@@ -135,7 +135,7 @@ where
             starting_lengths.height,
             tx_index_source,
             vsize_source,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
             exit,
             skip_count,
@@ -144,7 +144,7 @@ where
         self.distribution._6b.compute_from_nblocks(
             starting_lengths.height,
             tx_index_source,
-            &indexer.vecs.transactions.first_tx_index,
+            &indexer.vecs().transactions.first_tx_index,
             &indexes.height.tx_index_count,
             6,
             exit,

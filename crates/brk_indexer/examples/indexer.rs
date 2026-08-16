@@ -32,7 +32,7 @@ fn main() -> color_eyre::Result<()> {
     let reader = Reader::new(bitcoin_dir.join("blocks"), &client);
     debug!("Reader created.");
 
-    let mut indexer = Indexer::forced_import(&outputs_dir)?;
+    let mut indexer = Indexer::import(&outputs_dir, &reader)?;
     debug!("Indexer imported.");
 
     let exit = Exit::new();
@@ -40,7 +40,8 @@ fn main() -> color_eyre::Result<()> {
 
     loop {
         let i = Instant::now();
-        indexer.checked_index(&reader, &client, &exit)?;
+        indexer.checked_index(&exit)?;
+        indexer.advance_safe_lengths()?;
         info!("Done in {:?}", i.elapsed());
 
         Mimalloc::collect();

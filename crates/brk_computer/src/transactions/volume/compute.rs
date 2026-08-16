@@ -1,47 +1,31 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::StoredF32;
 use vecdb::Exit;
 
 use super::Vecs;
-use crate::transactions::{count, fees};
-use crate::{indexes, internal::Windows, price};
+use crate::transactions::fees;
+use crate::{indexes, price};
 
 impl Vecs {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
         indexes: &indexes::Vecs,
         prices: &price::Vecs,
-        count_vecs: &count::Vecs,
         fees_vecs: &fees::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.transfer_volume
-            .compute(starting_height, prices, exit, |sats_vec| {
-                Ok(sats_vec.compute_filtered_sum_from_indexes(
-                    starting_height,
-                    &indexer.vecs.transactions.first_tx_index,
-                    &indexes.height.tx_index_count,
-                    &fees_vecs.transfer_input_value,
-                    |sats| !sats.is_max(),
-                    exit,
-                )?)
-            })?;
-
-        let tx_sums = count_vecs.total.rolling.sum.0.as_array();
-        let tx_per_sec = self.tx_per_sec.as_mut_array();
-        for (i, &secs) in Windows::<()>::SECS.iter().enumerate() {
-            tx_per_sec[i].height.compute_transform(
-                starting_height,
-                &tx_sums[i].height,
-                |(h, sum, ..)| (h, StoredF32::from(*sum as f64 / secs)),
-                exit,
-            )?;
-        }
+        self.transfer_volume.compute_filtered_from_indexes(
+            starting_height,
+            prices,
+            &indexer.vecs().transactions.first_tx_index,
+            &indexes.height.tx_index_count,
+            &fees_vecs.input_value,
+            |sats| !sats.is_max(),
+            exit,
+        )?;
 
         Ok(())
     }

@@ -6,7 +6,7 @@
 
 # Interface: BlockTemplate
 
-Defined in: [Developer/brk/modules/brk-client/index.js:301](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L301)
+Defined in: [Developer/brk/modules/brk-client/index.js:274](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L274)
 
 ## Properties
 
@@ -14,10 +14,9 @@ Defined in: [Developer/brk/modules/brk-client/index.js:301](https://github.com/b
 
 > **hash**: `number`
 
-Defined in: [Developer/brk/modules/brk-client/index.js:302](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L302)
+Defined in: [Developer/brk/modules/brk-client/index.js:275](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L275)
 
-Pass back as `<hash>` on
-`/api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
+Pass to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
 
 ***
 
@@ -25,7 +24,7 @@ Pass back as `<hash>` on
 
 > **stats**: [`MempoolBlock`](MempoolBlock.md)
 
-Defined in: [Developer/brk/modules/brk-client/index.js:304](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L304)
+Defined in: [Developer/brk/modules/brk-client/index.js:276](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L276)
 
 Aggregate stats for this block (size, vsize, fee range, ...).
 
@@ -35,6 +34,6 @@ Aggregate stats for this block (size, vsize, fee range, ...).
 
 > **transactions**: [`Transaction`](Transaction.md)[]
 
-Defined in: [Developer/brk/modules/brk-client/index.js:305](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L305)
+Defined in: [Developer/brk/modules/brk-client/index.js:277](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L277)
 
 Full transaction bodies in `getblocktemplate` order.

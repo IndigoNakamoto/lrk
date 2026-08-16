@@ -5,17 +5,21 @@ use std::{collections::btree_map::Entry, fs::create_dir_all, io, path::PathBuf};
 use brk_chain::Chain;
 use brk_query::Vecs;
 
-/// Output path configuration for each language client.
+/// Output path configuration for each client.
 ///
-/// Each path should be the full path to the output file, not just a directory.
-/// Parent directories will be created automatically if they don't exist.
+/// Rust, JavaScript, and Python take a full output file path. LLM clients take
+/// a root directory and generate their complete bundle inside it. Parent
+/// directories will be created automatically if they don't exist.
 ///
 /// # Example
 /// ```ignore
 /// let paths = ClientOutputPaths::new()
 ///     .rust("crates/brk_client/src/lib.rs")
 ///     .javascript("modules/brk-client/index.js")
-///     .python("packages/brk_client/__init__.py");
+///     .python("packages/brk_client/__init__.py")
+///     .llm_manifest("crates/brk_mcp/generated/manifest.json")
+///     .llm("website")
+///     .llm("website_next");
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct ClientOutputPaths {
@@ -25,6 +29,10 @@ pub struct ClientOutputPaths {
     pub javascript: Option<PathBuf>,
     /// Full path to Python client file (e.g., "packages/brk_client/__init__.py")
     pub python: Option<PathBuf>,
+    /// Root directories for generated LLM client bundles.
+    pub llm: Vec<PathBuf>,
+    /// Full path to the machine-readable tool manifest in the LLM bundle.
+    pub llm_manifest: Option<PathBuf>,
 }
 
 impl ClientOutputPaths {
@@ -44,6 +52,16 @@ impl ClientOutputPaths {
 
     pub fn python(mut self, path: impl Into<PathBuf>) -> Self {
         self.python = Some(path.into());
+        self
+    }
+
+    pub fn llm(mut self, root: impl Into<PathBuf>) -> Self {
+        self.llm.push(root.into());
+        self
+    }
+
+    pub fn llm_manifest(mut self, path: impl Into<PathBuf>) -> Self {
+        self.llm_manifest = Some(path.into());
         self
     }
 }
@@ -69,15 +87,18 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Generate all client libraries from the query vecs and OpenAPI JSON.
 ///
-/// Uses `ClientOutputPaths` to specify the output file path for each language.
-/// Only languages with a configured path will be generated.
+/// Uses `ClientOutputPaths` to specify the output location for each client.
+/// Only clients with a configured location will be generated.
 ///
 /// # Example
 /// ```ignore
 /// let paths = ClientOutputPaths::new()
 ///     .rust("crates/brk_client/src/lib.rs")
 ///     .javascript("modules/brk-client/index.js")
-///     .python("packages/brk_client/__init__.py");
+///     .python("packages/brk_client/__init__.py")
+///     .llm_manifest("crates/brk_mcp/generated/manifest.json")
+///     .llm("website")
+///     .llm("website_next");
 ///
 /// generate_clients(&vecs, &openapi_json, &paths)?;
 /// ```
@@ -142,6 +163,15 @@ pub fn generate_clients_for_chain(
         }
         generate_python_client(&metadata, &endpoints, &schemas, python_path, chain)?;
     }
+
+    generate_llm_clients(
+        &metadata,
+        &spec,
+        &endpoints,
+        &schemas,
+        &output_paths.llm,
+        output_paths.llm_manifest.as_deref(),
+    )?;
 
     Ok(())
 }

@@ -24,18 +24,19 @@ use brk_cohort::ByAddrType;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, Version};
+use brk_types::{Cents, Height, Sats, Version};
 use rayon::prelude::*;
-use vecdb::{AnyStoredVec, Database, Exit, ReadableVec, Rw, StorageMode};
+use vecdb::{AnyStoredVec, CachedBoxedVec, Database, Exit, ReadableVec, Rw, StorageMode};
 
 use super::{
     count::AddrCountFundedTotalVecs,
     supply::{AddrSupplyShareVecs, AddrSupplyVecs},
 };
 use crate::{
+    distribution::metrics::AllSupplyCache,
     indexes, inputs,
-    internal::{WindowStartVec, Windows},
-    outputs, price,
+    internal::{CachedWindowStartVec, Windows},
+    outputs,
 };
 
 mod state;
@@ -55,18 +56,37 @@ pub struct ReusedAddrVecs<M: StorageMode = Rw> {
 }
 
 impl ReusedAddrVecs {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn forced_import(
         db: &Database,
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        spot_price: &CachedBoxedVec<Height, Cents>,
+        outputs_by_type: &outputs::ByTypeVecs,
+        inputs_by_type: &inputs::ByTypeVecs,
+        all_supply: &AllSupplyCache,
     ) -> Result<Self> {
+        let count = AddrCountFundedTotalVecs::forced_import(db, name, version, indexes)?;
+        let events = AddrEventsVecs::forced_import(
+            db,
+            name,
+            version,
+            indexes,
+            cached_starts,
+            outputs_by_type,
+            inputs_by_type,
+        )?;
+        let supply = AddrSupplyVecs::forced_import(db, name, version, indexes, spot_price)?;
+        let supply_share =
+            AddrSupplyShareVecs::forced_import(db, name, version, indexes, &supply, all_supply)?;
+
         Ok(Self {
-            count: AddrCountFundedTotalVecs::forced_import(db, name, version, indexes)?,
-            events: AddrEventsVecs::forced_import(db, name, version, indexes, cached_starts)?,
-            supply: AddrSupplyVecs::forced_import(db, name, version, indexes)?,
-            supply_share: AddrSupplyShareVecs::forced_import(db, name, version, indexes)?,
+            count,
+            events,
+            supply,
+            supply_share,
         })
     }
 
@@ -96,13 +116,16 @@ impl ReusedAddrVecs {
 
     #[inline(always)]
     pub(crate) fn push_height(&mut self, state: &ReusedAddrState, active_addr_count: u32) {
+        let active_reused_addr_count = state.active.sum();
+        debug_assert!(u32::try_from(active_reused_addr_count).is_ok());
+
         self.count.push_counts(&state.funded, &state.total);
         self.supply.push_supply(&state.supply);
         self.events.push_height(
             &state.output_events,
             &state.input_events,
             active_addr_count,
-            u32::try_from(state.active.sum()).unwrap(),
+            active_reused_addr_count as u32,
         );
     }
 
@@ -110,22 +133,14 @@ impl ReusedAddrVecs {
     pub(crate) fn compute_rest(
         &mut self,
         starting_lengths: &Lengths,
-        outputs_by_type: &outputs::ByTypeVecs,
-        inputs_by_type: &inputs::ByTypeVecs,
-        prices: &price::Vecs,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
         type_supply_sats: &ByAddrType<&impl ReadableVec<Height, Sats>>,
         exit: &Exit,
     ) -> Result<()> {
         self.count.compute_rest(starting_lengths, exit)?;
-        self.events
-            .compute_rest(starting_lengths, outputs_by_type, inputs_by_type, exit)?;
-        self.supply
-            .compute_rest(starting_lengths.height, prices, exit)?;
+        self.events.compute_rest(starting_lengths, exit)?;
         self.supply_share.compute_rest(
             starting_lengths.height,
             &self.supply,
-            all_supply_sats,
             type_supply_sats,
             exit,
         )?;

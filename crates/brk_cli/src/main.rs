@@ -13,7 +13,6 @@ use brk_indexer::Indexer;
 use brk_mempool::Mempool;
 use brk_query::AsyncQuery;
 use brk_reader::Reader;
-use brk_rpc::Client;
 use brk_server::{Server, ServerConfig};
 use tracing::info;
 use vecdb::Exit;
@@ -29,7 +28,6 @@ pub fn main() -> anyhow::Result<()> {
     brk_logger::init(Some(&dot_brk_log_path()))?;
 
     let config = Config::import()?;
-
     brk_types::init_chain_epoch(config.chain());
 
     let client = config.rpc()?;
@@ -39,41 +37,31 @@ pub fn main() -> anyhow::Result<()> {
 
     let reader = Reader::new(config.blocksdir(), &client);
 
-    let mut indexer = Indexer::forced_import_with_chain(&config.brkdir(), config.chain())?;
+    let mut indexer = Indexer::import(&config.brkdir(), &reader)?;
 
     #[cfg(not(debug_assertions))]
     {
         // Pre-run indexer if too far behind, then drop and reimport to reduce memory
         let chain_height = client.get_last_height()?;
-        let indexed_height = indexer.vecs.next_height();
+        let indexed_height = indexer.vecs().next_height();
         let blocks_behind = chain_height.saturating_sub(*indexed_height);
         if blocks_behind > 10_000 {
             info!("---");
             info!("Indexing {blocks_behind} blocks before starting server...");
             info!("---");
             sleep(Duration::from_secs(10));
-            indexer.index(&reader, &client, &exit)?;
+            indexer.index(&exit)?;
             drop(indexer);
             Mimalloc::collect();
-            indexer = Indexer::forced_import_with_chain(&config.brkdir(), config.chain())?;
+            indexer = Indexer::import(&config.brkdir(), &reader)?;
         }
     }
 
     let mut computer = Computer::forced_import(&config.brkdir(), &indexer)?;
 
-    client.wait_for_synced_node()?;
-    info!("Running initial index/compute before starting server...");
-    sync_once(
-        &mut indexer,
-        &mut computer,
-        &reader,
-        &client,
-        &exit,
-    )?;
-
     let mempool = Mempool::new(&client);
 
-    let query = AsyncQuery::build(&reader, &indexer, &computer, Some(mempool.clone()));
+    let query = AsyncQuery::build(&indexer, &computer, Some(mempool.clone()));
 
     let mempool_clone = mempool.clone();
     let resolver = query.sync(|q| q.indexer_prevout_resolver());
@@ -108,49 +96,29 @@ pub fn main() -> anyhow::Result<()> {
     let _handle = runtime.spawn(future);
 
     loop {
+        client.wait_for_synced_node()?;
+
         let last_height = client.get_last_height()?;
+
+        info!("{} blocks found.", u32::from(last_height) + 1);
+
+        let total_start = Instant::now();
+
+        if cfg!(debug_assertions) {
+            indexer.checked_index(&exit)?;
+        } else {
+            indexer.index(&exit)?;
+        }
+
+        Mimalloc::collect();
+
+        computer.compute(&mut indexer, &exit)?;
+
+        info!("Total time: {:?}", total_start.elapsed());
+        info!("Waiting for new blocks...");
 
         while last_height == client.get_last_height()? {
             sleep(Duration::from_secs(1))
         }
-
-        sync_once(
-            &mut indexer,
-            &mut computer,
-            &reader,
-            &client,
-            &exit,
-        )?;
     }
-}
-
-fn sync_once(
-    indexer: &mut Indexer,
-    computer: &mut Computer,
-    reader: &Reader,
-    client: &Client,
-    exit: &Exit,
-) -> Result<()> {
-    let last_height = client.get_last_height()?;
-
-    info!("{} blocks found.", u32::from(last_height) + 1);
-
-    let total_start = Instant::now();
-
-    if cfg!(debug_assertions) {
-        indexer.checked_index(reader, client, exit)?;
-    } else {
-        indexer.index(reader, client, exit)?;
-    }
-
-    Mimalloc::collect();
-
-    computer.compute(indexer, exit)?;
-
-    indexer.advance_safe_lengths()?;
-
-    info!("Total time: {:?}", total_start.elapsed());
-    info!("Waiting for new blocks...");
-
-    Ok(())
 }

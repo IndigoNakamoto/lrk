@@ -67,7 +67,7 @@ impl Query {
         let (first, tx_count) = self.block_tx_range(height)?;
         let txids = self
             .indexer()
-            .vecs
+            .vecs()
             .transactions
             .txid
             .collect_range_at(first, first + tx_count);
@@ -86,11 +86,10 @@ impl Query {
             return Err(Error::OutOfRange("Transaction index out of range".into()));
         }
         self.indexer()
-            .vecs
+            .vecs()
             .transactions
             .txid
-            .reader()
-            .try_get(first + index)
+            .collect_one_at(first + index)
             .ok_or(Error::Internal(
                 "block_txid_at_index_by_height: txid index past data",
             ))
@@ -126,11 +125,11 @@ impl Query {
 
         // ── Phase 1: Decode all transactions, collect outpoints ─────────
 
-        let mut txid_cursor = indexer.vecs.transactions.txid.cursor();
-        let mut total_size_cursor = indexer.vecs.transactions.total_size.cursor();
-        let mut sigops_cursor = indexer.vecs.transactions.total_sigop_cost.cursor();
-        let mut first_txin_cursor = indexer.vecs.transactions.first_txin_index.cursor();
-        let mut position_cursor = indexer.vecs.transactions.position.cursor();
+        let txid_cursor = indexer.vecs().transactions.txid.reader().cursor();
+        let mut total_size_cursor = indexer.vecs().transactions.total_size.cursor();
+        let mut sigops_cursor = indexer.vecs().transactions.total_sigop_cost.cursor();
+        let mut first_txin_cursor = indexer.vecs().transactions.first_txin_index.cursor();
+        let mut position_cursor = indexer.vecs().transactions.position.cursor();
 
         struct DecodedTx {
             pos: usize,
@@ -193,10 +192,10 @@ impl Query {
         // sequential cursors avoid re-decompressing the same pages.
         // Reading output_type/type_index/value HERE from inputs vecs (sequential)
         // avoids random-reading them from outputs vecs in Phase 2.
-        let mut outpoint_cursor = indexer.vecs.inputs.outpoint.cursor();
-        let mut input_output_type_cursor = indexer.vecs.inputs.output_type.cursor();
-        let mut input_type_index_cursor = indexer.vecs.inputs.type_index.cursor();
-        let mut input_value_cursor = self.computer().inputs.spent.value.cursor();
+        let mut outpoint_cursor = indexer.vecs().inputs.outpoint.cursor();
+        let mut input_output_type_cursor = indexer.vecs().inputs.output_type.cursor();
+        let mut input_type_index_cursor = indexer.vecs().inputs.type_index.cursor();
+        let mut input_value_cursor = self.computer().inputs.value.cursor();
 
         let mut prevout_input_data: FxHashMap<OutPoint, (OutputType, TypeIndex, Sats)> =
             FxHashMap::with_capacity_and_hasher(total_inputs, Default::default());
@@ -222,7 +221,7 @@ impl Query {
         // Sort by (output_type, type_index) for sequential BytesVec access
         // within each address type's file.
 
-        let addr_readers = indexer.vecs.addrs.addr_readers();
+        let addr_readers = indexer.vecs().addrs.addr_readers();
 
         let mut sorted_prevouts: Vec<(OutPoint, OutputType, TypeIndex, Sats)> =
             Vec::with_capacity(prevout_input_data.len());
@@ -317,7 +316,7 @@ impl Query {
         if height >= safe.height {
             return Err(Error::OutOfRange("Block height out of range".into()));
         }
-        let first_tx_index_vec = &self.indexer().vecs.transactions.first_tx_index;
+        let first_tx_index_vec = &self.indexer().vecs().transactions.first_tx_index;
         let first: usize = first_tx_index_vec.collect_one(height).data()?.into();
         let next_height = height.incremented();
         let next: usize = if next_height < safe.height {

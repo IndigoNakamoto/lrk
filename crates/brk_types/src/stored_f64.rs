@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex};
 
-use crate::{Bitcoin, Dollars, StoredU64};
+use crate::{Bitcoin, Cents, Dollars, Sats, StoredU64};
 
 /// Fixed-size 64-bit floating point value optimized for on-disk storage
 #[derive(Debug, Deref, Default, Clone, Copy, Serialize, Deserialize, Pco, JsonSchema)]
@@ -86,6 +86,22 @@ impl Mul<Dollars> for StoredF64 {
     type Output = Self;
     fn mul(self, rhs: Dollars) -> Self::Output {
         Self(self.0 * *rhs)
+    }
+}
+
+impl Mul<Sats> for StoredF64 {
+    type Output = Sats;
+    #[inline]
+    fn mul(self, rhs: Sats) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl Mul<Cents> for StoredF64 {
+    type Output = Cents;
+    #[inline]
+    fn mul(self, rhs: Cents) -> Self::Output {
+        rhs * self
     }
 }
 

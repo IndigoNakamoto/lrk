@@ -34,9 +34,9 @@ pub struct Vecs<M: StorageMode = Rw> {
     /// Witness v9 peg-in outputs only (~0 steady-state balance).
     pub pegin: PegFlow<M>,
     /// v9 outputs created per block.
-    pub pegin_count: PerBlockCumulativeRolling<StoredU64, StoredU64, M>,
+    pub pegin_count: PerBlockCumulativeRolling<StoredU64, M>,
     /// Transparent vout value on HogEx txs (excludes v8/v9).
     pub pegout_value: ValuePerBlockCumulativeRolling<M>,
     /// Transparent vout count on HogEx txs (excludes v8/v9).
-    pub pegout_count: PerBlockCumulativeRolling<StoredU64, StoredU64, M>,
+    pub pegout_count: PerBlockCumulativeRolling<StoredU64, M>,
 }

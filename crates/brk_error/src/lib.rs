@@ -181,15 +181,42 @@ impl Error {
     /// Lock errors are transient and should not trigger data deletion.
     #[cfg(feature = "vecdb")]
     pub fn is_lock_error(&self) -> bool {
-        matches!(self, Error::VecDB(e) if e.is_lock_error())
+        let is_vecdb_lock = matches!(self, Error::VecDB(e) if e.is_lock_error());
+        #[cfg(feature = "fjall")]
+        {
+            is_vecdb_lock || matches!(self, Error::Fjall(fjall::Error::Locked))
+        }
+        #[cfg(not(feature = "fjall"))]
+        {
+            is_vecdb_lock
+        }
     }
 
     /// Returns true if this error indicates data corruption or version incompatibility.
     /// These errors may require resetting/deleting the data to recover.
     #[cfg(feature = "vecdb")]
     pub fn is_data_error(&self) -> bool {
-        matches!(self, Error::VecDB(e) if e.is_data_error())
-            || matches!(self, Error::VersionMismatch { .. })
+        let is_vecdb_data = matches!(self, Error::VecDB(e) if e.is_data_error())
+            || matches!(self, Error::VersionMismatch { .. });
+        #[cfg(feature = "fjall")]
+        {
+            is_vecdb_data
+                || matches!(
+                    self,
+                    Error::Fjall(
+                        fjall::Error::JournalRecovery(_)
+                            | fjall::Error::InvalidVersion(_)
+                            | fjall::Error::Decompress(_)
+                            | fjall::Error::InvalidTrailer
+                            | fjall::Error::InvalidTag(_)
+                            | fjall::Error::Unrecoverable
+                    )
+                )
+        }
+        #[cfg(not(feature = "fjall"))]
+        {
+            is_vecdb_data
+        }
     }
 
     /// Returns true if this network/fetch error indicates a permanent/blocking condition

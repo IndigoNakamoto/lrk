@@ -9,27 +9,27 @@ impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
         let mut prev_timestamp = None;
-        self.0.compute(starting_height, exit, |vec| {
-            vec.compute_transform(
-                starting_height,
-                &indexer.vecs.blocks.timestamp,
-                |(h, timestamp, ..)| {
-                    let interval = if let Some(prev_h) = h.decremented() {
-                        let prev = prev_timestamp.unwrap_or_else(|| {
-                            indexer.vecs.blocks.timestamp.collect_one(prev_h).unwrap()
-                        });
-                        timestamp.checked_sub(prev).unwrap_or(Timestamp::ZERO)
-                    } else {
-                        Timestamp::ZERO
-                    };
-                    prev_timestamp = Some(timestamp);
-                    (h, interval)
-                },
-                exit,
-            )?;
-            Ok(())
-        })?;
-
-        Ok(())
+        self.0.compute_from(
+            starting_height,
+            &indexer.vecs().blocks.timestamp,
+            |height, timestamp| {
+                let interval = if let Some(previous_height) = height.decremented() {
+                    let previous = prev_timestamp.unwrap_or_else(|| {
+                        indexer
+                            .vecs()
+                            .blocks
+                            .timestamp
+                            .collect_one(previous_height)
+                            .unwrap()
+                    });
+                    timestamp.checked_sub(previous).unwrap_or(Timestamp::ZERO)
+                } else {
+                    Timestamp::ZERO
+                };
+                prev_timestamp = Some(timestamp);
+                interval
+            },
+            exit,
+        )
     }
 }

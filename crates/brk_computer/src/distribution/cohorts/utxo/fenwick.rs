@@ -1,5 +1,7 @@
-use brk_cohort::{Filter, PROFITABILITY_RANGE_COUNT, compute_profitability_boundaries};
-use brk_types::{Cents, CentsCompact, Sats};
+use brk_cohort::{
+    AGE_RANGE_COUNT, Filter, PROFITABILITY_RANGE_COUNT, compute_profitability_boundaries,
+};
+use brk_types::{Cents, CentsCompact, PartsPerMillion32, Sats};
 
 use crate::{
     distribution::state::PendingDelta,
@@ -10,9 +12,6 @@ use crate::{
 };
 
 use super::COST_BASIS_PRICE_DIGITS;
-
-/// Number of age range cohorts (21: 20 boundaries + 1 unbounded).
-const AGE_RANGE_COUNT: usize = 21;
 
 // Tier boundaries for 5-significant-digit dollar bucketing.
 // Matches the rounding used by `Cents::round_to_dollar(5)`.
@@ -25,15 +24,13 @@ const TIER1_START: usize = TIER0_COUNT;
 /// Total number of buckets.
 const TREE_SIZE: usize = TIER0_COUNT + TIER1_COUNT + OVERFLOW; // 190,001
 
-/// 4-field Fenwick tree node for combined cost basis tracking.
+/// Fenwick tree node for combined cost basis tracking.
 #[derive(Clone, Copy, Default)]
 pub(super) struct CostBasisNode {
     all_sats: i64,
     sth_sats: i64,
-    discount_sats: i64,
     all_usd: i128,
     sth_usd: i128,
-    discount_usd: i128,
 }
 
 impl CostBasisNode {
@@ -42,22 +39,8 @@ impl CostBasisNode {
         Self {
             all_sats: sats,
             sth_sats: if is_sth { sats } else { 0 },
-            discount_sats: 0,
             all_usd: usd,
             sth_usd: if is_sth { usd } else { 0 },
-            discount_usd: 0,
-        }
-    }
-
-    #[inline(always)]
-    fn new_discount(sats: i64, usd: i128) -> Self {
-        Self {
-            all_sats: 0,
-            sth_sats: 0,
-            discount_sats: sats,
-            all_usd: 0,
-            sth_usd: 0,
-            discount_usd: usd,
         }
     }
 }
@@ -67,10 +50,8 @@ impl FenwickNode for CostBasisNode {
     fn add_assign(&mut self, other: &Self) {
         self.all_sats += other.all_sats;
         self.sth_sats += other.sth_sats;
-        self.discount_sats += other.discount_sats;
         self.all_usd += other.all_usd;
         self.sth_usd += other.sth_usd;
-        self.discount_usd += other.discount_usd;
     }
 }
 
@@ -174,29 +155,10 @@ impl CostBasisFenwick {
         self.totals.add_assign(&delta);
     }
 
-    /// Apply a net delta from the discount-entry cohort.
-    ///
-    /// Supply totals are maintained from the age-range cohorts; this updates
-    /// only the discount-entry partition so premium can be derived as all - discount.
-    pub(super) fn apply_discount_delta(&mut self, price: CentsCompact, pending: &PendingDelta) {
-        let net_sats = u64::from(pending.inc) as i64 - u64::from(pending.dec) as i64;
-        if net_sats == 0 {
-            return;
-        }
-        let bucket = price_to_bucket(price);
-        let delta =
-            CostBasisNode::new_discount(net_sats, price.as_u128() as i128 * net_sats as i128);
-        self.tree.add(bucket, &delta);
-        self.totals.add_assign(&delta);
-    }
-
-    /// Bulk-initialize from age-range maps plus the discount-entry map.
-    /// Age-range maps maintain all/STH/LTH totals; the discount-entry map
-    /// maintains only the discount partition used to derive premium.
-    pub(super) fn bulk_init_with_discount<'a>(
+    /// Bulk-initialize from age-range maps.
+    pub(super) fn bulk_init<'a>(
         &mut self,
         maps: impl Iterator<Item = (&'a std::collections::BTreeMap<CentsCompact, Sats>, bool)>,
-        discount_maps: impl Iterator<Item = &'a std::collections::BTreeMap<CentsCompact, Sats>>,
     ) {
         self.tree.reset();
         self.totals = CostBasisNode::default();
@@ -212,15 +174,6 @@ impl CostBasisFenwick {
             }
         }
 
-        for map in discount_maps {
-            for (&price, &sats) in map.iter() {
-                let bucket = price_to_bucket(price);
-                let s = u64::from(sats) as i64;
-                let node = CostBasisNode::new_discount(s, price.as_u128() as i128 * s as i128);
-                self.tree.add_raw(bucket, &node);
-                self.totals.add_assign(&node);
-            }
-        }
         self.tree.build_in_place();
         self.initialized = true;
     }
@@ -256,26 +209,6 @@ impl CostBasisFenwick {
             self.totals.all_usd - self.totals.sth_usd,
             |n| n.all_sats - n.sth_sats,
             |n| n.all_usd - n.sth_usd,
-        )
-    }
-
-    /// Compute percentile prices for discount-entry cohort.
-    pub(super) fn percentiles_discount_entry(&self) -> PercentileResult {
-        self.compute_percentiles(
-            self.totals.discount_sats,
-            self.totals.discount_usd,
-            |n| n.discount_sats,
-            |n| n.discount_usd,
-        )
-    }
-
-    /// Compute percentile prices for premium-entry cohort (all - discount).
-    pub(super) fn percentiles_premium_entry(&self) -> PercentileResult {
-        self.compute_percentiles(
-            self.totals.all_sats - self.totals.discount_sats,
-            self.totals.all_usd - self.totals.discount_usd,
-            |n| n.all_sats - n.discount_sats,
-            |n| n.all_usd - n.discount_usd,
         )
     }
 
@@ -332,10 +265,16 @@ impl CostBasisFenwick {
     // -----------------------------------------------------------------------
 
     /// Compute supply density: % of supply with cost basis within ±5% of spot.
-    /// Returns (all_bps, sth_bps, lth_bps) as basis points (0-10000).
-    pub(super) fn density(&self, spot_price: Cents) -> (u16, u16, u16) {
+    pub(super) fn density(
+        &self,
+        spot_price: Cents,
+    ) -> (PartsPerMillion32, PartsPerMillion32, PartsPerMillion32) {
         if self.totals.all_sats <= 0 {
-            return (0, 0, 0);
+            return (
+                PartsPerMillion32::ZERO,
+                PartsPerMillion32::ZERO,
+                PartsPerMillion32::ZERO,
+            );
         }
 
         let range = self.density_range(spot_price);
@@ -345,26 +284,9 @@ impl CostBasisFenwick {
 
         let lth_total = self.totals.all_sats - self.totals.sth_sats;
         (
-            Self::to_bps(all_range, self.totals.all_sats),
-            Self::to_bps(sth_range, self.totals.sth_sats),
-            Self::to_bps(lth_range, lth_total),
-        )
-    }
-
-    /// Compute supply density for entry cohorts: (discount_bps, premium_bps).
-    pub(super) fn entry_density(&self, spot_price: Cents) -> (u16, u16) {
-        if self.totals.all_sats <= 0 {
-            return (0, 0);
-        }
-
-        let range = self.density_range(spot_price);
-        let discount_range = range.discount_sats.max(0);
-        let premium_range = range.all_sats.max(0) - discount_range;
-        let premium_total = self.totals.all_sats - self.totals.discount_sats;
-
-        (
-            Self::to_bps(discount_range, self.totals.discount_sats),
-            Self::to_bps(premium_range, premium_total),
+            Self::to_ppm(all_range, self.totals.all_sats),
+            Self::to_ppm(sth_range, self.totals.sth_sats),
+            Self::to_ppm(lth_range, lth_total),
         )
     }
 
@@ -386,19 +308,17 @@ impl CostBasisFenwick {
         CostBasisNode {
             all_sats: cum_high.all_sats - cum_low.all_sats,
             sth_sats: cum_high.sth_sats - cum_low.sth_sats,
-            discount_sats: cum_high.discount_sats - cum_low.discount_sats,
             all_usd: cum_high.all_usd - cum_low.all_usd,
             sth_usd: cum_high.sth_usd - cum_low.sth_usd,
-            discount_usd: cum_high.discount_usd - cum_low.discount_usd,
         }
     }
 
     #[inline(always)]
-    fn to_bps(range: i64, total: i64) -> u16 {
+    fn to_ppm(range: i64, total: i64) -> PartsPerMillion32 {
         if total <= 0 {
-            0
+            PartsPerMillion32::ZERO
         } else {
-            (range as f64 / total as f64 * 10000.0).round() as u16
+            PartsPerMillion32::from(range as f64 / total as f64)
         }
     }
 

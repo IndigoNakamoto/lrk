@@ -2,7 +2,7 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::CentsSquaredSats;
-use brk_types::{BasisPoints16, Cents, Height, Sats, Version};
+use brk_types::{Cents, Height, PartsPerMillion32, Sats, Version};
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::internal::{PERCENTILES_LEN, PerBlock, PercentPerBlock, PercentilesVecs, Price};
@@ -25,7 +25,7 @@ pub struct CostBasis<M: StorageMode = Rw> {
     pub max: Price<PerBlock<Cents, M>>,
     pub per_coin: PercentilesVecs<M>,
     pub per_dollar: PercentilesVecs<M>,
-    pub supply_density: PercentPerBlock<BasisPoints16, M>,
+    pub supply_density: PercentPerBlock<PartsPerMillion32, M>,
 }
 
 impl CostBasis {
@@ -88,7 +88,7 @@ impl CostBasis {
             .height
             .len()
             .min(self.max.cents.height.len())
-            .min(self.supply_density.bps.height.len())
+            .min(self.supply_density.ppm.height.len())
     }
 
     #[inline(always)]
@@ -108,8 +108,8 @@ impl CostBasis {
     }
 
     #[inline(always)]
-    pub(crate) fn push_density(&mut self, density_bps: BasisPoints16) {
-        self.supply_density.bps.height.push(density_bps);
+    pub(crate) fn push_density(&mut self, density: PartsPerMillion32) {
+        self.supply_density.ppm.height.push(density);
     }
 
     pub(crate) fn validate_computed_versions(&mut self, base_version: Version) -> Result<()> {
@@ -128,7 +128,7 @@ impl CostBasis {
             &mut self.in_loss.per_dollar.cents.height,
             &mut self.min.cents.height,
             &mut self.max.cents.height,
-            &mut self.supply_density.bps.height,
+            &mut self.supply_density.ppm.height,
         ];
         vecs.extend(
             self.per_coin

@@ -20,7 +20,7 @@ impl Query {
         let next_best = if height < tip {
             Some(
                 self.indexer()
-                    .vecs
+                    .vecs()
                     .blocks
                     .blockhash
                     .get(height.incremented())

@@ -10,6 +10,10 @@ Zero dependencies.
 
 [npm](https://www.npmjs.com/package/brk-client) | [API Reference](https://github.com/bitcoinresearchkit/brk/blob/main/modules/brk-client/docs/globals.md)
 
+AI clients can use the same API through the official stateless, read-only MCP
+endpoint at [mcp.bitview.space](https://mcp.bitview.space/). No authentication
+is required.
+
 ## Installation
 
 ```bash

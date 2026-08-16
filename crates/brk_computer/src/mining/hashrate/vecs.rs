@@ -1,5 +1,5 @@
 use brk_traversable::Traversable;
-use brk_types::{BasisPointsSigned16, BasisPointsSigned32, StoredF32, StoredF64};
+use brk_types::{PartsPerMillionSigned32, PartsPerMillionSigned64, StoredF32, StoredF64};
 use vecdb::{Rw, StorageMode};
 
 use crate::internal::{LazyPerBlock, PerBlock, PercentPerBlock};
@@ -18,7 +18,7 @@ pub struct HashPriceValueVecs<M: StorageMode = Rw> {
     pub ths_min: PerBlock<StoredF32, M>,
     pub phs: LazyPerBlock<StoredF32>,
     pub phs_min: LazyPerBlock<StoredF32>,
-    pub rebound: PercentPerBlock<BasisPointsSigned32, M>,
+    pub rebound: PercentPerBlock<PartsPerMillionSigned64, M>,
 }
 
 #[derive(Traversable)]
@@ -26,7 +26,7 @@ pub struct RateVecs<M: StorageMode = Rw> {
     pub base: PerBlock<StoredF64, M>,
     pub sma: HashRateSmaVecs<M>,
     pub ath: PerBlock<StoredF64, M>,
-    pub drawdown: PercentPerBlock<BasisPointsSigned16, M>,
+    pub drawdown: PercentPerBlock<PartsPerMillionSigned32, M>,
 }
 
 #[derive(Traversable)]

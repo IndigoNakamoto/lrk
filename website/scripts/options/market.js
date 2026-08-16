@@ -17,7 +17,7 @@ import {
   ROLLING_WINDOWS,
   ROLLING_WINDOWS_TO_1M,
 } from "./series.js";
-import { simplePriceRatioTree, percentileBands, priceBands } from "./shared.js";
+import { simplePriceRatioTree } from "./shared.js";
 
 /**
  * @typedef {Object} Period
@@ -81,15 +81,16 @@ function createMaSubSection(label, averages) {
   const more = averages.filter((a) => !includes(commonMaIds, a.id));
 
   /** @param {MaPeriod} a */
-  const toFolder = (a) => ({
-    name: periodIdToName(a.id, true),
-    tree: simplePriceRatioTree({
+  const toChart = (a) => {
+    const name = periodIdToName(a.id, true);
+    const [chart] = simplePriceRatioTree({
       pattern: a.ratio,
-      title: `${periodIdToName(a.id, true)} ${label}`,
+      title: `${name} ${label}`,
       legend: "Average",
       color: a.color,
-    }),
-  });
+    });
+    return { ...chart, name };
+  };
 
   return {
     name: label,
@@ -106,8 +107,8 @@ function createMaSubSection(label, averages) {
           }),
         ),
       },
-      ...common.map(toFolder),
-      { name: "More...", tree: more.map(toFolder) },
+      ...common.map(toChart),
+      { name: "More...", tree: more.map(toChart) },
     ],
   };
 }
@@ -226,7 +227,15 @@ function historicalSubSection(name, periods) {
  * @returns {PartialOptionsGroup}
  */
 export function createMarketSection() {
-  const { market, supply, cohorts, price: prices, indicators } = brk.series;
+  const {
+    market,
+    supply,
+    cohorts,
+    price: prices,
+    indicators,
+  } = brk.series;
+  const { cointime, coinflow } = brk.series.frameworks;
+  const { rarityMeter } = brk.series.models;
   const {
     movingAverage: ma,
     ath,
@@ -922,45 +931,30 @@ export function createMarketSection() {
         name: "Indicators",
         tree: [
           {
-            name: "Rarity Meter",
-            tree: /** @type {const} */ ([
-              { key: "full", name: "Full", title: "Rarity Meter" },
-              { key: "local", name: "Local", title: "Local Rarity Meter" },
-              { key: "cycle", name: "Cycle", title: "Cycle Rarity Meter" },
-            ]).map((v) => {
-              const m = indicators.rarityMeter[v.key];
-              return {
-                name: v.name,
-                title: v.title,
-                top: priceBands(percentileBands(m), { defaultActive: true }),
-                bottom: [
-                  histogram({
-                    series: m.index,
-                    name: "Index",
-                    unit: Unit.count,
-                    colorFn: (v) =>
-                      /** @type {const} */ ([
-                        colors.ratioPct._0_5,
-                        colors.ratioPct._1,
-                        colors.ratioPct._2,
-                        colors.ratioPct._5,
-                        colors.transparent,
-                        colors.ratioPct._95,
-                        colors.ratioPct._98,
-                        colors.ratioPct._99,
-                        colors.ratioPct._99_5,
-                      ])[v + 4],
-                  }),
-                  baseline({
-                    series: m.score,
-                    name: "Score",
-                    unit: Unit.count,
-                    color: [colors.ratioPct._99, colors.ratioPct._1],
-                    defaultActive: false,
-                  }),
-                ],
-              };
-            }),
+            name: "Value Anchors",
+            title: "Bitcoin Value Anchors",
+            top: [
+              price({
+                series: cointime.prices.trueMarketMean,
+                name: "True Market Mean",
+                color: colors.trueMarketMean,
+              }),
+              price({
+                series: cointime.awake.price,
+                name: "Awake Price",
+                color: colors.awake,
+              }),
+              price({
+                series: coinflow.price,
+                name: "Coinflow Price",
+                color: colors.coinflow,
+              }),
+              price({
+                series: rarityMeter.cycle.pct50,
+                name: "Cycle Rarity Midpoint",
+                color: colors.ratioPct._50,
+              }),
+            ],
           },
           {
             name: "NVT",

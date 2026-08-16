@@ -11,13 +11,14 @@
 
 use std::path::PathBuf;
 
-use brk_indexer::Indexer;
 use brk_oracle::{
-    bin_to_cents, cents_to_bin, Config, HistogramRaw, Oracle, PaymentFilter, START_HEIGHT_FAST,
-    START_HEIGHT_SLOW,
+    Config, HistogramRaw, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    bin_to_cents, cents_to_bin,
 };
 use brk_types::{OutputType, Sats, TxIndex, TxOutIndex};
 use vecdb::{AnyVec, ReadableVec, VecIndex};
+
+mod common;
 
 struct Block {
     height: usize,
@@ -52,8 +53,8 @@ fn main() {
             PathBuf::from(home).join(".brk")
         });
 
-    let indexer = Indexer::forced_import(&data_dir).expect("Failed to load indexer");
-    let total_heights = indexer.vecs.blocks.timestamp.len();
+    let indexer = common::import_indexer(&data_dir);
+    let total_heights = indexer.vecs().blocks.timestamp.len();
 
     let fast_config = Config::default();
     let window_size = fast_config.window_size;
@@ -75,11 +76,16 @@ fn main() {
         "Loading {} blocks ({load_start}..{end_height})...",
         end_height - load_start
     );
-    let total_txs = indexer.vecs.transactions.txid.len();
-    let total_outputs = indexer.vecs.outputs.value.len();
-    let first_tx_index: Vec<TxIndex> = indexer.vecs.transactions.first_tx_index.collect();
-    let out_first: Vec<TxOutIndex> = indexer.vecs.outputs.first_txout_index.collect();
-    let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+    let total_txs = indexer.vecs().transactions.txid.len();
+    let total_outputs = indexer.vecs().outputs.value.len();
+    let first_tx_index: Vec<TxIndex> = indexer.vecs().transactions.first_tx_index.collect();
+    let out_first: Vec<TxOutIndex> = indexer.vecs().outputs.first_txout_index.collect();
+    let mut txout_cursor = indexer
+        .vecs()
+        .transactions
+        .first_txout_index
+        .reader()
+        .cursor();
 
     let mut blocks: Vec<Block> = Vec::with_capacity(end_height - load_start);
     for h in load_start..end_height {
@@ -104,12 +110,12 @@ fn main() {
         let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
         let values: Vec<Sats> = indexer
-            .vecs
+            .vecs()
             .outputs
             .value
             .collect_range_at(out_start, out_end);
         let output_types: Vec<OutputType> = indexer
-            .vecs
+            .vecs()
             .outputs
             .output_type
             .collect_range_at(out_start, out_end);

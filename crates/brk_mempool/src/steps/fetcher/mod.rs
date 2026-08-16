@@ -106,7 +106,9 @@ impl Fetcher {
         // alive. Without the union, GBT-only txs would oscillate enter ↔
         // leave every cycle as `Preparer::classify_removals` buried what
         // GBT had just resurrected.
-        state.live_txids.extend(block_template_txids.iter().copied());
+        state
+            .live_txids
+            .extend(block_template_txids.iter().copied());
 
         Ok(Fetched {
             state,

@@ -1,21 +1,28 @@
 use brk_error::Result;
 use brk_traversable::Traversable;
 use brk_types::{Height, Version};
-use vecdb::{Database, Exit, Rw, StorageMode};
+use vecdb::{
+    AnyStoredVec, AnyVec, Database, Exit, ReadableVec, Rw, StorageMode, VecValue, WritableVec,
+};
 
 use crate::{
     indexes,
     internal::{
-        FiatBlock, FiatPerBlock, FiatType, LazyRollingSumsFiatFromHeight, WindowStartVec, Windows,
+        CachedWindowStartVec, FiatPerBlock, FiatType, LazyFiatBlock, LazyRollingSumsFiatFromHeight,
+        Windows,
     },
 };
 
 #[derive(Traversable)]
 pub struct FiatPerBlockCumulativeWithSums<C: FiatType, M: StorageMode = Rw> {
-    pub block: FiatBlock<C, M>,
+    pub block: LazyFiatBlock<C>,
     pub cumulative: FiatPerBlock<C, M>,
     pub sum: LazyRollingSumsFiatFromHeight<C>,
+    #[traversable(skip)]
+    last_cumulative: Option<(usize, C)>,
 }
+
+const VERSION: Version = Version::ONE;
 
 impl<C: FiatType> FiatPerBlockCumulativeWithSums<C> {
     pub(crate) fn forced_import(
@@ -23,14 +30,20 @@ impl<C: FiatType> FiatPerBlockCumulativeWithSums<C> {
         name: &str,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
-        let block = FiatBlock::forced_import(db, name, version)?;
+        let v = version + VERSION;
         let cumulative =
-            FiatPerBlock::forced_import(db, &format!("{name}_cumulative"), version, indexes)?;
+            FiatPerBlock::forced_import(db, &format!("{name}_cumulative"), v, indexes)?;
+        let last_cumulative = cumulative
+            .cents
+            .height
+            .collect_last()
+            .map(|value| (cumulative.cents.height.len(), value));
+        let block = LazyFiatBlock::from_cumulative(name, v, &cumulative);
         let sum = LazyRollingSumsFiatFromHeight::new(
             &format!("{name}_sum"),
-            version,
+            v,
             &cumulative.cents.height,
             cached_starts,
             indexes,
@@ -39,17 +52,73 @@ impl<C: FiatType> FiatPerBlockCumulativeWithSums<C> {
             block,
             cumulative,
             sum,
+            last_cumulative,
         })
     }
 
-    pub(crate) fn compute_rest(&mut self, max_from: Height, exit: &Exit) -> Result<()>
+    #[inline(always)]
+    pub(crate) fn push_block(&mut self, value: C)
     where
-        C: Default,
+        C: Copy,
     {
-        self.cumulative
-            .cents
-            .height
-            .compute_cumulative(max_from, &self.block.cents, exit)?;
+        let len = self.cumulative.cents.height.len();
+        let mut cumulative = match self.last_cumulative {
+            Some((cached_len, value)) if cached_len == len => value,
+            _ => self
+                .cumulative
+                .cents
+                .height
+                .collect_last()
+                .unwrap_or_default(),
+        };
+        cumulative += value;
+        self.cumulative.cents.height.push(cumulative);
+        self.last_cumulative = Some((len + 1, cumulative));
+    }
+
+    pub(crate) fn compute_from_cumulative_pair<S1, S2>(
+        &mut self,
+        max_from: Height,
+        source1: &impl ReadableVec<Height, S1>,
+        source2: &impl ReadableVec<Height, S2>,
+        mut transform: impl FnMut(Height, S1, S2) -> C,
+        exit: &Exit,
+    ) -> Result<()>
+    where
+        S1: VecValue,
+        S2: VecValue,
+    {
+        self.cumulative.cents.height.compute_transform2(
+            max_from,
+            source1,
+            source2,
+            |(height, value1, value2, ..)| (height, transform(height, value1, value2)),
+            exit,
+        )?;
+        self.last_cumulative = None;
         Ok(())
+    }
+
+    pub(crate) fn compute_sum_of_others(
+        &mut self,
+        max_from: Height,
+        others: &[&Self],
+        exit: &Exit,
+    ) -> Result<()> {
+        self.cumulative.cents.height.compute_sum_of_others(
+            max_from,
+            &others
+                .iter()
+                .map(|v| &v.cumulative.cents.height)
+                .collect::<Vec<_>>(),
+            exit,
+        )?;
+        self.last_cumulative = None;
+        Ok(())
+    }
+
+    pub(crate) fn stored_mut(&mut self) -> &mut dyn AnyStoredVec {
+        self.last_cumulative = None;
+        &mut self.cumulative.cents.height
     }
 }

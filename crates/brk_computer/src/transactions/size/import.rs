@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
-use brk_types::{TxIndex, VSize, Version, Weight};
-use vecdb::{Database, LazyVecFrom2, ReadableCloneableVec};
+use brk_types::Version;
+use vecdb::{Database, LazyVec, ReadableCloneableVec};
 
 use super::Vecs;
 use crate::{
     indexes,
-    internal::{LazyPerTxDistribution, LazyPerTxDistributionTransformed, VSizeToWeight},
+    internal::{LazyPerTxDistributionTransformed, TxDerivedDistribution, WeightToVSize},
 };
 
 impl Vecs {
@@ -16,37 +16,19 @@ impl Vecs {
         indexer: &Indexer,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let tx_index_to_vsize = LazyVecFrom2::init(
+        let weight = TxDerivedDistribution::forced_import(db, "tx_weight", version, indexes)?;
+
+        let tx_index_to_vsize = LazyVec::transformed::<WeightToVSize>(
             "tx_vsize",
             version,
-            indexer.vecs.transactions.base_size.read_only_boxed_clone(),
-            indexer.vecs.transactions.total_size.read_only_boxed_clone(),
-            |_index: TxIndex, base_size, total_size| {
-                VSize::from(Weight::from_sizes(*base_size, *total_size))
-            },
+            indexer.vecs().transactions.weight.read_only_boxed_clone(),
         );
 
-        let vsize = LazyPerTxDistribution::forced_import(
-            db,
+        let vsize = LazyPerTxDistributionTransformed::new::<WeightToVSize>(
             "tx_vsize",
             version,
-            indexes,
             tx_index_to_vsize,
-        )?;
-
-        let tx_index_to_weight = LazyVecFrom2::init(
-            "tx_weight",
-            version,
-            indexer.vecs.transactions.base_size.read_only_boxed_clone(),
-            indexer.vecs.transactions.total_size.read_only_boxed_clone(),
-            |_index: TxIndex, base_size, total_size| Weight::from_sizes(*base_size, *total_size),
-        );
-
-        let weight = LazyPerTxDistributionTransformed::new::<VSizeToWeight>(
-            "tx_weight",
-            version,
-            tx_index_to_weight,
-            &vsize.distribution,
+            &weight,
         );
 
         Ok(Self { vsize, weight })

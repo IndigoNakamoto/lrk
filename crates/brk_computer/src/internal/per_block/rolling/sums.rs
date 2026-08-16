@@ -6,7 +6,7 @@ use vecdb::{DeltaSub, LazyDeltaVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
-    internal::{NumericValue, Resolutions, WindowStartVec, Windows},
+    internal::{CachedWindowStartVec, NumericValue, Resolutions, Windows},
 };
 
 use super::LazyRollingSumFromHeight;
@@ -33,7 +33,7 @@ where
         name: &str,
         version: Version,
         cumulative: &(impl ReadableCloneableVec<Height, T> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_source = cumulative.read_only_boxed_clone();
@@ -50,6 +50,37 @@ where
                 move || cached.cached(),
             );
             let resolutions = Resolutions::forced_import(&full_name, sum.clone(), version, indexes);
+            LazyRollingSumFromHeight {
+                height: sum,
+                resolutions: Box::new(resolutions),
+            }
+        }))
+    }
+
+    /// Build rolling sums from compact in-memory state without adding the four
+    /// full-height rolling vecs to `cache_budget`.
+    pub fn new_uncached(
+        name: &str,
+        version: Version,
+        cumulative: &(impl ReadableCloneableVec<Height, T> + 'static),
+        cached_starts: &Windows<&CachedWindowStartVec>,
+        indexes: &indexes::Vecs,
+    ) -> Self {
+        let cum_source = cumulative.read_only_boxed_clone();
+
+        Self(cached_starts.map_with_suffix(|suffix, cached_start| {
+            let full_name = format!("{name}_{suffix}");
+            let cached = cached_start.read_only_clone();
+            let starts_version = cached.version();
+            let sum = LazyDeltaVec::<Height, T, T, DeltaSub>::new(
+                &full_name,
+                version,
+                cum_source.clone(),
+                starts_version,
+                move || cached.cached(),
+            );
+            let resolutions =
+                Resolutions::forced_import_uncached(&full_name, sum.clone(), version, indexes);
             LazyRollingSumFromHeight {
                 height: sum,
                 resolutions: Box::new(resolutions),

@@ -2,13 +2,13 @@ use brk_cohort::Filter;
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Height, Sats, StoredU64, Version};
-use vecdb::{AnyStoredVec, Exit, ReadableVec, Rw, StorageMode};
+use brk_types::Version;
+use vecdb::{AnyStoredVec, Exit, Rw, StorageMode};
 
 use crate::{
     distribution::metrics::{
-        ActivityCore, CohortMetricsBase, ImportConfig, OutputsBase, RealizedCore, SupplyCore,
-        UnrealizedCore,
+        ActivityCore, AllSupplyCache, CohortMetricsBase, ImportConfig, OutputsBase, RealizedCore,
+        SupplyCore, UnrealizedCore,
     },
     price,
 };
@@ -25,14 +25,17 @@ pub struct CoreCohortMetrics<M: StorageMode = Rw> {
 }
 
 impl CoreCohortMetrics {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(cfg: &ImportConfig, all_supply: &AllSupplyCache) -> Result<Self> {
+        let realized = RealizedCore::forced_import(cfg)?;
+        let unrealized = UnrealizedCore::forced_import(cfg, &realized.price.ppm)?;
+
         Ok(Self {
             filter: cfg.filter.clone(),
-            supply: Box::new(SupplyCore::forced_import(cfg)?),
+            supply: Box::new(SupplyCore::forced_import(cfg, all_supply)?),
             outputs: Box::new(OutputsBase::forced_import(cfg)?),
             activity: Box::new(ActivityCore::forced_import(cfg)?),
-            realized: Box::new(RealizedCore::forced_import(cfg)?),
-            unrealized: Box::new(UnrealizedCore::forced_import(cfg)?),
+            realized: Box::new(realized),
+            unrealized: Box::new(unrealized),
         })
     }
 
@@ -106,10 +109,6 @@ impl CoreCohortMetrics {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.supply.compute(prices, starting_lengths.height, exit)?;
-
-        self.outputs.compute_rest(starting_lengths.height, exit)?;
-
         self.activity
             .compute_rest_part1(prices, starting_lengths, exit)?;
 
@@ -124,8 +123,6 @@ impl CoreCohortMetrics {
         &mut self,
         prices: &price::Vecs,
         starting_lengths: &Lengths,
-        all_supply_sats: &impl ReadableVec<Height, Sats>,
-        all_utxo_count: &impl ReadableVec<Height, StoredU64>,
         exit: &Exit,
     ) -> Result<()> {
         self.realized.compute_rest_part2(
@@ -135,19 +132,6 @@ impl CoreCohortMetrics {
             &self.activity.transfer_volume.sum._24h.cents.height,
             exit,
         )?;
-
-        self.unrealized.compute(
-            starting_lengths.height,
-            &prices.spot.cents.height,
-            &self.realized.price.cents.height,
-            exit,
-        )?;
-
-        self.supply
-            .compute_dominance(starting_lengths.height, all_supply_sats, exit)?;
-
-        self.outputs
-            .compute_part2(starting_lengths.height, all_utxo_count, exit)?;
 
         Ok(())
     }

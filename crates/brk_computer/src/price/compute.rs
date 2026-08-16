@@ -4,54 +4,19 @@ use brk_error::Result;
 use brk_fetcher::{Bitfinex, Coinbase, new_agent};
 use brk_indexer::{Indexer, Lengths};
 use brk_oracle::{
-    bin_to_cents, cents_to_bin, Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW,
+    Config, Oracle, PaymentFilter, START_HEIGHT_FAST, START_HEIGHT_SLOW, bin_to_cents, cents_to_bin,
 };
 use brk_types::{Cents, Date, OutputType, Sats, Timestamp, TxIndex, TxOutIndex, Version};
 use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, Exit, ReadableVec, StorageMode, VecIndex, WritableVec};
 
 use super::Vecs;
-use crate::indexes;
 
 impl Vecs {
-    pub(crate) fn compute(
-        &mut self,
-        indexer: &Indexer,
-        indexes: &indexes::Vecs,
-        exit: &Exit,
-    ) -> Result<()> {
+    pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         self.db.sync_bg_tasks()?;
 
-        let starting_lengths = indexer.safe_lengths();
-
         self.compute_prices(indexer, exit)?;
-        self.split.open.cents.compute_first(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.split.high.cents.compute_max(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.split.low.cents.compute_min(
-            &starting_lengths,
-            &self.spot.cents.height,
-            indexes,
-            exit,
-        )?;
-        self.ohlc.cents.compute_from_split(
-            &starting_lengths,
-            indexes,
-            &self.split.open.cents,
-            &self.split.high.cents,
-            &self.split.low.cents,
-            &self.split.close.cents,
-            exit,
-        )?;
 
         let exit = exit.clone();
         self.db.run_bg(move |db| {
@@ -62,7 +27,7 @@ impl Vecs {
     }
 
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
-        if !indexer.chain.supports_oracle() {
+        if !indexer.chain().supports_oracle() {
             // Chains without a calibrated on-chain oracle (e.g. Litecoin) price
             // each block from exchange daily closes instead.
             return self.compute_prices_from_exchange(indexer, exit);
@@ -70,15 +35,23 @@ impl Vecs {
 
         let starting_height = indexer.safe_lengths().height;
 
-        let source_version =
-            indexer.vecs.outputs.value.version() + indexer.vecs.outputs.output_type.version();
+        let source_version = [
+            indexer.vecs().transactions.txid.version(),
+            indexer.vecs().transactions.first_tx_index.version(),
+            indexer.vecs().outputs.first_txout_index.version(),
+            indexer.vecs().transactions.first_txout_index.version(),
+            indexer.vecs().outputs.value.version(),
+            indexer.vecs().outputs.output_type.version(),
+        ]
+        .into_iter()
+        .sum();
         self.spot
             .cents
             .height
             .inner
             .validate_computed_version_or_reset(source_version)?;
 
-        let total_heights = indexer.vecs.blocks.timestamp.len();
+        let total_heights = indexer.vecs().blocks.timestamp.len();
 
         if total_heights <= START_HEIGHT_SLOW {
             return Ok(());
@@ -197,8 +170,8 @@ impl Vecs {
         // the exchange sources or merge logic change so committed prices reset
         // and every height is re-priced. Downstream metrics recompute via the
         // global computer `VERSION`.
-        let source_version = indexer.vecs.outputs.value.version()
-            + indexer.vecs.outputs.output_type.version()
+        let source_version = indexer.vecs().outputs.value.version()
+            + indexer.vecs().outputs.output_type.version()
             + Version::new(2);
         self.spot
             .cents
@@ -206,7 +179,7 @@ impl Vecs {
             .inner
             .validate_computed_version_or_reset(source_version)?;
 
-        let total_heights = indexer.vecs.blocks.timestamp.len();
+        let total_heights = indexer.vecs().blocks.timestamp.len();
 
         // Reorg: truncate to the safe height before appending.
         let truncate_to = self.spot.cents.height.len().min(starting_height.to_usize());
@@ -225,7 +198,7 @@ impl Vecs {
         // (before Coinbase's 2016 listing), so start from it and overlay
         // Coinbase where it exists (more liquid/canonical for the USD pair on
         // recent dates). At least one source must succeed.
-        let constants = indexer.chain.constants();
+        let constants = indexer.chain().constants();
         let mut bitfinex = Bitfinex::new_with_agent(
             new_agent(30),
             constants.bitfinex_symbol,
@@ -266,7 +239,7 @@ impl Vecs {
         );
 
         let timestamps: Vec<Timestamp> = indexer
-            .vecs
+            .vecs()
             .blocks
             .timestamp
             .collect_range_at(committed, total_heights);
@@ -342,22 +315,22 @@ impl Vecs {
                 c.height.to_usize(),
             ),
             None => (
-                indexer.vecs.transactions.txid.len(),
-                indexer.vecs.outputs.value.len(),
-                indexer.vecs.transactions.first_tx_index.len(),
+                indexer.vecs().transactions.txid.len(),
+                indexer.vecs().outputs.value.len(),
+                indexer.vecs().transactions.first_tx_index.len(),
             ),
         };
 
         // Pre-collect height-indexed data for the range (plus one extra for next-block lookups)
         let collect_end = (range.end + 1).min(height_len);
         let first_tx_indexes: Vec<TxIndex> = indexer
-            .vecs
+            .vecs()
             .transactions
             .first_tx_index
             .collect_range_at(range.start, collect_end);
 
         let out_firsts: Vec<TxOutIndex> = indexer
-            .vecs
+            .vecs()
             .outputs
             .first_txout_index
             .collect_range_at(range.start, collect_end);
@@ -365,7 +338,7 @@ impl Vecs {
         // Cursor avoids per-block PcoVec page decompression for the
         // tx-indexed first_txout_index lookup. Accessed tx_index values
         // are strictly increasing across blocks, so it only advances forward.
-        let mut txout_cursor = indexer.vecs.transactions.first_txout_index.cursor();
+        let mut txout_cursor = indexer.vecs().transactions.first_txout_index.cursor();
 
         // Reusable buffers: avoid per-block allocation. `tx_starts` holds the
         // first txout index of each non-coinbase tx in the current block.
@@ -390,17 +363,17 @@ impl Vecs {
 
             txout_cursor.advance(block_first_tx - txout_cursor.position());
             tx_starts.clear();
-            for _ in 0..tx_count {
-                tx_starts.push(txout_cursor.next().unwrap().to_usize());
-            }
+            txout_cursor.for_each(tx_count, |txout_index| {
+                tx_starts.push(txout_index.to_usize());
+            });
             let out_start = tx_starts.first().copied().unwrap_or(out_end);
 
             indexer
-                .vecs
+                .vecs()
                 .outputs
                 .value
                 .collect_range_into_at(out_start, out_end, &mut values);
-            indexer.vecs.outputs.output_type.collect_range_into_at(
+            indexer.vecs().outputs.output_type.collect_range_into_at(
                 out_start,
                 out_end,
                 &mut output_types,

@@ -8,23 +8,24 @@
 
 > **addressPayloadHashPrefix**(`payload`, `nibbles`): `string`
 
+Defined in: [Developer/brk/modules/brk-client/index.js:2330](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L2330)
+
 Compute the RapidHash v3 hash-prefix used by `/api/address/hash-prefix/{addr_type}/{prefix}`.
 
 ## Parameters
 
 ### payload
 
-`Uint8Array` | `ArrayBuffer` | `ArrayBufferView` | `number`[]
+`number`[] \| `ArrayBuffer` \| `Uint8Array`\<`ArrayBufferLike`\> \| `ArrayBufferView`\<`ArrayBufferLike`\>
 
-Raw address payload bytes. Must be 1 to 65 bytes.
+Raw address payload bytes
 
 ### nibbles
 
 `number`
 
-Prefix length from 1 to 16 hex nibbles.
+Prefix length from 1 to 16 hex nibbles
 
 ## Returns
 
 `string`
-

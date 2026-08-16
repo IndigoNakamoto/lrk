@@ -1,36 +1,33 @@
 use brk_traversable::Traversable;
 use brk_types::{TxIndex, Version};
 use schemars::JsonSchema;
-use vecdb::{LazyVecFrom2, UnaryTransform};
+use vecdb::{LazyVec, UnaryTransform};
 
 use crate::internal::{ComputedVecValue, LazyTxDerivedDistribution, TxDerivedDistribution};
 
-/// Like `LazyPerTxDistribution` but with a lazy-derived distribution
-/// (transformed from another type's distribution rather than eagerly computed).
+/// Per-transaction lazy values with a distribution transformed from another type's distribution.
 #[derive(Clone, Traversable)]
-pub struct LazyPerTxDistributionTransformed<T, S1, S2, DSource>
+pub struct LazyPerTxDistributionTransformed<T, S, DSource>
 where
     T: ComputedVecValue + JsonSchema,
-    S1: ComputedVecValue,
-    S2: ComputedVecValue,
+    S: ComputedVecValue,
     DSource: ComputedVecValue,
 {
-    pub tx_index: LazyVecFrom2<TxIndex, T, TxIndex, S1, TxIndex, S2>,
+    pub tx_index: LazyVec<TxIndex, T, TxIndex, S>,
     #[traversable(flatten)]
     pub distribution: LazyTxDerivedDistribution<T, DSource>,
 }
 
-impl<T, S1, S2, DSource> LazyPerTxDistributionTransformed<T, S1, S2, DSource>
+impl<T, S, DSource> LazyPerTxDistributionTransformed<T, S, DSource>
 where
     T: ComputedVecValue + JsonSchema + 'static,
-    S1: ComputedVecValue + JsonSchema,
-    S2: ComputedVecValue + JsonSchema,
+    S: ComputedVecValue + JsonSchema,
     DSource: ComputedVecValue + JsonSchema,
 {
     pub(crate) fn new<F: UnaryTransform<DSource, T>>(
         name: &str,
         version: Version,
-        tx_index: LazyVecFrom2<TxIndex, T, TxIndex, S1, TxIndex, S2>,
+        tx_index: LazyVec<TxIndex, T, TxIndex, S>,
         source_distribution: &TxDerivedDistribution<DSource>,
     ) -> Self {
         let distribution =

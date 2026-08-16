@@ -1,12 +1,12 @@
 use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
-use brk_types::{Cents, CentsSigned, CentsSquaredSats, Height, Sats, Version};
+use brk_types::{Cents, CentsSigned, CentsSquaredSats, Height, PartsPerMillion64, Sats, Version};
 use derive_more::{Deref, DerefMut};
 use vecdb::{AnyStoredVec, AnyVec, BytesVec, Exit, ReadableVec, Rw, StorageMode, WritableVec};
 
 use crate::distribution::state::UnrealizedState;
-use crate::internal::{CentsSubtractToCentsSigned, FiatPerBlock};
+use crate::internal::{CentsSubtractToCentsSigned, FiatPerBlock, LazyPerBlock};
 use crate::{distribution::metrics::ImportConfig, price};
 
 use super::UnrealizedCore;
@@ -41,9 +41,12 @@ pub struct UnrealizedFull<M: StorageMode = Rw> {
 }
 
 impl UnrealizedFull {
-    pub(crate) fn forced_import(cfg: &ImportConfig) -> Result<Self> {
+    pub(crate) fn forced_import(
+        cfg: &ImportConfig,
+        mvrv: &LazyPerBlock<PartsPerMillion64>,
+    ) -> Result<Self> {
         let v0 = Version::ZERO;
-        let inner = UnrealizedCore::forced_import(cfg)?;
+        let inner = UnrealizedCore::forced_import(cfg, mvrv)?;
 
         let gross_pnl = cfg.import("unrealized_gross_pnl", v0)?;
 

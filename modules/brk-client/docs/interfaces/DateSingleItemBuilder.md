@@ -6,7 +6,7 @@
 
 # Interface: DateSingleItemBuilder\<T\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1724](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1724)
+Defined in: [Developer/brk/modules/brk-client/index.js:1765](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1765)
 
 ## Type Parameters
 
@@ -18,17 +18,21 @@ Defined in: [Developer/brk/modules/brk-client/index.js:1724](https://github.com/
 
 ### fetch
 
-> **fetch**: (`onValue?`) => `Promise`\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
+> **fetch**: (`arg?`, `options?`) => `Promise`\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1725](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1725)
+Defined in: [Developer/brk/modules/brk-client/index.js:1766](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1766)
 
 Fetch the item
 
 #### Parameters
 
-##### onValue?
+##### arg?
 
-(`value`) => `void`
+[`DateSeriesFetchArg`](../type-aliases/DateSeriesFetchArg.md)\<`T`\>
+
+##### options?
+
+[`ClientFetchOptions`](ClientFetchOptions.md)\<[`DateSeriesData`](../type-aliases/DateSeriesData.md)\<`T`\>\>
 
 #### Returns
 
@@ -38,11 +42,17 @@ Fetch the item
 
 ### fetchCsv
 
-> **fetchCsv**: () => `Promise`\<`string`\>
+> **fetchCsv**: (`options?`) => `Promise`\<`string`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1726](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1726)
+Defined in: [Developer/brk/modules/brk-client/index.js:1767](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1767)
 
 Fetch as CSV
+
+#### Parameters
+
+##### options?
+
+[`ClientFetchOptions`](ClientFetchOptions.md)\<`string`\>
 
 #### Returns
 
@@ -54,6 +64,6 @@ Fetch as CSV
 
 > **then**: [`DateThenable`](../type-aliases/DateThenable.md)\<`T`\>
 
-Defined in: [Developer/brk/modules/brk-client/index.js:1727](https://github.com/bitcoinresearchkit/brk/blob/7a718293c0ddbae305c8352474c81c0e99fe1200/modules/brk-client/index.js#L1727)
+Defined in: [Developer/brk/modules/brk-client/index.js:1768](https://github.com/bitcoinresearchkit/brk/blob/51e058e08ee90a54012facf825ef4a1944101a66/modules/brk-client/index.js#L1768)
 
 Thenable

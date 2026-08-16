@@ -1,13 +1,13 @@
 use brk_traversable::Traversable;
 use brk_types::{Dollars, Height, Version};
 use derive_more::{Deref, DerefMut};
-use vecdb::{DeltaSub, LazyDeltaVec, LazyVecFrom1, ReadOnlyClone, ReadableCloneableVec};
+use vecdb::{DeltaSub, LazyDeltaVec, LazyVec, ReadOnlyClone, ReadableCloneableVec};
 
 use crate::{
     indexes,
     internal::{
-        DerivedResolutions, FiatType, LazyPerBlock, LazyRollingSumFromHeight, Resolutions,
-        WindowStartVec, Windows,
+        CachedWindowStartVec, DerivedResolutions, FiatType, LazyPerBlock, LazyRollingSumFromHeight,
+        Resolutions, Windows,
     },
 };
 
@@ -26,12 +26,12 @@ impl<C: FiatType> LazyRollingSumsFiatFromHeight<C> {
         name: &str,
         version: Version,
         cumulative_cents: &(impl ReadableCloneableVec<Height, C> + 'static),
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
         indexes: &indexes::Vecs,
     ) -> Self {
         let cum_cents = cumulative_cents.read_only_boxed_clone();
 
-        let make_slot = |suffix: &str, cached_start: &&WindowStartVec| {
+        let make_slot = |suffix: &str, cached_start: &&CachedWindowStartVec| {
             let full_name = format!("{name}_{suffix}");
             let cached = cached_start.read_only_clone();
             let starts_version = cached.version();
@@ -55,7 +55,7 @@ impl<C: FiatType> LazyRollingSumsFiatFromHeight<C> {
             };
 
             let usd = LazyPerBlock {
-                height: LazyVecFrom1::transformed::<C::ToDollars>(
+                height: LazyVec::transformed::<C::ToDollars>(
                     &full_name,
                     version,
                     cents.height.read_only_boxed_clone(),

@@ -5,6 +5,7 @@ use brk_types::{
     Addr, AddrBytes, AddrChainStats, AddrHash, AddrStats, AnyAddrDataIndexEnum, Dollars,
     OutputType, TypeIndex,
 };
+use vecdb::ReadableVec;
 
 use crate::Query;
 
@@ -40,8 +41,8 @@ impl Query {
                     .distribution
                     .addrs_data
                     .funded
-                    .reader()
-                    .get(usize::from(index));
+                    .collect_one(index)
+                    .expect("funded address data index should be in bounds");
                 let price = data.realized_price().to_dollars();
                 (data, price)
             }
@@ -50,17 +51,26 @@ impl Query {
                     .distribution
                     .addrs_data
                     .empty
-                    .reader()
-                    .get(usize::from(index))
+                    .collect_one(index)
+                    .expect("empty address data index should be in bounds")
                     .into();
                 (data, Dollars::default())
             }
         };
 
+        let mempool_stats = self
+            .mempool()
+            .and_then(|m| m.addr_stats(&bytes))
+            .unwrap_or_default();
+        let balance = addr_data.received + mempool_stats.funded_txo_sum
+            - addr_data.sent
+            - mempool_stats.spent_txo_sum;
+
         Ok(AddrStats {
             addr,
             addr_type: output_type,
             chain_stats: AddrChainStats {
+                balance: addr_data.received - addr_data.sent,
                 type_index,
                 funded_txo_count: addr_data.funded_txo_count,
                 funded_txo_sum: addr_data.received,
@@ -69,10 +79,8 @@ impl Query {
                 tx_count: addr_data.tx_count,
                 realized_price,
             },
-            mempool_stats: self
-                .mempool()
-                .and_then(|m| m.addr_stats(&bytes))
-                .unwrap_or_default(),
+            mempool_stats,
+            balance,
         })
     }
 }

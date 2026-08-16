@@ -1,11 +1,11 @@
 use brk_traversable::Traversable;
 use brk_types::{Height, Version};
 use schemars::JsonSchema;
-use vecdb::{LazyVecFrom1, ReadableCloneableVec, UnaryTransform, VecIndex};
+use vecdb::{LazyVec, ReadableCloneableVec, UnaryTransform, VecIndex};
 
 use crate::internal::{ComputedVecValue, DistributionStats, PerBlockDistribution};
 
-/// Lazy analog of `Distribution<T>`: 7 `LazyVecFrom1` fields,
+/// Lazy analog of `Distribution<T>`: 7 `LazyVec` fields,
 /// each derived by transforming the corresponding field of a source `PerBlockDistribution<S1T>`.
 #[derive(Clone, Traversable)]
 pub struct LazyDistribution<I, T, S1T>
@@ -14,13 +14,13 @@ where
     T: ComputedVecValue + JsonSchema,
     S1T: ComputedVecValue,
 {
-    pub min: LazyVecFrom1<I, T, I, S1T>,
-    pub max: LazyVecFrom1<I, T, I, S1T>,
-    pub pct10: LazyVecFrom1<I, T, I, S1T>,
-    pub pct25: LazyVecFrom1<I, T, I, S1T>,
-    pub median: LazyVecFrom1<I, T, I, S1T>,
-    pub pct75: LazyVecFrom1<I, T, I, S1T>,
-    pub pct90: LazyVecFrom1<I, T, I, S1T>,
+    pub min: LazyVec<I, T, I, S1T>,
+    pub max: LazyVec<I, T, I, S1T>,
+    pub pct10: LazyVec<I, T, I, S1T>,
+    pub pct25: LazyVec<I, T, I, S1T>,
+    pub median: LazyVec<I, T, I, S1T>,
+    pub pct75: LazyVec<I, T, I, S1T>,
+    pub pct90: LazyVec<I, T, I, S1T>,
 }
 
 impl<T, S1T> LazyDistribution<Height, T, S1T>
@@ -35,37 +35,37 @@ where
     ) -> Self {
         let s = DistributionStats::<()>::SUFFIXES;
         Self {
-            min: LazyVecFrom1::transformed::<F>(
+            min: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[0]),
                 version,
                 source.min.height.read_only_boxed_clone(),
             ),
-            max: LazyVecFrom1::transformed::<F>(
+            max: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[1]),
                 version,
                 source.max.height.read_only_boxed_clone(),
             ),
-            pct10: LazyVecFrom1::transformed::<F>(
+            pct10: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[2]),
                 version,
                 source.pct10.height.read_only_boxed_clone(),
             ),
-            pct25: LazyVecFrom1::transformed::<F>(
+            pct25: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[3]),
                 version,
                 source.pct25.height.read_only_boxed_clone(),
             ),
-            median: LazyVecFrom1::transformed::<F>(
+            median: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[4]),
                 version,
                 source.median.height.read_only_boxed_clone(),
             ),
-            pct75: LazyVecFrom1::transformed::<F>(
+            pct75: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[5]),
                 version,
                 source.pct75.height.read_only_boxed_clone(),
             ),
-            pct90: LazyVecFrom1::transformed::<F>(
+            pct90: LazyVec::transformed::<F>(
                 &format!("{name}_{}", s[6]),
                 version,
                 source.pct90.height.read_only_boxed_clone(),

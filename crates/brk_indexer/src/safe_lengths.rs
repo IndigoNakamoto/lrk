@@ -20,10 +20,6 @@ impl SafeLengths {
         self.0.read().clone()
     }
 
-    pub fn reset(&self) {
-        *self.0.write() = Lengths::default();
-    }
-
     pub fn advance(&self, next: Lengths) {
         let mut g = self.0.write();
         debug_assert!(

@@ -2,13 +2,10 @@ use brk_error::Result;
 use brk_indexer::Lengths;
 use brk_traversable::Traversable;
 use brk_types::{
-    BasisPointsSigned32, Bitcoin, Cents, CentsSigned, Dollars, Height, StoredF64, Version,
+    Bitcoin, Cents, CentsSigned, Dollars, Height, PartsPerMillionSigned64, StoredF64, Version,
 };
 use derive_more::{Deref, DerefMut};
-use vecdb::{
-    AnyStoredVec, Exit, LazyVecFrom1, ReadableCloneableVec, ReadableVec, Rw, StorageMode,
-    WritableVec,
-};
+use vecdb::{AnyStoredVec, Exit, LazyVec, ReadableCloneableVec, ReadableVec, Rw, StorageMode};
 
 use crate::{
     distribution::state::{CohortState, CostBasisOps, RealizedOps},
@@ -26,13 +23,13 @@ use super::RealizedMinimal;
 #[derive(Clone, Traversable)]
 pub struct NegRealizedLoss {
     #[traversable(flatten)]
-    pub base: LazyVecFrom1<Height, Dollars, Height, Cents>,
+    pub base: LazyVec<Height, Dollars, Height, Cents>,
     pub sum: Windows<LazyPerBlock<Dollars, Cents>>,
 }
 
 #[derive(Traversable)]
 pub struct RealizedSoprCore<M: StorageMode = Rw> {
-    pub value_destroyed: PerBlockCumulativeRolling<Cents, Cents, M>,
+    pub value_destroyed: PerBlockCumulativeRolling<Cents, M>,
     pub ratio: RollingWindow24hPerBlock<StoredF64, M>,
 }
 
@@ -45,8 +42,12 @@ pub struct RealizedCore<M: StorageMode = Rw> {
 
     #[traversable(wrap = "loss", rename = "negative")]
     pub neg_loss: NegRealizedLoss,
-    pub net_pnl:
-        FiatPerBlockCumulativeWithSumsAndDeltas<CentsSigned, CentsSigned, BasisPointsSigned32, M>,
+    pub net_pnl: FiatPerBlockCumulativeWithSumsAndDeltas<
+        CentsSigned,
+        CentsSigned,
+        PartsPerMillionSigned64,
+        M,
+    >,
     pub sopr: RealizedSoprCore<M>,
 }
 
@@ -56,7 +57,7 @@ impl RealizedCore {
 
         let minimal = RealizedMinimal::forced_import(cfg)?;
 
-        let neg_loss_base = LazyVecFrom1::transformed::<NegCentsUnsignedToDollars>(
+        let neg_loss_base = LazyVec::transformed::<NegCentsUnsignedToDollars>(
             &cfg.name("realized_loss_neg"),
             cfg.version + Version::ONE,
             minimal.loss.block.cents.read_only_boxed_clone(),
@@ -80,7 +81,7 @@ impl RealizedCore {
             cfg.db,
             &cfg.name("net_realized_pnl"),
             cfg.version + v1,
-            Version::new(4),
+            Version::new(5),
             cfg.indexes,
             cfg.cached_starts,
         )?;
@@ -113,13 +114,12 @@ impl RealizedCore {
         self.minimal.push_state(state);
         self.sopr
             .value_destroyed
-            .block
-            .push(state.realized.value_destroyed());
+            .push_block(state.realized.value_destroyed());
     }
 
     pub(crate) fn collect_vecs_mut(&mut self) -> Vec<&mut dyn AnyStoredVec> {
         let mut vecs = self.minimal.collect_vecs_mut();
-        vecs.push(&mut self.sopr.value_destroyed.block);
+        vecs.push(self.sopr.value_destroyed.stored_mut());
         vecs
     }
 
@@ -133,7 +133,7 @@ impl RealizedCore {
         self.minimal
             .compute_from_stateful(starting_lengths, &minimal_refs, exit)?;
 
-        sum_others!(self, starting_lengths, others, exit; sopr.value_destroyed.block);
+        sum_others!(self, starting_lengths, others, exit; sopr.value_destroyed.cumulative.height);
         Ok(())
     }
 
@@ -142,26 +142,13 @@ impl RealizedCore {
         starting_lengths: &Lengths,
         exit: &Exit,
     ) -> Result<()> {
-        self.minimal.compute_rest_part1(starting_lengths, exit)?;
-
-        self.sopr
-            .value_destroyed
-            .compute_rest(starting_lengths.height, exit)?;
-
-        self.net_pnl.block.cents.compute_transform2(
+        self.net_pnl.compute_from_cumulative_pair(
             starting_lengths.height,
-            &self.minimal.profit.block.cents,
-            &self.minimal.loss.block.cents,
-            |(i, profit, loss, ..)| {
-                (
-                    i,
-                    CentsSigned::new(profit.inner() as i64 - loss.inner() as i64),
-                )
-            },
+            &self.minimal.profit.cumulative.cents.height,
+            &self.minimal.loss.cumulative.cents.height,
+            |_, profit, loss| CentsSigned::new(profit.inner() as i64 - loss.inner() as i64),
             exit,
-        )?;
-
-        Ok(())
+        )
     }
 
     pub(crate) fn compute_rest_part2(
@@ -174,8 +161,6 @@ impl RealizedCore {
     ) -> Result<()> {
         self.minimal
             .compute_rest_part2(prices, starting_lengths, height_to_supply, exit)?;
-
-        self.net_pnl.compute_rest(starting_lengths.height, exit)?;
 
         self.sopr
             .ratio

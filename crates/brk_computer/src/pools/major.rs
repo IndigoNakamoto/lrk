@@ -1,15 +1,15 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_traversable::Traversable;
-use brk_types::{BasisPoints16, Height, PoolSlug, StoredU64};
+use brk_types::{PartsPerMillion32, PoolSlug};
 use derive_more::{Deref, DerefMut};
-use vecdb::{BinaryTransform, Database, Exit, ReadableVec, Rw, StorageMode, Version};
+use vecdb::{BinaryTransform, Database, Exit, Rw, StorageMode, Version};
 
 use crate::{
-    blocks, indexes,
+    indexes,
     internal::{
-        MaskSats, PercentRollingWindows, RatioU64Bp16, ValuePerBlockCumulativeRolling,
-        WindowStartVec, Windows,
+        CachedWindowStartVec, LazyPercentRollingWindows, MaskSats, ValuePerBlockCumulativeRolling,
+        Windows,
     },
     mining, price,
 };
@@ -21,24 +21,25 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[deref]
     #[deref_mut]
     #[traversable(flatten)]
-    pub base: minor::Vecs<M>,
+    pub base: minor::Vecs,
 
     pub rewards: ValuePerBlockCumulativeRolling<M>,
     #[traversable(rename = "dominance")]
-    pub dominance_rolling: PercentRollingWindows<BasisPoints16, M>,
+    pub dominance_rolling: LazyPercentRollingWindows<PartsPerMillion32>,
 }
 
 impl Vecs {
     pub(crate) fn forced_import(
         db: &Database,
         slug: PoolSlug,
+        pool_heights: super::PoolHeights,
         version: Version,
         indexes: &indexes::Vecs,
-        cached_starts: &Windows<&WindowStartVec>,
+        cached_starts: &Windows<&CachedWindowStartVec>,
     ) -> Result<Self> {
         let suffix = |s: &str| format!("{}_{s}", slug);
 
-        let base = minor::Vecs::forced_import(db, slug, version, indexes, cached_starts)?;
+        let base = minor::Vecs::forced_import(slug, pool_heights, version, indexes, cached_starts);
 
         let rewards = ValuePerBlockCumulativeRolling::forced_import(
             db,
@@ -48,8 +49,13 @@ impl Vecs {
             cached_starts,
         )?;
 
-        let dominance_rolling =
-            PercentRollingWindows::forced_import(db, &suffix("dominance"), version, indexes)?;
+        let dominance_rolling = LazyPercentRollingWindows::from_uncached_cumulative_average(
+            &suffix("dominance"),
+            version,
+            &base.blocks_mined.cumulative.height,
+            cached_starts,
+            indexes,
+        );
 
         Ok(Self {
             base,
@@ -61,42 +67,20 @@ impl Vecs {
     pub(crate) fn compute(
         &mut self,
         indexer: &Indexer,
-        pool: &impl ReadableVec<Height, PoolSlug>,
-        blocks: &blocks::Vecs,
         prices: &price::Vecs,
         mining: &mining::Vecs,
         exit: &Exit,
     ) -> Result<()> {
         let starting_height = indexer.safe_lengths().height;
 
-        self.base.compute(indexer, pool, blocks, exit)?;
-
-        for (dom, (mined, total)) in self.dominance_rolling.as_mut_array().into_iter().zip(
-            self.base
-                .blocks_mined
-                .sum
-                .as_array()
-                .into_iter()
-                .zip(blocks.count.total.sum.as_array()),
-        ) {
-            dom.compute_binary::<StoredU64, StoredU64, RatioU64Bp16>(
-                starting_height,
-                &mined.height,
-                &total.height,
-                exit,
-            )?;
-        }
-
-        self.rewards.compute(starting_height, prices, exit, |vec| {
-            Ok(vec.compute_transform2(
-                starting_height,
-                &self.base.blocks_mined.block,
-                &mining.rewards.coinbase.block.sats,
-                |(h, mask, val, ..)| (h, MaskSats::apply(mask, val)),
-                exit,
-            )?)
-        })?;
-
+        self.rewards.compute_from_pair(
+            starting_height,
+            prices,
+            &self.base.blocks_mined.block,
+            &mining.rewards.coinbase.block.sats,
+            |_, mask, value| MaskSats::apply(mask, value),
+            exit,
+        )?;
         Ok(())
     }
 }

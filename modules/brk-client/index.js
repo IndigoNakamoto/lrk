@@ -4,12 +4,12 @@
 // Type definitions
 
 /**
- * Litecoin address string
+ * Bitcoin address string
  *
  * @typedef {string} Addr
  */
 /**
- * Litecoin address + last-seen txid path parameters (Esplora-style pagination)
+ * Bitcoin address + last-seen txid path parameters (Esplora-style pagination)
  *
  * @typedef {Object} AddrAfterTxidParam
  * @property {Addr} address
@@ -21,10 +21,11 @@
  * Based on mempool.space's format with type_index extension.
  *
  * @typedef {Object} AddrChainStats
+ * @property {Sats} balance - Current confirmed balance in satoshis
  * @property {number} fundedTxoCount - Total number of transaction outputs that funded this address
- * @property {Sats} fundedTxoSum - Total amount in litoshis received by this address across all funded outputs
+ * @property {Sats} fundedTxoSum - Total amount in satoshis received by this address across all funded outputs
  * @property {number} spentTxoCount - Total number of transaction outputs spent from this address
- * @property {Sats} spentTxoSum - Total amount in litoshis spent from this address
+ * @property {Sats} spentTxoSum - Total amount in satoshis spent from this address
  * @property {number} txCount - Total number of confirmed transactions involving this address
  * @property {TypeIndex} typeIndex - Index of this address within its type on the blockchain
  * @property {Dollars} realizedPrice - Realized price (average cost basis) in USD
@@ -39,7 +40,8 @@
 /**
  * @typedef {Object} AddrHashPrefixParam
  * @property {OutputType} addrType
- * @property {string} prefix
+ * @property {string} prefix - First 1–16 hexadecimal nibbles of the RapidHash v3 hash over the raw
+address payload bytes.
  */
 /**
  * Address statistics in the mempool (unconfirmed transactions only)
@@ -47,26 +49,28 @@
  * Based on mempool.space's format.
  *
  * @typedef {Object} AddrMempoolStats
+ * @property {SatsSigned} balanceDelta - Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
  * @property {number} fundedTxoCount - Number of unconfirmed transaction outputs funding this address
- * @property {Sats} fundedTxoSum - Total amount in litoshis being received in unconfirmed transactions
+ * @property {Sats} fundedTxoSum - Total amount in satoshis being received in unconfirmed transactions
  * @property {number} spentTxoCount - Number of unconfirmed transaction inputs spending from this address
- * @property {Sats} spentTxoSum - Total amount in litoshis being spent in unconfirmed transactions
+ * @property {Sats} spentTxoSum - Total amount in satoshis being spent in unconfirmed transactions
  * @property {number} txCount - Number of unconfirmed transactions involving this address
  */
 /**
- * Litecoin address path parameter
+ * Bitcoin address path parameter
  *
  * @typedef {Object} AddrParam
  * @property {Addr} address
  */
 /**
- * Address information compatible with mempool.space API format
+ * Address information compatible with mempool.space API format.
  *
  * @typedef {Object} AddrStats
- * @property {Addr} address - Litecoin address string
- * @property {OutputType} addrType - Address type (p2pkh, p2sh, v0_p2wpkh, v0_p2wsh, v1_p2tr, etc.)
+ * @property {Addr} address - Bitcoin address string
+ * @property {OutputType} addrType - BRK address type (p2pk33, p2pk65, p2pkh, p2sh, p2wpkh, p2wsh, p2tr, etc.)
  * @property {AddrChainStats} chainStats - Statistics for confirmed transactions on the blockchain
  * @property {AddrMempoolStats} mempoolStats - Statistics for unconfirmed transactions in the mempool
+ * @property {Sats} balance - Total current balance in satoshis, including pending (unconfirmed) mempool changes
  */
 /**
  * Address validation result
@@ -88,39 +92,7 @@
  * @typedef {TypeIndex} AnyAddrIndex
  */
 /**
- * Unsigned basis points stored as u16.
- * 1 bp = 0.0001. Range: 0–6.5535.
- * Use for bounded 0–1 ratios (dominance, adoption, liveliness, etc.).
- * `u16::MAX` is reserved as a NaN sentinel.
- *
- * @typedef {number} BasisPoints16
- */
-/**
- * Unsigned basis points stored as u32.
- * 1 bp = 0.0001. Range: 0–429,496.7295.
- * Use for unbounded unsigned ratios (MVRV, NVT, SOPR, etc.).
- * `u32::MAX` is reserved as a NaN sentinel.
- *
- * @typedef {number} BasisPoints32
- */
-/**
- * Signed basis points stored as i16.
- * 1 bp = 0.0001. Range: -3.2767 to +3.2767.
- * Use for signed bounded ratios (NUPL, net PnL ratios, etc.).
- * `i16::MIN` is reserved as a NaN sentinel.
- *
- * @typedef {number} BasisPointsSigned16
- */
-/**
- * Signed basis points stored as i32.
- * 1 bp = 0.0001. Range: -214,748.3647 to +214,748.3647.
- * Use for unbounded signed values (returns, growth rates, volatility, z-scores, etc.).
- * `i32::MIN` is reserved as a NaN sentinel.
- *
- * @typedef {number} BasisPointsSigned32
- */
-/**
- * Litecoin amount as floating point (1 LTC = 100,000,000 litoshis)
+ * Bitcoin amount as floating point (1 BTC = 100,000,000 satoshis)
  *
  * @typedef {number} Bitcoin
  */
@@ -134,12 +106,12 @@
  * Extended block data matching mempool.space /api/v1/blocks extras
  *
  * @typedef {Object} BlockExtras
- * @property {Sats} totalFees - Total fees in litoshis
+ * @property {Sats} totalFees - Total fees in satoshis
  * @property {FeeRate} medianFee - Median fee rate in sat/vB
  * @property {FeeRate[]} feeRange - Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
- * @property {Sats} reward - Total block reward (subsidy + fees) in litoshis
+ * @property {Sats} reward - Total block reward (subsidy + fees) in satoshis
  * @property {BlockPool} pool - Mining pool that mined this block
- * @property {Sats} avgFee - Average fee per transaction in litoshis
+ * @property {Sats} avgFee - Average fee per transaction in satoshis
  * @property {FeeRate} avgFeeRate - Average fee rate in sat/vB
  * @property {string} coinbaseRaw - Raw coinbase transaction scriptsig as hex
  * @property {?string=} coinbaseAddress - Primary coinbase output address
@@ -149,9 +121,9 @@
  * @property {number} avgTxSize - Average transaction size in bytes
  * @property {number} totalInputs - Total number of inputs (excluding coinbase)
  * @property {number} totalOutputs - Total number of outputs
- * @property {Sats} totalOutputAmt - Total output amount in litoshis
- * @property {Sats} medianFeeAmt - Median fee amount in litoshis
- * @property {Sats[]} feePercentiles - Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
+ * @property {Sats} totalOutputAmt - Total output amount in satoshis
+ * @property {Sats} medianFeeAmt - Median fee amount in satoshis
+ * @property {Sats[]} feePercentiles - Fee amount percentiles in satoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
  * @property {number} segwitTotalTxs - Number of segwit transactions
  * @property {number} segwitTotalSize - Total size of segwit transactions in bytes
  * @property {Weight} segwitTotalWeight - Total weight of segwit transactions
@@ -160,7 +132,7 @@
 Note: intentionally differs from utxo_set_size diff which excludes unspendable outputs.
 Matches mempool.space/bitcoin-cli behavior.
  * @property {number} utxoSetSize - Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
- * @property {Sats} totalInputAmt - Total input amount in litoshis
+ * @property {Sats} totalInputAmt - Total input amount in satoshis
  * @property {number} virtualSize - Virtual size in vbytes
  * @property {?number=} firstSeen - Timestamp when the block was first seen (always null, not yet supported)
  * @property {string[]} orphans - Orphaned blocks (always empty)
@@ -186,8 +158,8 @@ Matches mempool.space/bitcoin-cli behavior.
  * @typedef {Object} BlockFeesEntry
  * @property {Height} avgHeight - Average block height in this window
  * @property {Timestamp} timestamp - Unix timestamp at the window midpoint
- * @property {Sats} avgFees - Average fees per block in this window (lits)
- * @property {Dollars} uSD - LTC/USD price at this height
+ * @property {Sats} avgFees - Average fees per block in this window (sats)
+ * @property {Dollars} uSD - BTC/USD price at this height
  */
 /**
  * Block hash
@@ -204,14 +176,14 @@ Matches mempool.space/bitcoin-cli behavior.
  * Block hash + starting transaction index path parameters
  *
  * @typedef {Object} BlockHashStartIndex
- * @property {BlockHash} hash - Litecoin block hash
+ * @property {BlockHash} hash - Bitcoin block hash
  * @property {BlockTxIndex} startIndex - Starting transaction index within the block (0-based)
  */
 /**
  * Block hash + transaction index path parameters
  *
  * @typedef {Object} BlockHashTxIndex
- * @property {BlockHash} hash - Litecoin block hash
+ * @property {BlockHash} hash - Bitcoin block hash
  * @property {BlockTxIndex} index - Transaction index within the block (0-based)
  */
 /**
@@ -268,8 +240,8 @@ Matches mempool.space/bitcoin-cli behavior.
  * @typedef {Object} BlockRewardsEntry
  * @property {Height} avgHeight - Average block height in this window
  * @property {Timestamp} timestamp - Unix timestamp at the window midpoint
- * @property {Sats} avgRewards - Average coinbase reward per block (subsidy + fees, lits)
- * @property {Dollars} uSD - LTC/USD price at this height
+ * @property {Sats} avgRewards - Average coinbase reward per block (subsidy + fees, sats)
+ * @property {Dollars} uSD - BTC/USD price at this height
  */
 /**
  * A single block size data point.
@@ -295,13 +267,12 @@ Matches mempool.space/bitcoin-cli behavior.
  * @property {(BlockHash|null)=} nextBest - Hash of the next block in the best chain (null if tip)
  */
 /**
- * Projected next-block contents from Litecoin Core's `getblocktemplate`
+ * Projected next-block contents from Bitcoin Core's `getblocktemplate`
  * (block 0 of the snapshot). Returned by
  * `GET /api/v1/mempool/block-template`.
  *
  * @typedef {Object} BlockTemplate
- * @property {NextBlockHash} hash - Pass back as `<hash>` on
-`/api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
+ * @property {NextBlockHash} hash - Pass to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
  * @property {MempoolBlock} stats - Aggregate stats for this block (size, vsize, fee range, ...).
  * @property {Transaction[]} transactions - Full transaction bodies in `getblocktemplate` order.
  */
@@ -365,8 +336,17 @@ prior template's transactions or a full transaction body.
  * @property {Weight} avgWeight - Rolling 24h median block weight (weight units)
  */
 /**
+ * Investor phase from the Capital Sentiment model.
+ *
+ * Codes are explicit because phase values are persisted. Code `0` represents
+ * unavailable model inputs and is therefore not a phase.
+ *
+ * @typedef {("raging_bull"|"bull"|"cautious_bull"|"hopeful_bull"|"early_bull"|"weak_bull"|"limbo"|"deep_bear"|"bear"|"early_bear")} CapitalSentimentPhase
+ */
+/**
  * Unsigned cents (u64) - for values that should never be negative.
  * Used for invested capital, realized cap, etc.
+ * `u64::MAX` is reserved as a NaN sentinel.
  *
  * @typedef {number} Cents
  */
@@ -401,7 +381,7 @@ prior template's transactions or a full transaction body.
  * schemars enum value set; the type therefore proves "this is a valid
  * cohort name" wherever a `Cohort` is held.
  *
- * @typedef {("all"|"sth"|"lth"|"utxos_under_1h_old"|"utxos_1h_to_1d_old"|"utxos_1d_to_1w_old"|"utxos_1w_to_1m_old"|"utxos_1m_to_2m_old"|"utxos_2m_to_3m_old"|"utxos_3m_to_4m_old"|"utxos_4m_to_5m_old"|"utxos_5m_to_6m_old"|"utxos_6m_to_1y_old"|"utxos_1y_to_2y_old"|"utxos_2y_to_3y_old"|"utxos_3y_to_4y_old"|"utxos_4y_to_5y_old"|"utxos_5y_to_6y_old"|"utxos_6y_to_7y_old"|"utxos_7y_to_8y_old"|"utxos_8y_to_10y_old"|"utxos_10y_to_12y_old"|"utxos_12y_to_15y_old"|"utxos_over_15y_old")} Cohort
+ * @typedef {("all"|"sth"|"lth"|"utxos_under_1h_old"|"utxos_1h_to_1d_old"|"utxos_1d_to_1w_old"|"utxos_1w_to_1m_old"|"utxos_1m_to_2m_old"|"utxos_2m_to_3m_old"|"utxos_3m_to_4m_old"|"utxos_4m_to_5m_old"|"utxos_5m_to_6m_old"|"utxos_6m_to_9m_old"|"utxos_9m_to_1y_old"|"utxos_1y_to_18m_old"|"utxos_18m_to_2y_old"|"utxos_2y_to_3y_old"|"utxos_3y_to_4y_old"|"utxos_4y_to_5y_old"|"utxos_5y_to_6y_old"|"utxos_6y_to_7y_old"|"utxos_7y_to_8y_old"|"utxos_8y_to_10y_old"|"utxos_10y_to_12y_old"|"utxos_12y_to_15y_old"|"utxos_over_15y_old")} Cohort
  */
 /**
  * Coinbase scriptSig tag for pool identification.
@@ -486,7 +466,7 @@ This is the seed's chunk feerate after lift-merging, i.e. the
 rate Core/mempool.space would surface for this tx.
  * @property {SigOps} sigops - BIP-141 sigop cost for the seed tx (witness sigops count as 1,
 legacy and P2SH-redeem sigops count as 4).
- * @property {Sats} fee - Transaction fee (lits).
+ * @property {Sats} fee - Transaction fee (sats).
  * @property {VSize} vsize - Virtual size of the seed tx (vbytes).
  * @property {VSize} adjustedVsize - Policy-adjusted virtual size: `max(vsize, sigops * 5)`.
  * @property {(CpfpCluster|null)=} cluster - Cluster the seed belongs to: full tx list, SFL-linearized chunks,
@@ -513,10 +493,10 @@ ancestors and no descendants (matches mempool.space).
  * Detailed series count with per-database breakdown
  *
  * @typedef {Object} DetailedSeriesCount
- * @property {number} distinctSeries - Number of unique series available (e.g., realized_price, market_cap)
- * @property {number} totalEndpoints - Total number of series-index combinations across all timeframes
- * @property {number} lazyEndpoints - Number of lazy (computed on-the-fly) series-index combinations
- * @property {number} storedEndpoints - Number of eager (stored on disk) series-index combinations
+ * @property {number} distinct - Number of unique series available (e.g., realized_price, market_cap)
+ * @property {number} total - Total number of series-index combinations across all timeframes
+ * @property {number} lazy - Number of lazy (computed on-the-fly) series-index combinations
+ * @property {number} stored - Number of eager (stored on disk) series-index combinations
  * @property {{ [key: string]: SeriesCount }} byDb - Per-database breakdown of counts
  */
 /**
@@ -561,9 +541,9 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {Object} DiskUsage
  * @property {string} brk - Human-readable brk data size (e.g., "48.8 GiB")
  * @property {number} brkBytes - brk data size in bytes
- * @property {string} chain - Human-readable chain blocks directory size
- * @property {number} chainBytes - Chain blocks directory size in bytes
- * @property {number} ratio - brk as percentage of chain data
+ * @property {string} bitcoin - Human-readable Bitcoin blocks directory size
+ * @property {number} bitcoinBytes - Bitcoin blocks directory size in bytes
+ * @property {number} ratio - brk as percentage of Bitcoin data
  */
 /**
  * US Dollar amount
@@ -608,7 +588,9 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {("json"|"csv")} Format
  */
 /**
- * Data for a funded (non-empty) address with current balance
+ * Data for a funded (non-empty) address with current balance.
+ *
+ * Kept compact because one value is stored for every funded address.
  *
  * @typedef {Object} FundedAddrData
  * @property {number} txCount - Total transaction count
@@ -617,7 +599,6 @@ ancestors and no descendants (matches mempool.space).
  * @property {Sats} received - Satoshis received by this address
  * @property {Sats} sent - Satoshis sent by this address
  * @property {CentsSats} realizedCapRaw - The realized capitalization: Σ(price × sats)
- * @property {CentsSquaredSats} capitalizedCapRaw - The capitalized cap: Σ(price² × sats)
  */
 /** @typedef {TypeIndex} FundedAddrIndex */
 /** @typedef {number} Halving */
@@ -644,15 +625,12 @@ ancestors and no descendants (matches mempool.space).
  * @property {string} status - Health status ("healthy")
  * @property {string} service - Service name
  * @property {string} version - Server version
- * @property {string} chain - Active chain ("bitcoin" or "litecoin")
- * @property {string} ticker - Active chain ticker symbol ("BTC" or "LTC")
- * @property {string} coinName - Active chain display name ("Bitcoin" or "Litecoin")
  * @property {string} timestamp - Current server time (ISO 8601)
  * @property {string} startedAt - Server start time (ISO 8601)
  * @property {number} uptimeSeconds - Uptime in seconds
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the chain tip (from Litecoin node)
+ * @property {Height} tipHeight - Height of the chain tip (from Bitcoin node)
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
  * @property {Timestamp} lastIndexedAtUnix - Unix timestamp of the last indexed block
@@ -668,7 +646,8 @@ ancestors and no descendants (matches mempool.space).
  * per-day variant, choosing the matching cache strategy.
  *
  * @typedef {Object} HeightOrDateParam
- * @property {string} point
+ * @property {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
  */
 /**
  * Block height path parameter
@@ -700,7 +679,7 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} HistoricalPriceEntry
  * @property {Timestamp} time - Unix timestamp
- * @property {Dollars} uSD - LTC/USD price
+ * @property {Dollars} uSD - BTC/USD price
  */
 /** @typedef {number} Hour1 */
 /** @typedef {number} Hour12 */
@@ -748,7 +727,7 @@ ancestors and no descendants (matches mempool.space).
  * @property {number} blockSize - Total serialized block size in bytes (witness + non-witness).
  * @property {number} blockVSize - Total block virtual size in vbytes
  * @property {number} nTx - Number of transactions in the projected block
- * @property {Sats} totalFees - Total fees in litoshis
+ * @property {Sats} totalFees - Total fees in satoshis
  * @property {FeeRate} medianFee - Median fee rate in sat/vB
  * @property {FeeRate[]} feeRange - Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
  */
@@ -758,7 +737,7 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {Object} MempoolInfo
  * @property {number} count - Number of transactions in the mempool
  * @property {VSize} vsize - Total virtual size of all transactions in the mempool (vbytes)
- * @property {Sats} totalFee - Total fees of all transactions in the mempool (litoshis)
+ * @property {Sats} totalFee - Total fees of all transactions in the mempool (satoshis)
  * @property {{ [key: string]: VSize }} feeHistogram - Fee histogram: `[[fee_rate, vsize], ...]` sorted by descending fee rate
  */
 /**
@@ -766,9 +745,9 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} MempoolRecentTx
  * @property {Txid} txid - Transaction ID
- * @property {Sats} fee - Transaction fee (lits)
+ * @property {Sats} fee - Transaction fee (sats)
  * @property {VSize} vsize - Virtual size (vbytes)
- * @property {Sats} value - Total output value (lits)
+ * @property {Sats} value - Total output value (sats)
  */
 /**
  * Merkle inclusion proof for a transaction
@@ -786,13 +765,12 @@ ancestors and no descendants (matches mempool.space).
 /**
  * Content hash of the projected next block (block 0 of the mempool
  * snapshot). Same value as the mempool ETag. Opaque token: pass back
- * as `since` on `/api/v1/mempool/block-template/diff/{hash}` to fetch
- * deltas.
+ * to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas.
  *
  * @typedef {number} NextBlockHash
  */
 /**
- * `since` hash for `/api/v1/mempool/block-template/diff/{hash}`.
+ * Prior-template hash for `GET /api/v1/mempool/block-template/diff/{hash}`.
  *
  * @typedef {Object} NextBlockHashParam
  * @property {NextBlockHash} hash
@@ -825,6 +803,7 @@ ancestors and no descendants (matches mempool.space).
  * @property {Close} close
  */
 /** @typedef {TypeIndex} OpReturnIndex */
+/** @typedef {("runes"|"veri_block"|"omni"|"stacks"|"blockstack"|"colu"|"open_assets"|"komodo"|"coin_spark"|"poet"|"docproof"|"open_timestamps"|"factom"|"eternity_wall"|"memo"|"bitproof"|"ascribe"|"stampery"|"epobc"|"bare_hash"|"text"|"empty"|"unknown")} OpReturnKind */
 /**
  * Opening price value for a time period
  *
@@ -840,7 +819,7 @@ ancestors and no descendants (matches mempool.space).
 /**
  * Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
  *
- * @typedef {(("p2pk"|"p2pk"|"p2pkh"|"multisig"|"p2sh"|"op_return"|"v0_p2wpkh"|"v0_p2wsh"|"v1_p2tr"|"p2a"|"empty"|"unknown")|string|string)} OutputType
+ * @typedef {("p2pk65"|"p2pk33"|"p2pkh"|"p2ms"|"p2sh"|"opreturn"|"p2wpkh"|"p2wsh"|"p2tr"|"p2a"|"empty"|"unknown")} OutputType
  */
 /** @typedef {TypeIndex} P2AAddrIndex */
 /** @typedef {U8x2} P2ABytes */
@@ -876,6 +855,38 @@ ancestors and no descendants (matches mempool.space).
  * @typedef {Object} Pagination
  * @property {?number=} page - Pagination index
  * @property {?number=} perPage - Results per page (default: 1000, max: 1000)
+ */
+/**
+ * Unsigned parts per million stored as u32.
+ * One unit is 0.000001. Range: 0–4,294.967294.
+ * Use for precise bounded ratios and percentages.
+ * `u32::MAX` is reserved as a NaN sentinel.
+ *
+ * @typedef {number} PartsPerMillion32
+ */
+/**
+ * Unsigned parts per million stored as u64.
+ * One unit is 0.000001. Range: 0–18,446,744,073,709.551614.
+ * Use for precise wide-range ratios.
+ * `u64::MAX` is reserved as a NaN sentinel.
+ *
+ * @typedef {number} PartsPerMillion64
+ */
+/**
+ * Signed parts per million stored as i32.
+ * One unit is 0.000001. Range: -2,147.483647 to +2,147.483647.
+ * Use for precise bounded signed ratios and percentages.
+ * `i32::MIN` is reserved as a NaN sentinel.
+ *
+ * @typedef {number} PartsPerMillionSigned32
+ */
+/**
+ * Signed parts per million stored as i64.
+ * One unit is 0.000001. Range: -9,223,372,036,854.775807 to +9,223,372,036,854.775807.
+ * Use for precise wide-range signed ratios and percentages.
+ * `i64::MIN` is reserved as a NaN sentinel.
+ *
+ * @typedef {number} PartsPerMillionSigned64
  */
 /**
  * Block counts for different time periods
@@ -936,7 +947,7 @@ ancestors and no descendants (matches mempool.space).
 /**
  * URL-friendly mining pool identifier
  *
- * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners"|"kupool"|"litecoinpoolorg"|"hash700"|"lsoftwaredmcc"|"hashspace"|"dogegogocom"|"longpool"|"kryptex"|"dxpool"|"k1pool"|"molepool"|"solopoolorg"|"prohashing"|"hashhut"|"happychina"|"himpool"|"p2pspbxyz"|"hyperdonkey"|"zergpool")} PoolSlug
+ * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners"|"dmnd")} PoolSlug
  */
 /**
  * Mining pool slug + block height path parameters
@@ -980,7 +991,7 @@ ancestors and no descendants (matches mempool.space).
  *
  * @typedef {Object} Prices
  * @property {Timestamp} time - Unix timestamp
- * @property {Dollars} uSD - LTC/USD price
+ * @property {Dollars} uSD - BTC/USD price
  */
 /**
  * A range boundary: integer index, date, or timestamp.
@@ -1048,12 +1059,12 @@ on serialization otherwise.
  * @typedef {Object} RewardStats
  * @property {Height} startBlock - First block in the range
  * @property {Height} endBlock - Last block in the range
- * @property {Sats} totalReward - Total coinbase rewards (subsidy + fees) in lits
- * @property {Sats} totalFee - Total transaction fees in lits
+ * @property {Sats} totalReward - Total coinbase rewards (subsidy + fees) in sats
+ * @property {Sats} totalFee - Total transaction fees in sats
  * @property {number} totalTx - Total number of transactions
  */
 /**
- * Amount in litoshis (1 LTC = 100,000,000 lits)
+ * Amount in satoshis (1 BTC = 100,000,000 sats)
  *
  * @typedef {number} Sats
  */
@@ -1081,13 +1092,13 @@ on serialization otherwise.
  * @property {Limit=} limit - Maximum number of results
  */
 /**
- * Series count statistics - distinct series and total series-index combinations
+ * Series count statistics
  *
  * @typedef {Object} SeriesCount
- * @property {number} distinctSeries - Number of unique series available (e.g., realized_price, market_cap)
- * @property {number} totalEndpoints - Total number of series-index combinations across all timeframes
- * @property {number} lazyEndpoints - Number of lazy (computed on-the-fly) series-index combinations
- * @property {number} storedEndpoints - Number of eager (stored on disk) series-index combinations
+ * @property {number} distinct - Number of unique series available (e.g., realized_price, market_cap)
+ * @property {number} total - Total number of series-index combinations across all timeframes
+ * @property {number} lazy - Number of lazy (computed on-the-fly) series-index combinations
+ * @property {number} stored - Number of eager (stored on disk) series-index combinations
  */
 /**
  * Metadata about a series
@@ -1184,6 +1195,7 @@ on serialization otherwise.
  *
  * @typedef {number} StoredU64
  */
+/** @typedef {number} StoredU8 */
 /**
  * Current supply state tracking UTXO count and total value
  *
@@ -1197,7 +1209,7 @@ on serialization otherwise.
  * @typedef {Object} SyncStatus
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the chain tip (from Litecoin node)
+ * @property {Height} tipHeight - Height of the chain tip (from Bitcoin node)
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
  * @property {Timestamp} lastIndexedAtUnix - Unix timestamp of the last indexed block
@@ -1233,14 +1245,14 @@ on serialization otherwise.
  * @typedef {Object} Transaction
  * @property {(TxIndex|null)=} index - Internal transaction index (brk-specific, not in mempool.space)
  * @property {Txid} txid - Transaction ID
- * @property {TxVersionRaw} version - Transaction version (raw i32 from Litecoin protocol, may contain non-standard values in coinbase txs)
+ * @property {TxVersionRaw} version - Transaction version (raw i32 from Bitcoin protocol, may contain non-standard values in coinbase txs)
  * @property {RawLockTime} locktime - Transaction lock time
  * @property {TxIn[]} vin - Transaction inputs
  * @property {TxOut[]} vout - Transaction outputs
  * @property {number} size - Transaction size in bytes
  * @property {Weight} weight - Transaction weight
  * @property {SigOps} sigops - Number of signature operations
- * @property {Sats} fee - Transaction fee in litoshis
+ * @property {Sats} fee - Transaction fee in satoshis
  * @property {TxStatus} status - Confirmation status (confirmed, block height/hash/time)
  */
 /**
@@ -1281,7 +1293,7 @@ on serialization otherwise.
  *
  * @typedef {Object} TxOut
  * @property {string} scriptpubkey - Script pubkey (locking script)
- * @property {Sats} value - Value of the output in litoshis
+ * @property {Sats} value - Value of the output in satoshis
  */
 /** @typedef {number} TxOutIndex */
 /**
@@ -1308,7 +1320,7 @@ on serialization otherwise.
  * @typedef {number} TxVersion
  */
 /**
- * Raw transaction version (i32) from Litecoin protocol.
+ * Raw transaction version (i32) from Bitcoin protocol.
  * Unlike TxVersion (u8, indexed), this preserves non-standard values
  * used in coinbase txs for miner signaling/branding.
  *
@@ -1358,16 +1370,17 @@ on serialization otherwise.
  * UTXO Realized Price Distribution for a cohort on a specific date.
  *
  * Supply is grouped by the close price at which each UTXO was last moved.
- * Each bucket exposes three values: supply in LTC, realized cap contribution
+ * Each bucket exposes three values: supply in BTC, realized cap contribution
  * in USD (sum of `realized_price * supply` over the coins in the bucket), and
  * unrealized P&L in USD (`close * supply - realized_cap`, can be negative).
  *
  * @typedef {Object} Urpd
  * @property {Cohort} cohort
  * @property {Date} date
+ * @property {UrpdWeight} weight - Weighting applied to the source supply.
  * @property {UrpdAggregation} aggregation - Aggregation strategy applied to the buckets.
  * @property {Dollars} close - Close price on `date`, in USD. Anchor for `unrealized_pnl`.
- * @property {Bitcoin} totalSupply - Sum of `supply` across all buckets, in LTC.
+ * @property {Bitcoin} totalSupply - Sum of `supply` across all buckets, in BTC.
  * @property {UrpdBucket[]} buckets
  */
 /**
@@ -1382,7 +1395,7 @@ on serialization otherwise.
  *
  * @typedef {Object} UrpdBucket
  * @property {Dollars} priceFloor - Lower bound of the bucket, in USD. Equals the exact realized price for `Raw`.
- * @property {Bitcoin} supply - Supply held with a last-move price inside this bucket, in LTC.
+ * @property {Bitcoin} supply - Supply held with a last-move price inside this bucket, in BTC.
  * @property {Dollars} realizedCap - Realized cap contribution in USD: sum of `realized_price * supply` over the coins in this bucket.
  * @property {Dollars} unrealizedPnl - Unrealized P&L in USD against the close on the snapshot date: `close * supply - realized_cap`. Can be negative.
  */
@@ -1397,13 +1410,25 @@ on serialization otherwise.
  *
  * @typedef {Object} UrpdParams
  * @property {Cohort} cohort
- * @property {string} date
+ * @property {string} date - Calendar date of the URPD snapshot in `YYYY-MM-DD` format.
  */
 /**
  * Query parameters for URPD endpoints.
  *
  * @typedef {Object} UrpdQuery
  * @property {UrpdAggregation=} agg - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+ * @property {UrpdWeight=} weight - Supply weighting. Default: raw (unweighted).
+ */
+/**
+ * Weighting applied to a URPD: raw (unweighted), cointime, or coinflow.
+ *
+ * @typedef {("raw"|"cointime"|"coinflow")} UrpdWeight
+ */
+/**
+ * Query parameters for URPD date discovery.
+ *
+ * @typedef {Object} UrpdWeightQuery
+ * @property {UrpdWeight=} weight - Supply weighting. Default: raw (unweighted).
  */
 /**
  * Unspent transaction output
@@ -1412,7 +1437,7 @@ on serialization otherwise.
  * @property {Txid} txid - Transaction ID of the UTXO
  * @property {Vout} vout - Output index
  * @property {TxStatus} status - Confirmation status
- * @property {Sats} value - Output value in litoshis
+ * @property {Sats} value - Output value in satoshis
  */
 /**
  * Virtual size in vbytes (weight / 4, rounded up). Max block vsize is ~1,000,000 vB.
@@ -1421,7 +1446,7 @@ on serialization otherwise.
  */
 /**
  * @typedef {Object} ValidateAddrParam
- * @property {string} address - Litecoin address to validate (can be any string)
+ * @property {string} address - Bitcoin address to validate (can be any string)
  */
 /**
  * Version tracking for data schema and computed values.
@@ -1453,7 +1478,7 @@ on serialization otherwise.
  *
  * Wraps `bitcoin::Witness` (single-buffer layout with offsets, much
  * more compact than `Vec<Vec<u8>>`). Serializes as a JSON array of
- * hex strings - the format used by Litecoin Core REST and mempool.space
+ * hex strings - the format used by Bitcoin Core REST and mempool.space
  * and matching brk's `script_sig: ScriptBuf` (bytes internally, hex
  * on the wire).
  *
@@ -1523,11 +1548,11 @@ class BrkError extends Error {
 }
 
 // Date conversion constants and helpers
-const _GENESIS = new Date(2011, 0, 1);  // day1 0, week1 0
-const _DAY_ONE = new Date(2011, 0, 2);  // day1 1
+const _GENESIS = new Date(2009, 0, 3);  // day1 0, week1 0
+const _DAY_ONE = new Date(2009, 0, 9);  // day1 1 (6 day gap after genesis)
 const _MS_PER_DAY = 86400000;
 const _MS_PER_WEEK = 7 * _MS_PER_DAY;
-const _EPOCH_MS = 1293840000000;
+const _EPOCH_MS = 1230768000000;
 const _DATE_INDEXES = new Set([
   'minute10', 'minute30',
   'hour1', 'hour4', 'hour12',
@@ -1537,7 +1562,7 @@ const _DATE_INDEXES = new Set([
 ]);
 
 /** @param {number} months @returns {globalThis.Date} */
-const _addMonths = (months) => new Date(2011, 0 + months, 1);
+const _addMonths = (months) => new Date(2009, months, 1);
 
 /**
  * Convert an index value to a Date for date-based indexes.
@@ -1558,8 +1583,8 @@ function indexToDate(index, i) {
     case 'month1': return _addMonths(i);
     case 'month3': return _addMonths(i * 3);
     case 'month6': return _addMonths(i * 6);
-    case 'year1': return new Date(2011 + i, 0, 1);
-    case 'year10': return new Date(2011 + i * 10, 0, 1);
+    case 'year1': return new Date(2009 + i, 0, 1);
+    case 'year10': return new Date(2009 + i * 10, 0, 1);
     default: throw new Error(`${index} is not a date-based index`);
   }
 }
@@ -1585,11 +1610,11 @@ function dateToIndex(index, d) {
     }
     case 'day3': return Math.floor((ms - _EPOCH_MS + 86400000) / 259200000);
     case 'week1': return Math.floor((ms - _GENESIS.getTime()) / _MS_PER_WEEK);
-    case 'month1': return (d.getFullYear() - 2011) * 12 + (d.getMonth() - 0);
-    case 'month3': return (d.getFullYear() - 2011) * 4 + Math.floor((d.getMonth() - 0) / 3);
-    case 'month6': return (d.getFullYear() - 2011) * 2 + Math.floor((d.getMonth() - 0) / 6);
-    case 'year1': return d.getFullYear() - 2011;
-    case 'year10': return Math.floor((d.getFullYear() - 2011) / 10);
+    case 'month1': return (d.getFullYear() - 2009) * 12 + d.getMonth();
+    case 'month3': return (d.getFullYear() - 2009) * 4 + Math.floor(d.getMonth() / 3);
+    case 'month6': return (d.getFullYear() - 2009) * 2 + Math.floor(d.getMonth() / 6);
+    case 'year1': return d.getFullYear() - 2009;
+    case 'year10': return Math.floor((d.getFullYear() - 2009) / 10);
     default: throw new Error(`${index} is not a date-based index`);
   }
 }
@@ -2273,12 +2298,13 @@ function _validateHashPrefixNibbles(nibbles) {
 function _addressPayloadLengths(addrType) {
   switch (addrType) {
     case "p2a": return [2];
-    case "p2pk": return [33, 65];
+    case "p2pk33": return [33];
+    case "p2pk65": return [65];
     case "p2pkh":
     case "p2sh":
-    case "v0_p2wpkh": return [20];
-    case "v0_p2wsh":
-    case "v1_p2tr": return [32];
+    case "p2wpkh": return [20];
+    case "p2wsh":
+    case "p2tr": return [32];
     default:
       throw new Error(`Unsupported address type for address payload hash-prefix: ${addrType}`);
   }
@@ -2480,6 +2506,63 @@ function createSeriesPattern35(client, name) { return /** @type {SeriesPattern35
 // Reusable structural pattern factories
 
 /**
+ * @typedef {Object} IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern
+ * @property {SeriesPattern1<StoredI8>} index
+ * @property {CentsSatsUsdPattern} pct01
+ * @property {CentsSatsUsdPattern} pct05
+ * @property {CentsSatsUsdPattern} pct1
+ * @property {CentsSatsUsdPattern} pct10
+ * @property {CentsSatsUsdPattern} pct2
+ * @property {CentsSatsUsdPattern} pct20
+ * @property {CentsSatsUsdPattern} pct30
+ * @property {CentsSatsUsdPattern} pct40
+ * @property {CentsSatsUsdPattern} pct5
+ * @property {CentsSatsUsdPattern} pct50
+ * @property {CentsSatsUsdPattern} pct60
+ * @property {CentsSatsUsdPattern} pct70
+ * @property {CentsSatsUsdPattern} pct80
+ * @property {CentsSatsUsdPattern} pct90
+ * @property {CentsSatsUsdPattern} pct95
+ * @property {CentsSatsUsdPattern} pct98
+ * @property {CentsSatsUsdPattern} pct99
+ * @property {CentsSatsUsdPattern} pct995
+ * @property {CentsSatsUsdPattern} pct999
+ * @property {SeriesPattern1<StoredI8>} score
+ */
+
+/**
+ * Create a IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern}
+ */
+function createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(client, acc) {
+  return {
+    index: createSeriesPattern1(client, _m(acc, 'index')),
+    pct01: createCentsSatsUsdPattern(client, _m(acc, 'pct0_1')),
+    pct05: createCentsSatsUsdPattern(client, _m(acc, 'pct0_5')),
+    pct1: createCentsSatsUsdPattern(client, _m(acc, 'pct01')),
+    pct10: createCentsSatsUsdPattern(client, _m(acc, 'pct10')),
+    pct2: createCentsSatsUsdPattern(client, _m(acc, 'pct02')),
+    pct20: createCentsSatsUsdPattern(client, _m(acc, 'pct20')),
+    pct30: createCentsSatsUsdPattern(client, _m(acc, 'pct30')),
+    pct40: createCentsSatsUsdPattern(client, _m(acc, 'pct40')),
+    pct5: createCentsSatsUsdPattern(client, _m(acc, 'pct05')),
+    pct50: createCentsSatsUsdPattern(client, _m(acc, 'pct50')),
+    pct60: createCentsSatsUsdPattern(client, _m(acc, 'pct60')),
+    pct70: createCentsSatsUsdPattern(client, _m(acc, 'pct70')),
+    pct80: createCentsSatsUsdPattern(client, _m(acc, 'pct80')),
+    pct90: createCentsSatsUsdPattern(client, _m(acc, 'pct90')),
+    pct95: createCentsSatsUsdPattern(client, _m(acc, 'pct95')),
+    pct98: createCentsSatsUsdPattern(client, _m(acc, 'pct98')),
+    pct99: createCentsSatsUsdPattern(client, _m(acc, 'pct99')),
+    pct995: createCentsSatsUsdPattern(client, _m(acc, 'pct99_5')),
+    pct999: createCentsSatsUsdPattern(client, _m(acc, 'pct99_9')),
+    score: createSeriesPattern1(client, _m(acc, 'score')),
+  };
+}
+
+/**
  * @typedef {Object} Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern
  * @property {CentsSatsUsdPattern} pct05
  * @property {CentsSatsUsdPattern} pct10
@@ -2533,30 +2616,62 @@ function createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65
 }
 
 /**
- * @typedef {Object} _0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m3sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p3sd
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
+ * @typedef {Object} Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern
+ * @property {PpmPriceRatioPattern} pct01
+ * @property {PpmPriceRatioPattern} pct05
+ * @property {PpmPriceRatioPattern} pct1
+ * @property {PpmPriceRatioPattern} pct10
+ * @property {PpmPriceRatioPattern} pct2
+ * @property {PpmPriceRatioPattern} pct20
+ * @property {PpmPriceRatioPattern} pct30
+ * @property {PpmPriceRatioPattern} pct40
+ * @property {PpmPriceRatioPattern} pct5
+ * @property {PpmPriceRatioPattern} pct50
+ * @property {PpmPriceRatioPattern} pct60
+ * @property {PpmPriceRatioPattern} pct70
+ * @property {PpmPriceRatioPattern} pct80
+ * @property {PpmPriceRatioPattern} pct90
+ * @property {PpmPriceRatioPattern} pct95
+ * @property {PpmPriceRatioPattern} pct98
+ * @property {PpmPriceRatioPattern} pct99
+ * @property {PpmPriceRatioPattern} pct995
+ * @property {PpmPriceRatioPattern} pct999
  */
 
 /**
- * @typedef {Object} AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
+ * Create a Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern}
+ */
+function createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(client, acc) {
+  return {
+    pct01: createPpmPriceRatioPattern(client, acc, 'pct0_1'),
+    pct05: createPpmPriceRatioPattern(client, acc, 'pct0_5'),
+    pct1: createPpmPriceRatioPattern(client, acc, 'pct1'),
+    pct10: createPpmPriceRatioPattern(client, acc, 'pct10'),
+    pct2: createPpmPriceRatioPattern(client, acc, 'pct2'),
+    pct20: createPpmPriceRatioPattern(client, acc, 'pct20'),
+    pct30: createPpmPriceRatioPattern(client, acc, 'pct30'),
+    pct40: createPpmPriceRatioPattern(client, acc, 'pct40'),
+    pct5: createPpmPriceRatioPattern(client, acc, 'pct5'),
+    pct50: createPpmPriceRatioPattern(client, acc, 'pct50'),
+    pct60: createPpmPriceRatioPattern(client, acc, 'pct60'),
+    pct70: createPpmPriceRatioPattern(client, acc, 'pct70'),
+    pct80: createPpmPriceRatioPattern(client, acc, 'pct80'),
+    pct90: createPpmPriceRatioPattern(client, acc, 'pct90'),
+    pct95: createPpmPriceRatioPattern(client, acc, 'pct95'),
+    pct98: createPpmPriceRatioPattern(client, acc, 'pct98'),
+    pct99: createPpmPriceRatioPattern(client, acc, 'pct99'),
+    pct995: createPpmPriceRatioPattern(client, acc, 'pct99_5'),
+    pct999: createPpmPriceRatioPattern(client, acc, 'pct99_9'),
+  };
+}
+
+/**
+ * @typedef {Object} AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} all
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} empty
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegPool
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegin
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} opReturn
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} p2a
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} p2ms
@@ -2571,17 +2686,15 @@ function createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65
  */
 
 /**
- * Create a AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern pattern node
+ * Create a AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern}
+ * @returns {AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern}
  */
-function createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, acc) {
+function createAllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, acc) {
   return {
     all: createAverageBlockCumulativeSumPattern(client, _m(acc, 'bis')),
     empty: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_empty_outputs_output')),
-    mwebPegPool: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_peg_pool_output')),
-    mwebPegin: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_mweb_pegin_output')),
     opReturn: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_op_return_output')),
     p2a: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2a_output')),
     p2ms: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2ms_output')),
@@ -2593,88 +2706,6 @@ function createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownP
     p2wpkh: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2wpkh_output')),
     p2wsh: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_p2wsh_output')),
     unknown: createAverageBlockCumulativeSumPattern(client, _m(acc, 'with_unknown_outputs_output')),
-  };
-}
-
-/**
- * @typedef {Object} EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
- * @property {_1m1w1y24hBpsPercentRatioPattern} empty
- * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegPool
- * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegin
- * @property {_1m1w1y24hBpsPercentRatioPattern} opReturn
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2ms
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk33
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk65
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2sh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2tr
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wpkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wsh
- * @property {_1m1w1y24hBpsPercentRatioPattern} unknown
- */
-
-/**
- * Create a EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern}
- */
-function createEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(client, acc) {
-  return {
-    empty: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'empty_outputs_output')),
-    mwebPegPool: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_peg_pool_output')),
-    mwebPegin: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'mweb_pegin_output')),
-    opReturn: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'op_return_output')),
-    p2a: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2a_output')),
-    p2ms: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2ms_output')),
-    p2pk33: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk33_output')),
-    p2pk65: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk65_output')),
-    p2pkh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pkh_output')),
-    p2sh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2sh_output')),
-    p2tr: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2tr_output')),
-    p2wpkh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wpkh_output')),
-    p2wsh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wsh_output')),
-    unknown: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'unknown_outputs_output')),
-  };
-}
-
-/**
- * @typedef {Object} _10y1m1w1y2y3m3y4y5y6m6y8yPattern2
- * @property {BpsPercentRatioPattern} _10y
- * @property {BpsPercentRatioPattern} _1m
- * @property {BpsPercentRatioPattern} _1w
- * @property {BpsPercentRatioPattern} _1y
- * @property {BpsPercentRatioPattern} _2y
- * @property {BpsPercentRatioPattern} _3m
- * @property {BpsPercentRatioPattern} _3y
- * @property {BpsPercentRatioPattern} _4y
- * @property {BpsPercentRatioPattern} _5y
- * @property {BpsPercentRatioPattern} _6m
- * @property {BpsPercentRatioPattern} _6y
- * @property {BpsPercentRatioPattern} _8y
- */
-
-/**
- * Create a _10y1m1w1y2y3m3y4y5y6m6y8yPattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {_10y1m1w1y2y3m3y4y5y6m6y8yPattern2}
- */
-function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern2(client, acc) {
-  return {
-    _10y: createBpsPercentRatioPattern(client, _m(acc, '10y')),
-    _1m: createBpsPercentRatioPattern(client, _m(acc, '1m')),
-    _1w: createBpsPercentRatioPattern(client, _m(acc, '1w')),
-    _1y: createBpsPercentRatioPattern(client, _m(acc, '1y')),
-    _2y: createBpsPercentRatioPattern(client, _m(acc, '2y')),
-    _3m: createBpsPercentRatioPattern(client, _m(acc, '3m')),
-    _3y: createBpsPercentRatioPattern(client, _m(acc, '3y')),
-    _4y: createBpsPercentRatioPattern(client, _m(acc, '4y')),
-    _5y: createBpsPercentRatioPattern(client, _m(acc, '5y')),
-    _6m: createBpsPercentRatioPattern(client, _m(acc, '6m')),
-    _6y: createBpsPercentRatioPattern(client, _m(acc, '6y')),
-    _8y: createBpsPercentRatioPattern(client, _m(acc, '8y')),
   };
 }
 
@@ -2718,6 +2749,45 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern3(client, acc) {
 }
 
 /**
+ * @typedef {Object} _10y1m1w1y2y3m3y4y5y6m6y8yPattern2
+ * @property {PercentPpmRatioPattern} _10y
+ * @property {PercentPpmRatioPattern} _1m
+ * @property {PercentPpmRatioPattern} _1w
+ * @property {PercentPpmRatioPattern} _1y
+ * @property {PercentPpmRatioPattern} _2y
+ * @property {PercentPpmRatioPattern} _3m
+ * @property {PercentPpmRatioPattern} _3y
+ * @property {PercentPpmRatioPattern} _4y
+ * @property {PercentPpmRatioPattern} _5y
+ * @property {PercentPpmRatioPattern} _6m
+ * @property {PercentPpmRatioPattern} _6y
+ * @property {PercentPpmRatioPattern} _8y
+ */
+
+/**
+ * Create a _10y1m1w1y2y3m3y4y5y6m6y8yPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {_10y1m1w1y2y3m3y4y5y6m6y8yPattern2}
+ */
+function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern2(client, acc) {
+  return {
+    _10y: createPercentPpmRatioPattern(client, _m(acc, '10y')),
+    _1m: createPercentPpmRatioPattern(client, _m(acc, '1m')),
+    _1w: createPercentPpmRatioPattern(client, _m(acc, '1w')),
+    _1y: createPercentPpmRatioPattern(client, _m(acc, '1y')),
+    _2y: createPercentPpmRatioPattern(client, _m(acc, '2y')),
+    _3m: createPercentPpmRatioPattern(client, _m(acc, '3m')),
+    _3y: createPercentPpmRatioPattern(client, _m(acc, '3y')),
+    _4y: createPercentPpmRatioPattern(client, _m(acc, '4y')),
+    _5y: createPercentPpmRatioPattern(client, _m(acc, '5y')),
+    _6m: createPercentPpmRatioPattern(client, _m(acc, '6m')),
+    _6y: createPercentPpmRatioPattern(client, _m(acc, '6y')),
+    _8y: createPercentPpmRatioPattern(client, _m(acc, '8y')),
+  };
+}
+
+/**
  * @typedef {Object} AllEmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} all
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} empty
@@ -2742,7 +2812,7 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern3(client, acc) {
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
  * @property {BlockCumulativeSumPattern} peakRegret
- * @property {BpsCentsPercentilesRatioSatsSmaStdUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
@@ -2750,20 +2820,66 @@ function create_10y1m1w1y2y3m3y4y5y6m6y8yPattern3(client, acc) {
  */
 
 /**
- * @typedef {Object} CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2
- * @property {CentsDeltaToUsdPattern} cap
- * @property {PricePattern} capitalized
- * @property {BlockCumulativeSumPattern} grossPnl
- * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {BlockCumulativeSumPattern} peakRegret
- * @property {BpsCentsPercentilesRatioSatsSmaStdUsdPattern} price
- * @property {BlockCumulativeSumPattern} profit
- * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- * @property {_1m1w1y24hPattern8} sellSideRiskRatio
- * @property {RatioValuePattern2} sopr
+ * Create a CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern}
  */
+function createCapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern(client, acc) {
+  return {
+    cap: createCentsDeltaToUsdPattern(client, _m(acc, 'realized_cap')),
+    capitalized: createPricePattern(client, _m(acc, 'capitalized_price')),
+    grossPnl: createBlockCumulativeSumPattern(client, _m(acc, 'realized_gross_pnl')),
+    loss: createBlockCumulativeNegativeSumPattern(client, _m(acc, 'realized_loss')),
+    mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
+    netPnl: createBlockChangeCumulativeDeltaSumPattern(client, _m(acc, 'net')),
+    peakRegret: createBlockCumulativeSumPattern(client, _m(acc, 'realized_peak_regret')),
+    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
+    profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
+    profitToLossRatio: create_1m1w1y24hPattern(client, _m(acc, 'realized_profit_to_loss_ratio')),
+    sellSideRiskRatio: create_1m1w1y24hPattern8(client, _m(acc, 'sell_side_risk_ratio')),
+    sopr: createAdjustedRatioValuePattern(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2
+ * @property {_1m1w1y24hPercentPpmRatioPattern} empty
+ * @property {_1m1w1y24hPercentPpmRatioPattern} opReturn
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2a
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2ms
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk33
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk65
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2sh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2tr
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wpkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wsh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} unknown
+ */
+
+/**
+ * Create a EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2}
+ */
+function createEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2(client, acc) {
+  return {
+    empty: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'empty_outputs_output')),
+    opReturn: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'op_return_output')),
+    p2a: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2a_output')),
+    p2ms: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2ms_output')),
+    p2pk33: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pk33_output')),
+    p2pk65: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pk65_output')),
+    p2pkh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pkh_output')),
+    p2sh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2sh_output')),
+    p2tr: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2tr_output')),
+    p2wpkh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2wpkh_output')),
+    p2wsh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2wsh_output')),
+    unknown: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'unknown_outputs_output')),
+  };
+}
 
 /**
  * @typedef {Object} AverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern
@@ -2804,17 +2920,17 @@ function createAverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(
 
 /**
  * @typedef {Object} EmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2
- * @property {_1m1w1y24hBpsPercentRatioPattern} empty
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2ms
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk33
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk65
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2sh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2tr
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wpkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wsh
- * @property {_1m1w1y24hBpsPercentRatioPattern} unknown
+ * @property {_1m1w1y24hPercentPpmRatioPattern} empty
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2a
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2ms
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk33
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk65
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2sh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2tr
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wpkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wsh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} unknown
  */
 
 /**
@@ -2825,17 +2941,17 @@ function createAverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(
  */
 function createEmptyP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2(client, acc) {
   return {
-    empty: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'empty_outputs_prevout')),
-    p2a: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2a_prevout')),
-    p2ms: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2ms_prevout')),
-    p2pk33: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk33_prevout')),
-    p2pk65: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pk65_prevout')),
-    p2pkh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2pkh_prevout')),
-    p2sh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2sh_prevout')),
-    p2tr: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2tr_prevout')),
-    p2wpkh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wpkh_prevout')),
-    p2wsh: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'p2wsh_prevout')),
-    unknown: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'unknown_outputs_prevout')),
+    empty: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'empty_outputs_prevout')),
+    p2a: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2a_prevout')),
+    p2ms: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2ms_prevout')),
+    p2pk33: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pk33_prevout')),
+    p2pk65: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pk65_prevout')),
+    p2pkh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2pkh_prevout')),
+    p2sh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2sh_prevout')),
+    p2tr: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2tr_prevout')),
+    p2wpkh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2wpkh_prevout')),
+    p2wsh: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'p2wsh_prevout')),
+    unknown: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'unknown_outputs_prevout')),
   };
 }
 
@@ -2893,41 +3009,6 @@ function createAverageBaseCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(c
  */
 
 /**
- * @typedef {Object} IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern
- * @property {SeriesPattern1<StoredI8>} index
- * @property {CentsSatsUsdPattern} pct05
- * @property {CentsSatsUsdPattern} pct1
- * @property {CentsSatsUsdPattern} pct2
- * @property {CentsSatsUsdPattern} pct5
- * @property {CentsSatsUsdPattern} pct95
- * @property {CentsSatsUsdPattern} pct98
- * @property {CentsSatsUsdPattern} pct99
- * @property {CentsSatsUsdPattern} pct995
- * @property {SeriesPattern1<StoredI8>} score
- */
-
-/**
- * Create a IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern}
- */
-function createIndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern(client, acc) {
-  return {
-    index: createSeriesPattern1(client, _m(acc, 'index')),
-    pct05: createCentsSatsUsdPattern(client, _m(acc, 'pct0_5')),
-    pct1: createCentsSatsUsdPattern(client, _m(acc, 'pct01')),
-    pct2: createCentsSatsUsdPattern(client, _m(acc, 'pct02')),
-    pct5: createCentsSatsUsdPattern(client, _m(acc, 'pct05')),
-    pct95: createCentsSatsUsdPattern(client, _m(acc, 'pct95')),
-    pct98: createCentsSatsUsdPattern(client, _m(acc, 'pct98')),
-    pct99: createCentsSatsUsdPattern(client, _m(acc, 'pct99')),
-    pct995: createCentsSatsUsdPattern(client, _m(acc, 'pct99_5')),
-    score: createSeriesPattern1(client, _m(acc, 'score')),
-  };
-}
-
-/**
  * @typedef {Object} AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} all
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} p2a
@@ -2962,15 +3043,15 @@ function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(client, acc) {
 
 /**
  * @typedef {Object} AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5
- * @property {BpsPercentRatioPattern2} all
- * @property {BpsPercentRatioPattern2} p2a
- * @property {BpsPercentRatioPattern2} p2pk33
- * @property {BpsPercentRatioPattern2} p2pk65
- * @property {BpsPercentRatioPattern2} p2pkh
- * @property {BpsPercentRatioPattern2} p2sh
- * @property {BpsPercentRatioPattern2} p2tr
- * @property {BpsPercentRatioPattern2} p2wpkh
- * @property {BpsPercentRatioPattern2} p2wsh
+ * @property {PercentPpmRatioPattern2} all
+ * @property {PercentPpmRatioPattern2} p2a
+ * @property {PercentPpmRatioPattern2} p2pk33
+ * @property {PercentPpmRatioPattern2} p2pk65
+ * @property {PercentPpmRatioPattern2} p2pkh
+ * @property {PercentPpmRatioPattern2} p2sh
+ * @property {PercentPpmRatioPattern2} p2tr
+ * @property {PercentPpmRatioPattern2} p2wpkh
+ * @property {PercentPpmRatioPattern2} p2wsh
  */
 
 /**
@@ -2981,15 +3062,15 @@ function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(client, acc) {
  */
 function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern5(client, acc) {
   return {
-    all: createBpsPercentRatioPattern2(client, acc),
-    p2a: createBpsPercentRatioPattern2(client, _p('p2a', acc)),
-    p2pk33: createBpsPercentRatioPattern2(client, _p('p2pk33', acc)),
-    p2pk65: createBpsPercentRatioPattern2(client, _p('p2pk65', acc)),
-    p2pkh: createBpsPercentRatioPattern2(client, _p('p2pkh', acc)),
-    p2sh: createBpsPercentRatioPattern2(client, _p('p2sh', acc)),
-    p2tr: createBpsPercentRatioPattern2(client, _p('p2tr', acc)),
-    p2wpkh: createBpsPercentRatioPattern2(client, _p('p2wpkh', acc)),
-    p2wsh: createBpsPercentRatioPattern2(client, _p('p2wsh', acc)),
+    all: createPercentPpmRatioPattern2(client, acc),
+    p2a: createPercentPpmRatioPattern2(client, _p('p2a', acc)),
+    p2pk33: createPercentPpmRatioPattern2(client, _p('p2pk33', acc)),
+    p2pk65: createPercentPpmRatioPattern2(client, _p('p2pk65', acc)),
+    p2pkh: createPercentPpmRatioPattern2(client, _p('p2pkh', acc)),
+    p2sh: createPercentPpmRatioPattern2(client, _p('p2sh', acc)),
+    p2tr: createPercentPpmRatioPattern2(client, _p('p2tr', acc)),
+    p2wpkh: createPercentPpmRatioPattern2(client, _p('p2wpkh', acc)),
+    p2wsh: createPercentPpmRatioPattern2(client, _p('p2wsh', acc)),
   };
 }
 
@@ -3028,15 +3109,15 @@ function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4(client, acc) {
 
 /**
  * @typedef {Object} AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7
- * @property {_1m1w1y24hBpsPercentRatioPattern} all
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk33
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk65
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2sh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2tr
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wpkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wsh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} all
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2a
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk33
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk65
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2sh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2tr
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wpkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wsh
  */
 
 /**
@@ -3047,15 +3128,15 @@ function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern4(client, acc) {
  */
 function createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7(client, acc) {
   return {
-    all: create_1m1w1y24hBpsPercentRatioPattern(client, acc),
-    p2a: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2a', acc)),
-    p2pk33: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2pk33', acc)),
-    p2pk65: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2pk65', acc)),
-    p2pkh: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2pkh', acc)),
-    p2sh: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2sh', acc)),
-    p2tr: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2tr', acc)),
-    p2wpkh: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2wpkh', acc)),
-    p2wsh: create_1m1w1y24hBpsPercentRatioPattern(client, _p('p2wsh', acc)),
+    all: create_1m1w1y24hPercentPpmRatioPattern(client, acc),
+    p2a: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2a', acc)),
+    p2pk33: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2pk33', acc)),
+    p2pk65: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2pk65', acc)),
+    p2pkh: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2pkh', acc)),
+    p2sh: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2sh', acc)),
+    p2tr: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2tr', acc)),
+    p2wpkh: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2wpkh', acc)),
+    p2wsh: create_1m1w1y24hPercentPpmRatioPattern(client, _p('p2wsh', acc)),
   };
 }
 
@@ -3100,7 +3181,7 @@ function createAverageMaxMedianMinPct10Pct25Pct75Pct90SumPattern(client, acc) {
  * @property {InPattern2} investedCapital
  * @property {CentsNegativeToUsdPattern2} loss
  * @property {CentsToUsdPattern3} netPnl
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsToUsdPattern4} profit
  * @property {GreedNetPainPattern} sentiment
  */
@@ -3119,64 +3200,85 @@ function createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(client
     investedCapital: createInPattern2(client, _m(acc, 'invested_capital_in')),
     loss: createCentsNegativeToUsdPattern2(client, _m(acc, 'unrealized_loss')),
     netPnl: createCentsToUsdPattern3(client, _m(acc, 'net_unrealized_pnl')),
-    nupl: createBpsRatioPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsToUsdPattern4(client, _m(acc, 'unrealized_profit')),
     sentiment: createGreedNetPainPattern(client, acc),
   };
 }
 
 /**
- * @typedef {Object} BpsCentsPercentilesRatioSatsSmaStdUsdPattern
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<Cents>} cents
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {_1y2y4yAllPattern} stdDev
- * @property {SeriesPattern1<Dollars>} usd
+ * @typedef {Object} Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern
+ * @property {CentsSatsUsdPattern} pct10
+ * @property {CentsSatsUsdPattern} pct20
+ * @property {CentsSatsUsdPattern} pct30
+ * @property {CentsSatsUsdPattern} pct40
+ * @property {CentsSatsUsdPattern} pct50
+ * @property {CentsSatsUsdPattern} pct60
+ * @property {CentsSatsUsdPattern} pct70
+ * @property {CentsSatsUsdPattern} pct80
+ * @property {CentsSatsUsdPattern} pct90
  */
 
 /**
- * @typedef {Object} Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern
- * @property {BpsPriceRatioPattern} pct05
- * @property {BpsPriceRatioPattern} pct1
- * @property {BpsPriceRatioPattern} pct2
- * @property {BpsPriceRatioPattern} pct5
- * @property {BpsPriceRatioPattern} pct95
- * @property {BpsPriceRatioPattern} pct98
- * @property {BpsPriceRatioPattern} pct99
- * @property {BpsPriceRatioPattern} pct995
- */
-
-/**
- * Create a Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern pattern node
+ * Create a Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern}
+ * @returns {Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern}
  */
-function createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc) {
+function createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, acc) {
   return {
-    pct05: createBpsPriceRatioPattern(client, acc, 'pct0_5'),
-    pct1: createBpsPriceRatioPattern(client, acc, 'pct1'),
-    pct2: createBpsPriceRatioPattern(client, acc, 'pct2'),
-    pct5: createBpsPriceRatioPattern(client, acc, 'pct5'),
-    pct95: createBpsPriceRatioPattern(client, acc, 'pct95'),
-    pct98: createBpsPriceRatioPattern(client, acc, 'pct98'),
-    pct99: createBpsPriceRatioPattern(client, acc, 'pct99'),
-    pct995: createBpsPriceRatioPattern(client, acc, 'pct99_5'),
+    pct10: createCentsSatsUsdPattern(client, _m(acc, 'pct10')),
+    pct20: createCentsSatsUsdPattern(client, _m(acc, 'pct20')),
+    pct30: createCentsSatsUsdPattern(client, _m(acc, 'pct30')),
+    pct40: createCentsSatsUsdPattern(client, _m(acc, 'pct40')),
+    pct50: createCentsSatsUsdPattern(client, _m(acc, 'pct50')),
+    pct60: createCentsSatsUsdPattern(client, _m(acc, 'pct60')),
+    pct70: createCentsSatsUsdPattern(client, _m(acc, 'pct70')),
+    pct80: createCentsSatsUsdPattern(client, _m(acc, 'pct80')),
+    pct90: createCentsSatsUsdPattern(client, _m(acc, 'pct90')),
+  };
+}
+
+/**
+ * @typedef {Object} ChainDataFeeFeesOutputTxPattern
+ * @property {PercentPpmRatioPattern2} chainShare
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
+ * @property {PercentPpmRatioPattern2} dataShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} feeShare
+ * @property {AverageBlockCumulativeSumPattern<Sats>} fees
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} outputCount
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ */
+
+/**
+ * Create a ChainDataFeeFeesOutputTxPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ChainDataFeeFeesOutputTxPattern}
+ */
+function createChainDataFeeFeesOutputTxPattern(client, acc) {
+  return {
+    chainShare: createPercentPpmRatioPattern2(client, _m(acc, 'chain_share')),
+    dataBytes: createAverageBlockCumulativeSumPattern(client, _m(acc, 'data_bytes')),
+    dataShare: createPercentPpmRatioPattern2(client, _m(acc, 'data_share')),
+    feeShare: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'fee_share')),
+    fees: createAverageBlockCumulativeSumPattern(client, _m(acc, 'fees')),
+    outputCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'output_count')),
+    txCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_count')),
+    txVsize: createAverageBlockCumulativeSumPattern(client, _m(acc, 'tx_vsize')),
   };
 }
 
 /**
  * @typedef {Object} _10y2y3y4y5y6y8yPattern
- * @property {BpsPercentRatioPattern} _10y
- * @property {BpsPercentRatioPattern} _2y
- * @property {BpsPercentRatioPattern} _3y
- * @property {BpsPercentRatioPattern} _4y
- * @property {BpsPercentRatioPattern} _5y
- * @property {BpsPercentRatioPattern} _6y
- * @property {BpsPercentRatioPattern} _8y
+ * @property {PercentPpmRatioPattern} _10y
+ * @property {PercentPpmRatioPattern} _2y
+ * @property {PercentPpmRatioPattern} _3y
+ * @property {PercentPpmRatioPattern} _4y
+ * @property {PercentPpmRatioPattern} _5y
+ * @property {PercentPpmRatioPattern} _6y
+ * @property {PercentPpmRatioPattern} _8y
  */
 
 /**
@@ -3187,42 +3289,71 @@ function createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc) {
  */
 function create_10y2y3y4y5y6y8yPattern(client, acc) {
   return {
-    _10y: createBpsPercentRatioPattern(client, _m(acc, '10y')),
-    _2y: createBpsPercentRatioPattern(client, _m(acc, '2y')),
-    _3y: createBpsPercentRatioPattern(client, _m(acc, '3y')),
-    _4y: createBpsPercentRatioPattern(client, _m(acc, '4y')),
-    _5y: createBpsPercentRatioPattern(client, _m(acc, '5y')),
-    _6y: createBpsPercentRatioPattern(client, _m(acc, '6y')),
-    _8y: createBpsPercentRatioPattern(client, _m(acc, '8y')),
+    _10y: createPercentPpmRatioPattern(client, _m(acc, '10y')),
+    _2y: createPercentPpmRatioPattern(client, _m(acc, '2y')),
+    _3y: createPercentPpmRatioPattern(client, _m(acc, '3y')),
+    _4y: createPercentPpmRatioPattern(client, _m(acc, '4y')),
+    _5y: createPercentPpmRatioPattern(client, _m(acc, '5y')),
+    _6y: createPercentPpmRatioPattern(client, _m(acc, '6y')),
+    _8y: createPercentPpmRatioPattern(client, _m(acc, '8y')),
   };
 }
 
 /**
- * @typedef {Object} _1m1w1y24hBpsPercentRatioPattern
- * @property {BpsPercentRatioPattern2} _1m
- * @property {BpsPercentRatioPattern2} _1w
- * @property {BpsPercentRatioPattern2} _1y
- * @property {BpsPercentRatioPattern2} _24h
- * @property {SeriesPattern1<BasisPoints16>} bps
+ * @typedef {Object} _1m1w1y24hPercentPpmRatioPattern
+ * @property {PercentPpmRatioPattern2} _1m
+ * @property {PercentPpmRatioPattern2} _1w
+ * @property {PercentPpmRatioPattern2} _1y
+ * @property {PercentPpmRatioPattern2} _24h
  * @property {SeriesPattern1<StoredF32>} percent
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  */
 
 /**
- * Create a _1m1w1y24hBpsPercentRatioPattern pattern node
+ * Create a _1m1w1y24hPercentPpmRatioPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {_1m1w1y24hBpsPercentRatioPattern}
+ * @returns {_1m1w1y24hPercentPpmRatioPattern}
  */
-function create_1m1w1y24hBpsPercentRatioPattern(client, acc) {
+function create_1m1w1y24hPercentPpmRatioPattern(client, acc) {
   return {
-    _1m: createBpsPercentRatioPattern2(client, _m(acc, '1m')),
-    _1w: createBpsPercentRatioPattern2(client, _m(acc, '1w')),
-    _1y: createBpsPercentRatioPattern2(client, _m(acc, '1y')),
-    _24h: createBpsPercentRatioPattern2(client, _m(acc, '24h')),
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
+    _1m: createPercentPpmRatioPattern2(client, _m(acc, '1m')),
+    _1w: createPercentPpmRatioPattern2(client, _m(acc, '1w')),
+    _1y: createPercentPpmRatioPattern2(client, _m(acc, '1y')),
+    _24h: createPercentPpmRatioPattern2(client, _m(acc, '24h')),
     percent: createSeriesPattern1(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
     ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+  };
+}
+
+/**
+ * @typedef {Object} _1m1y2y3m4y6m8yPattern
+ * @property {SupplyPattern} _1m
+ * @property {SupplyPattern} _1y
+ * @property {SupplyPattern} _2y
+ * @property {SupplyPattern} _3m
+ * @property {SupplyPattern} _4y
+ * @property {SupplyPattern} _6m
+ * @property {SupplyPattern} _8y
+ */
+
+/**
+ * Create a _1m1y2y3m4y6m8yPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {_1m1y2y3m4y6m8yPattern}
+ */
+function create_1m1y2y3m4y6m8yPattern(client, acc) {
+  return {
+    _1m: createSupplyPattern(client, _m(acc, '1m_supply_in_loss_share')),
+    _1y: createSupplyPattern(client, _m(acc, '1y_supply_in_loss_share')),
+    _2y: createSupplyPattern(client, _m(acc, '2y_supply_in_loss_share')),
+    _3m: createSupplyPattern(client, _m(acc, '3m_supply_in_loss_share')),
+    _4y: createSupplyPattern(client, _m(acc, '4y_supply_in_loss_share')),
+    _6m: createSupplyPattern(client, _m(acc, '6m_supply_in_loss_share')),
+    _8y: createSupplyPattern(client, _m(acc, '8y_supply_in_loss_share')),
   };
 }
 
@@ -3234,18 +3365,7 @@ function create_1m1w1y24hBpsPercentRatioPattern(client, acc) {
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} inputFromReusedAddrShare
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} outputToReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} outputToReusedAddrShare
- * @property {_1m1w1y24hBpsPercentRatioPattern} spendableOutputToReusedAddrShare
- */
-
-/**
- * @typedef {Object} ActivityCostInvestedOutputsRealizedSupplyUnrealizedPattern2
- * @property {CoindaysCoinyearsDormancyTransferPattern} activity
- * @property {InMaxMinPerSupplyPattern} costBasis
- * @property {InPattern} investedCapital
- * @property {SpendingSpentUnspentPattern} outputs
- * @property {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern2} realized
- * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
+ * @property {_1m1w1y24hPercentPpmRatioPattern} spendableOutputToReusedAddrShare
  */
 
 /**
@@ -3254,7 +3374,7 @@ function create_1m1w1y24hBpsPercentRatioPattern(client, acc) {
  * @property {BlockCumulativeNegativeSumPattern} loss
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockCumulativeDeltaSumPattern} netPnl
- * @property {BpsCentsRatioSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  * @property {RatioValuePattern} sopr
  */
@@ -3271,9 +3391,38 @@ function createCapLossMvrvNetPriceProfitSoprPattern(client, acc) {
     loss: createBlockCumulativeNegativeSumPattern(client, _m(acc, 'realized_loss')),
     mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
     netPnl: createBlockCumulativeDeltaSumPattern(client, _m(acc, 'net_realized_pnl')),
-    price: createBpsCentsRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
+    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
     sopr: createRatioValuePattern(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} CoindaysDormancySupplyWakefulnessPattern
+ * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysConsumed
+ * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysCreated
+ * @property {AverageBlockCumulativeSumPattern<StoredF64>} coindaysStored
+ * @property {SeriesPattern1<StoredF64>} dormancy
+ * @property {AwakeDormantPattern} supply
+ * @property {SeriesPattern1<StoredF64>} wakefulness
+ * @property {SeriesPattern1<StoredF64>} wakefulnessToDormancy
+ */
+
+/**
+ * Create a CoindaysDormancySupplyWakefulnessPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CoindaysDormancySupplyWakefulnessPattern}
+ */
+function createCoindaysDormancySupplyWakefulnessPattern(client, acc) {
+  return {
+    coindaysConsumed: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_consumed')),
+    coindaysCreated: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_created')),
+    coindaysStored: createAverageBlockCumulativeSumPattern(client, _m(acc, 'coindays_stored')),
+    dormancy: createSeriesPattern1(client, _m(acc, 'dormancy')),
+    supply: createAwakeDormantPattern(client, acc),
+    wakefulness: createSeriesPattern1(client, _m(acc, 'wakefulness')),
+    wakefulnessToDormancy: createSeriesPattern1(client, _m(acc, 'wakefulness_to_dormancy')),
   };
 }
 
@@ -3285,7 +3434,7 @@ function createCapLossMvrvNetPriceProfitSoprPattern(client, acc) {
  * @property {CentsSatsUsdPattern} min
  * @property {Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern} perCoin
  * @property {Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern} perDollar
- * @property {BpsPercentRatioPattern2} supplyDensity
+ * @property {PercentPpmRatioPattern2} supplyDensity
  */
 
 /**
@@ -3302,19 +3451,19 @@ function createInMaxMinPerSupplyPattern(client, acc) {
     min: createCentsSatsUsdPattern(client, _m(acc, 'cost_basis_min')),
     perCoin: createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern(client, _m(acc, 'cost_basis_per_coin')),
     perDollar: createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern(client, _m(acc, 'cost_basis_per_dollar')),
-    supplyDensity: createBpsPercentRatioPattern2(client, _m(acc, 'supply_density')),
+    supplyDensity: createPercentPpmRatioPattern2(client, _m(acc, 'supply_density')),
   };
 }
 
 /**
  * @typedef {Object} MaxMedianMinPct10Pct25Pct75Pct90Pattern2
- * @property {SeriesPattern18<Weight>} max
- * @property {SeriesPattern18<Weight>} median
- * @property {SeriesPattern18<Weight>} min
- * @property {SeriesPattern18<Weight>} pct10
- * @property {SeriesPattern18<Weight>} pct25
- * @property {SeriesPattern18<Weight>} pct75
- * @property {SeriesPattern18<Weight>} pct90
+ * @property {SeriesPattern18<VSize>} max
+ * @property {SeriesPattern18<VSize>} median
+ * @property {SeriesPattern18<VSize>} min
+ * @property {SeriesPattern18<VSize>} pct10
+ * @property {SeriesPattern18<VSize>} pct25
+ * @property {SeriesPattern18<VSize>} pct75
+ * @property {SeriesPattern18<VSize>} pct90
  */
 
 /**
@@ -3367,66 +3516,12 @@ function createMaxMedianMinPct10Pct25Pct75Pct90Pattern(client, acc) {
 }
 
 /**
- * @typedef {Object} _1m1w1y2y4yAllPattern
- * @property {BpsRatioPattern2} _1m
- * @property {BpsRatioPattern2} _1w
- * @property {BpsRatioPattern2} _1y
- * @property {BpsRatioPattern2} _2y
- * @property {BpsRatioPattern2} _4y
- * @property {BpsRatioPattern2} all
- */
-
-/**
- * Create a _1m1w1y2y4yAllPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {_1m1w1y2y4yAllPattern}
- */
-function create_1m1w1y2y4yAllPattern(client, acc) {
-  return {
-    _1m: createBpsRatioPattern2(client, _m(acc, '1m')),
-    _1w: createBpsRatioPattern2(client, _m(acc, '1w')),
-    _1y: createBpsRatioPattern2(client, _m(acc, '1y')),
-    _2y: createBpsRatioPattern2(client, _m(acc, '2y')),
-    _4y: createBpsRatioPattern2(client, _m(acc, '4y')),
-    all: createBpsRatioPattern2(client, _m(acc, 'all')),
-  };
-}
-
-/**
- * @typedef {Object} ActivityAddrOutputsRealizedSupplyUnrealizedPattern
- * @property {TransferPattern} activity
- * @property {BaseDeltaPattern} addrCount
- * @property {SpendingSpentUnspentPattern} outputs
- * @property {CapLossMvrvPriceProfitPattern} realized
- * @property {DeltaDominanceTotalPattern} supply
- * @property {NuplPattern} unrealized
- */
-
-/**
- * Create a ActivityAddrOutputsRealizedSupplyUnrealizedPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {ActivityAddrOutputsRealizedSupplyUnrealizedPattern}
- */
-function createActivityAddrOutputsRealizedSupplyUnrealizedPattern(client, acc) {
-  return {
-    activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
-    addrCount: createBaseDeltaPattern(client, _m(acc, 'addr_count')),
-    outputs: createSpendingSpentUnspentPattern(client, acc),
-    realized: createCapLossMvrvPriceProfitPattern(client, acc),
-    supply: createDeltaDominanceTotalPattern(client, _m(acc, 'supply')),
-    unrealized: createNuplPattern(client, _m(acc, 'nupl')),
-  };
-}
-
-/**
  * @typedef {Object} AverageBlockCumulativeInSumPattern
  * @property {_1m1w1y24hPattern3} average
  * @property {BtcCentsSatsUsdPattern3} block
  * @property {BtcCentsSatsUsdPattern} cumulative
- * @property {AverageBlockCumulativeSumPattern3} inLoss
- * @property {AverageBlockCumulativeSumPattern3} inProfit
+ * @property {AverageBlockCumulativeSumPattern2} inLoss
+ * @property {AverageBlockCumulativeSumPattern2} inProfit
  * @property {_1m1w1y24hPattern4} sum
  */
 
@@ -3441,36 +3536,9 @@ function createAverageBlockCumulativeInSumPattern(client, acc) {
     average: create_1m1w1y24hPattern3(client, _m(acc, 'average')),
     block: createBtcCentsSatsUsdPattern3(client, acc),
     cumulative: createBtcCentsSatsUsdPattern(client, _m(acc, 'cumulative')),
-    inLoss: createAverageBlockCumulativeSumPattern3(client, _m(acc, 'in_loss')),
-    inProfit: createAverageBlockCumulativeSumPattern3(client, _m(acc, 'in_profit')),
+    inLoss: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'in_loss')),
+    inProfit: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'in_profit')),
     sum: create_1m1w1y24hPattern4(client, _m(acc, 'sum')),
-  };
-}
-
-/**
- * @typedef {Object} BpsCentsPercentilesRatioSatsUsdPattern
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<Cents>} cents
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<Dollars>} usd
- */
-
-/**
- * Create a BpsCentsPercentilesRatioSatsUsdPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsCentsPercentilesRatioSatsUsdPattern}
- */
-function createBpsCentsPercentilesRatioSatsUsdPattern(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'ratio_bps')),
-    cents: createSeriesPattern1(client, _m(acc, 'cents')),
-    percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(client, acc),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-    sats: createSeriesPattern1(client, _m(acc, 'sats')),
-    usd: createSeriesPattern1(client, acc),
   };
 }
 
@@ -3478,9 +3546,9 @@ function createBpsCentsPercentilesRatioSatsUsdPattern(client, acc) {
  * @typedef {Object} CentsNegativeToUsdPattern2
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<Dollars>} negative
- * @property {BpsPercentRatioPattern2} toMcap
- * @property {BpsPercentRatioPattern2} toOwnGrossPnl
- * @property {BpsPercentRatioPattern4} toOwnMcap
+ * @property {PercentPpmRatioPattern2} toMcap
+ * @property {PercentPpmRatioPattern2} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern2} toOwnMcap
  * @property {SeriesPattern1<Dollars>} usd
  */
 
@@ -3494,9 +3562,9 @@ function createCentsNegativeToUsdPattern2(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
     negative: createSeriesPattern1(client, _m(acc, 'neg')),
-    toMcap: createBpsPercentRatioPattern2(client, _m(acc, 'to_mcap')),
-    toOwnGrossPnl: createBpsPercentRatioPattern2(client, _m(acc, 'to_own_gross_pnl')),
-    toOwnMcap: createBpsPercentRatioPattern4(client, _m(acc, 'to_own_mcap')),
+    toMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_mcap')),
+    toOwnGrossPnl: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_gross_pnl')),
+    toOwnMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap')),
     usd: createSeriesPattern1(client, acc),
   };
 }
@@ -3504,7 +3572,7 @@ function createCentsNegativeToUsdPattern2(client, acc) {
 /**
  * @typedef {Object} DeltaDominanceHalfInTotalPattern2
  * @property {AbsoluteRatePattern3} delta
- * @property {BpsPercentRatioPattern2} dominance
+ * @property {PercentPpmRatioPattern2} dominance
  * @property {BtcCentsSatsUsdPattern} half
  * @property {BtcCentsSatsShareUsdPattern} inLoss
  * @property {BtcCentsSatsShareUsdPattern} inProfit
@@ -3520,7 +3588,7 @@ function createCentsNegativeToUsdPattern2(client, acc) {
 function createDeltaDominanceHalfInTotalPattern2(client, acc) {
   return {
     delta: createAbsoluteRatePattern3(client, _m(acc, 'delta')),
-    dominance: createBpsPercentRatioPattern2(client, _m(acc, 'dominance')),
+    dominance: createPercentPpmRatioPattern2(client, _m(acc, 'dominance')),
     half: createBtcCentsSatsUsdPattern(client, _m(acc, 'half')),
     inLoss: createBtcCentsSatsShareUsdPattern(client, _m(acc, 'in_loss')),
     inProfit: createBtcCentsSatsShareUsdPattern(client, _m(acc, 'in_profit')),
@@ -3531,7 +3599,7 @@ function createDeltaDominanceHalfInTotalPattern2(client, acc) {
 /**
  * @typedef {Object} DeltaDominanceHalfInTotalPattern
  * @property {AbsoluteRatePattern3} delta
- * @property {BpsPercentRatioPattern2} dominance
+ * @property {PercentPpmRatioPattern2} dominance
  * @property {BtcCentsSatsUsdPattern} half
  * @property {BtcCentsSatsUsdPattern} inLoss
  * @property {BtcCentsSatsUsdPattern} inProfit
@@ -3547,7 +3615,7 @@ function createDeltaDominanceHalfInTotalPattern2(client, acc) {
 function createDeltaDominanceHalfInTotalPattern(client, acc) {
   return {
     delta: createAbsoluteRatePattern3(client, _m(acc, 'delta')),
-    dominance: createBpsPercentRatioPattern2(client, _m(acc, 'dominance')),
+    dominance: createPercentPpmRatioPattern2(client, _m(acc, 'dominance')),
     half: createBtcCentsSatsUsdPattern(client, _m(acc, 'half')),
     inLoss: createBtcCentsSatsUsdPattern(client, _m(acc, 'in_loss')),
     inProfit: createBtcCentsSatsUsdPattern(client, _m(acc, 'in_profit')),
@@ -3633,7 +3701,7 @@ function createActiveBidirectionalReactivatedReceivingSendingPattern(client, acc
 /**
  * @typedef {Object} ActivityOutputsRealizedSupplyUnrealizedPattern
  * @property {CoindaysTransferPattern} activity
- * @property {SpendingSpentUnspentPattern} outputs
+ * @property {SpentUnspentPattern} outputs
  * @property {CapLossMvrvNetPriceProfitSoprPattern} realized
  * @property {DeltaDominanceHalfInTotalPattern} supply
  * @property {LossNetNuplProfitPattern} unrealized
@@ -3648,7 +3716,7 @@ function createActiveBidirectionalReactivatedReceivingSendingPattern(client, acc
 function createActivityOutputsRealizedSupplyUnrealizedPattern(client, acc) {
   return {
     activity: createCoindaysTransferPattern(client, acc),
-    outputs: createSpendingSpentUnspentPattern(client, acc),
+    outputs: createSpentUnspentPattern(client, acc),
     realized: createCapLossMvrvNetPriceProfitSoprPattern(client, acc),
     supply: createDeltaDominanceHalfInTotalPattern(client, _m(acc, 'supply')),
     unrealized: createLossNetNuplProfitPattern(client, acc),
@@ -3656,9 +3724,34 @@ function createActivityOutputsRealizedSupplyUnrealizedPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} ActivityAddrOutputsRealizedSupplyPattern
+ * @property {TransferPattern} activity
+ * @property {BaseDeltaPattern} addrCount
+ * @property {UnspentPattern} outputs
+ * @property {CapLossProfitPattern} realized
+ * @property {DeltaDominanceTotalPattern} supply
+ */
+
+/**
+ * Create a ActivityAddrOutputsRealizedSupplyPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ActivityAddrOutputsRealizedSupplyPattern}
+ */
+function createActivityAddrOutputsRealizedSupplyPattern(client, acc) {
+  return {
+    activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
+    addrCount: createBaseDeltaPattern(client, _m(acc, 'addr_count')),
+    outputs: createUnspentPattern(client, _m(acc, 'utxo_count')),
+    realized: createCapLossProfitPattern(client, _m(acc, 'realized')),
+    supply: createDeltaDominanceTotalPattern(client, _m(acc, 'supply')),
+  };
+}
+
+/**
  * @typedef {Object} ActivityOutputsRealizedSupplyUnrealizedPattern3
  * @property {TransferPattern} activity
- * @property {SpendingSpentUnspentPattern} outputs
+ * @property {SpentUnspentPattern} outputs
  * @property {CapLossMvrvPriceProfitPattern} realized
  * @property {DeltaDominanceHalfInTotalPattern} supply
  * @property {LossNuplProfitPattern} unrealized
@@ -3673,7 +3766,7 @@ function createActivityOutputsRealizedSupplyUnrealizedPattern(client, acc) {
 function createActivityOutputsRealizedSupplyUnrealizedPattern3(client, acc) {
   return {
     activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
-    outputs: createSpendingSpentUnspentPattern(client, acc),
+    outputs: createSpentUnspentPattern(client, acc),
     realized: createCapLossMvrvPriceProfitPattern(client, acc),
     supply: createDeltaDominanceHalfInTotalPattern(client, _m(acc, 'supply')),
     unrealized: createLossNuplProfitPattern(client, acc),
@@ -3683,7 +3776,7 @@ function createActivityOutputsRealizedSupplyUnrealizedPattern3(client, acc) {
 /**
  * @typedef {Object} ActivityOutputsRealizedSupplyUnrealizedPattern2
  * @property {TransferPattern} activity
- * @property {SpendingSpentUnspentPattern} outputs
+ * @property {SpentUnspentPattern} outputs
  * @property {CapLossMvrvPriceProfitPattern} realized
  * @property {DeltaDominanceTotalPattern} supply
  * @property {NuplPattern} unrealized
@@ -3698,7 +3791,7 @@ function createActivityOutputsRealizedSupplyUnrealizedPattern3(client, acc) {
 function createActivityOutputsRealizedSupplyUnrealizedPattern2(client, acc) {
   return {
     activity: createTransferPattern(client, _m(acc, 'transfer_volume')),
-    outputs: createSpendingSpentUnspentPattern(client, acc),
+    outputs: createSpentUnspentPattern(client, acc),
     realized: createCapLossMvrvPriceProfitPattern(client, acc),
     supply: createDeltaDominanceTotalPattern(client, _m(acc, 'supply')),
     unrealized: createNuplPattern(client, _m(acc, 'nupl')),
@@ -3731,31 +3824,6 @@ function createBlockChangeCumulativeDeltaSumPattern(client, acc) {
 }
 
 /**
- * @typedef {Object} BpsCentsRatioSatsUsdPattern
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<Dollars>} usd
- */
-
-/**
- * Create a BpsCentsRatioSatsUsdPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsCentsRatioSatsUsdPattern}
- */
-function createBpsCentsRatioSatsUsdPattern(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'ratio_bps')),
-    cents: createSeriesPattern1(client, _m(acc, 'cents')),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-    sats: createSeriesPattern1(client, _m(acc, 'sats')),
-    usd: createSeriesPattern1(client, acc),
-  };
-}
-
-/**
  * @typedef {Object} BtcCentsDeltaSatsUsdPattern
  * @property {SeriesPattern1<Bitcoin>} btc
  * @property {SeriesPattern1<Cents>} cents
@@ -3781,11 +3849,20 @@ function createBtcCentsDeltaSatsUsdPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} BtcCentsInSatsUsdPattern
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ */
+
+/**
  * @typedef {Object} BtcCentsSatsShareUsdPattern
  * @property {SeriesPattern1<Bitcoin>} btc
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<Sats>} sats
- * @property {BpsPercentRatioPattern2} share
+ * @property {PercentPpmRatioPattern2} share
  * @property {SeriesPattern1<Dollars>} usd
  */
 
@@ -3800,7 +3877,7 @@ function createBtcCentsSatsShareUsdPattern(client, acc) {
     btc: createSeriesPattern1(client, acc),
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
     sats: createSeriesPattern1(client, _m(acc, 'sats')),
-    share: createBpsPercentRatioPattern2(client, _m(acc, 'share')),
+    share: createPercentPpmRatioPattern2(client, _m(acc, 'share')),
     usd: createSeriesPattern1(client, _m(acc, 'usd')),
   };
 }
@@ -3810,7 +3887,7 @@ function createBtcCentsSatsShareUsdPattern(client, acc) {
  * @property {CentsDeltaUsdPattern} cap
  * @property {BlockCumulativeSumPattern} loss
  * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BpsCentsRatioSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {BlockCumulativeSumPattern} profit
  */
 
@@ -3825,17 +3902,42 @@ function createCapLossMvrvPriceProfitPattern(client, acc) {
     cap: createCentsDeltaUsdPattern(client, _m(acc, 'realized_cap')),
     loss: createBlockCumulativeSumPattern(client, _m(acc, 'realized_loss')),
     mvrv: createSeriesPattern1(client, _m(acc, 'mvrv')),
-    price: createBpsCentsRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
+    price: createCentsPpmRatioSatsUsdPattern(client, _m(acc, 'realized_price')),
     profit: createBlockCumulativeSumPattern(client, _m(acc, 'realized_profit')),
+  };
+}
+
+/**
+ * @typedef {Object} CentsPpmRatioSatsUsdPattern
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ * @property {SeriesPattern1<SatsFract>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ */
+
+/**
+ * Create a CentsPpmRatioSatsUsdPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {CentsPpmRatioSatsUsdPattern}
+ */
+function createCentsPpmRatioSatsUsdPattern(client, acc) {
+  return {
+    cents: createSeriesPattern1(client, _m(acc, 'cents')),
+    ppm: createSeriesPattern1(client, _m(acc, 'ratio_ppm')),
+    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+    sats: createSeriesPattern1(client, _m(acc, 'sats')),
+    usd: createSeriesPattern1(client, acc),
   };
 }
 
 /**
  * @typedef {Object} CentsToUsdPattern4
  * @property {SeriesPattern1<Cents>} cents
- * @property {BpsPercentRatioPattern2} toMcap
- * @property {BpsPercentRatioPattern2} toOwnGrossPnl
- * @property {BpsPercentRatioPattern2} toOwnMcap
+ * @property {PercentPpmRatioPattern2} toMcap
+ * @property {PercentPpmRatioPattern2} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern2} toOwnMcap
  * @property {SeriesPattern1<Dollars>} usd
  */
 
@@ -3848,9 +3950,9 @@ function createCapLossMvrvPriceProfitPattern(client, acc) {
 function createCentsToUsdPattern4(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
-    toMcap: createBpsPercentRatioPattern2(client, _m(acc, 'to_mcap')),
-    toOwnGrossPnl: createBpsPercentRatioPattern2(client, _m(acc, 'to_own_gross_pnl')),
-    toOwnMcap: createBpsPercentRatioPattern2(client, _m(acc, 'to_own_mcap')),
+    toMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_mcap')),
+    toOwnGrossPnl: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_gross_pnl')),
+    toOwnMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap')),
     usd: createSeriesPattern1(client, acc),
   };
 }
@@ -3865,10 +3967,60 @@ function createCentsToUsdPattern4(client, acc) {
  */
 
 /**
+ * @typedef {Object} Pct95Pct98Pct99Pattern
+ * @property {CentsSatsUsdPattern} pct95
+ * @property {CentsSatsUsdPattern} pct98
+ * @property {CentsSatsUsdPattern} pct99
+ * @property {CentsSatsUsdPattern} pct995
+ * @property {CentsSatsUsdPattern} pct999
+ */
+
+/**
+ * Create a Pct95Pct98Pct99Pattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {Pct95Pct98Pct99Pattern}
+ */
+function createPct95Pct98Pct99Pattern(client, acc) {
+  return {
+    pct95: createCentsSatsUsdPattern(client, _m(acc, 'pct95')),
+    pct98: createCentsSatsUsdPattern(client, _m(acc, 'pct98')),
+    pct99: createCentsSatsUsdPattern(client, _m(acc, 'pct99')),
+    pct995: createCentsSatsUsdPattern(client, _m(acc, 'pct99_5')),
+    pct999: createCentsSatsUsdPattern(client, _m(acc, 'pct99_9')),
+  };
+}
+
+/**
+ * @typedef {Object} Pct95Pct98Pct99Pattern2
+ * @property {SeriesPattern1<StoredF64>} pct95
+ * @property {SeriesPattern1<StoredF64>} pct98
+ * @property {SeriesPattern1<StoredF64>} pct99
+ * @property {SeriesPattern1<StoredF64>} pct995
+ * @property {SeriesPattern1<StoredF64>} pct999
+ */
+
+/**
+ * Create a Pct95Pct98Pct99Pattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {Pct95Pct98Pct99Pattern2}
+ */
+function createPct95Pct98Pct99Pattern2(client, acc) {
+  return {
+    pct95: createSeriesPattern1(client, _m(acc, 'pct95')),
+    pct98: createSeriesPattern1(client, _m(acc, 'pct98')),
+    pct99: createSeriesPattern1(client, _m(acc, 'pct99')),
+    pct995: createSeriesPattern1(client, _m(acc, 'pct99_5')),
+    pct999: createSeriesPattern1(client, _m(acc, 'pct99_9')),
+  };
+}
+
+/**
  * @typedef {Object} PhsReboundThsPattern
  * @property {SeriesPattern1<StoredF32>} phs
  * @property {SeriesPattern1<StoredF32>} phsMin
- * @property {BpsPercentRatioPattern} rebound
+ * @property {PercentPpmRatioPattern} rebound
  * @property {SeriesPattern1<StoredF32>} ths
  * @property {SeriesPattern1<StoredF32>} thsMin
  */
@@ -3883,55 +4035,34 @@ function createPhsReboundThsPattern(client, acc) {
   return {
     phs: createSeriesPattern1(client, _m(acc, 'phs')),
     phsMin: createSeriesPattern1(client, _m(acc, 'phs_min')),
-    rebound: createBpsPercentRatioPattern(client, _m(acc, 'rebound')),
+    rebound: createPercentPpmRatioPattern(client, _m(acc, 'rebound')),
     ths: createSeriesPattern1(client, _m(acc, 'ths')),
     thsMin: createSeriesPattern1(client, _m(acc, 'ths_min')),
   };
 }
 
 /**
- * @typedef {Object} _1m1w1y24hPattern2
- * @property {BpsPercentRatioPattern} _1m
- * @property {BpsPercentRatioPattern} _1w
- * @property {BpsPercentRatioPattern} _1y
- * @property {BpsPercentRatioPattern} _24h
+ * @typedef {Object} RankTailThresholdPattern
+ * @property {SeriesPattern1<StoredU8>} rank
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<Dollars>} thresholdPct0025
+ * @property {SeriesPattern1<Dollars>} thresholdPct005
+ * @property {SeriesPattern1<Dollars>} thresholdPct01
  */
 
 /**
- * Create a _1m1w1y24hPattern2 pattern node
+ * Create a RankTailThresholdPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {_1m1w1y24hPattern2}
+ * @returns {RankTailThresholdPattern}
  */
-function create_1m1w1y24hPattern2(client, acc) {
+function createRankTailThresholdPattern(client, acc) {
   return {
-    _1m: createBpsPercentRatioPattern(client, _m(acc, '1m_rate')),
-    _1w: createBpsPercentRatioPattern(client, _m(acc, '1w_rate')),
-    _1y: createBpsPercentRatioPattern(client, _m(acc, '1y_rate')),
-    _24h: createBpsPercentRatioPattern(client, _m(acc, '24h_rate')),
-  };
-}
-
-/**
- * @typedef {Object} _1m1w1y24hPattern8
- * @property {BpsPercentRatioPattern4} _1m
- * @property {BpsPercentRatioPattern4} _1w
- * @property {BpsPercentRatioPattern4} _1y
- * @property {BpsPercentRatioPattern4} _24h
- */
-
-/**
- * Create a _1m1w1y24hPattern8 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {_1m1w1y24hPattern8}
- */
-function create_1m1w1y24hPattern8(client, acc) {
-  return {
-    _1m: createBpsPercentRatioPattern4(client, _m(acc, '1m')),
-    _1w: createBpsPercentRatioPattern4(client, _m(acc, '1w')),
-    _1y: createBpsPercentRatioPattern4(client, _m(acc, '1y')),
-    _24h: createBpsPercentRatioPattern4(client, _m(acc, '24h')),
+    rank: createSeriesPattern1(client, _m(acc, 'rank')),
+    tail: createPercentPpmRatioPattern2(client, _m(acc, 'tail')),
+    thresholdPct0025: createSeriesPattern1(client, _m(acc, 'threshold')),
+    thresholdPct005: createSeriesPattern1(client, _m(acc, 'threshold_pct0_05')),
+    thresholdPct01: createSeriesPattern1(client, _m(acc, 'threshold_pct0_1')),
   };
 }
 
@@ -4074,19 +4205,57 @@ function create_1m1w1y24hPattern6(client, acc) {
 }
 
 /**
- * @typedef {Object} _1y2y4yAllPattern
- * @property {_0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern} _1y
- * @property {_0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern} _2y
- * @property {_0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern} _4y
- * @property {_0sdM0M1M1sdM2M2sdM3sdP0P1P1sdP2P2sdP3sdSdZscorePattern} all
+ * @typedef {Object} _1m1w1y24hPattern2
+ * @property {PercentPpmRatioPattern} _1m
+ * @property {PercentPpmRatioPattern} _1w
+ * @property {PercentPpmRatioPattern} _1y
+ * @property {PercentPpmRatioPattern} _24h
  */
 
 /**
+ * Create a _1m1w1y24hPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {_1m1w1y24hPattern2}
+ */
+function create_1m1w1y24hPattern2(client, acc) {
+  return {
+    _1m: createPercentPpmRatioPattern(client, _m(acc, '1m_rate')),
+    _1w: createPercentPpmRatioPattern(client, _m(acc, '1w_rate')),
+    _1y: createPercentPpmRatioPattern(client, _m(acc, '1y_rate')),
+    _24h: createPercentPpmRatioPattern(client, _m(acc, '24h_rate')),
+  };
+}
+
+/**
+ * @typedef {Object} _1m1w1y24hPattern8
+ * @property {PercentPpmRatioPattern2} _1m
+ * @property {PercentPpmRatioPattern2} _1w
+ * @property {PercentPpmRatioPattern2} _1y
+ * @property {PercentPpmRatioPattern2} _24h
+ */
+
+/**
+ * Create a _1m1w1y24hPattern8 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {_1m1w1y24hPattern8}
+ */
+function create_1m1w1y24hPattern8(client, acc) {
+  return {
+    _1m: createPercentPpmRatioPattern2(client, _m(acc, '1m')),
+    _1w: createPercentPpmRatioPattern2(client, _m(acc, '1w')),
+    _1y: createPercentPpmRatioPattern2(client, _m(acc, '1y')),
+    _24h: createPercentPpmRatioPattern2(client, _m(acc, '24h')),
+  };
+}
+
+/**
  * @typedef {Object} AverageBlockCumulativeSumPattern2
- * @property {_1m1w1y24hPattern<StoredF32>} average
- * @property {SeriesPattern18<StoredU32>} block
- * @property {SeriesPattern1<StoredU64>} cumulative
- * @property {_1m1w1y24hPattern<StoredU64>} sum
+ * @property {_1m1w1y24hPattern3} average
+ * @property {BtcCentsSatsUsdPattern3} block
+ * @property {BtcCentsSatsUsdPattern} cumulative
+ * @property {_1m1w1y24hPattern4} sum
  */
 
 /**
@@ -4096,29 +4265,6 @@ function create_1m1w1y24hPattern6(client, acc) {
  * @returns {AverageBlockCumulativeSumPattern2}
  */
 function createAverageBlockCumulativeSumPattern2(client, acc) {
-  return {
-    average: create_1m1w1y24hPattern(client, _m(acc, 'average')),
-    block: createSeriesPattern18(client, acc),
-    cumulative: createSeriesPattern1(client, _m(acc, 'cumulative')),
-    sum: create_1m1w1y24hPattern(client, _m(acc, 'sum')),
-  };
-}
-
-/**
- * @typedef {Object} AverageBlockCumulativeSumPattern3
- * @property {_1m1w1y24hPattern3} average
- * @property {BtcCentsSatsUsdPattern3} block
- * @property {BtcCentsSatsUsdPattern} cumulative
- * @property {_1m1w1y24hPattern4} sum
- */
-
-/**
- * Create a AverageBlockCumulativeSumPattern3 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {AverageBlockCumulativeSumPattern3}
- */
-function createAverageBlockCumulativeSumPattern3(client, acc) {
   return {
     average: create_1m1w1y24hPattern3(client, _m(acc, 'average')),
     block: createBtcCentsSatsUsdPattern3(client, acc),
@@ -4243,10 +4389,18 @@ function createBtcCentsSatsUsdPattern3(client, acc) {
 }
 
 /**
+ * @typedef {Object} CapHorizonPriceSupplyPattern
+ * @property {CentsUsdPattern3} cap
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {ImmobileMobilePattern2} supply
+ */
+
+/**
  * @typedef {Object} CentsDeltaToUsdPattern
  * @property {SeriesPattern1<Cents>} cents
  * @property {AbsoluteRatePattern2} delta
- * @property {BpsPercentRatioPattern4} toOwnMcap
+ * @property {PercentPpmRatioPattern2} toOwnMcap
  * @property {SeriesPattern1<Dollars>} usd
  */
 
@@ -4260,7 +4414,7 @@ function createCentsDeltaToUsdPattern(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
     delta: createAbsoluteRatePattern2(client, _m(acc, 'delta')),
-    toOwnMcap: createBpsPercentRatioPattern4(client, _m(acc, 'to_own_mcap')),
+    toOwnMcap: createPercentPpmRatioPattern2(client, _m(acc, 'to_own_mcap')),
     usd: createSeriesPattern1(client, acc),
   };
 }
@@ -4268,8 +4422,8 @@ function createCentsDeltaToUsdPattern(client, acc) {
 /**
  * @typedef {Object} CentsToUsdPattern3
  * @property {SeriesPattern1<CentsSigned>} cents
- * @property {BpsPercentRatioPattern} toOwnGrossPnl
- * @property {BpsPercentRatioPattern} toOwnMcap
+ * @property {PercentPpmRatioPattern3} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern3} toOwnMcap
  * @property {SeriesPattern1<Dollars>} usd
  */
 
@@ -4282,8 +4436,8 @@ function createCentsDeltaToUsdPattern(client, acc) {
 function createCentsToUsdPattern3(client, acc) {
   return {
     cents: createSeriesPattern1(client, _m(acc, 'cents')),
-    toOwnGrossPnl: createBpsPercentRatioPattern(client, _m(acc, 'to_own_gross_pnl')),
-    toOwnMcap: createBpsPercentRatioPattern(client, _m(acc, 'to_own_mcap')),
+    toOwnGrossPnl: createPercentPpmRatioPattern3(client, _m(acc, 'to_own_gross_pnl')),
+    toOwnMcap: createPercentPpmRatioPattern3(client, _m(acc, 'to_own_mcap')),
     usd: createSeriesPattern1(client, acc),
   };
 }
@@ -4315,7 +4469,7 @@ function createCoindaysCoinyearsDormancyTransferPattern(client, acc) {
  * @typedef {Object} LossNetNuplProfitPattern
  * @property {CentsNegativeUsdPattern} loss
  * @property {CentsUsdPattern} netPnl
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsUsdPattern3} profit
  */
 
@@ -4329,14 +4483,37 @@ function createLossNetNuplProfitPattern(client, acc) {
   return {
     loss: createCentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss')),
     netPnl: createCentsUsdPattern(client, _m(acc, 'net_unrealized_pnl')),
-    nupl: createBpsRatioPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsUsdPattern3(client, _m(acc, 'unrealized_profit')),
   };
 }
 
 /**
+ * @typedef {Object} MobilitySpendingSupplyPattern
+ * @property {SeriesPattern1<StoredF64>} mobility
+ * @property {SeriesPattern1<StoredF64>} spendingExposure
+ * @property {SeriesPattern1<StoredF64>} spendingRate
+ * @property {ImmobileMobilePattern} supply
+ */
+
+/**
+ * Create a MobilitySpendingSupplyPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {MobilitySpendingSupplyPattern}
+ */
+function createMobilitySpendingSupplyPattern(client, acc) {
+  return {
+    mobility: createSeriesPattern1(client, _m(acc, 'mobility')),
+    spendingExposure: createSeriesPattern1(client, _m(acc, 'spending_exposure')),
+    spendingRate: createSeriesPattern1(client, _m(acc, 'spending_rate')),
+    supply: createImmobileMobilePattern(client, acc),
+  };
+}
+
+/**
  * @typedef {Object} NuplRealizedSupplyUnrealizedPattern
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {AllSthPattern} realizedCap
  * @property {AllSthPattern2} supply
  * @property {AllSthPattern} unrealizedPnl
@@ -4350,7 +4527,7 @@ function createLossNetNuplProfitPattern(client, acc) {
  */
 function createNuplRealizedSupplyUnrealizedPattern(client, acc) {
   return {
-    nupl: createBpsRatioPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     realizedCap: createAllSthPattern(client, acc, 'realized_cap'),
     supply: createAllSthPattern2(client, acc),
     unrealizedPnl: createAllSthPattern(client, acc, 'unrealized_pnl'),
@@ -4429,27 +4606,6 @@ function createAdjustedRatioValuePattern(client, acc) {
 }
 
 /**
- * @typedef {Object} BalanceInputsOutputsPattern
- * @property {BtcCentsSatsUsdPattern} balance
- * @property {BlockCumulativePattern} inputsValue
- * @property {BlockCumulativePattern} outputsValue
- */
-
-/**
- * Create a BalanceInputsOutputsPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BalanceInputsOutputsPattern}
- */
-function createBalanceInputsOutputsPattern(client, acc) {
-  return {
-    balance: createBtcCentsSatsUsdPattern(client, _m(acc, 'balance')),
-    inputsValue: createBlockCumulativePattern(client, _m(acc, 'inputs_value')),
-    outputsValue: createBlockCumulativePattern(client, _m(acc, 'outputs_value')),
-  };
-}
-
-/**
  * @typedef {Object} BlockCumulativeSumPattern
  * @property {CentsUsdPattern2} block
  * @property {CentsUsdPattern3} cumulative
@@ -4471,10 +4627,31 @@ function createBlockCumulativeSumPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} BlockCumulativeSumPattern2
+ * @property {SeriesPattern18<StoredU64>} block
+ * @property {SeriesPattern1<StoredU64>} cumulative
+ * @property {_1m1w1y24hPattern<StoredU64>} sum
+ */
+
+/**
+ * Create a BlockCumulativeSumPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {BlockCumulativeSumPattern2}
+ */
+function createBlockCumulativeSumPattern2(client, acc) {
+  return {
+    block: createSeriesPattern18(client, acc),
+    cumulative: createSeriesPattern1(client, _m(acc, 'cumulative')),
+    sum: create_1m1w1y24hPattern(client, _m(acc, 'sum')),
+  };
+}
+
+/**
  * @typedef {Object} BlocksDominanceRewardsPattern
- * @property {AverageBlockCumulativeSumPattern2} blocksMined
- * @property {_1m1w1y24hBpsPercentRatioPattern} dominance
- * @property {AverageBlockCumulativeSumPattern3} rewards
+ * @property {BlockCumulativeSumPattern2} blocksMined
+ * @property {_1m1w1y24hPercentPpmRatioPattern} dominance
+ * @property {AverageBlockCumulativeSumPattern2} rewards
  */
 
 /**
@@ -4485,117 +4662,39 @@ function createBlockCumulativeSumPattern(client, acc) {
  */
 function createBlocksDominanceRewardsPattern(client, acc) {
   return {
-    blocksMined: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'blocks_mined')),
-    dominance: create_1m1w1y24hBpsPercentRatioPattern(client, _m(acc, 'dominance')),
-    rewards: createAverageBlockCumulativeSumPattern3(client, _m(acc, 'rewards')),
+    blocksMined: createBlockCumulativeSumPattern2(client, _m(acc, 'blocks_mined')),
+    dominance: create_1m1w1y24hPercentPpmRatioPattern(client, _m(acc, 'dominance')),
+    rewards: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'rewards')),
   };
 }
 
 /**
- * @typedef {Object} BpsPercentRatioPattern2
- * @property {SeriesPattern1<BasisPoints16>} bps
- * @property {SeriesPattern1<StoredF32>} percent
- * @property {SeriesPattern1<StoredF32>} ratio
+ * @typedef {Object} CapLossProfitPattern
+ * @property {CentsDeltaUsdPattern} cap
+ * @property {BlockCumulativeSumPattern} loss
+ * @property {BlockCumulativeSumPattern} profit
  */
 
 /**
- * Create a BpsPercentRatioPattern2 pattern node
+ * Create a CapLossProfitPattern pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {BpsPercentRatioPattern2}
+ * @returns {CapLossProfitPattern}
  */
-function createBpsPercentRatioPattern2(client, acc) {
+function createCapLossProfitPattern(client, acc) {
   return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    percent: createSeriesPattern1(client, acc),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+    cap: createCentsDeltaUsdPattern(client, _m(acc, 'cap')),
+    loss: createBlockCumulativeSumPattern(client, _m(acc, 'loss')),
+    profit: createBlockCumulativeSumPattern(client, _m(acc, 'profit')),
   };
 }
 
 /**
- * @typedef {Object} BpsPercentRatioPattern4
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} percent
- * @property {SeriesPattern1<StoredF32>} ratio
+ * @typedef {Object} CapPriceSupplyPattern
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {BtcCentsInSatsUsdPattern} supply
  */
-
-/**
- * Create a BpsPercentRatioPattern4 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsPercentRatioPattern4}
- */
-function createBpsPercentRatioPattern4(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    percent: createSeriesPattern1(client, acc),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-  };
-}
-
-/**
- * @typedef {Object} BpsPriceRatioPattern
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {CentsSatsUsdPattern} price
- * @property {SeriesPattern1<StoredF32>} ratio
- */
-
-/**
- * Create a BpsPriceRatioPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @param {string} disc - Discriminator suffix
- * @returns {BpsPriceRatioPattern}
- */
-function createBpsPriceRatioPattern(client, acc, disc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, `ratio_${disc}_bps`)),
-    price: createCentsSatsUsdPattern(client, _m(acc, disc)),
-    ratio: createSeriesPattern1(client, _m(_m(acc, 'ratio'), disc)),
-  };
-}
-
-/**
- * @typedef {Object} BpsPercentRatioPattern5
- * @property {SeriesPattern1<BasisPointsSigned16>} bps
- * @property {SeriesPattern1<StoredF32>} percent
- * @property {SeriesPattern1<StoredF32>} ratio
- */
-
-/**
- * Create a BpsPercentRatioPattern5 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsPercentRatioPattern5}
- */
-function createBpsPercentRatioPattern5(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    percent: createSeriesPattern1(client, acc),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-  };
-}
-
-/**
- * @typedef {Object} BpsPercentRatioPattern
- * @property {SeriesPattern1<BasisPointsSigned32>} bps
- * @property {SeriesPattern1<StoredF32>} percent
- * @property {SeriesPattern1<StoredF32>} ratio
- */
-
-/**
- * Create a BpsPercentRatioPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsPercentRatioPattern}
- */
-function createBpsPercentRatioPattern(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    percent: createSeriesPattern1(client, acc),
-    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
-  };
-}
 
 /**
  * @typedef {Object} CentsSatsUsdPattern3
@@ -4712,7 +4811,7 @@ function createCumulativeRollingSumPattern(client, acc) {
 /**
  * @typedef {Object} DeltaDominanceTotalPattern
  * @property {AbsoluteRatePattern3} delta
- * @property {BpsPercentRatioPattern2} dominance
+ * @property {PercentPpmRatioPattern2} dominance
  * @property {BtcCentsSatsUsdPattern} total
  */
 
@@ -4725,8 +4824,29 @@ function createCumulativeRollingSumPattern(client, acc) {
 function createDeltaDominanceTotalPattern(client, acc) {
   return {
     delta: createAbsoluteRatePattern3(client, _m(acc, 'delta')),
-    dominance: createBpsPercentRatioPattern2(client, _m(acc, 'dominance')),
+    dominance: createPercentPpmRatioPattern2(client, _m(acc, 'dominance')),
     total: createBtcCentsSatsUsdPattern(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} FloorLevelLossPattern
+ * @property {Pct95Pct98Pct99Pattern} floor
+ * @property {Pct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern} level
+ * @property {Pct95Pct98Pct99Pattern2} lossThreshold
+ */
+
+/**
+ * Create a FloorLevelLossPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {FloorLevelLossPattern}
+ */
+function createFloorLevelLossPattern(client, acc) {
+  return {
+    floor: createPct95Pct98Pct99Pattern(client, _m(acc, 'floor')),
+    level: createPct10Pct20Pct30Pct40Pct50Pct60Pct70Pct80Pct90Pattern(client, _m(acc, 'level')),
+    lossThreshold: createPct95Pct98Pct99Pattern2(client, _m(acc, 'loss_threshold')),
   };
 }
 
@@ -4754,7 +4874,7 @@ function createGreedNetPainPattern(client, acc) {
 /**
  * @typedef {Object} LossNuplProfitPattern
  * @property {CentsNegativeUsdPattern} loss
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {CentsUsdPattern3} profit
  */
 
@@ -4767,8 +4887,114 @@ function createGreedNetPainPattern(client, acc) {
 function createLossNuplProfitPattern(client, acc) {
   return {
     loss: createCentsNegativeUsdPattern(client, _m(acc, 'unrealized_loss')),
-    nupl: createBpsRatioPattern(client, _m(acc, 'nupl')),
+    nupl: createPpmRatioPattern(client, _m(acc, 'nupl')),
     profit: createCentsUsdPattern3(client, _m(acc, 'unrealized_profit')),
+  };
+}
+
+/**
+ * @typedef {Object} PercentPpmRatioPattern2
+ * @property {SeriesPattern1<StoredF32>} percent
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PercentPpmRatioPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PercentPpmRatioPattern2}
+ */
+function createPercentPpmRatioPattern2(client, acc) {
+  return {
+    percent: createSeriesPattern1(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+  };
+}
+
+/**
+ * @typedef {Object} PercentPpmRatioPattern5
+ * @property {SeriesPattern1<StoredF32>} percent
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PercentPpmRatioPattern5 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PercentPpmRatioPattern5}
+ */
+function createPercentPpmRatioPattern5(client, acc) {
+  return {
+    percent: createSeriesPattern1(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+  };
+}
+
+/**
+ * @typedef {Object} PercentPpmRatioPattern3
+ * @property {SeriesPattern1<StoredF32>} percent
+ * @property {SeriesPattern1<PartsPerMillionSigned32>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PercentPpmRatioPattern3 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PercentPpmRatioPattern3}
+ */
+function createPercentPpmRatioPattern3(client, acc) {
+  return {
+    percent: createSeriesPattern1(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+  };
+}
+
+/**
+ * @typedef {Object} PercentPpmRatioPattern
+ * @property {SeriesPattern1<StoredF32>} percent
+ * @property {SeriesPattern1<PartsPerMillionSigned64>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PercentPpmRatioPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PercentPpmRatioPattern}
+ */
+function createPercentPpmRatioPattern(client, acc) {
+  return {
+    percent: createSeriesPattern1(client, acc),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, _m(acc, 'ratio')),
+  };
+}
+
+/**
+ * @typedef {Object} PpmPriceRatioPattern
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
+ * @property {CentsSatsUsdPattern} price
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PpmPriceRatioPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @param {string} disc - Discriminator suffix
+ * @returns {PpmPriceRatioPattern}
+ */
+function createPpmPriceRatioPattern(client, acc, disc) {
+  return {
+    ppm: createSeriesPattern1(client, _m(acc, `ratio_${disc}_ppm`)),
+    price: createCentsSatsUsdPattern(client, _m(acc, disc)),
+    ratio: createSeriesPattern1(client, _m(_m(acc, 'ratio'), disc)),
   };
 }
 
@@ -4795,9 +5021,9 @@ function createRatioTransferValuePattern(client, acc) {
 
 /**
  * @typedef {Object} RsiStochPattern
- * @property {BpsPercentRatioPattern2} rsi
- * @property {BpsPercentRatioPattern2} stochRsiD
- * @property {BpsPercentRatioPattern2} stochRsiK
+ * @property {PercentPpmRatioPattern2} rsi
+ * @property {PercentPpmRatioPattern2} stochRsiD
+ * @property {PercentPpmRatioPattern2} stochRsiK
  */
 
 /**
@@ -4809,30 +5035,9 @@ function createRatioTransferValuePattern(client, acc) {
  */
 function createRsiStochPattern(client, acc, disc) {
   return {
-    rsi: createBpsPercentRatioPattern2(client, _m(acc, disc)),
-    stochRsiD: createBpsPercentRatioPattern2(client, _m(_m(acc, 'stoch_d'), disc)),
-    stochRsiK: createBpsPercentRatioPattern2(client, _m(_m(acc, 'stoch_k'), disc)),
-  };
-}
-
-/**
- * @typedef {Object} SpendingSpentUnspentPattern
- * @property {SeriesPattern1<StoredF32>} spendingRate
- * @property {AverageBlockCumulativeSumPattern2} spentCount
- * @property {BaseDeltaPattern} unspentCount
- */
-
-/**
- * Create a SpendingSpentUnspentPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {SpendingSpentUnspentPattern}
- */
-function createSpendingSpentUnspentPattern(client, acc) {
-  return {
-    spendingRate: createSeriesPattern1(client, _m(acc, 'spending_rate')),
-    spentCount: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'spent_utxo_count')),
-    unspentCount: createBaseDeltaPattern(client, _m(acc, 'utxo_count')),
+    rsi: createPercentPpmRatioPattern2(client, _m(acc, disc)),
+    stochRsiD: createPercentPpmRatioPattern2(client, _m(_m(acc, 'stoch_d'), disc)),
+    stochRsiK: createPercentPpmRatioPattern2(client, _m(_m(acc, 'stoch_k'), disc)),
   };
 }
 
@@ -4975,6 +5180,31 @@ function createAllSthPattern(client, acc, disc) {
 }
 
 /**
+ * @typedef {Object} AwakeDormantPattern
+ * @property {BtcCentsSatsUsdPattern} awake
+ * @property {BtcCentsSatsUsdPattern} dormant
+ */
+
+/**
+ * Create a AwakeDormantPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {AwakeDormantPattern}
+ */
+function createAwakeDormantPattern(client, acc) {
+  return {
+    awake: createBtcCentsSatsUsdPattern(client, _m(acc, 'awake_supply')),
+    dormant: createBtcCentsSatsUsdPattern(client, _m(acc, 'dormant_supply')),
+  };
+}
+
+/**
+ * @typedef {Object} AwakeDormantPattern2
+ * @property {CapPriceSupplyPattern} awake
+ * @property {SupplyPattern2} dormant
+ */
+
+/**
  * @typedef {Object} BaseSumPattern
  * @property {SeriesPattern18<Dollars>} base
  * @property {_1m1w1y24hPattern<Dollars>} sum
@@ -5033,8 +5263,8 @@ function createBlockCumulativePattern(client, acc) {
 
 /**
  * @typedef {Object} BlocksDominancePattern
- * @property {AverageBlockCumulativeSumPattern2} blocksMined
- * @property {BpsPercentRatioPattern2} dominance
+ * @property {BlockCumulativeSumPattern2} blocksMined
+ * @property {PercentPpmRatioPattern2} dominance
  */
 
 /**
@@ -5045,46 +5275,8 @@ function createBlockCumulativePattern(client, acc) {
  */
 function createBlocksDominancePattern(client, acc) {
   return {
-    blocksMined: createAverageBlockCumulativeSumPattern2(client, _m(acc, 'blocks_mined')),
-    dominance: createBpsPercentRatioPattern2(client, _m(acc, 'dominance')),
-  };
-}
-
-/**
- * @typedef {Object} BpsRatioPattern2
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- */
-
-/**
- * Create a BpsRatioPattern2 pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsRatioPattern2}
- */
-function createBpsRatioPattern2(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    ratio: createSeriesPattern1(client, acc),
-  };
-}
-
-/**
- * @typedef {Object} BpsRatioPattern
- * @property {SeriesPattern1<BasisPointsSigned32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- */
-
-/**
- * Create a BpsRatioPattern pattern node
- * @param {BrkClient} client
- * @param {string} acc - Accumulated series name
- * @returns {BpsRatioPattern}
- */
-function createBpsRatioPattern(client, acc) {
-  return {
-    bps: createSeriesPattern1(client, _m(acc, 'bps')),
-    ratio: createSeriesPattern1(client, acc),
+    blocksMined: createBlockCumulativeSumPattern2(client, _m(acc, 'blocks_mined')),
+    dominance: createPercentPpmRatioPattern2(client, _m(acc, 'dominance')),
   };
 }
 
@@ -5222,6 +5414,31 @@ function createFundedTotalPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} ImmobileMobilePattern2
+ * @property {BtcCentsSatsUsdPattern} immobile
+ * @property {BtcCentsInSatsUsdPattern} mobile
+ */
+
+/**
+ * @typedef {Object} ImmobileMobilePattern
+ * @property {BtcCentsSatsUsdPattern} immobile
+ * @property {BtcCentsSatsUsdPattern} mobile
+ */
+
+/**
+ * Create a ImmobileMobilePattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {ImmobileMobilePattern}
+ */
+function createImmobileMobilePattern(client, acc) {
+  return {
+    immobile: createBtcCentsSatsUsdPattern(client, _m(acc, 'immobile_supply')),
+    mobile: createBtcCentsSatsUsdPattern(client, _m(acc, 'mobile_supply')),
+  };
+}
+
+/**
  * @typedef {Object} InPattern2
  * @property {CentsUsdPattern3} inLoss
  * @property {CentsUsdPattern3} inProfit
@@ -5279,41 +5496,59 @@ function createPerPattern(client, acc) {
 }
 
 /**
- * @typedef {Object} PriceRatioPattern
- * @property {CentsSatsUsdPattern} price
+ * @typedef {Object} PpmRatioPattern2
+ * @property {SeriesPattern1<PartsPerMillion32>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  */
 
 /**
- * Create a PriceRatioPattern pattern node
+ * Create a PpmRatioPattern2 pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @param {string} disc - Discriminator suffix
- * @returns {PriceRatioPattern}
+ * @returns {PpmRatioPattern2}
  */
-function createPriceRatioPattern(client, acc, disc) {
+function createPpmRatioPattern2(client, acc) {
   return {
-    price: createCentsSatsUsdPattern(client, _m(acc, disc)),
-    ratio: createSeriesPattern1(client, _m(_m(acc, 'ratio'), disc)),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
   };
 }
 
 /**
- * @typedef {Object} RatioValuePattern2
- * @property {_1m1w1y24hPattern<StoredF64>} ratio
- * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
+ * @typedef {Object} PpmRatioPattern3
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
  */
 
 /**
- * Create a RatioValuePattern2 pattern node
+ * Create a PpmRatioPattern3 pattern node
  * @param {BrkClient} client
  * @param {string} acc - Accumulated series name
- * @returns {RatioValuePattern2}
+ * @returns {PpmRatioPattern3}
  */
-function createRatioValuePattern2(client, acc) {
+function createPpmRatioPattern3(client, acc) {
   return {
-    ratio: create_1m1w1y24hPattern(client, _m(acc, 'sopr')),
-    valueDestroyed: createAverageBlockCumulativeSumPattern(client, _m(acc, 'value_destroyed')),
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} PpmRatioPattern
+ * @property {SeriesPattern1<PartsPerMillionSigned32>} ppm
+ * @property {SeriesPattern1<StoredF32>} ratio
+ */
+
+/**
+ * Create a PpmRatioPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {PpmRatioPattern}
+ */
+function createPpmRatioPattern(client, acc) {
+  return {
+    ppm: createSeriesPattern1(client, _m(acc, 'ppm')),
+    ratio: createSeriesPattern1(client, acc),
   };
 }
 
@@ -5343,9 +5578,28 @@ function createRatioValuePattern(client, acc) {
  */
 
 /**
+ * @typedef {Object} SpentUnspentPattern
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} spentCount
+ * @property {BaseDeltaPattern} unspentCount
+ */
+
+/**
+ * Create a SpentUnspentPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {SpentUnspentPattern}
+ */
+function createSpentUnspentPattern(client, acc) {
+  return {
+    spentCount: createAverageBlockCumulativeSumPattern(client, _m(acc, 'spent_utxo_count')),
+    unspentCount: createBaseDeltaPattern(client, _m(acc, 'utxo_count')),
+  };
+}
+
+/**
  * @typedef {Object} ToPattern
- * @property {BpsPercentRatioPattern} toMcap
- * @property {BpsPercentRatioPattern} toRcap
+ * @property {PercentPpmRatioPattern} toMcap
+ * @property {PercentPpmRatioPattern} toRcap
  */
 
 /**
@@ -5356,8 +5610,8 @@ function createRatioValuePattern(client, acc) {
  */
 function createToPattern(client, acc) {
   return {
-    toMcap: createBpsPercentRatioPattern(client, _m(acc, 'mcap')),
-    toRcap: createBpsPercentRatioPattern(client, _m(acc, 'rcap')),
+    toMcap: createPercentPpmRatioPattern(client, _m(acc, 'mcap')),
+    toRcap: createPercentPpmRatioPattern(client, _m(acc, 'rcap')),
   };
 }
 
@@ -5379,8 +5633,25 @@ function create_24hPattern(client, acc) {
 }
 
 /**
+ * @typedef {Object} InPattern3
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * Create a InPattern3 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {InPattern3}
+ */
+function createInPattern3(client, acc) {
+  return {
+    inLoss: createSharePattern2(client, acc),
+  };
+}
+
+/**
  * @typedef {Object} NuplPattern
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  */
 
 /**
@@ -5391,13 +5662,13 @@ function create_24hPattern(client, acc) {
  */
 function createNuplPattern(client, acc) {
   return {
-    nupl: createBpsRatioPattern(client, acc),
+    nupl: createPpmRatioPattern(client, acc),
   };
 }
 
 /**
  * @typedef {Object} PricePattern
- * @property {BpsCentsPercentilesRatioSatsUsdPattern} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  */
 
 /**
@@ -5408,13 +5679,13 @@ function createNuplPattern(client, acc) {
  */
 function createPricePattern(client, acc) {
   return {
-    price: createBpsCentsPercentilesRatioSatsUsdPattern(client, acc),
+    price: createCentsPpmRatioSatsUsdPattern(client, acc),
   };
 }
 
 /**
  * @typedef {Object} SharePattern
- * @property {BpsPercentRatioPattern2} share
+ * @property {PercentPpmRatioPattern2} share
  */
 
 /**
@@ -5425,13 +5696,64 @@ function createPricePattern(client, acc) {
  */
 function createSharePattern(client, acc) {
   return {
-    share: createBpsPercentRatioPattern2(client, acc),
+    share: createPercentPpmRatioPattern2(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} SharePattern2
+ * @property {SeriesPattern1<StoredF64>} share
+ */
+
+/**
+ * Create a SharePattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {SharePattern2}
+ */
+function createSharePattern2(client, acc) {
+  return {
+    share: createSeriesPattern1(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} SupplyPattern2
+ * @property {BtcCentsSatsUsdPattern} supply
+ */
+
+/**
+ * Create a SupplyPattern2 pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {SupplyPattern2}
+ */
+function createSupplyPattern2(client, acc) {
+  return {
+    supply: createBtcCentsSatsUsdPattern(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} SupplyPattern
+ * @property {InPattern3} supply
+ */
+
+/**
+ * Create a SupplyPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {SupplyPattern}
+ */
+function createSupplyPattern(client, acc) {
+  return {
+    supply: createInPattern3(client, acc),
   };
 }
 
 /**
  * @typedef {Object} TransferPattern
- * @property {AverageBlockCumulativeSumPattern3} transferVolume
+ * @property {AverageBlockCumulativeSumPattern2} transferVolume
  */
 
 /**
@@ -5442,7 +5764,24 @@ function createSharePattern(client, acc) {
  */
 function createTransferPattern(client, acc) {
   return {
-    transferVolume: createAverageBlockCumulativeSumPattern3(client, acc),
+    transferVolume: createAverageBlockCumulativeSumPattern2(client, acc),
+  };
+}
+
+/**
+ * @typedef {Object} UnspentPattern
+ * @property {BaseDeltaPattern} unspentCount
+ */
+
+/**
+ * Create a UnspentPattern pattern node
+ * @param {BrkClient} client
+ * @param {string} acc - Accumulated series name
+ * @returns {UnspentPattern}
+ */
+function createUnspentPattern(client, acc) {
+  return {
+    unspentCount: createBaseDeltaPattern(client, acc),
   };
 }
 
@@ -5456,8 +5795,10 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Outputs} outputs
  * @property {SeriesTree_Addrs} addrs
  * @property {SeriesTree_Scripts} scripts
+ * @property {SeriesTree_OpReturn} opReturn
  * @property {SeriesTree_Mining} mining
- * @property {SeriesTree_Cointime} cointime
+ * @property {SeriesTree_Frameworks} frameworks
+ * @property {SeriesTree_Models} models
  * @property {SeriesTree_Constants} constants
  * @property {SeriesTree_Indexes} indexes
  * @property {SeriesTree_Indicators} indicators
@@ -5467,6 +5808,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Price} price
  * @property {SeriesTree_Supply} supply
  * @property {SeriesTree_Cohorts} cohorts
+ * @property {SeriesTree_Cointime} cointime
  */
 
 /**
@@ -5492,7 +5834,7 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Blocks_Difficulty
  * @property {SeriesPattern1<StoredF64>} value
  * @property {SeriesPattern1<StoredF64>} hashrate
- * @property {BpsPercentRatioPattern} adjustment
+ * @property {PercentPpmRatioPattern3} adjustment
  * @property {SeriesPattern1<Epoch>} epoch
  * @property {SeriesPattern1<StoredU32>} blocksToRetarget
  * @property {SeriesPattern1<StoredF32>} daysToRetarget
@@ -5521,7 +5863,7 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Blocks_Count
  * @property {_1m1w1y24hPattern<StoredU64>} target
- * @property {AverageBlockCumulativeSumPattern2} total
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} total
  */
 
 /**
@@ -5582,7 +5924,7 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Blocks_Fullness
- * @property {SeriesPattern18<BasisPoints16>} bps
+ * @property {SeriesPattern18<PartsPerMillion32>} ppm
  * @property {SeriesPattern18<StoredF32>} ratio
  * @property {SeriesPattern18<StoredF32>} percent
  */
@@ -5597,10 +5939,13 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Transactions
  * @property {SeriesTree_Transactions_Raw} raw
+ * @property {SeriesTree_Transactions_Features} features
  * @property {SeriesTree_Transactions_Count} count
  * @property {SeriesTree_Transactions_Size} size
  * @property {SeriesTree_Transactions_Fees} fees
- * @property {SeriesTree_Transactions_Hogex} hogex
+ * @property {SeriesTree_Transactions_Patterns} patterns
+ * @property {SeriesTree_Transactions_Policy} policy
+ * @property {SeriesTree_Transactions_Sigops} sigops
  * @property {SeriesTree_Transactions_Versions} versions
  * @property {SeriesTree_Transactions_Volume} volume
  */
@@ -5611,14 +5956,70 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern19<Txid>} txid
  * @property {SeriesPattern19<TxVersion>} txVersion
  * @property {SeriesPattern19<RawLockTime>} rawLocktime
- * @property {SeriesPattern19<StoredU32>} baseSize
+ * @property {SeriesPattern19<Weight>} weight
  * @property {SeriesPattern19<StoredU32>} totalSize
  * @property {SeriesPattern19<SigOps>} totalSigopCost
  * @property {SeriesPattern19<StoredBool>} isExplicitlyRbf
- * @property {SeriesPattern19<StoredBool>} isHogEx
- * @property {SeriesPattern19<StoredBool>} hasMwTx
  * @property {SeriesPattern19<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern19<TxOutIndex>} firstTxoutIndex
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Features
+ * @property {SeriesTree_Transactions_Features_Count} count
+ * @property {SeriesPattern19<StoredBool>} hasP2pk
+ * @property {SeriesPattern19<StoredBool>} hasP2ms
+ * @property {SeriesPattern19<StoredBool>} hasP2pkh
+ * @property {SeriesPattern19<StoredBool>} hasP2sh
+ * @property {SeriesPattern19<StoredBool>} hasP2wpkh
+ * @property {SeriesPattern19<StoredBool>} hasP2wsh
+ * @property {SeriesPattern19<StoredBool>} hasP2tr
+ * @property {SeriesPattern19<StoredBool>} hasP2a
+ * @property {SeriesPattern19<StoredBool>} hasOpReturn
+ * @property {SeriesPattern19<StoredBool>} hasEmpty
+ * @property {SeriesPattern19<StoredBool>} hasUnknown
+ * @property {SeriesPattern19<StoredBool>} hasFakePubkey
+ * @property {SeriesPattern19<StoredBool>} hasFakeScripthash
+ * @property {SeriesPattern19<StoredBool>} hasInscription
+ * @property {SeriesPattern19<StoredBool>} hasAnnex
+ * @property {SeriesPattern19<StoredBool>} hasSighashAll
+ * @property {SeriesPattern19<StoredBool>} hasSighashNone
+ * @property {SeriesPattern19<StoredBool>} hasSighashSingle
+ * @property {SeriesPattern19<StoredBool>} hasSighashDefault
+ * @property {SeriesPattern19<StoredBool>} hasSighashAnyoneCanPay
+ * @property {SeriesPattern19<StoredBool>} hasDustOutput
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Features_Count
+ * @property {SeriesPattern18<StoredU64>} v1
+ * @property {SeriesPattern18<StoredU64>} v2
+ * @property {SeriesPattern18<StoredU64>} v3
+ * @property {SeriesPattern18<StoredU64>} otherVersion
+ * @property {SeriesPattern18<StoredU64>} explicitlyRbf
+ * @property {SeriesPattern18<StoredU64>} oneInput
+ * @property {SeriesPattern18<StoredU64>} oneOutput
+ * @property {SeriesPattern18<StoredU64>} p2pk
+ * @property {SeriesPattern18<StoredU64>} p2ms
+ * @property {SeriesPattern18<StoredU64>} p2pkh
+ * @property {SeriesPattern18<StoredU64>} p2sh
+ * @property {SeriesPattern18<StoredU64>} p2wpkh
+ * @property {SeriesPattern18<StoredU64>} p2wsh
+ * @property {SeriesPattern18<StoredU64>} p2tr
+ * @property {SeriesPattern18<StoredU64>} p2a
+ * @property {SeriesPattern18<StoredU64>} opReturn
+ * @property {SeriesPattern18<StoredU64>} empty
+ * @property {SeriesPattern18<StoredU64>} unknown
+ * @property {SeriesPattern18<StoredU64>} fakePubkey
+ * @property {SeriesPattern18<StoredU64>} fakeScripthash
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} inscription
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} annex
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashAll
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashNone
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashSingle
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashDefault
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} sighashAnyoneCanPay
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dustOutput
  */
 
 /**
@@ -5628,31 +6029,70 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Size
- * @property {_6bBlockTxPattern<VSize>} vsize
+ * @property {SeriesTree_Transactions_Size_Vsize} vsize
  * @property {SeriesTree_Transactions_Size_Weight} weight
  */
 
 /**
- * @typedef {Object} SeriesTree_Transactions_Size_Weight
- * @property {SeriesPattern19<Weight>} txIndex
+ * @typedef {Object} SeriesTree_Transactions_Size_Vsize
+ * @property {SeriesPattern19<VSize>} txIndex
  * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern2} block
  * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern2} _6b
  */
 
 /**
+ * @typedef {Object} SeriesTree_Transactions_Size_Weight
+ * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>} block
+ * @property {MaxMedianMinPct10Pct25Pct75Pct90Pattern<Weight>} _6b
+ */
+
+/**
  * @typedef {Object} SeriesTree_Transactions_Fees
+ * @property {SeriesTree_Transactions_Fees_Count} count
  * @property {SeriesPattern19<Sats>} inputValue
- * @property {SeriesPattern19<Sats>} transferInputValue
  * @property {SeriesPattern19<Sats>} outputValue
  * @property {_6bBlockTxPattern<Sats>} fee
  * @property {SeriesPattern19<FeeRate>} feeRate
  * @property {_6bBlockTxPattern<FeeRate>} effectiveFeeRate
+ * @property {SeriesPattern19<StoredBool>} isCpfpParent
+ * @property {SeriesPattern19<StoredBool>} isCpfpChild
  */
 
 /**
- * @typedef {Object} SeriesTree_Transactions_Hogex
- * @property {AverageBlockCumulativeSumPattern2} txCount
- * @property {AverageBlockCumulativeSumPattern3} rawInputVolume
+ * @typedef {Object} SeriesTree_Transactions_Fees_Count
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} cpfpParent
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} cpfpChild
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Patterns
+ * @property {SeriesTree_Transactions_Patterns_Count} count
+ * @property {SeriesPattern19<StoredBool>} isCoinjoin
+ * @property {SeriesPattern19<StoredBool>} isConsolidation
+ * @property {SeriesPattern19<StoredBool>} isBatchPayout
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Patterns_Count
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} coinjoin
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} consolidation
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} batchPayout
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Policy
+ * @property {SeriesTree_Transactions_Policy_Count} count
+ * @property {SeriesPattern19<StoredBool>} isNonstandard
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Policy_Count
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} nonstandard
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Transactions_Sigops
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} total
  */
 
 /**
@@ -5660,18 +6100,19 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v1
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v2
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} v3
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} other
  */
 
 /**
  * @typedef {Object} SeriesTree_Transactions_Volume
- * @property {AverageBlockCumulativeSumPattern3} transferVolume
+ * @property {AverageBlockCumulativeSumPattern2} transferVolume
  * @property {_1m1w1y24hPattern<StoredF32>} txPerSec
  */
 
 /**
  * @typedef {Object} SeriesTree_Inputs
  * @property {SeriesTree_Inputs_Raw} raw
- * @property {SeriesTree_Inputs_Spent} spent
+ * @property {SeriesPattern20<Sats>} value
  * @property {CumulativeRollingSumPattern} count
  * @property {_1m1w1y24hPattern<StoredF32>} perSec
  * @property {SeriesTree_Inputs_ByType} byType
@@ -5681,15 +6122,10 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Inputs_Raw
  * @property {SeriesPattern18<TxInIndex>} firstTxinIndex
  * @property {SeriesPattern20<OutPoint>} outpoint
+ * @property {SeriesPattern20<TxOutIndex>} txoutIndex
  * @property {SeriesPattern20<TxIndex>} txIndex
  * @property {SeriesPattern20<OutputType>} outputType
  * @property {SeriesPattern20<TypeIndex>} typeIndex
- */
-
-/**
- * @typedef {Object} SeriesTree_Inputs_Spent
- * @property {SeriesPattern20<TxOutIndex>} txoutIndex
- * @property {SeriesPattern20<Sats>} value
  */
 
 /**
@@ -5718,17 +6154,17 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Inputs_ByType_InputShare
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk65
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk33
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2ms
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2sh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wpkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wsh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2tr
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
- * @property {_1m1w1y24hBpsPercentRatioPattern} unknown
- * @property {_1m1w1y24hBpsPercentRatioPattern} empty
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk65
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk33
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2ms
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2sh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wpkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wsh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2tr
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2a
+ * @property {_1m1w1y24hPercentPpmRatioPattern} unknown
+ * @property {_1m1w1y24hPercentPpmRatioPattern} empty
  */
 
 /**
@@ -5756,7 +6192,6 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Outputs_Unspent} unspent
  * @property {SeriesTree_Outputs_ByType} byType
  * @property {SeriesTree_Outputs_Value} value
- * @property {SeriesTree_Outputs_Mweb} mweb
  */
 
 /**
@@ -5765,7 +6200,6 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern21<Sats>} value
  * @property {SeriesPattern21<OutputType>} outputType
  * @property {SeriesPattern21<TypeIndex>} typeIndex
- * @property {SeriesPattern21<TxIndex>} txIndex
  */
 
 /**
@@ -5788,8 +6222,8 @@ function createTransferPattern(client, acc) {
  * @property {SeriesTree_Outputs_ByType_OutputCount} outputCount
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} spendableOutputCount
  * @property {SeriesTree_Outputs_ByType_OutputShare} outputShare
- * @property {AllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern} txCount
- * @property {EmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern} txShare
+ * @property {AllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern} txCount
+ * @property {EmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2} txShare
  */
 
 /**
@@ -5807,43 +6241,27 @@ function createTransferPattern(client, acc) {
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} unknown
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} empty
  * @property {AverageBlockCumulativeSumPattern<StoredU64>} opReturn
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegPool
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} mwebPegin
  */
 
 /**
  * @typedef {Object} SeriesTree_Outputs_ByType_OutputShare
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk65
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pk33
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2pkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2ms
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2sh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wpkh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2wsh
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2tr
- * @property {_1m1w1y24hBpsPercentRatioPattern} p2a
- * @property {_1m1w1y24hBpsPercentRatioPattern} unknown
- * @property {_1m1w1y24hBpsPercentRatioPattern} empty
- * @property {_1m1w1y24hBpsPercentRatioPattern} opReturn
- * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegPool
- * @property {_1m1w1y24hBpsPercentRatioPattern} mwebPegin
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk65
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pk33
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2pkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2ms
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2sh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wpkh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2wsh
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2tr
+ * @property {_1m1w1y24hPercentPpmRatioPattern} p2a
+ * @property {_1m1w1y24hPercentPpmRatioPattern} unknown
+ * @property {_1m1w1y24hPercentPpmRatioPattern} empty
+ * @property {_1m1w1y24hPercentPpmRatioPattern} opReturn
  */
 
 /**
  * @typedef {Object} SeriesTree_Outputs_Value
  * @property {BlockCumulativePattern} opReturn
- */
-
-/**
- * @typedef {Object} SeriesTree_Outputs_Mweb
- * @property {BlockCumulativePattern} outputsValue
- * @property {BlockCumulativePattern} inputsValue
- * @property {BtcCentsSatsUsdPattern} balance
- * @property {BalanceInputsOutputsPattern} pegPool
- * @property {BalanceInputsOutputsPattern} pegin
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} peginCount
- * @property {AverageBlockCumulativeSumPattern3} pegoutValue
- * @property {AverageBlockCumulativeSumPattern<StoredU64>} pegoutCount
  */
 
 /**
@@ -5976,7 +6394,7 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Addrs_Reused_Events
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} outputToReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} outputToReusedAddrShare
- * @property {_1m1w1y24hBpsPercentRatioPattern} spendableOutputToReusedAddrShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} spendableOutputToReusedAddrShare
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} inputFromReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} inputFromReusedAddrShare
  * @property {_1m1w1y24hBlockPattern} activeReusedAddrCount
@@ -6008,7 +6426,7 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Addrs_Respent_Events
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} outputToReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} outputToReusedAddrShare
- * @property {_1m1w1y24hBpsPercentRatioPattern} spendableOutputToReusedAddrShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} spendableOutputToReusedAddrShare
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6} inputFromReusedAddrCount
  * @property {AllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7} inputFromReusedAddrShare
  * @property {_1m1w1y24hBlockPattern} activeReusedAddrCount
@@ -6083,7 +6501,6 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Scripts_Raw
  * @property {SeriesTree_Scripts_Raw_Empty} empty
- * @property {SeriesTree_Scripts_Raw_OpReturn} opReturn
  * @property {SeriesTree_Scripts_Raw_P2ms} p2ms
  * @property {SeriesTree_Scripts_Raw_Unknown} unknown
  */
@@ -6095,21 +6512,78 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Scripts_Raw_OpReturn
- * @property {SeriesPattern18<OpReturnIndex>} firstIndex
- * @property {SeriesPattern23<TxIndex>} toTxIndex
- */
-
-/**
  * @typedef {Object} SeriesTree_Scripts_Raw_P2ms
  * @property {SeriesPattern18<P2MSOutputIndex>} firstIndex
  * @property {SeriesPattern25<TxIndex>} toTxIndex
+ * @property {SeriesPattern25<SigOps>} legacySigops
  */
 
 /**
  * @typedef {Object} SeriesTree_Scripts_Raw_Unknown
  * @property {SeriesPattern18<UnknownOutputIndex>} firstIndex
  * @property {SeriesPattern33<TxIndex>} toTxIndex
+ * @property {SeriesPattern33<SigOps>} legacySigops
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn
+ * @property {SeriesTree_OpReturn_Raw} raw
+ * @property {SeriesTree_OpReturn_Total} total
+ * @property {SeriesTree_OpReturn_ByKind} byKind
+ * @property {SeriesTree_OpReturn_Policy} policy
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Raw
+ * @property {SeriesPattern18<OpReturnIndex>} firstIndex
+ * @property {SeriesPattern23<TxIndex>} toTxIndex
+ * @property {SeriesPattern23<OpReturnKind>} kind
+ * @property {SeriesPattern23<StoredU32>} postOpReturnBytes
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Total
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} dataBytes
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} txCount
+ * @property {AverageBlockCumulativeSumPattern<VSize>} txVsize
+ * @property {AverageBlockCumulativeSumPattern<Sats>} fees
+ * @property {PercentPpmRatioPattern2} chainShare
+ * @property {_1m1w1y24hPercentPpmRatioPattern} feeShare
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_ByKind
+ * @property {ChainDataFeeFeesOutputTxPattern} runes
+ * @property {ChainDataFeeFeesOutputTxPattern} veriBlock
+ * @property {ChainDataFeeFeesOutputTxPattern} omni
+ * @property {ChainDataFeeFeesOutputTxPattern} stacks
+ * @property {ChainDataFeeFeesOutputTxPattern} blockstack
+ * @property {ChainDataFeeFeesOutputTxPattern} colu
+ * @property {ChainDataFeeFeesOutputTxPattern} openAssets
+ * @property {ChainDataFeeFeesOutputTxPattern} komodo
+ * @property {ChainDataFeeFeesOutputTxPattern} coinSpark
+ * @property {ChainDataFeeFeesOutputTxPattern} poet
+ * @property {ChainDataFeeFeesOutputTxPattern} docproof
+ * @property {ChainDataFeeFeesOutputTxPattern} openTimestamps
+ * @property {ChainDataFeeFeesOutputTxPattern} factom
+ * @property {ChainDataFeeFeesOutputTxPattern} eternityWall
+ * @property {ChainDataFeeFeesOutputTxPattern} memo
+ * @property {ChainDataFeeFeesOutputTxPattern} bitproof
+ * @property {ChainDataFeeFeesOutputTxPattern} ascribe
+ * @property {ChainDataFeeFeesOutputTxPattern} stampery
+ * @property {ChainDataFeeFeesOutputTxPattern} epobc
+ * @property {ChainDataFeeFeesOutputTxPattern} bareHash
+ * @property {ChainDataFeeFeesOutputTxPattern} text
+ * @property {ChainDataFeeFeesOutputTxPattern} empty
+ * @property {ChainDataFeeFeesOutputTxPattern} unknown
+ */
+
+/**
+ * @typedef {Object} SeriesTree_OpReturn_Policy
+ * @property {ChainDataFeeFeesOutputTxPattern} preV30Standard
+ * @property {ChainDataFeeFeesOutputTxPattern} preV30Nonstandard
+ * @property {ChainDataFeeFeesOutputTxPattern} oversized
+ * @property {ChainDataFeeFeesOutputTxPattern} multiple
  */
 
 /**
@@ -6120,7 +6594,7 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Mining_Rewards
- * @property {AverageBlockCumulativeSumPattern3} coinbase
+ * @property {AverageBlockCumulativeSumPattern2} coinbase
  * @property {SeriesTree_Mining_Rewards_Subsidy} subsidy
  * @property {SeriesTree_Mining_Rewards_Fees} fees
  * @property {SeriesPattern18<Sats>} outputVolume
@@ -6133,7 +6607,7 @@ function createTransferPattern(client, acc) {
  * @property {BtcCentsSatsUsdPattern} cumulative
  * @property {_1m1w1y24hPattern4} sum
  * @property {_1m1w1y24hPattern3} average
- * @property {_1m1w1y24hBpsPercentRatioPattern} dominance
+ * @property {_1m1w1y24hPercentPpmRatioPattern} dominance
  */
 
 /**
@@ -6149,16 +6623,16 @@ function createTransferPattern(client, acc) {
  * @property {_1m1w1y24hPattern4} median
  * @property {_1m1w1y24hPattern4} pct75
  * @property {_1m1w1y24hPattern4} pct90
- * @property {_1m1w1y24hBpsPercentRatioPattern} dominance
- * @property {SeriesTree_Mining_Rewards_Fees_ToSubsidyRatio} toSubsidyRatio
+ * @property {_1m1w1y24hPercentPpmRatioPattern} dominance
+ * @property {SeriesTree_Mining_Rewards_Fees_ToSubsidy} toSubsidy
  */
 
 /**
- * @typedef {Object} SeriesTree_Mining_Rewards_Fees_ToSubsidyRatio
- * @property {BpsRatioPattern2} _24h
- * @property {BpsRatioPattern2} _1w
- * @property {BpsRatioPattern2} _1m
- * @property {BpsRatioPattern2} _1y
+ * @typedef {Object} SeriesTree_Mining_Rewards_Fees_ToSubsidy
+ * @property {PercentPpmRatioPattern5} _24h
+ * @property {PercentPpmRatioPattern5} _1w
+ * @property {PercentPpmRatioPattern5} _1m
+ * @property {PercentPpmRatioPattern5} _1y
  */
 
 /**
@@ -6173,7 +6647,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<StoredF64>} base
  * @property {SeriesTree_Mining_Hashrate_Rate_Sma} sma
  * @property {SeriesPattern1<StoredF64>} ath
- * @property {BpsPercentRatioPattern5} drawdown
+ * @property {PercentPpmRatioPattern3} drawdown
  */
 
 /**
@@ -6185,34 +6659,140 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime
- * @property {SeriesTree_Cointime_Activity} activity
- * @property {SeriesTree_Cointime_Supply} supply
- * @property {SeriesTree_Cointime_Value} value
- * @property {SeriesTree_Cointime_Cap} cap
- * @property {SeriesTree_Cointime_Prices} prices
- * @property {SeriesTree_Cointime_Adjusted} adjusted
- * @property {SeriesTree_Cointime_ReserveRisk} reserveRisk
+ * @typedef {Object} SeriesTree_Frameworks
+ * @property {SeriesTree_Frameworks_Cointime} cointime
+ * @property {SeriesTree_Frameworks_Coinflow} coinflow
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Activity
+ * @typedef {Object} SeriesTree_Frameworks_Cointime
+ * @property {SeriesTree_Frameworks_Cointime_Activity} activity
+ * @property {SeriesTree_Frameworks_Cointime_AgeRange} ageRange
+ * @property {SeriesTree_Frameworks_Cointime_Awake} awake
+ * @property {SupplyPattern2} dormant
+ * @property {SeriesTree_Frameworks_Cointime_Sth} sth
+ * @property {SeriesTree_Frameworks_Cointime_Lth} lth
+ * @property {SeriesTree_Frameworks_Cointime_Supply} supply
+ * @property {SeriesTree_Frameworks_Cointime_Value} value
+ * @property {SeriesTree_Frameworks_Cointime_Cap} cap
+ * @property {SeriesTree_Frameworks_Cointime_Prices} prices
+ * @property {SeriesTree_Frameworks_Cointime_Adjusted} adjusted
+ * @property {SeriesTree_Frameworks_Cointime_ReserveRisk} reserveRisk
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Activity
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksCreated
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksStored
  * @property {SeriesPattern1<StoredF64>} liveliness
  * @property {SeriesPattern1<StoredF64>} vaultedness
  * @property {SeriesPattern1<StoredF64>} ratio
- * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksDestroyed
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Supply
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_AgeRange
+ * @property {CoindaysDormancySupplyWakefulnessPattern} under1h
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1hTo1d
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1dTo1w
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1wTo1m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1mTo2m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _2mTo3m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _3mTo4m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _4mTo5m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _5mTo6m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _6mTo9m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _9mTo1y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _1yTo18m
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _18mTo2y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _2yTo3y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _3yTo4y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _4yTo5y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _5yTo6y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _6yTo7y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _7yTo8y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _8yTo10y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _10yTo12y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} _12yTo15y
+ * @property {CoindaysDormancySupplyWakefulnessPattern} over15y
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth
+ * @property {SeriesTree_Frameworks_Cointime_Sth_Awake} awake
+ * @property {SupplyPattern2} dormant
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Sth_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Sth_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth
+ * @property {SeriesTree_Frameworks_Cointime_Lth_Awake} awake
+ * @property {SupplyPattern2} dormant
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth_Awake
+ * @property {SeriesTree_Frameworks_Cointime_Lth_Awake_Supply} supply
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Lth_Awake_Supply
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Supply
  * @property {BtcCentsSatsUsdPattern} vaulted
- * @property {BtcCentsSatsUsdPattern} active
+ * @property {SeriesTree_Frameworks_Cointime_Supply_Active} active
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Value
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Supply_Active
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Value
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} destroyed
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} created
  * @property {AverageBlockCumulativeSumPattern<StoredF64>} stored
@@ -6220,35 +6800,218 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Cap
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Cap
  * @property {CentsUsdPattern3} thermo
  * @property {CentsUsdPattern3} investor
  * @property {CentsUsdPattern3} vaulted
  * @property {CentsUsdPattern3} active
  * @property {CentsUsdPattern3} cointime
- * @property {BpsRatioPattern2} aviv
+ * @property {PpmRatioPattern2} aviv
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Prices
- * @property {BpsCentsPercentilesRatioSatsUsdPattern} vaulted
- * @property {BpsCentsPercentilesRatioSatsUsdPattern} active
- * @property {BpsCentsPercentilesRatioSatsUsdPattern} trueMarketMean
- * @property {BpsCentsPercentilesRatioSatsUsdPattern} cointime
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Prices
+ * @property {CentsPpmRatioSatsUsdPattern} vaulted
+ * @property {CentsPpmRatioSatsUsdPattern} active
+ * @property {CentsPpmRatioSatsUsdPattern} trueMarketMean
+ * @property {CentsPpmRatioSatsUsdPattern} cointime
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_Adjusted
- * @property {BpsPercentRatioPattern} inflationRate
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_Adjusted
+ * @property {PercentPpmRatioPattern} inflationRate
  * @property {SeriesPattern1<StoredF64>} txVelocityNative
  * @property {SeriesPattern1<StoredF64>} txVelocityFiat
  */
 
 /**
- * @typedef {Object} SeriesTree_Cointime_ReserveRisk
+ * @typedef {Object} SeriesTree_Frameworks_Cointime_ReserveRisk
  * @property {SeriesPattern1<StoredF64>} value
  * @property {SeriesPattern18<StoredF64>} vocddMedian1y
  * @property {SeriesPattern18<StoredF64>} hodlBank
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow
+ * @property {SeriesTree_Frameworks_Coinflow_AgeRange} ageRange
+ * @property {SeriesTree_Frameworks_Coinflow_Supply} supply
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ * @property {SeriesTree_Frameworks_Coinflow_Sth} sth
+ * @property {SeriesTree_Frameworks_Coinflow_Lth} lth
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_AgeRange
+ * @property {MobilitySpendingSupplyPattern} under1h
+ * @property {MobilitySpendingSupplyPattern} _1hTo1d
+ * @property {MobilitySpendingSupplyPattern} _1dTo1w
+ * @property {MobilitySpendingSupplyPattern} _1wTo1m
+ * @property {MobilitySpendingSupplyPattern} _1mTo2m
+ * @property {MobilitySpendingSupplyPattern} _2mTo3m
+ * @property {MobilitySpendingSupplyPattern} _3mTo4m
+ * @property {MobilitySpendingSupplyPattern} _4mTo5m
+ * @property {MobilitySpendingSupplyPattern} _5mTo6m
+ * @property {MobilitySpendingSupplyPattern} _6mTo9m
+ * @property {MobilitySpendingSupplyPattern} _9mTo1y
+ * @property {MobilitySpendingSupplyPattern} _1yTo18m
+ * @property {MobilitySpendingSupplyPattern} _18mTo2y
+ * @property {MobilitySpendingSupplyPattern} _2yTo3y
+ * @property {MobilitySpendingSupplyPattern} _3yTo4y
+ * @property {MobilitySpendingSupplyPattern} _4yTo5y
+ * @property {MobilitySpendingSupplyPattern} _5yTo6y
+ * @property {MobilitySpendingSupplyPattern} _6yTo7y
+ * @property {MobilitySpendingSupplyPattern} _7yTo8y
+ * @property {MobilitySpendingSupplyPattern} _8yTo10y
+ * @property {MobilitySpendingSupplyPattern} _10yTo12y
+ * @property {MobilitySpendingSupplyPattern} _12yTo15y
+ * @property {MobilitySpendingSupplyPattern} over15y
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Supply_Mobile} mobile
+ * @property {BtcCentsSatsUsdPattern} immobile
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Supply_Mobile
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth
+ * @property {SeriesTree_Frameworks_Coinflow_Sth_Supply} supply
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Sth_Supply_Mobile} mobile
+ * @property {BtcCentsSatsUsdPattern} immobile
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Sth_Supply_Mobile
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth
+ * @property {SeriesTree_Frameworks_Coinflow_Lth_Supply} supply
+ * @property {_1m1y2y3m4y6m8yPattern} horizon
+ * @property {CentsUsdPattern3} cap
+ * @property {CentsPpmRatioSatsUsdPattern} price
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth_Supply
+ * @property {SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile} mobile
+ * @property {BtcCentsSatsUsdPattern} immobile
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Frameworks_Coinflow_Lth_Supply_Mobile
+ * @property {SeriesPattern1<Bitcoin>} btc
+ * @property {SeriesPattern1<Sats>} sats
+ * @property {SeriesPattern1<Dollars>} usd
+ * @property {SeriesPattern1<Cents>} cents
+ * @property {SharePattern2} inLoss
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models
+ * @property {SeriesTree_Models_Bedrock} bedrock
+ * @property {SeriesTree_Models_CapitalSentiment} capitalSentiment
+ * @property {SeriesTree_Models_RarityMeter} rarityMeter
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_Bedrock
+ * @property {FloorLevelLossPattern} raw
+ * @property {FloorLevelLossPattern} cointime
+ * @property {FloorLevelLossPattern} coinflow
+ * @property {FloorLevelLossPattern} coinflow8y
+ * @property {FloorLevelLossPattern} coinflow4y
+ * @property {FloorLevelLossPattern} coinflow2y
+ * @property {FloorLevelLossPattern} coinflow1y
+ * @property {FloorLevelLossPattern} coinflow6m
+ * @property {FloorLevelLossPattern} coinflow3m
+ * @property {FloorLevelLossPattern} coinflow1m
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_CapitalSentiment
+ * @property {SeriesPattern1<StoredBool>} isLong
+ * @property {SeriesPattern1<StoredBool>} isShort
+ * @property {SeriesPattern1<CapitalSentimentPhase>} phase
+ * @property {SeriesPattern1<StoredI8>} score
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter
+ * @property {SeriesTree_Models_RarityMeter_Components} components
+ * @property {SeriesTree_Models_RarityMeter_Extremes} extremes
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} full
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} local
+ * @property {IndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern} cycle
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Components
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} realizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} capitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} sthCapitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} lthCapitalizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over6mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} over4mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under4mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} under6mRealizedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} vaultedPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} activePrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} trueMarketMeanPrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} cointimePrice
+ * @property {Pct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern} coinflowPrice
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes
+ * @property {SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss} coinsInLoss
+ * @property {RankTailThresholdPattern} profitTaking
+ * @property {RankTailThresholdPattern} capitulation
+ * @property {RankTailThresholdPattern} peakRegret
+ * @property {SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion} sellerExhaustion
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_CoinsInLoss
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct01
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct005
+ * @property {SeriesPattern1<Bitcoin>} thresholdPct0025
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<StoredU8>} rank
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Models_RarityMeter_Extremes_SellerExhaustion
+ * @property {SeriesPattern1<StoredF32>} thresholdPct01
+ * @property {SeriesPattern1<StoredF32>} thresholdPct005
+ * @property {SeriesPattern1<StoredF32>} thresholdPct0025
+ * @property {PercentPpmRatioPattern2} tail
+ * @property {SeriesPattern1<StoredU8>} rank
  */
 
 /**
@@ -6510,30 +7273,22 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Indicators
- * @property {BpsRatioPattern2} puellMultiple
- * @property {BpsRatioPattern2} nvt
- * @property {BpsPercentRatioPattern2} gini
- * @property {BpsRatioPattern2} rhodlRatio
- * @property {BpsRatioPattern2} thermoCapMultiple
+ * @property {PpmRatioPattern3} puellMultiple
+ * @property {PpmRatioPattern3} nvt
+ * @property {PercentPpmRatioPattern2} gini
+ * @property {PpmRatioPattern3} rhodlRatio
+ * @property {PpmRatioPattern3} thermoCapMultiple
  * @property {SeriesPattern1<StoredF32>} coindaysDestroyedSupplyAdj
  * @property {SeriesPattern1<StoredF32>} coinyearsDestroyedSupplyAdj
  * @property {SeriesTree_Indicators_Dormancy} dormancy
  * @property {SeriesPattern1<StoredF32>} stockToFlow
  * @property {SeriesPattern1<StoredF32>} sellerExhaustion
- * @property {SeriesTree_Indicators_RarityMeter} rarityMeter
  */
 
 /**
  * @typedef {Object} SeriesTree_Indicators_Dormancy
  * @property {SeriesPattern1<StoredF32>} supplyAdj
  * @property {SeriesPattern1<StoredF32>} flow
- */
-
-/**
- * @typedef {Object} SeriesTree_Indicators_RarityMeter
- * @property {IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern} full
- * @property {IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern} local
- * @property {IndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern} cycle
  */
 
 /**
@@ -6610,18 +7365,18 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Investing_Class_DcaReturn
- * @property {BpsPercentRatioPattern} from2015
- * @property {BpsPercentRatioPattern} from2016
- * @property {BpsPercentRatioPattern} from2017
- * @property {BpsPercentRatioPattern} from2018
- * @property {BpsPercentRatioPattern} from2019
- * @property {BpsPercentRatioPattern} from2020
- * @property {BpsPercentRatioPattern} from2021
- * @property {BpsPercentRatioPattern} from2022
- * @property {BpsPercentRatioPattern} from2023
- * @property {BpsPercentRatioPattern} from2024
- * @property {BpsPercentRatioPattern} from2025
- * @property {BpsPercentRatioPattern} from2026
+ * @property {PercentPpmRatioPattern} from2015
+ * @property {PercentPpmRatioPattern} from2016
+ * @property {PercentPpmRatioPattern} from2017
+ * @property {PercentPpmRatioPattern} from2018
+ * @property {PercentPpmRatioPattern} from2019
+ * @property {PercentPpmRatioPattern} from2020
+ * @property {PercentPpmRatioPattern} from2021
+ * @property {PercentPpmRatioPattern} from2022
+ * @property {PercentPpmRatioPattern} from2023
+ * @property {PercentPpmRatioPattern} from2024
+ * @property {PercentPpmRatioPattern} from2025
+ * @property {PercentPpmRatioPattern} from2026
  */
 
 /**
@@ -6638,7 +7393,7 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Market_Ath
  * @property {CentsSatsUsdPattern} high
- * @property {BpsPercentRatioPattern5} drawdown
+ * @property {PercentPpmRatioPattern3} drawdown
  * @property {SeriesPattern1<StoredF32>} daysSince
  * @property {SeriesPattern1<StoredF32>} yearsSince
  * @property {SeriesPattern1<StoredF32>} maxDaysBetween
@@ -6671,19 +7426,19 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Market_Returns_Periods
- * @property {BpsPercentRatioPattern} _24h
- * @property {BpsPercentRatioPattern} _1w
- * @property {BpsPercentRatioPattern} _1m
- * @property {BpsPercentRatioPattern} _3m
- * @property {BpsPercentRatioPattern} _6m
- * @property {BpsPercentRatioPattern} _1y
- * @property {BpsPercentRatioPattern} _2y
- * @property {BpsPercentRatioPattern} _3y
- * @property {BpsPercentRatioPattern} _4y
- * @property {BpsPercentRatioPattern} _5y
- * @property {BpsPercentRatioPattern} _6y
- * @property {BpsPercentRatioPattern} _8y
- * @property {BpsPercentRatioPattern} _10y
+ * @property {PercentPpmRatioPattern} _24h
+ * @property {PercentPpmRatioPattern} _1w
+ * @property {PercentPpmRatioPattern} _1m
+ * @property {PercentPpmRatioPattern} _3m
+ * @property {PercentPpmRatioPattern} _6m
+ * @property {PercentPpmRatioPattern} _1y
+ * @property {PercentPpmRatioPattern} _2y
+ * @property {PercentPpmRatioPattern} _3y
+ * @property {PercentPpmRatioPattern} _4y
+ * @property {PercentPpmRatioPattern} _5y
+ * @property {PercentPpmRatioPattern} _6y
+ * @property {PercentPpmRatioPattern} _8y
+ * @property {PercentPpmRatioPattern} _10y
  */
 
 /**
@@ -6724,7 +7479,7 @@ function createTransferPattern(client, acc) {
  * @property {_1m1w1y2wPattern} max
  * @property {SeriesPattern1<StoredF32>} trueRange
  * @property {SeriesPattern1<StoredF32>} trueRangeSum2w
- * @property {BpsPercentRatioPattern2} choppinessIndex2w
+ * @property {PercentPpmRatioPattern2} choppinessIndex2w
  */
 
 /**
@@ -6735,22 +7490,22 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Market_MovingAverage_Sma
- * @property {BpsCentsRatioSatsUsdPattern} _1w
- * @property {BpsCentsRatioSatsUsdPattern} _8d
- * @property {BpsCentsRatioSatsUsdPattern} _13d
- * @property {BpsCentsRatioSatsUsdPattern} _21d
- * @property {BpsCentsRatioSatsUsdPattern} _1m
- * @property {BpsCentsRatioSatsUsdPattern} _34d
- * @property {BpsCentsRatioSatsUsdPattern} _55d
- * @property {BpsCentsRatioSatsUsdPattern} _89d
- * @property {BpsCentsRatioSatsUsdPattern} _111d
- * @property {BpsCentsRatioSatsUsdPattern} _144d
+ * @property {CentsPpmRatioSatsUsdPattern} _1w
+ * @property {CentsPpmRatioSatsUsdPattern} _8d
+ * @property {CentsPpmRatioSatsUsdPattern} _13d
+ * @property {CentsPpmRatioSatsUsdPattern} _21d
+ * @property {CentsPpmRatioSatsUsdPattern} _1m
+ * @property {CentsPpmRatioSatsUsdPattern} _34d
+ * @property {CentsPpmRatioSatsUsdPattern} _55d
+ * @property {CentsPpmRatioSatsUsdPattern} _89d
+ * @property {CentsPpmRatioSatsUsdPattern} _111d
+ * @property {CentsPpmRatioSatsUsdPattern} _144d
  * @property {SeriesTree_Market_MovingAverage_Sma_200d} _200d
  * @property {SeriesTree_Market_MovingAverage_Sma_350d} _350d
- * @property {BpsCentsRatioSatsUsdPattern} _1y
- * @property {BpsCentsRatioSatsUsdPattern} _2y
- * @property {BpsCentsRatioSatsUsdPattern} _200w
- * @property {BpsCentsRatioSatsUsdPattern} _4y
+ * @property {CentsPpmRatioSatsUsdPattern} _1y
+ * @property {CentsPpmRatioSatsUsdPattern} _2y
+ * @property {CentsPpmRatioSatsUsdPattern} _200w
+ * @property {CentsPpmRatioSatsUsdPattern} _4y
  */
 
 /**
@@ -6758,7 +7513,7 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {CentsSatsUsdPattern} x24
  * @property {CentsSatsUsdPattern} x08
@@ -6769,35 +7524,35 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
+ * @property {SeriesPattern1<PartsPerMillion64>} ppm
  * @property {SeriesPattern1<StoredF32>} ratio
  * @property {CentsSatsUsdPattern} x2
  */
 
 /**
  * @typedef {Object} SeriesTree_Market_MovingAverage_Ema
- * @property {BpsCentsRatioSatsUsdPattern} _1w
- * @property {BpsCentsRatioSatsUsdPattern} _8d
- * @property {BpsCentsRatioSatsUsdPattern} _12d
- * @property {BpsCentsRatioSatsUsdPattern} _13d
- * @property {BpsCentsRatioSatsUsdPattern} _21d
- * @property {BpsCentsRatioSatsUsdPattern} _26d
- * @property {BpsCentsRatioSatsUsdPattern} _1m
- * @property {BpsCentsRatioSatsUsdPattern} _34d
- * @property {BpsCentsRatioSatsUsdPattern} _55d
- * @property {BpsCentsRatioSatsUsdPattern} _89d
- * @property {BpsCentsRatioSatsUsdPattern} _144d
- * @property {BpsCentsRatioSatsUsdPattern} _200d
- * @property {BpsCentsRatioSatsUsdPattern} _1y
- * @property {BpsCentsRatioSatsUsdPattern} _2y
- * @property {BpsCentsRatioSatsUsdPattern} _200w
- * @property {BpsCentsRatioSatsUsdPattern} _4y
+ * @property {CentsPpmRatioSatsUsdPattern} _1w
+ * @property {CentsPpmRatioSatsUsdPattern} _8d
+ * @property {CentsPpmRatioSatsUsdPattern} _12d
+ * @property {CentsPpmRatioSatsUsdPattern} _13d
+ * @property {CentsPpmRatioSatsUsdPattern} _21d
+ * @property {CentsPpmRatioSatsUsdPattern} _26d
+ * @property {CentsPpmRatioSatsUsdPattern} _1m
+ * @property {CentsPpmRatioSatsUsdPattern} _34d
+ * @property {CentsPpmRatioSatsUsdPattern} _55d
+ * @property {CentsPpmRatioSatsUsdPattern} _89d
+ * @property {CentsPpmRatioSatsUsdPattern} _144d
+ * @property {CentsPpmRatioSatsUsdPattern} _200d
+ * @property {CentsPpmRatioSatsUsdPattern} _1y
+ * @property {CentsPpmRatioSatsUsdPattern} _2y
+ * @property {CentsPpmRatioSatsUsdPattern} _200w
+ * @property {CentsPpmRatioSatsUsdPattern} _4y
  */
 
 /**
  * @typedef {Object} SeriesTree_Market_Technical
  * @property {SeriesTree_Market_Technical_Rsi} rsi
- * @property {BpsRatioPattern2} piCycle
+ * @property {PpmRatioPattern2} piCycle
  * @property {SeriesTree_Market_Technical_Macd} macd
  */
 
@@ -6854,41 +7609,173 @@ function createTransferPattern(client, acc) {
  * @property {BlocksDominanceRewardsPattern} unknown
  * @property {BlocksDominanceRewardsPattern} luxor
  * @property {BlocksDominanceRewardsPattern} btccom
+ * @property {BlocksDominanceRewardsPattern} btctop
+ * @property {BlocksDominanceRewardsPattern} btcguild
+ * @property {BlocksDominanceRewardsPattern} eligius
  * @property {BlocksDominanceRewardsPattern} f2pool
+ * @property {BlocksDominanceRewardsPattern} braiinspool
  * @property {BlocksDominanceRewardsPattern} antpool
+ * @property {BlocksDominanceRewardsPattern} btcc
+ * @property {BlocksDominanceRewardsPattern} bwpool
+ * @property {BlocksDominanceRewardsPattern} bitfury
  * @property {BlocksDominanceRewardsPattern} viabtc
  * @property {BlocksDominanceRewardsPattern} poolin
  * @property {BlocksDominanceRewardsPattern} spiderpool
  * @property {BlocksDominanceRewardsPattern} binancepool
+ * @property {BlocksDominanceRewardsPattern} foundryusa
  * @property {BlocksDominanceRewardsPattern} sbicrypto
- * @property {BlocksDominanceRewardsPattern} kupool
- * @property {BlocksDominanceRewardsPattern} litecoinpoolorg
- * @property {BlocksDominanceRewardsPattern} hash700
- * @property {BlocksDominanceRewardsPattern} lsoftwaredmcc
- * @property {BlocksDominanceRewardsPattern} hashspace
+ * @property {BlocksDominanceRewardsPattern} marapool
+ * @property {BlocksDominanceRewardsPattern} secpool
+ * @property {BlocksDominanceRewardsPattern} ocean
+ * @property {BlocksDominanceRewardsPattern} whitepool
  */
 
 /**
  * @typedef {Object} SeriesTree_Pools_Minor
+ * @property {BlocksDominancePattern} blockfills
+ * @property {BlocksDominancePattern} ultimuspool
+ * @property {BlocksDominancePattern} terrapool
+ * @property {BlocksDominancePattern} onethash
+ * @property {BlocksDominancePattern} bitfarms
+ * @property {BlocksDominancePattern} huobipool
+ * @property {BlocksDominancePattern} wayicn
+ * @property {BlocksDominancePattern} canoepool
+ * @property {BlocksDominancePattern} bitcoincom
+ * @property {BlocksDominancePattern} pool175btc
+ * @property {BlocksDominancePattern} gbminers
+ * @property {BlocksDominancePattern} axbt
+ * @property {BlocksDominancePattern} asicminer
+ * @property {BlocksDominancePattern} bitminter
+ * @property {BlocksDominancePattern} bitcoinrussia
+ * @property {BlocksDominancePattern} btcserv
+ * @property {BlocksDominancePattern} simplecoinus
+ * @property {BlocksDominancePattern} ozcoin
+ * @property {BlocksDominancePattern} eclipsemc
+ * @property {BlocksDominancePattern} maxbtc
+ * @property {BlocksDominancePattern} triplemining
+ * @property {BlocksDominancePattern} coinlab
+ * @property {BlocksDominancePattern} pool50btc
+ * @property {BlocksDominancePattern} ghashio
+ * @property {BlocksDominancePattern} stminingcorp
+ * @property {BlocksDominancePattern} bitparking
+ * @property {BlocksDominancePattern} mmpool
+ * @property {BlocksDominancePattern} polmine
+ * @property {BlocksDominancePattern} kncminer
+ * @property {BlocksDominancePattern} bitalo
+ * @property {BlocksDominancePattern} hhtt
+ * @property {BlocksDominancePattern} megabigpower
+ * @property {BlocksDominancePattern} mtred
+ * @property {BlocksDominancePattern} nmcbit
+ * @property {BlocksDominancePattern} yourbtcnet
+ * @property {BlocksDominancePattern} givemecoins
+ * @property {BlocksDominancePattern} multicoinco
+ * @property {BlocksDominancePattern} bcpoolio
+ * @property {BlocksDominancePattern} cointerra
+ * @property {BlocksDominancePattern} kanopool
+ * @property {BlocksDominancePattern} solock
+ * @property {BlocksDominancePattern} ckpool
  * @property {BlocksDominancePattern} nicehash
+ * @property {BlocksDominancePattern} bitclub
+ * @property {BlocksDominancePattern} bitcoinaffiliatenetwork
+ * @property {BlocksDominancePattern} exxbw
+ * @property {BlocksDominancePattern} bitsolo
+ * @property {BlocksDominancePattern} twentyoneinc
+ * @property {BlocksDominancePattern} digitalbtc
+ * @property {BlocksDominancePattern} eightbaochi
+ * @property {BlocksDominancePattern} mybtccoinpool
+ * @property {BlocksDominancePattern} tbdice
+ * @property {BlocksDominancePattern} hashpool
+ * @property {BlocksDominancePattern} nexious
+ * @property {BlocksDominancePattern} bravomining
+ * @property {BlocksDominancePattern} hotpool
+ * @property {BlocksDominancePattern} okexpool
+ * @property {BlocksDominancePattern} bcmonster
+ * @property {BlocksDominancePattern} onehash
+ * @property {BlocksDominancePattern} bixin
+ * @property {BlocksDominancePattern} tatmaspool
+ * @property {BlocksDominancePattern} connectbtc
+ * @property {BlocksDominancePattern} batpool
+ * @property {BlocksDominancePattern} waterhole
+ * @property {BlocksDominancePattern} dcexploration
+ * @property {BlocksDominancePattern} dcex
+ * @property {BlocksDominancePattern} btpool
+ * @property {BlocksDominancePattern} fiftyeightcoin
+ * @property {BlocksDominancePattern} bitcoinindia
+ * @property {BlocksDominancePattern} shawnp0wers
+ * @property {BlocksDominancePattern} phashio
+ * @property {BlocksDominancePattern} rigpool
+ * @property {BlocksDominancePattern} haozhuzhu
+ * @property {BlocksDominancePattern} sevenpool
+ * @property {BlocksDominancePattern} miningkings
+ * @property {BlocksDominancePattern} hashbx
+ * @property {BlocksDominancePattern} dpool
+ * @property {BlocksDominancePattern} rawpool
+ * @property {BlocksDominancePattern} haominer
+ * @property {BlocksDominancePattern} helix
+ * @property {BlocksDominancePattern} bitcoinukraine
+ * @property {BlocksDominancePattern} secretsuperstar
+ * @property {BlocksDominancePattern} tigerpoolnet
  * @property {BlocksDominancePattern} sigmapoolcom
+ * @property {BlocksDominancePattern} okpooltop
+ * @property {BlocksDominancePattern} hummerpool
+ * @property {BlocksDominancePattern} tangpool
+ * @property {BlocksDominancePattern} bytepool
+ * @property {BlocksDominancePattern} novablock
+ * @property {BlocksDominancePattern} miningcity
+ * @property {BlocksDominancePattern} minerium
+ * @property {BlocksDominancePattern} lubiancom
+ * @property {BlocksDominancePattern} okkong
+ * @property {BlocksDominancePattern} aaopool
  * @property {BlocksDominancePattern} emcdpool
+ * @property {BlocksDominancePattern} arkpool
+ * @property {BlocksDominancePattern} purebtccom
+ * @property {BlocksDominancePattern} kucoinpool
+ * @property {BlocksDominancePattern} entrustcharitypool
+ * @property {BlocksDominancePattern} okminer
+ * @property {BlocksDominancePattern} titan
+ * @property {BlocksDominancePattern} pegapool
+ * @property {BlocksDominancePattern} btcnuggets
+ * @property {BlocksDominancePattern} cloudhashing
+ * @property {BlocksDominancePattern} digitalxmintsy
+ * @property {BlocksDominancePattern} telco214
+ * @property {BlocksDominancePattern} btcpoolparty
+ * @property {BlocksDominancePattern} multipool
+ * @property {BlocksDominancePattern} transactioncoinmining
+ * @property {BlocksDominancePattern} btcdig
+ * @property {BlocksDominancePattern} trickysbtcpool
+ * @property {BlocksDominancePattern} btcmp
+ * @property {BlocksDominancePattern} eobot
+ * @property {BlocksDominancePattern} unomp
+ * @property {BlocksDominancePattern} patels
+ * @property {BlocksDominancePattern} gogreenlight
+ * @property {BlocksDominancePattern} bitcoinindiapool
+ * @property {BlocksDominancePattern} ekanembtc
+ * @property {BlocksDominancePattern} canoe
+ * @property {BlocksDominancePattern} tiger
+ * @property {BlocksDominancePattern} onem1x
  * @property {BlocksDominancePattern} zulupool
+ * @property {BlocksDominancePattern} wiz
+ * @property {BlocksDominancePattern} wk057
+ * @property {BlocksDominancePattern} futurebitapollosolo
+ * @property {BlocksDominancePattern} carbonnegative
+ * @property {BlocksDominancePattern} portlandhodl
+ * @property {BlocksDominancePattern} phoenix
+ * @property {BlocksDominancePattern} neopool
+ * @property {BlocksDominancePattern} maxipool
+ * @property {BlocksDominancePattern} bitfufupool
+ * @property {BlocksDominancePattern} gdpool
  * @property {BlocksDominancePattern} miningdutch
- * @property {BlocksDominancePattern} dogegogocom
- * @property {BlocksDominancePattern} longpool
- * @property {BlocksDominancePattern} kryptex
- * @property {BlocksDominancePattern} dxpool
- * @property {BlocksDominancePattern} k1pool
- * @property {BlocksDominancePattern} molepool
- * @property {BlocksDominancePattern} solopoolorg
- * @property {BlocksDominancePattern} prohashing
- * @property {BlocksDominancePattern} hashhut
- * @property {BlocksDominancePattern} happychina
- * @property {BlocksDominancePattern} himpool
- * @property {BlocksDominancePattern} p2pspbxyz
- * @property {BlocksDominancePattern} hyperdonkey
- * @property {BlocksDominancePattern} zergpool
+ * @property {BlocksDominancePattern} publicpool
+ * @property {BlocksDominancePattern} miningsquared
+ * @property {BlocksDominancePattern} innopolistech
+ * @property {BlocksDominancePattern} btclab
+ * @property {BlocksDominancePattern} parasite
+ * @property {BlocksDominancePattern} redrockpool
+ * @property {BlocksDominancePattern} est3lar
+ * @property {BlocksDominancePattern} braiinssolo
+ * @property {BlocksDominancePattern} solopool
+ * @property {BlocksDominancePattern} noderunners
+ * @property {BlocksDominancePattern} dmnd
  */
 
 /**
@@ -6924,12 +7811,11 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Supply
  * @property {SeriesPattern18<SupplyState>} state
  * @property {BtcCentsSatsUsdPattern} circulating
- * @property {BtcCentsSatsUsdPattern} transparent
  * @property {BlockCumulativePattern} burned
- * @property {BpsPercentRatioPattern} inflationRate
+ * @property {PercentPpmRatioPattern} inflationRate
  * @property {SeriesTree_Supply_Velocity} velocity
  * @property {CentsDeltaUsdPattern} marketCap
- * @property {_1m1w1y24hPattern<BasisPointsSigned32>} marketMinusRealizedCapGrowthRate
+ * @property {_1m1w1y24hPattern<PartsPerMillionSigned64>} marketMinusRealizedCapGrowthRate
  * @property {BtcCentsSatsUsdPattern} hodledOrLost
  */
 
@@ -6978,8 +7864,7 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Outputs
  * @property {BaseDeltaPattern} unspentCount
- * @property {AverageBlockCumulativeSumPattern2} spentCount
- * @property {SeriesPattern1<StoredF32>} spendingRate
+ * @property {AverageBlockCumulativeSumPattern<StoredU64>} spentCount
  */
 
 /**
@@ -6995,7 +7880,7 @@ function createTransferPattern(client, acc) {
  * @property {CentsDeltaToUsdPattern} cap
  * @property {BlockCumulativeSumPattern} profit
  * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
  * @property {SeriesTree_Cohorts_Utxo_All_Realized_Sopr} sopr
@@ -7004,102 +7889,6 @@ function createTransferPattern(client, acc) {
  * @property {BlockCumulativeSumPattern} peakRegret
  * @property {PricePattern} capitalized
  * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price
- * @property {SeriesPattern1<Dollars>} usd
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev} stdDev
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_All} all
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_4y} _4y
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_2y} _2y
- * @property {SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_1y} _1y
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_All
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_4y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_2y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Realized_Price_StdDev_1y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
  */
 
 /**
@@ -7124,12 +7913,12 @@ function createTransferPattern(client, acc) {
  * @property {CentsSatsUsdPattern} max
  * @property {Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern} perCoin
  * @property {Pct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern} perDollar
- * @property {BpsPercentRatioPattern2} supplyDensity
+ * @property {PercentPpmRatioPattern2} supplyDensity
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Unrealized
- * @property {BpsRatioPattern} nupl
+ * @property {PpmRatioPattern} nupl
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_Profit} profit
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_Loss} loss
  * @property {SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl} netPnl
@@ -7144,8 +7933,8 @@ function createTransferPattern(client, acc) {
  * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Unrealized_Profit
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
- * @property {BpsPercentRatioPattern2} toMcap
- * @property {BpsPercentRatioPattern2} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern2} toMcap
+ * @property {PercentPpmRatioPattern2} toOwnGrossPnl
  */
 
 /**
@@ -7153,15 +7942,15 @@ function createTransferPattern(client, acc) {
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<Cents>} cents
  * @property {SeriesPattern1<Dollars>} negative
- * @property {BpsPercentRatioPattern2} toMcap
- * @property {BpsPercentRatioPattern2} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern2} toMcap
+ * @property {PercentPpmRatioPattern2} toOwnGrossPnl
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_All_Unrealized_NetPnl
  * @property {SeriesPattern1<Dollars>} usd
  * @property {SeriesPattern1<CentsSigned>} cents
- * @property {BpsPercentRatioPattern} toOwnGrossPnl
+ * @property {PercentPpmRatioPattern3} toOwnGrossPnl
  */
 
 /**
@@ -7174,130 +7963,18 @@ function createTransferPattern(client, acc) {
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth
  * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {SpendingSpentUnspentPattern} outputs
+ * @property {SpentUnspentPattern} outputs
  * @property {CoindaysCoinyearsDormancyTransferPattern} activity
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized} realized
+ * @property {CapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern} realized
  * @property {InMaxMinPerSupplyPattern} costBasis
  * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
  * @property {InPattern} investedCapital
  */
 
 /**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized
- * @property {CentsDeltaToUsdPattern} cap
- * @property {BlockCumulativeSumPattern} profit
- * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price} price
- * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {AdjustedRatioValuePattern} sopr
- * @property {BlockCumulativeSumPattern} grossPnl
- * @property {_1m1w1y24hPattern8} sellSideRiskRatio
- * @property {BlockCumulativeSumPattern} peakRegret
- * @property {PricePattern} capitalized
- * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price
- * @property {SeriesPattern1<Dollars>} usd
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev} stdDev
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_All} all
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_4y} _4y
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_2y} _2y
- * @property {SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_1y} _1y
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_All
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_4y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_2y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Sth_Realized_Price_StdDev_1y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth
  * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {SpendingSpentUnspentPattern} outputs
+ * @property {SpentUnspentPattern} outputs
  * @property {CoindaysCoinyearsDormancyTransferPattern} activity
  * @property {SeriesTree_Cohorts_Utxo_Lth_Realized} realized
  * @property {InMaxMinPerSupplyPattern} costBasis
@@ -7310,10 +7987,10 @@ function createTransferPattern(client, acc) {
  * @property {CentsDeltaToUsdPattern} cap
  * @property {BlockCumulativeSumPattern} profit
  * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price} price
+ * @property {CentsPpmRatioSatsUsdPattern} price
  * @property {SeriesPattern1<StoredF32>} mvrv
  * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {RatioValuePattern2} sopr
+ * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr} sopr
  * @property {BlockCumulativeSumPattern} grossPnl
  * @property {_1m1w1y24hPattern8} sellSideRiskRatio
  * @property {BlockCumulativeSumPattern} peakRegret
@@ -7322,99 +7999,9 @@ function createTransferPattern(client, acc) {
  */
 
 /**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price
- * @property {SeriesPattern1<Dollars>} usd
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev} stdDev
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_All} all
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_4y} _4y
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_2y} _2y
- * @property {SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_1y} _1y
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_All
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_4y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_2y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Price_StdDev_1y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
+ * @typedef {Object} SeriesTree_Cohorts_Utxo_Lth_Realized_Sopr
+ * @property {AverageBlockCumulativeSumPattern<Cents>} valueDestroyed
+ * @property {_1m1w1y24hPattern<StoredF64>} ratio
  */
 
 /**
@@ -7428,8 +8015,10 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3mTo4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4mTo5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5mTo6m
- * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6mTo1y
- * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1yTo2y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6mTo9m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9mTo1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1yTo18m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18mTo2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2yTo3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3yTo4y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4yTo5y
@@ -7451,7 +8040,9 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4y
@@ -7474,7 +8065,9 @@ function createTransferPattern(client, acc) {
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _5m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _6m
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _9m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _1y
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _18m
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _2y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _3y
  * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} _4y
@@ -7519,254 +8112,8 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount} discount
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium} premium
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount
- * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {SpendingSpentUnspentPattern} outputs
- * @property {CoindaysCoinyearsDormancyTransferPattern} activity
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized} realized
- * @property {InMaxMinPerSupplyPattern} costBasis
- * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
- * @property {InPattern} investedCapital
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized
- * @property {CentsDeltaToUsdPattern} cap
- * @property {BlockCumulativeSumPattern} profit
- * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price} price
- * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {RatioValuePattern2} sopr
- * @property {BlockCumulativeSumPattern} grossPnl
- * @property {_1m1w1y24hPattern8} sellSideRiskRatio
- * @property {BlockCumulativeSumPattern} peakRegret
- * @property {PricePattern} capitalized
- * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price
- * @property {SeriesPattern1<Dollars>} usd
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev} stdDev
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_All} all
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_4y} _4y
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_2y} _2y
- * @property {SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_1y} _1y
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_All
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_4y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_2y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Discount_Realized_Price_StdDev_1y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium
- * @property {DeltaDominanceHalfInTotalPattern2} supply
- * @property {SpendingSpentUnspentPattern} outputs
- * @property {CoindaysCoinyearsDormancyTransferPattern} activity
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized} realized
- * @property {InMaxMinPerSupplyPattern} costBasis
- * @property {CapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2} unrealized
- * @property {InPattern} investedCapital
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized
- * @property {CentsDeltaToUsdPattern} cap
- * @property {BlockCumulativeSumPattern} profit
- * @property {BlockCumulativeNegativeSumPattern} loss
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price} price
- * @property {SeriesPattern1<StoredF32>} mvrv
- * @property {BlockChangeCumulativeDeltaSumPattern} netPnl
- * @property {RatioValuePattern2} sopr
- * @property {BlockCumulativeSumPattern} grossPnl
- * @property {_1m1w1y24hPattern8} sellSideRiskRatio
- * @property {BlockCumulativeSumPattern} peakRegret
- * @property {PricePattern} capitalized
- * @property {_1m1w1y24hPattern<StoredF64>} profitToLossRatio
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price
- * @property {SeriesPattern1<Dollars>} usd
- * @property {SeriesPattern1<Cents>} cents
- * @property {SeriesPattern1<SatsFract>} sats
- * @property {SeriesPattern1<BasisPoints32>} bps
- * @property {SeriesPattern1<StoredF32>} ratio
- * @property {Pct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern} percentiles
- * @property {_1m1w1y2y4yAllPattern} sma
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev} stdDev
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_All} all
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_4y} _4y
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_2y} _2y
- * @property {SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_1y} _1y
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_All
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_4y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_2y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
- */
-
-/**
- * @typedef {Object} SeriesTree_Cohorts_Utxo_Entry_Premium_Realized_Price_StdDev_1y
- * @property {SeriesPattern1<StoredF32>} sd
- * @property {SeriesPattern1<StoredF32>} zscore
- * @property {CentsSatsUsdPattern} _0sd
- * @property {PriceRatioPattern} p05sd
- * @property {PriceRatioPattern} p1sd
- * @property {PriceRatioPattern} p15sd
- * @property {PriceRatioPattern} p2sd
- * @property {PriceRatioPattern} p25sd
- * @property {PriceRatioPattern} p3sd
- * @property {PriceRatioPattern} m05sd
- * @property {PriceRatioPattern} m1sd
- * @property {PriceRatioPattern} m15sd
- * @property {PriceRatioPattern} m2sd
- * @property {PriceRatioPattern} m25sd
- * @property {PriceRatioPattern} m3sd
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} discount
+ * @property {ActivityOutputsRealizedSupplyUnrealizedPattern} premium
  */
 
 /**
@@ -7906,27 +8253,29 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Utxo_Matured
- * @property {AverageBlockCumulativeSumPattern3} under1h
- * @property {AverageBlockCumulativeSumPattern3} _1hTo1d
- * @property {AverageBlockCumulativeSumPattern3} _1dTo1w
- * @property {AverageBlockCumulativeSumPattern3} _1wTo1m
- * @property {AverageBlockCumulativeSumPattern3} _1mTo2m
- * @property {AverageBlockCumulativeSumPattern3} _2mTo3m
- * @property {AverageBlockCumulativeSumPattern3} _3mTo4m
- * @property {AverageBlockCumulativeSumPattern3} _4mTo5m
- * @property {AverageBlockCumulativeSumPattern3} _5mTo6m
- * @property {AverageBlockCumulativeSumPattern3} _6mTo1y
- * @property {AverageBlockCumulativeSumPattern3} _1yTo2y
- * @property {AverageBlockCumulativeSumPattern3} _2yTo3y
- * @property {AverageBlockCumulativeSumPattern3} _3yTo4y
- * @property {AverageBlockCumulativeSumPattern3} _4yTo5y
- * @property {AverageBlockCumulativeSumPattern3} _5yTo6y
- * @property {AverageBlockCumulativeSumPattern3} _6yTo7y
- * @property {AverageBlockCumulativeSumPattern3} _7yTo8y
- * @property {AverageBlockCumulativeSumPattern3} _8yTo10y
- * @property {AverageBlockCumulativeSumPattern3} _10yTo12y
- * @property {AverageBlockCumulativeSumPattern3} _12yTo15y
- * @property {AverageBlockCumulativeSumPattern3} over15y
+ * @property {AverageBlockCumulativeSumPattern2} under1h
+ * @property {AverageBlockCumulativeSumPattern2} _1hTo1d
+ * @property {AverageBlockCumulativeSumPattern2} _1dTo1w
+ * @property {AverageBlockCumulativeSumPattern2} _1wTo1m
+ * @property {AverageBlockCumulativeSumPattern2} _1mTo2m
+ * @property {AverageBlockCumulativeSumPattern2} _2mTo3m
+ * @property {AverageBlockCumulativeSumPattern2} _3mTo4m
+ * @property {AverageBlockCumulativeSumPattern2} _4mTo5m
+ * @property {AverageBlockCumulativeSumPattern2} _5mTo6m
+ * @property {AverageBlockCumulativeSumPattern2} _6mTo9m
+ * @property {AverageBlockCumulativeSumPattern2} _9mTo1y
+ * @property {AverageBlockCumulativeSumPattern2} _1yTo18m
+ * @property {AverageBlockCumulativeSumPattern2} _18mTo2y
+ * @property {AverageBlockCumulativeSumPattern2} _2yTo3y
+ * @property {AverageBlockCumulativeSumPattern2} _3yTo4y
+ * @property {AverageBlockCumulativeSumPattern2} _4yTo5y
+ * @property {AverageBlockCumulativeSumPattern2} _5yTo6y
+ * @property {AverageBlockCumulativeSumPattern2} _6yTo7y
+ * @property {AverageBlockCumulativeSumPattern2} _7yTo8y
+ * @property {AverageBlockCumulativeSumPattern2} _8yTo10y
+ * @property {AverageBlockCumulativeSumPattern2} _10yTo12y
+ * @property {AverageBlockCumulativeSumPattern2} _12yTo15y
+ * @property {AverageBlockCumulativeSumPattern2} over15y
  */
 
 /**
@@ -7938,55 +8287,65 @@ function createTransferPattern(client, acc) {
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_OverAmount
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1sat
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1sat
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtc
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_AmountRange
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _0sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1satTo10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10satsTo100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100satsTo1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSatsTo10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSatsTo100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSatsTo1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSatsTo10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSatsTo1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btcTo10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btcTo100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btcTo1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtcTo10kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtcTo100kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} over100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _0sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1satTo10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10satsTo100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100satsTo1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSatsTo10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSatsTo100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSatsTo1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSatsTo10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSatsTo1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btcTo10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btcTo100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btcTo1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtcTo10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtcTo100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} over100kBtc
  */
 
 /**
  * @typedef {Object} SeriesTree_Cohorts_Addr_UnderAmount
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100sats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10mSats
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100btc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _1kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _10kBtc
- * @property {ActivityAddrOutputsRealizedSupplyUnrealizedPattern} _100kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100sats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10mSats
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100btc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _1kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _10kBtc
+ * @property {ActivityAddrOutputsRealizedSupplyPattern} _100kBtc
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cointime
+ * @property {SeriesTree_Cointime_Activity} activity
+ */
+
+/**
+ * @typedef {Object} SeriesTree_Cointime_Activity
+ * @property {AverageBlockCumulativeSumPattern<StoredF64>} coinblocksDestroyed
  */
 
 /**
@@ -7994,7 +8353,7 @@ function createTransferPattern(client, acc) {
  * @extends BrkClientBase
  */
 class BrkClient extends BrkClientBase {
-  VERSION = "v0.3.6";
+  VERSION = "v0.11.2";
 
   INDEXES = /** @type {const} */ ([
     "minute10",
@@ -8033,39 +8392,171 @@ class BrkClient extends BrkClientBase {
   ]);
 
   POOL_ID_TO_POOL_NAME = /** @type {const} */ ({
+    "aaopool": "AAO Pool",
     "antpool": "AntPool",
+    "arkpool": "ArkPool",
+    "asicminer": "ASICMiner",
+    "axbt": "A-XBT",
+    "batpool": "BATPOOL",
+    "bcmonster": "BCMonster",
+    "bcpoolio": "bcpool.io",
     "binancepool": "Binance Pool",
+    "bitalo": "Bitalo",
+    "bitclub": "BitClub",
+    "bitcoinaffiliatenetwork": "Bitcoin Affiliate Network",
+    "bitcoincom": "Bitcoin.com",
+    "bitcoinindia": "Bitcoin India",
+    "bitcoinindiapool": "BitcoinIndia",
+    "bitcoinrussia": "BitcoinRussia",
+    "bitcoinukraine": "Bitcoin-Ukraine",
+    "bitfarms": "Bitfarms",
+    "bitfufupool": "BitFuFuPool",
+    "bitfury": "BitFury",
+    "bitminter": "BitMinter",
+    "bitparking": "Bitparking",
+    "bitsolo": "Bitsolo",
+    "bixin": "Bixin",
+    "blockfills": "BlockFills",
+    "braiinspool": "Braiins Pool",
+    "braiinssolo": "Braiins Solo",
+    "bravomining": "Bravo Mining",
+    "btcc": "BTCC",
     "btccom": "BTC.com",
-    "dogegogocom": "dogegogo.com",
-    "dxpool": "DxPool",
+    "btcdig": "BTCDig",
+    "btcguild": "BTC Guild",
+    "btclab": "BTCLab",
+    "btcmp": "BTCMP",
+    "btcnuggets": "BTC Nuggets",
+    "btcpoolparty": "BTC Pool Party",
+    "btcserv": "BTCServ",
+    "btctop": "BTC.TOP",
+    "btpool": "BTPOOL",
+    "bwpool": "BWPool",
+    "bytepool": "BytePool",
+    "canoe": "CANOE",
+    "canoepool": "CanoePool",
+    "carbonnegative": "Carbon Negative",
+    "ckpool": "CKPool",
+    "cloudhashing": "CloudHashing",
+    "coinlab": "CoinLab",
+    "cointerra": "Cointerra",
+    "connectbtc": "ConnectBTC",
+    "dcex": "DCEX",
+    "dcexploration": "DCExploration",
+    "digitalbtc": "digitalBTC",
+    "digitalxmintsy": "digitalX Mintsy",
+    "dmnd": "DMND",
+    "dpool": "DPOOL",
+    "eclipsemc": "EclipseMC",
+    "eightbaochi": "8baochi",
+    "ekanembtc": "EkanemBTC",
+    "eligius": "Eligius",
     "emcdpool": "EMCDPool",
+    "entrustcharitypool": "Entrust Charity Pool",
+    "eobot": "Eobot",
+    "est3lar": "Est3lar",
+    "exxbw": "EXX&BW",
     "f2pool": "F2Pool",
-    "happychina": "happychina",
-    "hash700": "Hash700",
-    "hashhut": "hash-hut",
-    "hashspace": "Hash Space",
-    "himpool": "HimPool",
-    "hyperdonkey": "HyperDonkey",
-    "k1pool": "K1Pool",
-    "kryptex": "Kryptex",
-    "kupool": "Kupool",
-    "litecoinpoolorg": "Litecoinpool.org",
-    "longpool": "LongPool",
-    "lsoftwaredmcc": "LSoftware DMCC",
-    "luxor": "Luxor Labs",
-    "miningdutch": "Mining Dutch",
-    "molepool": "molepool",
+    "fiftyeightcoin": "58COIN",
+    "foundryusa": "Foundry USA",
+    "futurebitapollosolo": "FutureBit Apollo Solo",
+    "gbminers": "GBMiners",
+    "gdpool": "GDPool",
+    "ghashio": "GHash.IO",
+    "givemecoins": "Give Me Coins",
+    "gogreenlight": "GoGreenLight",
+    "haominer": "haominer",
+    "haozhuzhu": "HAOZHUZHU",
+    "hashbx": "HashBX",
+    "hashpool": "HASHPOOL",
+    "helix": "Helix",
+    "hhtt": "HHTT",
+    "hotpool": "HotPool",
+    "hummerpool": "Hummerpool",
+    "huobipool": "Huobi.pool",
+    "innopolistech": "Innopolis Tech",
+    "kanopool": "KanoPool",
+    "kncminer": "KnCMiner",
+    "kucoinpool": "KuCoinPool",
+    "lubiancom": "Lubian.com",
+    "luxor": "Luxor",
+    "marapool": "MARA Pool",
+    "maxbtc": "MaxBTC",
+    "maxipool": "MaxiPool",
+    "megabigpower": "MegaBigPower",
+    "minerium": "Minerium",
+    "miningcity": "MiningCity",
+    "miningdutch": "Mining-Dutch",
+    "miningkings": "MiningKings",
+    "miningsquared": "Mining Squared",
+    "mmpool": "mmpool",
+    "mtred": "Mt Red",
+    "multicoinco": "MultiCoin.co",
+    "multipool": "Multipool",
+    "mybtccoinpool": "myBTCcoin Pool",
+    "neopool": "Neopool",
+    "nexious": "Nexious",
     "nicehash": "NiceHash",
-    "p2pspbxyz": "p2p-spb.xyz",
+    "nmcbit": "NMCbit",
+    "noderunners": "Noderunners",
+    "novablock": "NovaBlock",
+    "ocean": "OCEAN",
+    "okexpool": "OKExPool",
+    "okkong": "OKKONG",
+    "okminer": "OKMINER",
+    "okpooltop": "okpool.top",
+    "onehash": "1Hash",
+    "onem1x": "1M1X",
+    "onethash": "1THash",
+    "ozcoin": "OzCoin",
+    "parasite": "Parasite",
+    "patels": "Patels",
+    "pegapool": "PEGA Pool",
+    "phashio": "PHash.IO",
+    "phoenix": "Phoenix",
+    "polmine": "Polmine",
+    "pool175btc": "175btc",
+    "pool50btc": "50BTC",
     "poolin": "Poolin",
-    "prohashing": "Prohashing",
+    "portlandhodl": "Portland.HODL",
+    "publicpool": "Public Pool",
+    "purebtccom": "PureBTC.COM",
+    "rawpool": "Rawpool",
+    "redrockpool": "RedRock Pool",
+    "rigpool": "RigPool",
     "sbicrypto": "SBI Crypto",
+    "secpool": "SECPOOL",
+    "secretsuperstar": "SecretSuperstar",
+    "sevenpool": "7pool",
+    "shawnp0wers": "shawnp0wers",
     "sigmapoolcom": "Sigmapool.com",
-    "solopoolorg": "solopool.org",
-    "spiderpool": "Spiderpool",
+    "simplecoinus": "simplecoin.us",
+    "solock": "Solo CK",
+    "solopool": "SoloPool.com",
+    "spiderpool": "SpiderPool",
+    "stminingcorp": "ST Mining Corp",
+    "tangpool": "Tangpool",
+    "tatmaspool": "TATMAS Pool",
+    "tbdice": "TBDice",
+    "telco214": "Telco 214",
+    "terrapool": "Terra Pool",
+    "tiger": "tiger",
+    "tigerpoolnet": "tigerpool.net",
+    "titan": "Titan",
+    "transactioncoinmining": "transactioncoinmining",
+    "trickysbtcpool": "Tricky's BTC Pool",
+    "triplemining": "TripleMining",
+    "twentyoneinc": "21 Inc.",
+    "ultimuspool": "ULTIMUSPOOL",
     "unknown": "Unknown",
+    "unomp": "UNOMP",
     "viabtc": "ViaBTC",
-    "zergpool": "zergpool",
+    "waterhole": "Waterhole",
+    "wayicn": "WAYI.CN",
+    "whitepool": "WhitePool",
+    "wiz": "wiz",
+    "wk057": "wk057",
+    "yourbtcnet": "Yourbtc.net",
     "zulupool": "Zulupool"
   });
 
@@ -8320,15 +8811,25 @@ class BrkClient extends BrkClientBase {
       "short": "5m-6m",
       "long": "5 to 6 Months Old"
     },
-    "_6mTo1y": {
-      "id": "6m_to_1y_old",
-      "short": "6m-1y",
-      "long": "6 Months to 1 Year Old"
+    "_6mTo9m": {
+      "id": "6m_to_9m_old",
+      "short": "6m-9m",
+      "long": "6 to 9 Months Old"
     },
-    "_1yTo2y": {
-      "id": "1y_to_2y_old",
-      "short": "1y-2y",
-      "long": "1 to 2 Years Old"
+    "_9mTo1y": {
+      "id": "9m_to_1y_old",
+      "short": "9m-1y",
+      "long": "9 Months to 1 Year Old"
+    },
+    "_1yTo18m": {
+      "id": "1y_to_18m_old",
+      "short": "1y-18m",
+      "long": "1 Year to 18 Months Old"
+    },
+    "_18mTo2y": {
+      "id": "18m_to_2y_old",
+      "short": "18m-2y",
+      "long": "18 Months to 2 Years Old"
     },
     "_2yTo3y": {
       "id": "2y_to_3y_old",
@@ -8418,10 +8919,20 @@ class BrkClient extends BrkClientBase {
       "short": "<6m",
       "long": "Under 6 Months Old"
     },
+    "_9m": {
+      "id": "under_9m_old",
+      "short": "<9m",
+      "long": "Under 9 Months Old"
+    },
     "_1y": {
       "id": "under_1y_old",
       "short": "<1y",
       "long": "Under 1 Year Old"
+    },
+    "_18m": {
+      "id": "under_18m_old",
+      "short": "<18m",
+      "long": "Under 18 Months Old"
     },
     "_2y": {
       "id": "under_2y_old",
@@ -8516,10 +9027,20 @@ class BrkClient extends BrkClientBase {
       "short": "6m+",
       "long": "Over 6 Months Old"
     },
+    "_9m": {
+      "id": "over_9m_old",
+      "short": "9m+",
+      "long": "Over 9 Months Old"
+    },
     "_1y": {
       "id": "over_1y_old",
       "short": "1y+",
       "long": "Over 1 Year Old"
+    },
+    "_18m": {
+      "id": "over_18m_old",
+      "short": "18m+",
+      "long": "Over 18 Months Old"
     },
     "_2y": {
       "id": "over_2y_old",
@@ -8571,214 +9092,214 @@ class BrkClient extends BrkClientBase {
   AMOUNT_RANGE_NAMES = /** @type {const} */ ({
     "_0sats": {
       "id": "0sats",
-      "short": "0 litoshis",
-      "long": "0 Litoshis"
+      "short": "0 sats",
+      "long": "0 Sats"
     },
     "_1satTo10sats": {
       "id": "1sat_to_10sats",
-      "short": "1-10 lits",
-      "long": "1-10 Lits"
+      "short": "1-10 sats",
+      "long": "1-10 Sats"
     },
     "_10satsTo100sats": {
       "id": "10sats_to_100sats",
-      "short": "10-100 lits",
-      "long": "10-100 Lits"
+      "short": "10-100 sats",
+      "long": "10-100 Sats"
     },
     "_100satsTo1kSats": {
       "id": "100sats_to_1k_sats",
-      "short": "100-1k lits",
-      "long": "100-1K Lits"
+      "short": "100-1k sats",
+      "long": "100-1K Sats"
     },
     "_1kSatsTo10kSats": {
       "id": "1k_sats_to_10k_sats",
-      "short": "1k-10k lits",
-      "long": "1K-10K Lits"
+      "short": "1k-10k sats",
+      "long": "1K-10K Sats"
     },
     "_10kSatsTo100kSats": {
       "id": "10k_sats_to_100k_sats",
-      "short": "10k-100k lits",
-      "long": "10K-100K Lits"
+      "short": "10k-100k sats",
+      "long": "10K-100K Sats"
     },
     "_100kSatsTo1mSats": {
       "id": "100k_sats_to_1m_sats",
-      "short": "100k-1M lits",
-      "long": "100K-1M Lits"
+      "short": "100k-1M sats",
+      "long": "100K-1M Sats"
     },
     "_1mSatsTo10mSats": {
       "id": "1m_sats_to_10m_sats",
-      "short": "1M-10M lits",
-      "long": "1M-10M Lits"
+      "short": "1M-10M sats",
+      "long": "1M-10M Sats"
     },
     "_10mSatsTo1btc": {
       "id": "10m_sats_to_1btc",
-      "short": "0.1-1 LTC",
-      "long": "0.1-1 LTC"
+      "short": "0.1-1 BTC",
+      "long": "0.1-1 BTC"
     },
     "_1btcTo10btc": {
       "id": "1btc_to_10btc",
-      "short": "1-10 LTC",
-      "long": "1-10 LTC"
+      "short": "1-10 BTC",
+      "long": "1-10 BTC"
     },
     "_10btcTo100btc": {
       "id": "10btc_to_100btc",
-      "short": "10-100 LTC",
-      "long": "10-100 LTC"
+      "short": "10-100 BTC",
+      "long": "10-100 BTC"
     },
     "_100btcTo1kBtc": {
       "id": "100btc_to_1k_btc",
-      "short": "100-1k LTC",
-      "long": "100-1K LTC"
+      "short": "100-1k BTC",
+      "long": "100-1K BTC"
     },
     "_1kBtcTo10kBtc": {
       "id": "1k_btc_to_10k_btc",
-      "short": "1k-10k LTC",
-      "long": "1K-10K LTC"
+      "short": "1k-10k BTC",
+      "long": "1K-10K BTC"
     },
     "_10kBtcTo100kBtc": {
       "id": "10k_btc_to_100k_btc",
-      "short": "10k-100k LTC",
-      "long": "10K-100K LTC"
+      "short": "10k-100k BTC",
+      "long": "10K-100K BTC"
     },
     "over100kBtc": {
       "id": "over_100k_btc",
-      "short": "100k+ LTC",
-      "long": "100K+ LTC"
+      "short": "100k+ BTC",
+      "long": "100K+ BTC"
     }
   });
 
   OVER_AMOUNT_NAMES = /** @type {const} */ ({
     "_1sat": {
       "id": "over_1sat",
-      "short": "1+ lits",
-      "long": "Over 1 Lit"
+      "short": "1+ sats",
+      "long": "Over 1 Sat"
     },
     "_10sats": {
       "id": "over_10sats",
-      "short": "10+ lits",
-      "long": "Over 10 Lits"
+      "short": "10+ sats",
+      "long": "Over 10 Sats"
     },
     "_100sats": {
       "id": "over_100sats",
-      "short": "100+ lits",
-      "long": "Over 100 Lits"
+      "short": "100+ sats",
+      "long": "Over 100 Sats"
     },
     "_1kSats": {
       "id": "over_1k_sats",
-      "short": "1k+ lits",
-      "long": "Over 1K Lits"
+      "short": "1k+ sats",
+      "long": "Over 1K Sats"
     },
     "_10kSats": {
       "id": "over_10k_sats",
-      "short": "10k+ lits",
-      "long": "Over 10K Lits"
+      "short": "10k+ sats",
+      "long": "Over 10K Sats"
     },
     "_100kSats": {
       "id": "over_100k_sats",
-      "short": "100k+ lits",
-      "long": "Over 100K Lits"
+      "short": "100k+ sats",
+      "long": "Over 100K Sats"
     },
     "_1mSats": {
       "id": "over_1m_sats",
-      "short": "1M+ lits",
-      "long": "Over 1M Lits"
+      "short": "1M+ sats",
+      "long": "Over 1M Sats"
     },
     "_10mSats": {
       "id": "over_10m_sats",
-      "short": "0.1+ LTC",
-      "long": "Over 0.1 LTC"
+      "short": "0.1+ BTC",
+      "long": "Over 0.1 BTC"
     },
     "_1btc": {
       "id": "over_1btc",
-      "short": "1+ LTC",
-      "long": "Over 1 LTC"
+      "short": "1+ BTC",
+      "long": "Over 1 BTC"
     },
     "_10btc": {
       "id": "over_10btc",
-      "short": "10+ LTC",
-      "long": "Over 10 LTC"
+      "short": "10+ BTC",
+      "long": "Over 10 BTC"
     },
     "_100btc": {
       "id": "over_100btc",
-      "short": "100+ LTC",
-      "long": "Over 100 LTC"
+      "short": "100+ BTC",
+      "long": "Over 100 BTC"
     },
     "_1kBtc": {
       "id": "over_1k_btc",
-      "short": "1k+ LTC",
-      "long": "Over 1K LTC"
+      "short": "1k+ BTC",
+      "long": "Over 1K BTC"
     },
     "_10kBtc": {
       "id": "over_10k_btc",
-      "short": "10k+ LTC",
-      "long": "Over 10K LTC"
+      "short": "10k+ BTC",
+      "long": "Over 10K BTC"
     }
   });
 
   UNDER_AMOUNT_NAMES = /** @type {const} */ ({
     "_10sats": {
       "id": "under_10sats",
-      "short": "<10 lits",
-      "long": "Under 10 Lits"
+      "short": "<10 sats",
+      "long": "Under 10 Sats"
     },
     "_100sats": {
       "id": "under_100sats",
-      "short": "<100 lits",
-      "long": "Under 100 Lits"
+      "short": "<100 sats",
+      "long": "Under 100 Sats"
     },
     "_1kSats": {
       "id": "under_1k_sats",
-      "short": "<1k lits",
-      "long": "Under 1K Lits"
+      "short": "<1k sats",
+      "long": "Under 1K Sats"
     },
     "_10kSats": {
       "id": "under_10k_sats",
-      "short": "<10k lits",
-      "long": "Under 10K Lits"
+      "short": "<10k sats",
+      "long": "Under 10K Sats"
     },
     "_100kSats": {
       "id": "under_100k_sats",
-      "short": "<100k lits",
-      "long": "Under 100K Lits"
+      "short": "<100k sats",
+      "long": "Under 100K Sats"
     },
     "_1mSats": {
       "id": "under_1m_sats",
-      "short": "<1M lits",
-      "long": "Under 1M Lits"
+      "short": "<1M sats",
+      "long": "Under 1M Sats"
     },
     "_10mSats": {
       "id": "under_10m_sats",
-      "short": "<0.1 LTC",
-      "long": "Under 0.1 LTC"
+      "short": "<0.1 BTC",
+      "long": "Under 0.1 BTC"
     },
     "_1btc": {
       "id": "under_1btc",
-      "short": "<1 LTC",
-      "long": "Under 1 LTC"
+      "short": "<1 BTC",
+      "long": "Under 1 BTC"
     },
     "_10btc": {
       "id": "under_10btc",
-      "short": "<10 LTC",
-      "long": "Under 10 LTC"
+      "short": "<10 BTC",
+      "long": "Under 10 BTC"
     },
     "_100btc": {
       "id": "under_100btc",
-      "short": "<100 LTC",
-      "long": "Under 100 LTC"
+      "short": "<100 BTC",
+      "long": "Under 100 BTC"
     },
     "_1kBtc": {
       "id": "under_1k_btc",
-      "short": "<1k LTC",
-      "long": "Under 1K LTC"
+      "short": "<1k BTC",
+      "long": "Under 1K BTC"
     },
     "_10kBtc": {
       "id": "under_10k_btc",
-      "short": "<10k LTC",
-      "long": "Under 10K LTC"
+      "short": "<10k BTC",
+      "long": "Under 10K BTC"
     },
     "_100kBtc": {
       "id": "under_100k_btc",
-      "short": "<100k LTC",
-      "long": "Under 100K LTC"
+      "short": "<100k BTC",
+      "long": "Under 100K BTC"
     }
   });
 
@@ -9097,7 +9618,7 @@ class BrkClient extends BrkClientBase {
         difficulty: {
           value: createSeriesPattern1(this, 'difficulty'),
           hashrate: createSeriesPattern1(this, 'difficulty_hashrate'),
-          adjustment: createBpsPercentRatioPattern(this, 'difficulty_adjustment'),
+          adjustment: createPercentPpmRatioPattern3(this, 'difficulty_adjustment'),
           epoch: createSeriesPattern1(this, 'difficulty_epoch'),
           blocksToRetarget: createSeriesPattern1(this, 'blocks_to_retarget'),
           daysToRetarget: createSeriesPattern1(this, 'days_to_retarget'),
@@ -9124,7 +9645,7 @@ class BrkClient extends BrkClientBase {
         segwitWeight: createSeriesPattern18(this, 'segwit_weight'),
         count: {
           target: create_1m1w1y24hPattern(this, 'block_count_target'),
-          total: createAverageBlockCumulativeSumPattern2(this, 'block_count'),
+          total: createAverageBlockCumulativeSumPattern(this, 'block_count'),
         },
         lookback: {
           _1h: createSeriesPattern18(this, 'height_1h_ago'),
@@ -9180,7 +9701,7 @@ class BrkClient extends BrkClientBase {
         },
         vbytes: createAverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(this, 'block_vbytes'),
         fullness: {
-          bps: createSeriesPattern18(this, 'block_fullness_bps'),
+          ppm: createSeriesPattern18(this, 'block_fullness_ppm'),
           ratio: createSeriesPattern18(this, 'block_fullness_ratio'),
           percent: createSeriesPattern18(this, 'block_fullness'),
         },
@@ -9196,45 +9717,120 @@ class BrkClient extends BrkClientBase {
           txid: createSeriesPattern19(this, 'txid'),
           txVersion: createSeriesPattern19(this, 'tx_version'),
           rawLocktime: createSeriesPattern19(this, 'raw_locktime'),
-          baseSize: createSeriesPattern19(this, 'base_size'),
+          weight: createSeriesPattern19(this, 'tx_weight'),
           totalSize: createSeriesPattern19(this, 'total_size'),
           totalSigopCost: createSeriesPattern19(this, 'total_sigop_cost'),
           isExplicitlyRbf: createSeriesPattern19(this, 'is_explicitly_rbf'),
-          isHogEx: createSeriesPattern19(this, 'is_hog_ex'),
-          hasMwTx: createSeriesPattern19(this, 'has_mw_tx'),
           firstTxinIndex: createSeriesPattern19(this, 'first_txin_index'),
           firstTxoutIndex: createSeriesPattern19(this, 'first_txout_index'),
+        },
+        features: {
+          count: {
+            v1: createSeriesPattern18(this, 'tx_count_v1'),
+            v2: createSeriesPattern18(this, 'tx_count_v2'),
+            v3: createSeriesPattern18(this, 'tx_count_v3'),
+            otherVersion: createSeriesPattern18(this, 'tx_count_other_version'),
+            explicitlyRbf: createSeriesPattern18(this, 'tx_count_explicitly_rbf'),
+            oneInput: createSeriesPattern18(this, 'tx_count_one_input'),
+            oneOutput: createSeriesPattern18(this, 'tx_count_one_output'),
+            p2pk: createSeriesPattern18(this, 'tx_count_p2pk'),
+            p2ms: createSeriesPattern18(this, 'tx_count_p2ms'),
+            p2pkh: createSeriesPattern18(this, 'tx_count_p2pkh'),
+            p2sh: createSeriesPattern18(this, 'tx_count_p2sh'),
+            p2wpkh: createSeriesPattern18(this, 'tx_count_p2wpkh'),
+            p2wsh: createSeriesPattern18(this, 'tx_count_p2wsh'),
+            p2tr: createSeriesPattern18(this, 'tx_count_p2tr'),
+            p2a: createSeriesPattern18(this, 'tx_count_p2a'),
+            opReturn: createSeriesPattern18(this, 'tx_count_op_return'),
+            empty: createSeriesPattern18(this, 'tx_count_empty'),
+            unknown: createSeriesPattern18(this, 'tx_count_unknown'),
+            fakePubkey: createSeriesPattern18(this, 'tx_count_fake_pubkey'),
+            fakeScripthash: createSeriesPattern18(this, 'tx_count_fake_scripthash'),
+            inscription: createAverageBlockCumulativeSumPattern(this, 'tx_count_inscription'),
+            annex: createAverageBlockCumulativeSumPattern(this, 'tx_count_annex'),
+            sighashAll: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_all'),
+            sighashNone: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_none'),
+            sighashSingle: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_single'),
+            sighashDefault: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_default'),
+            sighashAnyoneCanPay: createAverageBlockCumulativeSumPattern(this, 'tx_count_sighash_anyone_can_pay'),
+            dustOutput: createAverageBlockCumulativeSumPattern(this, 'tx_count_dust_output'),
+          },
+          hasP2pk: createSeriesPattern19(this, 'has_p2pk'),
+          hasP2ms: createSeriesPattern19(this, 'has_p2ms'),
+          hasP2pkh: createSeriesPattern19(this, 'has_p2pkh'),
+          hasP2sh: createSeriesPattern19(this, 'has_p2sh'),
+          hasP2wpkh: createSeriesPattern19(this, 'has_p2wpkh'),
+          hasP2wsh: createSeriesPattern19(this, 'has_p2wsh'),
+          hasP2tr: createSeriesPattern19(this, 'has_p2tr'),
+          hasP2a: createSeriesPattern19(this, 'has_p2a'),
+          hasOpReturn: createSeriesPattern19(this, 'has_op_return'),
+          hasEmpty: createSeriesPattern19(this, 'has_empty'),
+          hasUnknown: createSeriesPattern19(this, 'has_unknown'),
+          hasFakePubkey: createSeriesPattern19(this, 'has_fake_pubkey'),
+          hasFakeScripthash: createSeriesPattern19(this, 'has_fake_scripthash'),
+          hasInscription: createSeriesPattern19(this, 'has_inscription'),
+          hasAnnex: createSeriesPattern19(this, 'has_annex'),
+          hasSighashAll: createSeriesPattern19(this, 'has_sighash_all'),
+          hasSighashNone: createSeriesPattern19(this, 'has_sighash_none'),
+          hasSighashSingle: createSeriesPattern19(this, 'has_sighash_single'),
+          hasSighashDefault: createSeriesPattern19(this, 'has_sighash_default'),
+          hasSighashAnyoneCanPay: createSeriesPattern19(this, 'has_sighash_anyone_can_pay'),
+          hasDustOutput: createSeriesPattern19(this, 'has_dust_output'),
         },
         count: {
           total: createAverageBlockCumulativeMaxMedianMinPct10Pct25Pct75Pct90SumPattern(this, 'tx_count'),
         },
         size: {
-          vsize: create_6bBlockTxPattern(this, 'tx_vsize'),
+          vsize: {
+            txIndex: createSeriesPattern19(this, 'tx_vsize'),
+            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_vsize'),
+            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_vsize_6b'),
+          },
           weight: {
-            txIndex: createSeriesPattern19(this, 'tx_weight'),
-            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_weight'),
-            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern2(this, 'tx_weight_6b'),
+            block: createMaxMedianMinPct10Pct25Pct75Pct90Pattern(this, 'tx_weight'),
+            _6b: createMaxMedianMinPct10Pct25Pct75Pct90Pattern(this, 'tx_weight_6b'),
           },
         },
         fees: {
+          count: {
+            cpfpParent: createAverageBlockCumulativeSumPattern(this, 'cpfp_parent_count'),
+            cpfpChild: createAverageBlockCumulativeSumPattern(this, 'cpfp_child_count'),
+          },
           inputValue: createSeriesPattern19(this, 'input_value'),
-          transferInputValue: createSeriesPattern19(this, 'transfer_input_value'),
           outputValue: createSeriesPattern19(this, 'output_value'),
           fee: create_6bBlockTxPattern(this, 'fee'),
           feeRate: createSeriesPattern19(this, 'fee_rate'),
           effectiveFeeRate: create_6bBlockTxPattern(this, 'effective_fee_rate'),
+          isCpfpParent: createSeriesPattern19(this, 'is_cpfp_parent'),
+          isCpfpChild: createSeriesPattern19(this, 'is_cpfp_child'),
         },
-        hogex: {
-          txCount: createAverageBlockCumulativeSumPattern2(this, 'hogex_tx_count'),
-          rawInputVolume: createAverageBlockCumulativeSumPattern3(this, 'raw_input_volume'),
+        patterns: {
+          count: {
+            coinjoin: createAverageBlockCumulativeSumPattern(this, 'coinjoin_count'),
+            consolidation: createAverageBlockCumulativeSumPattern(this, 'consolidation_count'),
+            batchPayout: createAverageBlockCumulativeSumPattern(this, 'batch_payout_count'),
+          },
+          isCoinjoin: createSeriesPattern19(this, 'is_coinjoin'),
+          isConsolidation: createSeriesPattern19(this, 'is_consolidation'),
+          isBatchPayout: createSeriesPattern19(this, 'is_batch_payout'),
+        },
+        policy: {
+          count: {
+            nonstandard: createAverageBlockCumulativeSumPattern(this, 'nonstandard_count'),
+          },
+          isNonstandard: createSeriesPattern19(this, 'is_nonstandard'),
+        },
+        sigops: {
+          total: createAverageBlockCumulativeSumPattern(this, 'total_sigop_cost'),
         },
         versions: {
           v1: createAverageBlockCumulativeSumPattern(this, 'tx_v1'),
           v2: createAverageBlockCumulativeSumPattern(this, 'tx_v2'),
           v3: createAverageBlockCumulativeSumPattern(this, 'tx_v3'),
+          other: createAverageBlockCumulativeSumPattern(this, 'tx_other_version'),
         },
         volume: {
-          transferVolume: createAverageBlockCumulativeSumPattern3(this, 'transfer_volume_bis'),
+          transferVolume: createAverageBlockCumulativeSumPattern2(this, 'transfer_volume_bis'),
           txPerSec: create_1m1w1y24hPattern(this, 'tx_per_sec'),
         },
       },
@@ -9242,14 +9838,12 @@ class BrkClient extends BrkClientBase {
         raw: {
           firstTxinIndex: createSeriesPattern18(this, 'first_txin_index'),
           outpoint: createSeriesPattern20(this, 'outpoint'),
+          txoutIndex: createSeriesPattern20(this, 'txout_index'),
           txIndex: createSeriesPattern20(this, 'tx_index'),
           outputType: createSeriesPattern20(this, 'output_type'),
           typeIndex: createSeriesPattern20(this, 'type_index'),
         },
-        spent: {
-          txoutIndex: createSeriesPattern20(this, 'txout_index'),
-          value: createSeriesPattern20(this, 'value'),
-        },
+        value: createSeriesPattern20(this, 'value'),
         count: createCumulativeRollingSumPattern(this, 'input_count'),
         perSec: create_1m1w1y24hPattern(this, 'inputs_per_sec'),
         byType: {
@@ -9268,17 +9862,17 @@ class BrkClient extends BrkClientBase {
             empty: createAverageBlockCumulativeSumPattern(this, 'empty_outputs_prevout_count'),
           },
           inputShare: {
-            p2pk65: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pk65_prevout_share'),
-            p2pk33: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pk33_prevout_share'),
-            p2pkh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pkh_prevout_share'),
-            p2ms: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2ms_prevout_share'),
-            p2sh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2sh_prevout_share'),
-            p2wpkh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2wpkh_prevout_share'),
-            p2wsh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2wsh_prevout_share'),
-            p2tr: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2tr_prevout_share'),
-            p2a: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2a_prevout_share'),
-            unknown: create_1m1w1y24hBpsPercentRatioPattern(this, 'unknown_outputs_prevout_share'),
-            empty: create_1m1w1y24hBpsPercentRatioPattern(this, 'empty_outputs_prevout_share'),
+            p2pk65: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pk65_prevout_share'),
+            p2pk33: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pk33_prevout_share'),
+            p2pkh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pkh_prevout_share'),
+            p2ms: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2ms_prevout_share'),
+            p2sh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2sh_prevout_share'),
+            p2wpkh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2wpkh_prevout_share'),
+            p2wsh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2wsh_prevout_share'),
+            p2tr: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2tr_prevout_share'),
+            p2a: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2a_prevout_share'),
+            unknown: create_1m1w1y24hPercentPpmRatioPattern(this, 'unknown_outputs_prevout_share'),
+            empty: create_1m1w1y24hPercentPpmRatioPattern(this, 'empty_outputs_prevout_share'),
           },
           txCount: {
             all: createAverageBlockCumulativeSumPattern(this, 'non_coinbase_tx_count'),
@@ -9303,7 +9897,6 @@ class BrkClient extends BrkClientBase {
           value: createSeriesPattern21(this, 'value'),
           outputType: createSeriesPattern21(this, 'output_type'),
           typeIndex: createSeriesPattern21(this, 'type_index'),
-          txIndex: createSeriesPattern21(this, 'tx_index'),
         },
         spent: {
           txinIndex: createSeriesPattern21(this, 'txin_index'),
@@ -9330,41 +9923,27 @@ class BrkClient extends BrkClientBase {
             unknown: createAverageBlockCumulativeSumPattern(this, 'unknown_outputs_output_count'),
             empty: createAverageBlockCumulativeSumPattern(this, 'empty_outputs_output_count'),
             opReturn: createAverageBlockCumulativeSumPattern(this, 'op_return_output_count'),
-            mwebPegPool: createAverageBlockCumulativeSumPattern(this, 'mweb_peg_pool_output_count'),
-            mwebPegin: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_output_count'),
           },
           spendableOutputCount: createAverageBlockCumulativeSumPattern(this, 'spendable_output_count'),
           outputShare: {
-            p2pk65: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pk65_output_share'),
-            p2pk33: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pk33_output_share'),
-            p2pkh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2pkh_output_share'),
-            p2ms: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2ms_output_share'),
-            p2sh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2sh_output_share'),
-            p2wpkh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2wpkh_output_share'),
-            p2wsh: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2wsh_output_share'),
-            p2tr: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2tr_output_share'),
-            p2a: create_1m1w1y24hBpsPercentRatioPattern(this, 'p2a_output_share'),
-            unknown: create_1m1w1y24hBpsPercentRatioPattern(this, 'unknown_outputs_output_share'),
-            empty: create_1m1w1y24hBpsPercentRatioPattern(this, 'empty_outputs_output_share'),
-            opReturn: create_1m1w1y24hBpsPercentRatioPattern(this, 'op_return_output_share'),
-            mwebPegPool: create_1m1w1y24hBpsPercentRatioPattern(this, 'mweb_peg_pool_output_share'),
-            mwebPegin: create_1m1w1y24hBpsPercentRatioPattern(this, 'mweb_pegin_output_share'),
+            p2pk65: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pk65_output_share'),
+            p2pk33: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pk33_output_share'),
+            p2pkh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2pkh_output_share'),
+            p2ms: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2ms_output_share'),
+            p2sh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2sh_output_share'),
+            p2wpkh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2wpkh_output_share'),
+            p2wsh: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2wsh_output_share'),
+            p2tr: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2tr_output_share'),
+            p2a: create_1m1w1y24hPercentPpmRatioPattern(this, 'p2a_output_share'),
+            unknown: create_1m1w1y24hPercentPpmRatioPattern(this, 'unknown_outputs_output_share'),
+            empty: create_1m1w1y24hPercentPpmRatioPattern(this, 'empty_outputs_output_share'),
+            opReturn: create_1m1w1y24hPercentPpmRatioPattern(this, 'op_return_output_share'),
           },
-          txCount: createAllEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_count'),
-          txShare: createEmptyMwebOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_share_with'),
+          txCount: createAllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_count'),
+          txShare: createEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2(this, 'tx_share_with'),
         },
         value: {
           opReturn: createBlockCumulativePattern(this, 'op_return_value'),
-        },
-        mweb: {
-          outputsValue: createBlockCumulativePattern(this, 'mweb_outputs_value'),
-          inputsValue: createBlockCumulativePattern(this, 'mweb_inputs_value'),
-          balance: createBtcCentsSatsUsdPattern(this, 'mweb_balance'),
-          pegPool: createBalanceInputsOutputsPattern(this, 'mweb_peg_pool'),
-          pegin: createBalanceInputsOutputsPattern(this, 'mweb_pegin'),
-          peginCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_count'),
-          pegoutValue: createAverageBlockCumulativeSumPattern3(this, 'mweb_pegout_value'),
-          pegoutCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegout_count'),
         },
       },
       addrs: {
@@ -9444,7 +10023,7 @@ class BrkClient extends BrkClientBase {
           events: {
             outputToReusedAddrCount: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(this, 'output_to_reused_addr_count'),
             outputToReusedAddrShare: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7(this, 'output_to_reused_addr_share'),
-            spendableOutputToReusedAddrShare: create_1m1w1y24hBpsPercentRatioPattern(this, 'spendable_output_to_reused_addr_share'),
+            spendableOutputToReusedAddrShare: create_1m1w1y24hPercentPpmRatioPattern(this, 'spendable_output_to_reused_addr_share'),
             inputFromReusedAddrCount: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(this, 'input_from_reused_addr_count'),
             inputFromReusedAddrShare: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7(this, 'input_from_reused_addr_share'),
             activeReusedAddrCount: create_1m1w1y24hBlockPattern(this, 'active_reused_addr_count'),
@@ -9468,7 +10047,7 @@ class BrkClient extends BrkClientBase {
           events: {
             outputToReusedAddrCount: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(this, 'output_to_respent_addr_count'),
             outputToReusedAddrShare: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7(this, 'output_to_respent_addr_share'),
-            spendableOutputToReusedAddrShare: create_1m1w1y24hBpsPercentRatioPattern(this, 'spendable_output_to_respent_addr_share'),
+            spendableOutputToReusedAddrShare: create_1m1w1y24hPercentPpmRatioPattern(this, 'spendable_output_to_respent_addr_share'),
             inputFromReusedAddrCount: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern6(this, 'input_from_respent_addr_count'),
             inputFromReusedAddrShare: createAllP2aP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshPattern7(this, 'input_from_respent_addr_share'),
             activeReusedAddrCount: create_1m1w1y24hBlockPattern(this, 'active_respent_addr_count'),
@@ -9531,29 +10110,74 @@ class BrkClient extends BrkClientBase {
             firstIndex: createSeriesPattern18(this, 'first_empty_output_index'),
             toTxIndex: createSeriesPattern22(this, 'tx_index'),
           },
-          opReturn: {
-            firstIndex: createSeriesPattern18(this, 'first_op_return_index'),
-            toTxIndex: createSeriesPattern23(this, 'tx_index'),
-          },
           p2ms: {
             firstIndex: createSeriesPattern18(this, 'first_p2ms_output_index'),
             toTxIndex: createSeriesPattern25(this, 'tx_index'),
+            legacySigops: createSeriesPattern25(this, 'p2ms_legacy_sigops'),
           },
           unknown: {
             firstIndex: createSeriesPattern18(this, 'first_unknown_output_index'),
             toTxIndex: createSeriesPattern33(this, 'tx_index'),
+            legacySigops: createSeriesPattern33(this, 'unknown_legacy_sigops'),
           },
+        },
+      },
+      opReturn: {
+        raw: {
+          firstIndex: createSeriesPattern18(this, 'first_op_return_index'),
+          toTxIndex: createSeriesPattern23(this, 'tx_index'),
+          kind: createSeriesPattern23(this, 'kind'),
+          postOpReturnBytes: createSeriesPattern23(this, 'op_return_post_op_return_bytes'),
+        },
+        total: {
+          dataBytes: createAverageBlockCumulativeSumPattern(this, 'op_return_data_bytes'),
+          txCount: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_count'),
+          txVsize: createAverageBlockCumulativeSumPattern(this, 'op_return_tx_vsize'),
+          fees: createAverageBlockCumulativeSumPattern(this, 'op_return_fees'),
+          chainShare: createPercentPpmRatioPattern2(this, 'op_return_chain_share'),
+          feeShare: create_1m1w1y24hPercentPpmRatioPattern(this, 'op_return_fee_share'),
+        },
+        byKind: {
+          runes: createChainDataFeeFeesOutputTxPattern(this, 'op_return_runes'),
+          veriBlock: createChainDataFeeFeesOutputTxPattern(this, 'op_return_veri_block'),
+          omni: createChainDataFeeFeesOutputTxPattern(this, 'op_return_omni'),
+          stacks: createChainDataFeeFeesOutputTxPattern(this, 'op_return_stacks'),
+          blockstack: createChainDataFeeFeesOutputTxPattern(this, 'op_return_blockstack'),
+          colu: createChainDataFeeFeesOutputTxPattern(this, 'op_return_colu'),
+          openAssets: createChainDataFeeFeesOutputTxPattern(this, 'op_return_open_assets'),
+          komodo: createChainDataFeeFeesOutputTxPattern(this, 'op_return_komodo'),
+          coinSpark: createChainDataFeeFeesOutputTxPattern(this, 'op_return_coin_spark'),
+          poet: createChainDataFeeFeesOutputTxPattern(this, 'op_return_poet'),
+          docproof: createChainDataFeeFeesOutputTxPattern(this, 'op_return_docproof'),
+          openTimestamps: createChainDataFeeFeesOutputTxPattern(this, 'op_return_open_timestamps'),
+          factom: createChainDataFeeFeesOutputTxPattern(this, 'op_return_factom'),
+          eternityWall: createChainDataFeeFeesOutputTxPattern(this, 'op_return_eternity_wall'),
+          memo: createChainDataFeeFeesOutputTxPattern(this, 'op_return_memo'),
+          bitproof: createChainDataFeeFeesOutputTxPattern(this, 'op_return_bitproof'),
+          ascribe: createChainDataFeeFeesOutputTxPattern(this, 'op_return_ascribe'),
+          stampery: createChainDataFeeFeesOutputTxPattern(this, 'op_return_stampery'),
+          epobc: createChainDataFeeFeesOutputTxPattern(this, 'op_return_epobc'),
+          bareHash: createChainDataFeeFeesOutputTxPattern(this, 'op_return_bare_hash'),
+          text: createChainDataFeeFeesOutputTxPattern(this, 'op_return_text'),
+          empty: createChainDataFeeFeesOutputTxPattern(this, 'op_return_empty'),
+          unknown: createChainDataFeeFeesOutputTxPattern(this, 'op_return_unknown'),
+        },
+        policy: {
+          preV30Standard: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_pre_v30_standard'),
+          preV30Nonstandard: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_pre_v30_nonstandard'),
+          oversized: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_oversized'),
+          multiple: createChainDataFeeFeesOutputTxPattern(this, 'op_return_policy_multiple'),
         },
       },
       mining: {
         rewards: {
-          coinbase: createAverageBlockCumulativeSumPattern3(this, 'coinbase'),
+          coinbase: createAverageBlockCumulativeSumPattern2(this, 'coinbase'),
           subsidy: {
             block: createBtcCentsSatsUsdPattern3(this, 'subsidy'),
             cumulative: createBtcCentsSatsUsdPattern(this, 'subsidy_cumulative'),
             sum: create_1m1w1y24hPattern4(this, 'subsidy_sum'),
             average: create_1m1w1y24hPattern3(this, 'subsidy_average'),
-            dominance: create_1m1w1y24hBpsPercentRatioPattern(this, 'subsidy_dominance'),
+            dominance: create_1m1w1y24hPercentPpmRatioPattern(this, 'subsidy_dominance'),
           },
           fees: {
             block: createBtcCentsSatsUsdPattern3(this, 'fees'),
@@ -9567,12 +10191,12 @@ class BrkClient extends BrkClientBase {
             median: create_1m1w1y24hPattern4(this, 'fees_median'),
             pct75: create_1m1w1y24hPattern4(this, 'fees_pct75'),
             pct90: create_1m1w1y24hPattern4(this, 'fees_pct90'),
-            dominance: create_1m1w1y24hBpsPercentRatioPattern(this, 'fee_dominance'),
-            toSubsidyRatio: {
-              _24h: createBpsRatioPattern2(this, 'fee_to_subsidy_ratio_24h'),
-              _1w: createBpsRatioPattern2(this, 'fee_to_subsidy_ratio_1w'),
-              _1m: createBpsRatioPattern2(this, 'fee_to_subsidy_ratio_1m'),
-              _1y: createBpsRatioPattern2(this, 'fee_to_subsidy_ratio_1y'),
+            dominance: create_1m1w1y24hPercentPpmRatioPattern(this, 'fee_dominance'),
+            toSubsidy: {
+              _24h: createPercentPpmRatioPattern5(this, 'fee_to_subsidy_24h'),
+              _1w: createPercentPpmRatioPattern5(this, 'fee_to_subsidy_1w'),
+              _1m: createPercentPpmRatioPattern5(this, 'fee_to_subsidy_1m'),
+              _1y: createPercentPpmRatioPattern5(this, 'fee_to_subsidy_1y'),
             },
           },
           outputVolume: createSeriesPattern18(this, 'output_volume'),
@@ -9588,54 +10212,257 @@ class BrkClient extends BrkClientBase {
               _1y: createSeriesPattern1(this, 'hash_rate_sma_1y'),
             },
             ath: createSeriesPattern1(this, 'hash_rate_ath'),
-            drawdown: createBpsPercentRatioPattern5(this, 'hash_rate_drawdown'),
+            drawdown: createPercentPpmRatioPattern3(this, 'hash_rate_drawdown'),
           },
           price: createPhsReboundThsPattern(this, 'hash_price'),
           value: createPhsReboundThsPattern(this, 'hash_value'),
         },
       },
-      cointime: {
-        activity: {
-          coinblocksCreated: createAverageBlockCumulativeSumPattern(this, 'coinblocks_created'),
-          coinblocksStored: createAverageBlockCumulativeSumPattern(this, 'coinblocks_stored'),
-          liveliness: createSeriesPattern1(this, 'liveliness'),
-          vaultedness: createSeriesPattern1(this, 'vaultedness'),
-          ratio: createSeriesPattern1(this, 'activity_to_vaultedness'),
-          coinblocksDestroyed: createAverageBlockCumulativeSumPattern(this, 'coinblocks_destroyed'),
+      frameworks: {
+        cointime: {
+          activity: {
+            coinblocksCreated: createAverageBlockCumulativeSumPattern(this, 'coinblocks_created'),
+            coinblocksStored: createAverageBlockCumulativeSumPattern(this, 'coinblocks_stored'),
+            liveliness: createSeriesPattern1(this, 'liveliness'),
+            vaultedness: createSeriesPattern1(this, 'vaultedness'),
+            ratio: createSeriesPattern1(this, 'activity_to_vaultedness'),
+          },
+          ageRange: {
+            under1h: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_under_1h_old'),
+            _1hTo1d: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1h_to_1d_old'),
+            _1dTo1w: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1d_to_1w_old'),
+            _1wTo1m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1w_to_1m_old'),
+            _1mTo2m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1m_to_2m_old'),
+            _2mTo3m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_2m_to_3m_old'),
+            _3mTo4m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_3m_to_4m_old'),
+            _4mTo5m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_4m_to_5m_old'),
+            _5mTo6m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_5m_to_6m_old'),
+            _6mTo9m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_18m_to_2y_old'),
+            _2yTo3y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_2y_to_3y_old'),
+            _3yTo4y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_3y_to_4y_old'),
+            _4yTo5y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_4y_to_5y_old'),
+            _5yTo6y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_5y_to_6y_old'),
+            _6yTo7y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_6y_to_7y_old'),
+            _7yTo8y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_7y_to_8y_old'),
+            _8yTo10y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_8y_to_10y_old'),
+            _10yTo12y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_10y_to_12y_old'),
+            _12yTo15y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_12y_to_15y_old'),
+            over15y: createCoindaysDormancySupplyWakefulnessPattern(this, 'utxos_over_15y_old'),
+          },
+          awake: {
+            supply: {
+              btc: createSeriesPattern1(this, 'awake_supply'),
+              sats: createSeriesPattern1(this, 'awake_supply_sats'),
+              usd: createSeriesPattern1(this, 'awake_supply_usd'),
+              cents: createSeriesPattern1(this, 'awake_supply_cents'),
+              inLoss: createSharePattern2(this, 'awake_supply_in_loss_share'),
+            },
+            cap: createCentsUsdPattern3(this, 'awake_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'awake_price'),
+          },
+          dormant: createSupplyPattern2(this, 'dormant_supply'),
+          sth: {
+            awake: {
+              supply: {
+                btc: createSeriesPattern1(this, 'sth_awake_supply'),
+                sats: createSeriesPattern1(this, 'sth_awake_supply_sats'),
+                usd: createSeriesPattern1(this, 'sth_awake_supply_usd'),
+                cents: createSeriesPattern1(this, 'sth_awake_supply_cents'),
+                inLoss: createSharePattern2(this, 'sth_awake_supply_in_loss_share'),
+              },
+              cap: createCentsUsdPattern3(this, 'sth_awake_cap'),
+              price: createCentsPpmRatioSatsUsdPattern(this, 'sth_awake_price'),
+            },
+            dormant: createSupplyPattern2(this, 'sth_dormant_supply'),
+          },
+          lth: {
+            awake: {
+              supply: {
+                btc: createSeriesPattern1(this, 'lth_awake_supply'),
+                sats: createSeriesPattern1(this, 'lth_awake_supply_sats'),
+                usd: createSeriesPattern1(this, 'lth_awake_supply_usd'),
+                cents: createSeriesPattern1(this, 'lth_awake_supply_cents'),
+                inLoss: createSharePattern2(this, 'lth_awake_supply_in_loss_share'),
+              },
+              cap: createCentsUsdPattern3(this, 'lth_awake_cap'),
+              price: createCentsPpmRatioSatsUsdPattern(this, 'lth_awake_price'),
+            },
+            dormant: createSupplyPattern2(this, 'lth_dormant_supply'),
+          },
+          supply: {
+            vaulted: createBtcCentsSatsUsdPattern(this, 'vaulted_supply'),
+            active: {
+              btc: createSeriesPattern1(this, 'active_supply'),
+              sats: createSeriesPattern1(this, 'active_supply_sats'),
+              usd: createSeriesPattern1(this, 'active_supply_usd'),
+              cents: createSeriesPattern1(this, 'active_supply_cents'),
+              inLoss: createSharePattern2(this, 'cointime_supply_in_loss_share'),
+            },
+          },
+          value: {
+            destroyed: createAverageBlockCumulativeSumPattern(this, 'cointime_value_destroyed'),
+            created: createAverageBlockCumulativeSumPattern(this, 'cointime_value_created'),
+            stored: createAverageBlockCumulativeSumPattern(this, 'cointime_value_stored'),
+            vocdd: createAverageBlockCumulativeSumPattern(this, 'vocdd'),
+          },
+          cap: {
+            thermo: createCentsUsdPattern3(this, 'thermo_cap'),
+            investor: createCentsUsdPattern3(this, 'investor_cap'),
+            vaulted: createCentsUsdPattern3(this, 'vaulted_cap'),
+            active: createCentsUsdPattern3(this, 'active_cap'),
+            cointime: createCentsUsdPattern3(this, 'cointime_cap'),
+            aviv: createPpmRatioPattern2(this, 'aviv_ratio'),
+          },
+          prices: {
+            vaulted: createCentsPpmRatioSatsUsdPattern(this, 'vaulted_price'),
+            active: createCentsPpmRatioSatsUsdPattern(this, 'active_price'),
+            trueMarketMean: createCentsPpmRatioSatsUsdPattern(this, 'true_market_mean'),
+            cointime: createCentsPpmRatioSatsUsdPattern(this, 'cointime_price'),
+          },
+          adjusted: {
+            inflationRate: createPercentPpmRatioPattern(this, 'cointime_adj_inflation_rate'),
+            txVelocityNative: createSeriesPattern1(this, 'cointime_adj_tx_velocity_btc'),
+            txVelocityFiat: createSeriesPattern1(this, 'cointime_adj_tx_velocity_usd'),
+          },
+          reserveRisk: {
+            value: createSeriesPattern1(this, 'reserve_risk'),
+            vocddMedian1y: createSeriesPattern18(this, 'vocdd_median_1y'),
+            hodlBank: createSeriesPattern18(this, 'hodl_bank'),
+          },
         },
-        supply: {
-          vaulted: createBtcCentsSatsUsdPattern(this, 'vaulted_supply'),
-          active: createBtcCentsSatsUsdPattern(this, 'active_supply'),
+        coinflow: {
+          ageRange: {
+            under1h: createMobilitySpendingSupplyPattern(this, 'utxos_under_1h_old'),
+            _1hTo1d: createMobilitySpendingSupplyPattern(this, 'utxos_1h_to_1d_old'),
+            _1dTo1w: createMobilitySpendingSupplyPattern(this, 'utxos_1d_to_1w_old'),
+            _1wTo1m: createMobilitySpendingSupplyPattern(this, 'utxos_1w_to_1m_old'),
+            _1mTo2m: createMobilitySpendingSupplyPattern(this, 'utxos_1m_to_2m_old'),
+            _2mTo3m: createMobilitySpendingSupplyPattern(this, 'utxos_2m_to_3m_old'),
+            _3mTo4m: createMobilitySpendingSupplyPattern(this, 'utxos_3m_to_4m_old'),
+            _4mTo5m: createMobilitySpendingSupplyPattern(this, 'utxos_4m_to_5m_old'),
+            _5mTo6m: createMobilitySpendingSupplyPattern(this, 'utxos_5m_to_6m_old'),
+            _6mTo9m: createMobilitySpendingSupplyPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createMobilitySpendingSupplyPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createMobilitySpendingSupplyPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createMobilitySpendingSupplyPattern(this, 'utxos_18m_to_2y_old'),
+            _2yTo3y: createMobilitySpendingSupplyPattern(this, 'utxos_2y_to_3y_old'),
+            _3yTo4y: createMobilitySpendingSupplyPattern(this, 'utxos_3y_to_4y_old'),
+            _4yTo5y: createMobilitySpendingSupplyPattern(this, 'utxos_4y_to_5y_old'),
+            _5yTo6y: createMobilitySpendingSupplyPattern(this, 'utxos_5y_to_6y_old'),
+            _6yTo7y: createMobilitySpendingSupplyPattern(this, 'utxos_6y_to_7y_old'),
+            _7yTo8y: createMobilitySpendingSupplyPattern(this, 'utxos_7y_to_8y_old'),
+            _8yTo10y: createMobilitySpendingSupplyPattern(this, 'utxos_8y_to_10y_old'),
+            _10yTo12y: createMobilitySpendingSupplyPattern(this, 'utxos_10y_to_12y_old'),
+            _12yTo15y: createMobilitySpendingSupplyPattern(this, 'utxos_12y_to_15y_old'),
+            over15y: createMobilitySpendingSupplyPattern(this, 'utxos_over_15y_old'),
+          },
+          supply: {
+            mobile: {
+              btc: createSeriesPattern1(this, 'mobile_supply'),
+              sats: createSeriesPattern1(this, 'mobile_supply_sats'),
+              usd: createSeriesPattern1(this, 'mobile_supply_usd'),
+              cents: createSeriesPattern1(this, 'mobile_supply_cents'),
+              inLoss: createSharePattern2(this, 'coinflow_supply_in_loss_share'),
+            },
+            immobile: createBtcCentsSatsUsdPattern(this, 'immobile_supply'),
+          },
+          horizon: create_1m1y2y3m4y6m8yPattern(this, 'coinflow'),
+          cap: createCentsUsdPattern3(this, 'coinflow_cap'),
+          price: createCentsPpmRatioSatsUsdPattern(this, 'coinflow_price'),
+          sth: {
+            supply: {
+              mobile: {
+                btc: createSeriesPattern1(this, 'sth_mobile_supply'),
+                sats: createSeriesPattern1(this, 'sth_mobile_supply_sats'),
+                usd: createSeriesPattern1(this, 'sth_mobile_supply_usd'),
+                cents: createSeriesPattern1(this, 'sth_mobile_supply_cents'),
+                inLoss: createSharePattern2(this, 'sth_coinflow_supply_in_loss_share'),
+              },
+              immobile: createBtcCentsSatsUsdPattern(this, 'sth_immobile_supply'),
+            },
+            horizon: create_1m1y2y3m4y6m8yPattern(this, 'sth_coinflow'),
+            cap: createCentsUsdPattern3(this, 'sth_coinflow_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'sth_coinflow_price'),
+          },
+          lth: {
+            supply: {
+              mobile: {
+                btc: createSeriesPattern1(this, 'lth_mobile_supply'),
+                sats: createSeriesPattern1(this, 'lth_mobile_supply_sats'),
+                usd: createSeriesPattern1(this, 'lth_mobile_supply_usd'),
+                cents: createSeriesPattern1(this, 'lth_mobile_supply_cents'),
+                inLoss: createSharePattern2(this, 'lth_coinflow_supply_in_loss_share'),
+              },
+              immobile: createBtcCentsSatsUsdPattern(this, 'lth_immobile_supply'),
+            },
+            horizon: create_1m1y2y3m4y6m8yPattern(this, 'lth_coinflow'),
+            cap: createCentsUsdPattern3(this, 'lth_coinflow_cap'),
+            price: createCentsPpmRatioSatsUsdPattern(this, 'lth_coinflow_price'),
+          },
         },
-        value: {
-          destroyed: createAverageBlockCumulativeSumPattern(this, 'cointime_value_destroyed'),
-          created: createAverageBlockCumulativeSumPattern(this, 'cointime_value_created'),
-          stored: createAverageBlockCumulativeSumPattern(this, 'cointime_value_stored'),
-          vocdd: createAverageBlockCumulativeSumPattern(this, 'vocdd'),
+      },
+      models: {
+        bedrock: {
+          raw: createFloorLevelLossPattern(this, 'bedrock_raw'),
+          cointime: createFloorLevelLossPattern(this, 'bedrock_cointime'),
+          coinflow: createFloorLevelLossPattern(this, 'bedrock_coinflow'),
+          coinflow8y: createFloorLevelLossPattern(this, 'bedrock_coinflow_8y'),
+          coinflow4y: createFloorLevelLossPattern(this, 'bedrock_coinflow_4y'),
+          coinflow2y: createFloorLevelLossPattern(this, 'bedrock_coinflow_2y'),
+          coinflow1y: createFloorLevelLossPattern(this, 'bedrock_coinflow_1y'),
+          coinflow6m: createFloorLevelLossPattern(this, 'bedrock_coinflow_6m'),
+          coinflow3m: createFloorLevelLossPattern(this, 'bedrock_coinflow_3m'),
+          coinflow1m: createFloorLevelLossPattern(this, 'bedrock_coinflow_1m'),
         },
-        cap: {
-          thermo: createCentsUsdPattern3(this, 'thermo_cap'),
-          investor: createCentsUsdPattern3(this, 'investor_cap'),
-          vaulted: createCentsUsdPattern3(this, 'vaulted_cap'),
-          active: createCentsUsdPattern3(this, 'active_cap'),
-          cointime: createCentsUsdPattern3(this, 'cointime_cap'),
-          aviv: createBpsRatioPattern2(this, 'aviv_ratio'),
+        capitalSentiment: {
+          isLong: createSeriesPattern1(this, 'capital_sentiment_is_long'),
+          isShort: createSeriesPattern1(this, 'capital_sentiment_is_short'),
+          phase: createSeriesPattern1(this, 'capital_sentiment_phase'),
+          score: createSeriesPattern1(this, 'capital_sentiment_score'),
         },
-        prices: {
-          vaulted: createBpsCentsPercentilesRatioSatsUsdPattern(this, 'vaulted_price'),
-          active: createBpsCentsPercentilesRatioSatsUsdPattern(this, 'active_price'),
-          trueMarketMean: createBpsCentsPercentilesRatioSatsUsdPattern(this, 'true_market_mean'),
-          cointime: createBpsCentsPercentilesRatioSatsUsdPattern(this, 'cointime_price'),
-        },
-        adjusted: {
-          inflationRate: createBpsPercentRatioPattern(this, 'cointime_adj_inflation_rate'),
-          txVelocityNative: createSeriesPattern1(this, 'cointime_adj_tx_velocity_btc'),
-          txVelocityFiat: createSeriesPattern1(this, 'cointime_adj_tx_velocity_usd'),
-        },
-        reserveRisk: {
-          value: createSeriesPattern1(this, 'reserve_risk'),
-          vocddMedian1y: createSeriesPattern18(this, 'vocdd_median_1y'),
-          hodlBank: createSeriesPattern18(this, 'hodl_bank'),
+        rarityMeter: {
+          components: {
+            realizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'realized_price'),
+            capitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'capitalized_price'),
+            sthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_realized_price'),
+            sthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'sth_capitalized_price'),
+            lthRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_realized_price'),
+            lthCapitalizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'lth_capitalized_price'),
+            over6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_6m_realized_price'),
+            over4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'over_4m_realized_price'),
+            under4mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_4m_realized_price'),
+            under6mRealizedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'under_6m_realized_price'),
+            vaultedPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'vaulted_price'),
+            activePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'active_price'),
+            trueMarketMeanPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'true_market_mean_price'),
+            cointimePrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'cointime_price'),
+            coinflowPrice: createPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99Pattern(this, 'coinflow_price'),
+          },
+          extremes: {
+            coinsInLoss: {
+              thresholdPct01: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold_pct0_1'),
+              thresholdPct005: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold_pct0_05'),
+              thresholdPct0025: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_threshold'),
+              tail: createPercentPpmRatioPattern2(this, 'rarity_meter_coins_in_loss_tail'),
+              rank: createSeriesPattern1(this, 'rarity_meter_coins_in_loss_rank'),
+            },
+            profitTaking: createRankTailThresholdPattern(this, 'rarity_meter_profit_taking'),
+            capitulation: createRankTailThresholdPattern(this, 'rarity_meter_capitulation'),
+            peakRegret: createRankTailThresholdPattern(this, 'rarity_meter_peak_regret'),
+            sellerExhaustion: {
+              thresholdPct01: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold_pct0_1'),
+              thresholdPct005: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold_pct0_05'),
+              thresholdPct0025: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_threshold'),
+              tail: createPercentPpmRatioPattern2(this, 'rarity_meter_seller_exhaustion_tail'),
+              rank: createSeriesPattern1(this, 'rarity_meter_seller_exhaustion_rank'),
+            },
+          },
+          full: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'rarity_meter'),
+          local: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'local_rarity_meter'),
+          cycle: createIndexPct0Pct1Pct10Pct2Pct20Pct30Pct40Pct5Pct50Pct60Pct70Pct80Pct90Pct95Pct98Pct99ScorePattern(this, 'cycle_rarity_meter'),
         },
       },
       constants: {
@@ -9793,11 +10620,11 @@ class BrkClient extends BrkClientBase {
         },
       },
       indicators: {
-        puellMultiple: createBpsRatioPattern2(this, 'puell_multiple'),
-        nvt: createBpsRatioPattern2(this, 'nvt'),
-        gini: createBpsPercentRatioPattern2(this, 'gini'),
-        rhodlRatio: createBpsRatioPattern2(this, 'rhodl_ratio'),
-        thermoCapMultiple: createBpsRatioPattern2(this, 'thermo_cap_multiple'),
+        puellMultiple: createPpmRatioPattern3(this, 'puell_multiple'),
+        nvt: createPpmRatioPattern3(this, 'nvt'),
+        gini: createPercentPpmRatioPattern2(this, 'gini'),
+        rhodlRatio: createPpmRatioPattern3(this, 'rhodl_ratio'),
+        thermoCapMultiple: createPpmRatioPattern3(this, 'thermo_cap_multiple'),
         coindaysDestroyedSupplyAdj: createSeriesPattern1(this, 'coindays_destroyed_supply_adj'),
         coinyearsDestroyedSupplyAdj: createSeriesPattern1(this, 'coinyears_destroyed_supply_adj'),
         dormancy: {
@@ -9806,11 +10633,6 @@ class BrkClient extends BrkClientBase {
         },
         stockToFlow: createSeriesPattern1(this, 'stock_to_flow'),
         sellerExhaustion: createSeriesPattern1(this, 'seller_exhaustion'),
-        rarityMeter: {
-          full: createIndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern(this, 'rarity_meter'),
-          local: createIndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern(this, 'local_rarity_meter'),
-          cycle: createIndexPct0Pct1Pct2Pct5Pct95Pct98Pct99ScorePattern(this, 'cycle_rarity_meter'),
-        },
       },
       investing: {
         satsPerDay: createSeriesPattern18(this, 'dca_sats_per_day'),
@@ -9865,25 +10687,25 @@ class BrkClient extends BrkClientBase {
             from2026: createCentsSatsUsdPattern(this, 'dca_cost_basis_from_2026'),
           },
           dcaReturn: {
-            from2015: createBpsPercentRatioPattern(this, 'dca_return_from_2015'),
-            from2016: createBpsPercentRatioPattern(this, 'dca_return_from_2016'),
-            from2017: createBpsPercentRatioPattern(this, 'dca_return_from_2017'),
-            from2018: createBpsPercentRatioPattern(this, 'dca_return_from_2018'),
-            from2019: createBpsPercentRatioPattern(this, 'dca_return_from_2019'),
-            from2020: createBpsPercentRatioPattern(this, 'dca_return_from_2020'),
-            from2021: createBpsPercentRatioPattern(this, 'dca_return_from_2021'),
-            from2022: createBpsPercentRatioPattern(this, 'dca_return_from_2022'),
-            from2023: createBpsPercentRatioPattern(this, 'dca_return_from_2023'),
-            from2024: createBpsPercentRatioPattern(this, 'dca_return_from_2024'),
-            from2025: createBpsPercentRatioPattern(this, 'dca_return_from_2025'),
-            from2026: createBpsPercentRatioPattern(this, 'dca_return_from_2026'),
+            from2015: createPercentPpmRatioPattern(this, 'dca_return_from_2015'),
+            from2016: createPercentPpmRatioPattern(this, 'dca_return_from_2016'),
+            from2017: createPercentPpmRatioPattern(this, 'dca_return_from_2017'),
+            from2018: createPercentPpmRatioPattern(this, 'dca_return_from_2018'),
+            from2019: createPercentPpmRatioPattern(this, 'dca_return_from_2019'),
+            from2020: createPercentPpmRatioPattern(this, 'dca_return_from_2020'),
+            from2021: createPercentPpmRatioPattern(this, 'dca_return_from_2021'),
+            from2022: createPercentPpmRatioPattern(this, 'dca_return_from_2022'),
+            from2023: createPercentPpmRatioPattern(this, 'dca_return_from_2023'),
+            from2024: createPercentPpmRatioPattern(this, 'dca_return_from_2024'),
+            from2025: createPercentPpmRatioPattern(this, 'dca_return_from_2025'),
+            from2026: createPercentPpmRatioPattern(this, 'dca_return_from_2026'),
           },
         },
       },
       market: {
         ath: {
           high: createCentsSatsUsdPattern(this, 'price_ath'),
-          drawdown: createBpsPercentRatioPattern5(this, 'price_drawdown'),
+          drawdown: createPercentPpmRatioPattern3(this, 'price_drawdown'),
           daysSince: createSeriesPattern1(this, 'days_since_price_ath'),
           yearsSince: createSeriesPattern1(this, 'years_since_price_ath'),
           maxDaysBetween: createSeriesPattern1(this, 'max_days_between_price_ath'),
@@ -9906,19 +10728,19 @@ class BrkClient extends BrkClientBase {
         },
         returns: {
           periods: {
-            _24h: createBpsPercentRatioPattern(this, 'price_return_24h'),
-            _1w: createBpsPercentRatioPattern(this, 'price_return_1w'),
-            _1m: createBpsPercentRatioPattern(this, 'price_return_1m'),
-            _3m: createBpsPercentRatioPattern(this, 'price_return_3m'),
-            _6m: createBpsPercentRatioPattern(this, 'price_return_6m'),
-            _1y: createBpsPercentRatioPattern(this, 'price_return_1y'),
-            _2y: createBpsPercentRatioPattern(this, 'price_return_2y'),
-            _3y: createBpsPercentRatioPattern(this, 'price_return_3y'),
-            _4y: createBpsPercentRatioPattern(this, 'price_return_4y'),
-            _5y: createBpsPercentRatioPattern(this, 'price_return_5y'),
-            _6y: createBpsPercentRatioPattern(this, 'price_return_6y'),
-            _8y: createBpsPercentRatioPattern(this, 'price_return_8y'),
-            _10y: createBpsPercentRatioPattern(this, 'price_return_10y'),
+            _24h: createPercentPpmRatioPattern(this, 'price_return_24h'),
+            _1w: createPercentPpmRatioPattern(this, 'price_return_1w'),
+            _1m: createPercentPpmRatioPattern(this, 'price_return_1m'),
+            _3m: createPercentPpmRatioPattern(this, 'price_return_3m'),
+            _6m: createPercentPpmRatioPattern(this, 'price_return_6m'),
+            _1y: createPercentPpmRatioPattern(this, 'price_return_1y'),
+            _2y: createPercentPpmRatioPattern(this, 'price_return_2y'),
+            _3y: createPercentPpmRatioPattern(this, 'price_return_3y'),
+            _4y: createPercentPpmRatioPattern(this, 'price_return_4y'),
+            _5y: createPercentPpmRatioPattern(this, 'price_return_5y'),
+            _6y: createPercentPpmRatioPattern(this, 'price_return_6y'),
+            _8y: createPercentPpmRatioPattern(this, 'price_return_8y'),
+            _10y: createPercentPpmRatioPattern(this, 'price_return_10y'),
           },
           cagr: create_10y2y3y4y5y6y8yPattern(this, 'price_cagr'),
           sd24h: {
@@ -9946,25 +10768,25 @@ class BrkClient extends BrkClientBase {
           max: create_1m1w1y2wPattern(this, 'price_max'),
           trueRange: createSeriesPattern1(this, 'price_true_range'),
           trueRangeSum2w: createSeriesPattern1(this, 'price_true_range_sum_2w'),
-          choppinessIndex2w: createBpsPercentRatioPattern2(this, 'price_choppiness_index_2w'),
+          choppinessIndex2w: createPercentPpmRatioPattern2(this, 'price_choppiness_index_2w'),
         },
         movingAverage: {
           sma: {
-            _1w: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_1w'),
-            _8d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_8d'),
-            _13d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_13d'),
-            _21d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_21d'),
-            _1m: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_1m'),
-            _34d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_34d'),
-            _55d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_55d'),
-            _89d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_89d'),
-            _111d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_111d'),
-            _144d: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_144d'),
+            _1w: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1w'),
+            _8d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_8d'),
+            _13d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_13d'),
+            _21d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_21d'),
+            _1m: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1m'),
+            _34d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_34d'),
+            _55d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_55d'),
+            _89d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_89d'),
+            _111d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_111d'),
+            _144d: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_144d'),
             _200d: {
               usd: createSeriesPattern1(this, 'price_sma_200d'),
               cents: createSeriesPattern1(this, 'price_sma_200d_cents'),
               sats: createSeriesPattern1(this, 'price_sma_200d_sats'),
-              bps: createSeriesPattern1(this, 'price_sma_200d_ratio_bps'),
+              ppm: createSeriesPattern1(this, 'price_sma_200d_ratio_ppm'),
               ratio: createSeriesPattern1(this, 'price_sma_200d_ratio'),
               x24: createCentsSatsUsdPattern(this, 'price_sma_200d_x2_4'),
               x08: createCentsSatsUsdPattern(this, 'price_sma_200d_x0_8'),
@@ -9973,32 +10795,32 @@ class BrkClient extends BrkClientBase {
               usd: createSeriesPattern1(this, 'price_sma_350d'),
               cents: createSeriesPattern1(this, 'price_sma_350d_cents'),
               sats: createSeriesPattern1(this, 'price_sma_350d_sats'),
-              bps: createSeriesPattern1(this, 'price_sma_350d_ratio_bps'),
+              ppm: createSeriesPattern1(this, 'price_sma_350d_ratio_ppm'),
               ratio: createSeriesPattern1(this, 'price_sma_350d_ratio'),
               x2: createCentsSatsUsdPattern(this, 'price_sma_350d_x2'),
             },
-            _1y: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_1y'),
-            _2y: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_2y'),
-            _200w: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_200w'),
-            _4y: createBpsCentsRatioSatsUsdPattern(this, 'price_sma_4y'),
+            _1y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_1y'),
+            _2y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_2y'),
+            _200w: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_200w'),
+            _4y: createCentsPpmRatioSatsUsdPattern(this, 'price_sma_4y'),
           },
           ema: {
-            _1w: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_1w'),
-            _8d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_8d'),
-            _12d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_12d'),
-            _13d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_13d'),
-            _21d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_21d'),
-            _26d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_26d'),
-            _1m: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_1m'),
-            _34d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_34d'),
-            _55d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_55d'),
-            _89d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_89d'),
-            _144d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_144d'),
-            _200d: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_200d'),
-            _1y: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_1y'),
-            _2y: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_2y'),
-            _200w: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_200w'),
-            _4y: createBpsCentsRatioSatsUsdPattern(this, 'price_ema_4y'),
+            _1w: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1w'),
+            _8d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_8d'),
+            _12d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_12d'),
+            _13d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_13d'),
+            _21d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_21d'),
+            _26d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_26d'),
+            _1m: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1m'),
+            _34d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_34d'),
+            _55d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_55d'),
+            _89d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_89d'),
+            _144d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_144d'),
+            _200d: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_200d'),
+            _1y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_1y'),
+            _2y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_2y'),
+            _200w: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_200w'),
+            _4y: createCentsPpmRatioSatsUsdPattern(this, 'price_ema_4y'),
           },
         },
         technical: {
@@ -10007,7 +10829,7 @@ class BrkClient extends BrkClientBase {
             _1w: createRsiStochPattern(this, 'rsi', '1w'),
             _1m: createRsiStochPattern(this, 'rsi', '1m'),
           },
-          piCycle: createBpsRatioPattern2(this, 'pi_cycle'),
+          piCycle: createPpmRatioPattern2(this, 'pi_cycle'),
           macd: {
             _24h: {
               emaFast: createSeriesPattern1(this, 'macd_ema_fast_24h'),
@@ -10039,39 +10861,171 @@ class BrkClient extends BrkClientBase {
           unknown: createBlocksDominanceRewardsPattern(this, 'unknown'),
           luxor: createBlocksDominanceRewardsPattern(this, 'luxor'),
           btccom: createBlocksDominanceRewardsPattern(this, 'btccom'),
+          btctop: createBlocksDominanceRewardsPattern(this, 'btctop'),
+          btcguild: createBlocksDominanceRewardsPattern(this, 'btcguild'),
+          eligius: createBlocksDominanceRewardsPattern(this, 'eligius'),
           f2pool: createBlocksDominanceRewardsPattern(this, 'f2pool'),
+          braiinspool: createBlocksDominanceRewardsPattern(this, 'braiinspool'),
           antpool: createBlocksDominanceRewardsPattern(this, 'antpool'),
+          btcc: createBlocksDominanceRewardsPattern(this, 'btcc'),
+          bwpool: createBlocksDominanceRewardsPattern(this, 'bwpool'),
+          bitfury: createBlocksDominanceRewardsPattern(this, 'bitfury'),
           viabtc: createBlocksDominanceRewardsPattern(this, 'viabtc'),
           poolin: createBlocksDominanceRewardsPattern(this, 'poolin'),
           spiderpool: createBlocksDominanceRewardsPattern(this, 'spiderpool'),
           binancepool: createBlocksDominanceRewardsPattern(this, 'binancepool'),
+          foundryusa: createBlocksDominanceRewardsPattern(this, 'foundryusa'),
           sbicrypto: createBlocksDominanceRewardsPattern(this, 'sbicrypto'),
-          kupool: createBlocksDominanceRewardsPattern(this, 'kupool'),
-          litecoinpoolorg: createBlocksDominanceRewardsPattern(this, 'litecoinpoolorg'),
-          hash700: createBlocksDominanceRewardsPattern(this, 'hash700'),
-          lsoftwaredmcc: createBlocksDominanceRewardsPattern(this, 'lsoftwaredmcc'),
-          hashspace: createBlocksDominanceRewardsPattern(this, 'hashspace'),
+          marapool: createBlocksDominanceRewardsPattern(this, 'marapool'),
+          secpool: createBlocksDominanceRewardsPattern(this, 'secpool'),
+          ocean: createBlocksDominanceRewardsPattern(this, 'ocean'),
+          whitepool: createBlocksDominanceRewardsPattern(this, 'whitepool'),
         },
         minor: {
+          blockfills: createBlocksDominancePattern(this, 'blockfills'),
+          ultimuspool: createBlocksDominancePattern(this, 'ultimuspool'),
+          terrapool: createBlocksDominancePattern(this, 'terrapool'),
+          onethash: createBlocksDominancePattern(this, 'onethash'),
+          bitfarms: createBlocksDominancePattern(this, 'bitfarms'),
+          huobipool: createBlocksDominancePattern(this, 'huobipool'),
+          wayicn: createBlocksDominancePattern(this, 'wayicn'),
+          canoepool: createBlocksDominancePattern(this, 'canoepool'),
+          bitcoincom: createBlocksDominancePattern(this, 'bitcoincom'),
+          pool175btc: createBlocksDominancePattern(this, 'pool175btc'),
+          gbminers: createBlocksDominancePattern(this, 'gbminers'),
+          axbt: createBlocksDominancePattern(this, 'axbt'),
+          asicminer: createBlocksDominancePattern(this, 'asicminer'),
+          bitminter: createBlocksDominancePattern(this, 'bitminter'),
+          bitcoinrussia: createBlocksDominancePattern(this, 'bitcoinrussia'),
+          btcserv: createBlocksDominancePattern(this, 'btcserv'),
+          simplecoinus: createBlocksDominancePattern(this, 'simplecoinus'),
+          ozcoin: createBlocksDominancePattern(this, 'ozcoin'),
+          eclipsemc: createBlocksDominancePattern(this, 'eclipsemc'),
+          maxbtc: createBlocksDominancePattern(this, 'maxbtc'),
+          triplemining: createBlocksDominancePattern(this, 'triplemining'),
+          coinlab: createBlocksDominancePattern(this, 'coinlab'),
+          pool50btc: createBlocksDominancePattern(this, 'pool50btc'),
+          ghashio: createBlocksDominancePattern(this, 'ghashio'),
+          stminingcorp: createBlocksDominancePattern(this, 'stminingcorp'),
+          bitparking: createBlocksDominancePattern(this, 'bitparking'),
+          mmpool: createBlocksDominancePattern(this, 'mmpool'),
+          polmine: createBlocksDominancePattern(this, 'polmine'),
+          kncminer: createBlocksDominancePattern(this, 'kncminer'),
+          bitalo: createBlocksDominancePattern(this, 'bitalo'),
+          hhtt: createBlocksDominancePattern(this, 'hhtt'),
+          megabigpower: createBlocksDominancePattern(this, 'megabigpower'),
+          mtred: createBlocksDominancePattern(this, 'mtred'),
+          nmcbit: createBlocksDominancePattern(this, 'nmcbit'),
+          yourbtcnet: createBlocksDominancePattern(this, 'yourbtcnet'),
+          givemecoins: createBlocksDominancePattern(this, 'givemecoins'),
+          multicoinco: createBlocksDominancePattern(this, 'multicoinco'),
+          bcpoolio: createBlocksDominancePattern(this, 'bcpoolio'),
+          cointerra: createBlocksDominancePattern(this, 'cointerra'),
+          kanopool: createBlocksDominancePattern(this, 'kanopool'),
+          solock: createBlocksDominancePattern(this, 'solock'),
+          ckpool: createBlocksDominancePattern(this, 'ckpool'),
           nicehash: createBlocksDominancePattern(this, 'nicehash'),
+          bitclub: createBlocksDominancePattern(this, 'bitclub'),
+          bitcoinaffiliatenetwork: createBlocksDominancePattern(this, 'bitcoinaffiliatenetwork'),
+          exxbw: createBlocksDominancePattern(this, 'exxbw'),
+          bitsolo: createBlocksDominancePattern(this, 'bitsolo'),
+          twentyoneinc: createBlocksDominancePattern(this, 'twentyoneinc'),
+          digitalbtc: createBlocksDominancePattern(this, 'digitalbtc'),
+          eightbaochi: createBlocksDominancePattern(this, 'eightbaochi'),
+          mybtccoinpool: createBlocksDominancePattern(this, 'mybtccoinpool'),
+          tbdice: createBlocksDominancePattern(this, 'tbdice'),
+          hashpool: createBlocksDominancePattern(this, 'hashpool'),
+          nexious: createBlocksDominancePattern(this, 'nexious'),
+          bravomining: createBlocksDominancePattern(this, 'bravomining'),
+          hotpool: createBlocksDominancePattern(this, 'hotpool'),
+          okexpool: createBlocksDominancePattern(this, 'okexpool'),
+          bcmonster: createBlocksDominancePattern(this, 'bcmonster'),
+          onehash: createBlocksDominancePattern(this, 'onehash'),
+          bixin: createBlocksDominancePattern(this, 'bixin'),
+          tatmaspool: createBlocksDominancePattern(this, 'tatmaspool'),
+          connectbtc: createBlocksDominancePattern(this, 'connectbtc'),
+          batpool: createBlocksDominancePattern(this, 'batpool'),
+          waterhole: createBlocksDominancePattern(this, 'waterhole'),
+          dcexploration: createBlocksDominancePattern(this, 'dcexploration'),
+          dcex: createBlocksDominancePattern(this, 'dcex'),
+          btpool: createBlocksDominancePattern(this, 'btpool'),
+          fiftyeightcoin: createBlocksDominancePattern(this, 'fiftyeightcoin'),
+          bitcoinindia: createBlocksDominancePattern(this, 'bitcoinindia'),
+          shawnp0wers: createBlocksDominancePattern(this, 'shawnp0wers'),
+          phashio: createBlocksDominancePattern(this, 'phashio'),
+          rigpool: createBlocksDominancePattern(this, 'rigpool'),
+          haozhuzhu: createBlocksDominancePattern(this, 'haozhuzhu'),
+          sevenpool: createBlocksDominancePattern(this, 'sevenpool'),
+          miningkings: createBlocksDominancePattern(this, 'miningkings'),
+          hashbx: createBlocksDominancePattern(this, 'hashbx'),
+          dpool: createBlocksDominancePattern(this, 'dpool'),
+          rawpool: createBlocksDominancePattern(this, 'rawpool'),
+          haominer: createBlocksDominancePattern(this, 'haominer'),
+          helix: createBlocksDominancePattern(this, 'helix'),
+          bitcoinukraine: createBlocksDominancePattern(this, 'bitcoinukraine'),
+          secretsuperstar: createBlocksDominancePattern(this, 'secretsuperstar'),
+          tigerpoolnet: createBlocksDominancePattern(this, 'tigerpoolnet'),
           sigmapoolcom: createBlocksDominancePattern(this, 'sigmapoolcom'),
+          okpooltop: createBlocksDominancePattern(this, 'okpooltop'),
+          hummerpool: createBlocksDominancePattern(this, 'hummerpool'),
+          tangpool: createBlocksDominancePattern(this, 'tangpool'),
+          bytepool: createBlocksDominancePattern(this, 'bytepool'),
+          novablock: createBlocksDominancePattern(this, 'novablock'),
+          miningcity: createBlocksDominancePattern(this, 'miningcity'),
+          minerium: createBlocksDominancePattern(this, 'minerium'),
+          lubiancom: createBlocksDominancePattern(this, 'lubiancom'),
+          okkong: createBlocksDominancePattern(this, 'okkong'),
+          aaopool: createBlocksDominancePattern(this, 'aaopool'),
           emcdpool: createBlocksDominancePattern(this, 'emcdpool'),
+          arkpool: createBlocksDominancePattern(this, 'arkpool'),
+          purebtccom: createBlocksDominancePattern(this, 'purebtccom'),
+          kucoinpool: createBlocksDominancePattern(this, 'kucoinpool'),
+          entrustcharitypool: createBlocksDominancePattern(this, 'entrustcharitypool'),
+          okminer: createBlocksDominancePattern(this, 'okminer'),
+          titan: createBlocksDominancePattern(this, 'titan'),
+          pegapool: createBlocksDominancePattern(this, 'pegapool'),
+          btcnuggets: createBlocksDominancePattern(this, 'btcnuggets'),
+          cloudhashing: createBlocksDominancePattern(this, 'cloudhashing'),
+          digitalxmintsy: createBlocksDominancePattern(this, 'digitalxmintsy'),
+          telco214: createBlocksDominancePattern(this, 'telco214'),
+          btcpoolparty: createBlocksDominancePattern(this, 'btcpoolparty'),
+          multipool: createBlocksDominancePattern(this, 'multipool'),
+          transactioncoinmining: createBlocksDominancePattern(this, 'transactioncoinmining'),
+          btcdig: createBlocksDominancePattern(this, 'btcdig'),
+          trickysbtcpool: createBlocksDominancePattern(this, 'trickysbtcpool'),
+          btcmp: createBlocksDominancePattern(this, 'btcmp'),
+          eobot: createBlocksDominancePattern(this, 'eobot'),
+          unomp: createBlocksDominancePattern(this, 'unomp'),
+          patels: createBlocksDominancePattern(this, 'patels'),
+          gogreenlight: createBlocksDominancePattern(this, 'gogreenlight'),
+          bitcoinindiapool: createBlocksDominancePattern(this, 'bitcoinindiapool'),
+          ekanembtc: createBlocksDominancePattern(this, 'ekanembtc'),
+          canoe: createBlocksDominancePattern(this, 'canoe'),
+          tiger: createBlocksDominancePattern(this, 'tiger'),
+          onem1x: createBlocksDominancePattern(this, 'onem1x'),
           zulupool: createBlocksDominancePattern(this, 'zulupool'),
+          wiz: createBlocksDominancePattern(this, 'wiz'),
+          wk057: createBlocksDominancePattern(this, 'wk057'),
+          futurebitapollosolo: createBlocksDominancePattern(this, 'futurebitapollosolo'),
+          carbonnegative: createBlocksDominancePattern(this, 'carbonnegative'),
+          portlandhodl: createBlocksDominancePattern(this, 'portlandhodl'),
+          phoenix: createBlocksDominancePattern(this, 'phoenix'),
+          neopool: createBlocksDominancePattern(this, 'neopool'),
+          maxipool: createBlocksDominancePattern(this, 'maxipool'),
+          bitfufupool: createBlocksDominancePattern(this, 'bitfufupool'),
+          gdpool: createBlocksDominancePattern(this, 'gdpool'),
           miningdutch: createBlocksDominancePattern(this, 'miningdutch'),
-          dogegogocom: createBlocksDominancePattern(this, 'dogegogocom'),
-          longpool: createBlocksDominancePattern(this, 'longpool'),
-          kryptex: createBlocksDominancePattern(this, 'kryptex'),
-          dxpool: createBlocksDominancePattern(this, 'dxpool'),
-          k1pool: createBlocksDominancePattern(this, 'k1pool'),
-          molepool: createBlocksDominancePattern(this, 'molepool'),
-          solopoolorg: createBlocksDominancePattern(this, 'solopoolorg'),
-          prohashing: createBlocksDominancePattern(this, 'prohashing'),
-          hashhut: createBlocksDominancePattern(this, 'hashhut'),
-          happychina: createBlocksDominancePattern(this, 'happychina'),
-          himpool: createBlocksDominancePattern(this, 'himpool'),
-          p2pspbxyz: createBlocksDominancePattern(this, 'p2pspbxyz'),
-          hyperdonkey: createBlocksDominancePattern(this, 'hyperdonkey'),
-          zergpool: createBlocksDominancePattern(this, 'zergpool'),
+          publicpool: createBlocksDominancePattern(this, 'publicpool'),
+          miningsquared: createBlocksDominancePattern(this, 'miningsquared'),
+          innopolistech: createBlocksDominancePattern(this, 'innopolistech'),
+          btclab: createBlocksDominancePattern(this, 'btclab'),
+          parasite: createBlocksDominancePattern(this, 'parasite'),
+          redrockpool: createBlocksDominancePattern(this, 'redrockpool'),
+          est3lar: createBlocksDominancePattern(this, 'est3lar'),
+          braiinssolo: createBlocksDominancePattern(this, 'braiinssolo'),
+          solopool: createBlocksDominancePattern(this, 'solopool'),
+          noderunners: createBlocksDominancePattern(this, 'noderunners'),
+          dmnd: createBlocksDominancePattern(this, 'dmnd'),
         },
       },
       price: {
@@ -10095,9 +11049,8 @@ class BrkClient extends BrkClientBase {
       supply: {
         state: createSeriesPattern18(this, 'supply_state'),
         circulating: createBtcCentsSatsUsdPattern(this, 'circulating_supply'),
-        transparent: createBtcCentsSatsUsdPattern(this, 'transparent_supply'),
         burned: createBlockCumulativePattern(this, 'unspendable_supply'),
-        inflationRate: createBpsPercentRatioPattern(this, 'inflation_rate'),
+        inflationRate: createPercentPpmRatioPattern(this, 'inflation_rate'),
         velocity: {
           native: createSeriesPattern1(this, 'velocity_btc'),
           fiat: createSeriesPattern1(this, 'velocity_usd'),
@@ -10112,8 +11065,7 @@ class BrkClient extends BrkClientBase {
             supply: createDeltaDominanceHalfInTotalPattern2(this, 'supply'),
             outputs: {
               unspentCount: createBaseDeltaPattern(this, 'utxo_count'),
-              spentCount: createAverageBlockCumulativeSumPattern2(this, 'spent_utxo_count'),
-              spendingRate: createSeriesPattern1(this, 'spending_rate'),
+              spentCount: createAverageBlockCumulativeSumPattern(this, 'spent_utxo_count'),
             },
             activity: {
               transferVolume: createAverageBlockCumulativeInSumPattern(this, 'transfer_volume'),
@@ -10125,85 +11077,7 @@ class BrkClient extends BrkClientBase {
               cap: createCentsDeltaToUsdPattern(this, 'realized_cap'),
               profit: createBlockCumulativeSumPattern(this, 'realized_profit'),
               loss: createBlockCumulativeNegativeSumPattern(this, 'realized_loss'),
-              price: {
-                usd: createSeriesPattern1(this, 'realized_price'),
-                cents: createSeriesPattern1(this, 'realized_price_cents'),
-                sats: createSeriesPattern1(this, 'realized_price_sats'),
-                bps: createSeriesPattern1(this, 'realized_price_ratio_bps'),
-                ratio: createSeriesPattern1(this, 'realized_price_ratio'),
-                percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'realized_price'),
-                sma: create_1m1w1y2y4yAllPattern(this, 'realized_price_ratio_sma'),
-                stdDev: {
-                  all: {
-                    sd: createSeriesPattern1(this, 'realized_price_ratio_sd'),
-                    zscore: createSeriesPattern1(this, 'realized_price_ratio_zscore'),
-                    _0sd: createCentsSatsUsdPattern(this, 'realized_price_0sd'),
-                    p05sd: createPriceRatioPattern(this, 'realized_price', 'p0_5sd'),
-                    p1sd: createPriceRatioPattern(this, 'realized_price', 'p1sd'),
-                    p15sd: createPriceRatioPattern(this, 'realized_price', 'p1_5sd'),
-                    p2sd: createPriceRatioPattern(this, 'realized_price', 'p2sd'),
-                    p25sd: createPriceRatioPattern(this, 'realized_price', 'p2_5sd'),
-                    p3sd: createPriceRatioPattern(this, 'realized_price', 'p3sd'),
-                    m05sd: createPriceRatioPattern(this, 'realized_price', 'm0_5sd'),
-                    m1sd: createPriceRatioPattern(this, 'realized_price', 'm1sd'),
-                    m15sd: createPriceRatioPattern(this, 'realized_price', 'm1_5sd'),
-                    m2sd: createPriceRatioPattern(this, 'realized_price', 'm2sd'),
-                    m25sd: createPriceRatioPattern(this, 'realized_price', 'm2_5sd'),
-                    m3sd: createPriceRatioPattern(this, 'realized_price', 'm3sd'),
-                  },
-                  _4y: {
-                    sd: createSeriesPattern1(this, 'realized_price_ratio_sd_4y'),
-                    zscore: createSeriesPattern1(this, 'realized_price_ratio_zscore_4y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'realized_price_0sd_4y'),
-                    p05sd: createPriceRatioPattern(this, 'realized_price', 'p0_5sd_4y'),
-                    p1sd: createPriceRatioPattern(this, 'realized_price', 'p1sd_4y'),
-                    p15sd: createPriceRatioPattern(this, 'realized_price', 'p1_5sd_4y'),
-                    p2sd: createPriceRatioPattern(this, 'realized_price', 'p2sd_4y'),
-                    p25sd: createPriceRatioPattern(this, 'realized_price', 'p2_5sd_4y'),
-                    p3sd: createPriceRatioPattern(this, 'realized_price', 'p3sd_4y'),
-                    m05sd: createPriceRatioPattern(this, 'realized_price', 'm0_5sd_4y'),
-                    m1sd: createPriceRatioPattern(this, 'realized_price', 'm1sd_4y'),
-                    m15sd: createPriceRatioPattern(this, 'realized_price', 'm1_5sd_4y'),
-                    m2sd: createPriceRatioPattern(this, 'realized_price', 'm2sd_4y'),
-                    m25sd: createPriceRatioPattern(this, 'realized_price', 'm2_5sd_4y'),
-                    m3sd: createPriceRatioPattern(this, 'realized_price', 'm3sd_4y'),
-                  },
-                  _2y: {
-                    sd: createSeriesPattern1(this, 'realized_price_ratio_sd_2y'),
-                    zscore: createSeriesPattern1(this, 'realized_price_ratio_zscore_2y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'realized_price_0sd_2y'),
-                    p05sd: createPriceRatioPattern(this, 'realized_price', 'p0_5sd_2y'),
-                    p1sd: createPriceRatioPattern(this, 'realized_price', 'p1sd_2y'),
-                    p15sd: createPriceRatioPattern(this, 'realized_price', 'p1_5sd_2y'),
-                    p2sd: createPriceRatioPattern(this, 'realized_price', 'p2sd_2y'),
-                    p25sd: createPriceRatioPattern(this, 'realized_price', 'p2_5sd_2y'),
-                    p3sd: createPriceRatioPattern(this, 'realized_price', 'p3sd_2y'),
-                    m05sd: createPriceRatioPattern(this, 'realized_price', 'm0_5sd_2y'),
-                    m1sd: createPriceRatioPattern(this, 'realized_price', 'm1sd_2y'),
-                    m15sd: createPriceRatioPattern(this, 'realized_price', 'm1_5sd_2y'),
-                    m2sd: createPriceRatioPattern(this, 'realized_price', 'm2sd_2y'),
-                    m25sd: createPriceRatioPattern(this, 'realized_price', 'm2_5sd_2y'),
-                    m3sd: createPriceRatioPattern(this, 'realized_price', 'm3sd_2y'),
-                  },
-                  _1y: {
-                    sd: createSeriesPattern1(this, 'realized_price_ratio_sd_1y'),
-                    zscore: createSeriesPattern1(this, 'realized_price_ratio_zscore_1y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'realized_price_0sd_1y'),
-                    p05sd: createPriceRatioPattern(this, 'realized_price', 'p0_5sd_1y'),
-                    p1sd: createPriceRatioPattern(this, 'realized_price', 'p1sd_1y'),
-                    p15sd: createPriceRatioPattern(this, 'realized_price', 'p1_5sd_1y'),
-                    p2sd: createPriceRatioPattern(this, 'realized_price', 'p2sd_1y'),
-                    p25sd: createPriceRatioPattern(this, 'realized_price', 'p2_5sd_1y'),
-                    p3sd: createPriceRatioPattern(this, 'realized_price', 'p3sd_1y'),
-                    m05sd: createPriceRatioPattern(this, 'realized_price', 'm0_5sd_1y'),
-                    m1sd: createPriceRatioPattern(this, 'realized_price', 'm1sd_1y'),
-                    m15sd: createPriceRatioPattern(this, 'realized_price', 'm1_5sd_1y'),
-                    m2sd: createPriceRatioPattern(this, 'realized_price', 'm2sd_1y'),
-                    m25sd: createPriceRatioPattern(this, 'realized_price', 'm2_5sd_1y'),
-                    m3sd: createPriceRatioPattern(this, 'realized_price', 'm3sd_1y'),
-                  },
-                },
-              },
+              price: createCentsPpmRatioSatsUsdPattern(this, 'realized_price'),
               mvrv: createSeriesPattern1(this, 'mvrv'),
               netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'net'),
               sopr: {
@@ -10228,27 +11102,27 @@ class BrkClient extends BrkClientBase {
               max: createCentsSatsUsdPattern(this, 'cost_basis_max'),
               perCoin: createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern(this, 'cost_basis_per_coin'),
               perDollar: createPct05Pct10Pct15Pct20Pct25Pct30Pct35Pct40Pct45Pct50Pct55Pct60Pct65Pct70Pct75Pct80Pct85Pct90Pct95Pattern(this, 'cost_basis_per_dollar'),
-              supplyDensity: createBpsPercentRatioPattern2(this, 'supply_density'),
+              supplyDensity: createPercentPpmRatioPattern2(this, 'supply_density'),
             },
             unrealized: {
-              nupl: createBpsRatioPattern(this, 'nupl'),
+              nupl: createPpmRatioPattern(this, 'nupl'),
               profit: {
                 usd: createSeriesPattern1(this, 'unrealized_profit'),
                 cents: createSeriesPattern1(this, 'unrealized_profit_cents'),
-                toMcap: createBpsPercentRatioPattern2(this, 'unrealized_profit_to_mcap'),
-                toOwnGrossPnl: createBpsPercentRatioPattern2(this, 'unrealized_profit_to_own_gross_pnl'),
+                toMcap: createPercentPpmRatioPattern2(this, 'unrealized_profit_to_mcap'),
+                toOwnGrossPnl: createPercentPpmRatioPattern2(this, 'unrealized_profit_to_own_gross_pnl'),
               },
               loss: {
                 usd: createSeriesPattern1(this, 'unrealized_loss'),
                 cents: createSeriesPattern1(this, 'unrealized_loss_cents'),
                 negative: createSeriesPattern1(this, 'unrealized_loss_neg'),
-                toMcap: createBpsPercentRatioPattern2(this, 'unrealized_loss_to_mcap'),
-                toOwnGrossPnl: createBpsPercentRatioPattern2(this, 'unrealized_loss_to_own_gross_pnl'),
+                toMcap: createPercentPpmRatioPattern2(this, 'unrealized_loss_to_mcap'),
+                toOwnGrossPnl: createPercentPpmRatioPattern2(this, 'unrealized_loss_to_own_gross_pnl'),
               },
               netPnl: {
                 usd: createSeriesPattern1(this, 'net_unrealized_pnl'),
                 cents: createSeriesPattern1(this, 'net_unrealized_pnl_cents'),
-                toOwnGrossPnl: createBpsPercentRatioPattern(this, 'net_unrealized_pnl_to_own_gross_pnl'),
+                toOwnGrossPnl: createPercentPpmRatioPattern3(this, 'net_unrealized_pnl_to_own_gross_pnl'),
               },
               grossPnl: createCentsUsdPattern3(this, 'unrealized_gross_pnl'),
               investedCapital: createInPattern2(this, 'invested_capital_in'),
@@ -10264,194 +11138,28 @@ class BrkClient extends BrkClientBase {
           },
           sth: {
             supply: createDeltaDominanceHalfInTotalPattern2(this, 'sth_supply'),
-            outputs: createSpendingSpentUnspentPattern(this, 'sth'),
+            outputs: createSpentUnspentPattern(this, 'sth'),
             activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'sth'),
-            realized: {
-              cap: createCentsDeltaToUsdPattern(this, 'sth_realized_cap'),
-              profit: createBlockCumulativeSumPattern(this, 'sth_realized_profit'),
-              loss: createBlockCumulativeNegativeSumPattern(this, 'sth_realized_loss'),
-              price: {
-                usd: createSeriesPattern1(this, 'sth_realized_price'),
-                cents: createSeriesPattern1(this, 'sth_realized_price_cents'),
-                sats: createSeriesPattern1(this, 'sth_realized_price_sats'),
-                bps: createSeriesPattern1(this, 'sth_realized_price_ratio_bps'),
-                ratio: createSeriesPattern1(this, 'sth_realized_price_ratio'),
-                percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'sth_realized_price'),
-                sma: create_1m1w1y2y4yAllPattern(this, 'sth_realized_price_ratio_sma'),
-                stdDev: {
-                  all: {
-                    sd: createSeriesPattern1(this, 'sth_realized_price_ratio_sd'),
-                    zscore: createSeriesPattern1(this, 'sth_realized_price_ratio_zscore'),
-                    _0sd: createCentsSatsUsdPattern(this, 'sth_realized_price_0sd'),
-                    p05sd: createPriceRatioPattern(this, 'sth_realized_price', 'p0_5sd'),
-                    p1sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1sd'),
-                    p15sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1_5sd'),
-                    p2sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2sd'),
-                    p25sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2_5sd'),
-                    p3sd: createPriceRatioPattern(this, 'sth_realized_price', 'p3sd'),
-                    m05sd: createPriceRatioPattern(this, 'sth_realized_price', 'm0_5sd'),
-                    m1sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1sd'),
-                    m15sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1_5sd'),
-                    m2sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2sd'),
-                    m25sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2_5sd'),
-                    m3sd: createPriceRatioPattern(this, 'sth_realized_price', 'm3sd'),
-                  },
-                  _4y: {
-                    sd: createSeriesPattern1(this, 'sth_realized_price_ratio_sd_4y'),
-                    zscore: createSeriesPattern1(this, 'sth_realized_price_ratio_zscore_4y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'sth_realized_price_0sd_4y'),
-                    p05sd: createPriceRatioPattern(this, 'sth_realized_price', 'p0_5sd_4y'),
-                    p1sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1sd_4y'),
-                    p15sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1_5sd_4y'),
-                    p2sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2sd_4y'),
-                    p25sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2_5sd_4y'),
-                    p3sd: createPriceRatioPattern(this, 'sth_realized_price', 'p3sd_4y'),
-                    m05sd: createPriceRatioPattern(this, 'sth_realized_price', 'm0_5sd_4y'),
-                    m1sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1sd_4y'),
-                    m15sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1_5sd_4y'),
-                    m2sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2sd_4y'),
-                    m25sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2_5sd_4y'),
-                    m3sd: createPriceRatioPattern(this, 'sth_realized_price', 'm3sd_4y'),
-                  },
-                  _2y: {
-                    sd: createSeriesPattern1(this, 'sth_realized_price_ratio_sd_2y'),
-                    zscore: createSeriesPattern1(this, 'sth_realized_price_ratio_zscore_2y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'sth_realized_price_0sd_2y'),
-                    p05sd: createPriceRatioPattern(this, 'sth_realized_price', 'p0_5sd_2y'),
-                    p1sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1sd_2y'),
-                    p15sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1_5sd_2y'),
-                    p2sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2sd_2y'),
-                    p25sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2_5sd_2y'),
-                    p3sd: createPriceRatioPattern(this, 'sth_realized_price', 'p3sd_2y'),
-                    m05sd: createPriceRatioPattern(this, 'sth_realized_price', 'm0_5sd_2y'),
-                    m1sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1sd_2y'),
-                    m15sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1_5sd_2y'),
-                    m2sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2sd_2y'),
-                    m25sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2_5sd_2y'),
-                    m3sd: createPriceRatioPattern(this, 'sth_realized_price', 'm3sd_2y'),
-                  },
-                  _1y: {
-                    sd: createSeriesPattern1(this, 'sth_realized_price_ratio_sd_1y'),
-                    zscore: createSeriesPattern1(this, 'sth_realized_price_ratio_zscore_1y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'sth_realized_price_0sd_1y'),
-                    p05sd: createPriceRatioPattern(this, 'sth_realized_price', 'p0_5sd_1y'),
-                    p1sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1sd_1y'),
-                    p15sd: createPriceRatioPattern(this, 'sth_realized_price', 'p1_5sd_1y'),
-                    p2sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2sd_1y'),
-                    p25sd: createPriceRatioPattern(this, 'sth_realized_price', 'p2_5sd_1y'),
-                    p3sd: createPriceRatioPattern(this, 'sth_realized_price', 'p3sd_1y'),
-                    m05sd: createPriceRatioPattern(this, 'sth_realized_price', 'm0_5sd_1y'),
-                    m1sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1sd_1y'),
-                    m15sd: createPriceRatioPattern(this, 'sth_realized_price', 'm1_5sd_1y'),
-                    m2sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2sd_1y'),
-                    m25sd: createPriceRatioPattern(this, 'sth_realized_price', 'm2_5sd_1y'),
-                    m3sd: createPriceRatioPattern(this, 'sth_realized_price', 'm3sd_1y'),
-                  },
-                },
-              },
-              mvrv: createSeriesPattern1(this, 'sth_mvrv'),
-              netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'sth_net'),
-              sopr: createAdjustedRatioValuePattern(this, 'sth'),
-              grossPnl: createBlockCumulativeSumPattern(this, 'sth_realized_gross_pnl'),
-              sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'sth_sell_side_risk_ratio'),
-              peakRegret: createBlockCumulativeSumPattern(this, 'sth_realized_peak_regret'),
-              capitalized: createPricePattern(this, 'sth_capitalized_price'),
-              profitToLossRatio: create_1m1w1y24hPattern(this, 'sth_realized_profit_to_loss_ratio'),
-            },
+            realized: createCapCapitalizedGrossLossMvrvNetPeakPriceProfitSellSoprPattern(this, 'sth'),
             costBasis: createInMaxMinPerSupplyPattern(this, 'sth'),
             unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'sth'),
             investedCapital: createInPattern(this, 'sth_invested_capital_in'),
           },
           lth: {
             supply: createDeltaDominanceHalfInTotalPattern2(this, 'lth_supply'),
-            outputs: createSpendingSpentUnspentPattern(this, 'lth'),
+            outputs: createSpentUnspentPattern(this, 'lth'),
             activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'lth'),
             realized: {
               cap: createCentsDeltaToUsdPattern(this, 'lth_realized_cap'),
               profit: createBlockCumulativeSumPattern(this, 'lth_realized_profit'),
               loss: createBlockCumulativeNegativeSumPattern(this, 'lth_realized_loss'),
-              price: {
-                usd: createSeriesPattern1(this, 'lth_realized_price'),
-                cents: createSeriesPattern1(this, 'lth_realized_price_cents'),
-                sats: createSeriesPattern1(this, 'lth_realized_price_sats'),
-                bps: createSeriesPattern1(this, 'lth_realized_price_ratio_bps'),
-                ratio: createSeriesPattern1(this, 'lth_realized_price_ratio'),
-                percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'lth_realized_price'),
-                sma: create_1m1w1y2y4yAllPattern(this, 'lth_realized_price_ratio_sma'),
-                stdDev: {
-                  all: {
-                    sd: createSeriesPattern1(this, 'lth_realized_price_ratio_sd'),
-                    zscore: createSeriesPattern1(this, 'lth_realized_price_ratio_zscore'),
-                    _0sd: createCentsSatsUsdPattern(this, 'lth_realized_price_0sd'),
-                    p05sd: createPriceRatioPattern(this, 'lth_realized_price', 'p0_5sd'),
-                    p1sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1sd'),
-                    p15sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1_5sd'),
-                    p2sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2sd'),
-                    p25sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2_5sd'),
-                    p3sd: createPriceRatioPattern(this, 'lth_realized_price', 'p3sd'),
-                    m05sd: createPriceRatioPattern(this, 'lth_realized_price', 'm0_5sd'),
-                    m1sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1sd'),
-                    m15sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1_5sd'),
-                    m2sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2sd'),
-                    m25sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2_5sd'),
-                    m3sd: createPriceRatioPattern(this, 'lth_realized_price', 'm3sd'),
-                  },
-                  _4y: {
-                    sd: createSeriesPattern1(this, 'lth_realized_price_ratio_sd_4y'),
-                    zscore: createSeriesPattern1(this, 'lth_realized_price_ratio_zscore_4y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'lth_realized_price_0sd_4y'),
-                    p05sd: createPriceRatioPattern(this, 'lth_realized_price', 'p0_5sd_4y'),
-                    p1sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1sd_4y'),
-                    p15sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1_5sd_4y'),
-                    p2sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2sd_4y'),
-                    p25sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2_5sd_4y'),
-                    p3sd: createPriceRatioPattern(this, 'lth_realized_price', 'p3sd_4y'),
-                    m05sd: createPriceRatioPattern(this, 'lth_realized_price', 'm0_5sd_4y'),
-                    m1sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1sd_4y'),
-                    m15sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1_5sd_4y'),
-                    m2sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2sd_4y'),
-                    m25sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2_5sd_4y'),
-                    m3sd: createPriceRatioPattern(this, 'lth_realized_price', 'm3sd_4y'),
-                  },
-                  _2y: {
-                    sd: createSeriesPattern1(this, 'lth_realized_price_ratio_sd_2y'),
-                    zscore: createSeriesPattern1(this, 'lth_realized_price_ratio_zscore_2y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'lth_realized_price_0sd_2y'),
-                    p05sd: createPriceRatioPattern(this, 'lth_realized_price', 'p0_5sd_2y'),
-                    p1sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1sd_2y'),
-                    p15sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1_5sd_2y'),
-                    p2sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2sd_2y'),
-                    p25sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2_5sd_2y'),
-                    p3sd: createPriceRatioPattern(this, 'lth_realized_price', 'p3sd_2y'),
-                    m05sd: createPriceRatioPattern(this, 'lth_realized_price', 'm0_5sd_2y'),
-                    m1sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1sd_2y'),
-                    m15sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1_5sd_2y'),
-                    m2sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2sd_2y'),
-                    m25sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2_5sd_2y'),
-                    m3sd: createPriceRatioPattern(this, 'lth_realized_price', 'm3sd_2y'),
-                  },
-                  _1y: {
-                    sd: createSeriesPattern1(this, 'lth_realized_price_ratio_sd_1y'),
-                    zscore: createSeriesPattern1(this, 'lth_realized_price_ratio_zscore_1y'),
-                    _0sd: createCentsSatsUsdPattern(this, 'lth_realized_price_0sd_1y'),
-                    p05sd: createPriceRatioPattern(this, 'lth_realized_price', 'p0_5sd_1y'),
-                    p1sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1sd_1y'),
-                    p15sd: createPriceRatioPattern(this, 'lth_realized_price', 'p1_5sd_1y'),
-                    p2sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2sd_1y'),
-                    p25sd: createPriceRatioPattern(this, 'lth_realized_price', 'p2_5sd_1y'),
-                    p3sd: createPriceRatioPattern(this, 'lth_realized_price', 'p3sd_1y'),
-                    m05sd: createPriceRatioPattern(this, 'lth_realized_price', 'm0_5sd_1y'),
-                    m1sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1sd_1y'),
-                    m15sd: createPriceRatioPattern(this, 'lth_realized_price', 'm1_5sd_1y'),
-                    m2sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2sd_1y'),
-                    m25sd: createPriceRatioPattern(this, 'lth_realized_price', 'm2_5sd_1y'),
-                    m3sd: createPriceRatioPattern(this, 'lth_realized_price', 'm3sd_1y'),
-                  },
-                },
-              },
+              price: createCentsPpmRatioSatsUsdPattern(this, 'lth_realized_price'),
               mvrv: createSeriesPattern1(this, 'lth_mvrv'),
               netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'lth_net'),
-              sopr: createRatioValuePattern2(this, 'lth'),
+              sopr: {
+                valueDestroyed: createAverageBlockCumulativeSumPattern(this, 'lth_value_destroyed'),
+                ratio: create_1m1w1y24hPattern(this, 'lth_sopr'),
+              },
               grossPnl: createBlockCumulativeSumPattern(this, 'lth_realized_gross_pnl'),
               sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'lth_sell_side_risk_ratio'),
               peakRegret: createBlockCumulativeSumPattern(this, 'lth_realized_peak_regret'),
@@ -10472,8 +11180,10 @@ class BrkClient extends BrkClientBase {
             _3mTo4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_3m_to_4m_old'),
             _4mTo5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_4m_to_5m_old'),
             _5mTo6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_5m_to_6m_old'),
-            _6mTo1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_6m_to_1y_old'),
-            _1yTo2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_1y_to_2y_old'),
+            _6mTo9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_6m_to_9m_old'),
+            _9mTo1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_9m_to_1y_old'),
+            _1yTo18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_1y_to_18m_old'),
+            _18mTo2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_18m_to_2y_old'),
             _2yTo3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_2y_to_3y_old'),
             _3yTo4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_3y_to_4y_old'),
             _4yTo5y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_4y_to_5y_old'),
@@ -10493,7 +11203,9 @@ class BrkClient extends BrkClientBase {
             _4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_4m_old'),
             _5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_5m_old'),
             _6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_6m_old'),
+            _9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_9m_old'),
             _1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_1y_old'),
+            _18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_18m_old'),
             _2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_2y_old'),
             _3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_3y_old'),
             _4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_under_4y_old'),
@@ -10514,7 +11226,9 @@ class BrkClient extends BrkClientBase {
             _4m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_4m_old'),
             _5m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_5m_old'),
             _6m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_6m_old'),
+            _9m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_9m_old'),
             _1y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_1y_old'),
+            _18m: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_18m_old'),
             _2y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_2y_old'),
             _3y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_3y_old'),
             _4y: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'utxos_over_4y_old'),
@@ -10553,206 +11267,8 @@ class BrkClient extends BrkClientBase {
             _2026: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'class_2026'),
           },
           entry: {
-            discount: {
-              supply: createDeltaDominanceHalfInTotalPattern2(this, 'veteran_supply'),
-              outputs: createSpendingSpentUnspentPattern(this, 'veteran'),
-              activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'veteran'),
-              realized: {
-                cap: createCentsDeltaToUsdPattern(this, 'veteran_realized_cap'),
-                profit: createBlockCumulativeSumPattern(this, 'veteran_realized_profit'),
-                loss: createBlockCumulativeNegativeSumPattern(this, 'veteran_realized_loss'),
-                price: {
-                  usd: createSeriesPattern1(this, 'veteran_realized_price'),
-                  cents: createSeriesPattern1(this, 'veteran_realized_price_cents'),
-                  sats: createSeriesPattern1(this, 'veteran_realized_price_sats'),
-                  bps: createSeriesPattern1(this, 'veteran_realized_price_ratio_bps'),
-                  ratio: createSeriesPattern1(this, 'veteran_realized_price_ratio'),
-                  percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'veteran_realized_price'),
-                  sma: create_1m1w1y2y4yAllPattern(this, 'veteran_realized_price_ratio_sma'),
-                  stdDev: {
-                    all: {
-                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd'),
-                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore'),
-                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd'),
-                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd'),
-                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd'),
-                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd'),
-                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd'),
-                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd'),
-                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd'),
-                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd'),
-                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd'),
-                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd'),
-                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd'),
-                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd'),
-                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd'),
-                    },
-                    _4y: {
-                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_4y'),
-                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_4y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_4y'),
-                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_4y'),
-                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_4y'),
-                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_4y'),
-                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_4y'),
-                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_4y'),
-                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_4y'),
-                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_4y'),
-                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_4y'),
-                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_4y'),
-                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_4y'),
-                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_4y'),
-                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_4y'),
-                    },
-                    _2y: {
-                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_2y'),
-                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_2y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_2y'),
-                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_2y'),
-                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_2y'),
-                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_2y'),
-                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_2y'),
-                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_2y'),
-                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_2y'),
-                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_2y'),
-                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_2y'),
-                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_2y'),
-                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_2y'),
-                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_2y'),
-                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_2y'),
-                    },
-                    _1y: {
-                      sd: createSeriesPattern1(this, 'veteran_realized_price_ratio_sd_1y'),
-                      zscore: createSeriesPattern1(this, 'veteran_realized_price_ratio_zscore_1y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'veteran_realized_price_0sd_1y'),
-                      p05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p0_5sd_1y'),
-                      p1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1sd_1y'),
-                      p15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p1_5sd_1y'),
-                      p2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2sd_1y'),
-                      p25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p2_5sd_1y'),
-                      p3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'p3sd_1y'),
-                      m05sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm0_5sd_1y'),
-                      m1sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1sd_1y'),
-                      m15sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm1_5sd_1y'),
-                      m2sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2sd_1y'),
-                      m25sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm2_5sd_1y'),
-                      m3sd: createPriceRatioPattern(this, 'veteran_realized_price', 'm3sd_1y'),
-                    },
-                  },
-                },
-                mvrv: createSeriesPattern1(this, 'veteran_mvrv'),
-                netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'veteran_net'),
-                sopr: createRatioValuePattern2(this, 'veteran'),
-                grossPnl: createBlockCumulativeSumPattern(this, 'veteran_realized_gross_pnl'),
-                sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'veteran_sell_side_risk_ratio'),
-                peakRegret: createBlockCumulativeSumPattern(this, 'veteran_realized_peak_regret'),
-                capitalized: createPricePattern(this, 'veteran_capitalized_price'),
-                profitToLossRatio: create_1m1w1y24hPattern(this, 'veteran_realized_profit_to_loss_ratio'),
-              },
-              costBasis: createInMaxMinPerSupplyPattern(this, 'veteran'),
-              unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'veteran'),
-              investedCapital: createInPattern(this, 'veteran_invested_capital_in'),
-            },
-            premium: {
-              supply: createDeltaDominanceHalfInTotalPattern2(this, 'rookie_supply'),
-              outputs: createSpendingSpentUnspentPattern(this, 'rookie'),
-              activity: createCoindaysCoinyearsDormancyTransferPattern(this, 'rookie'),
-              realized: {
-                cap: createCentsDeltaToUsdPattern(this, 'rookie_realized_cap'),
-                profit: createBlockCumulativeSumPattern(this, 'rookie_realized_profit'),
-                loss: createBlockCumulativeNegativeSumPattern(this, 'rookie_realized_loss'),
-                price: {
-                  usd: createSeriesPattern1(this, 'rookie_realized_price'),
-                  cents: createSeriesPattern1(this, 'rookie_realized_price_cents'),
-                  sats: createSeriesPattern1(this, 'rookie_realized_price_sats'),
-                  bps: createSeriesPattern1(this, 'rookie_realized_price_ratio_bps'),
-                  ratio: createSeriesPattern1(this, 'rookie_realized_price_ratio'),
-                  percentiles: createPct0Pct1Pct2Pct5Pct95Pct98Pct99Pattern(this, 'rookie_realized_price'),
-                  sma: create_1m1w1y2y4yAllPattern(this, 'rookie_realized_price_ratio_sma'),
-                  stdDev: {
-                    all: {
-                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd'),
-                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore'),
-                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd'),
-                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd'),
-                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd'),
-                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd'),
-                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd'),
-                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd'),
-                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd'),
-                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd'),
-                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd'),
-                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd'),
-                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd'),
-                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd'),
-                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd'),
-                    },
-                    _4y: {
-                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_4y'),
-                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_4y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_4y'),
-                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_4y'),
-                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_4y'),
-                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_4y'),
-                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_4y'),
-                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_4y'),
-                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_4y'),
-                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_4y'),
-                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_4y'),
-                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_4y'),
-                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_4y'),
-                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_4y'),
-                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_4y'),
-                    },
-                    _2y: {
-                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_2y'),
-                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_2y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_2y'),
-                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_2y'),
-                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_2y'),
-                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_2y'),
-                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_2y'),
-                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_2y'),
-                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_2y'),
-                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_2y'),
-                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_2y'),
-                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_2y'),
-                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_2y'),
-                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_2y'),
-                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_2y'),
-                    },
-                    _1y: {
-                      sd: createSeriesPattern1(this, 'rookie_realized_price_ratio_sd_1y'),
-                      zscore: createSeriesPattern1(this, 'rookie_realized_price_ratio_zscore_1y'),
-                      _0sd: createCentsSatsUsdPattern(this, 'rookie_realized_price_0sd_1y'),
-                      p05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p0_5sd_1y'),
-                      p1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1sd_1y'),
-                      p15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p1_5sd_1y'),
-                      p2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2sd_1y'),
-                      p25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p2_5sd_1y'),
-                      p3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'p3sd_1y'),
-                      m05sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm0_5sd_1y'),
-                      m1sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1sd_1y'),
-                      m15sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm1_5sd_1y'),
-                      m2sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2sd_1y'),
-                      m25sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm2_5sd_1y'),
-                      m3sd: createPriceRatioPattern(this, 'rookie_realized_price', 'm3sd_1y'),
-                    },
-                  },
-                },
-                mvrv: createSeriesPattern1(this, 'rookie_mvrv'),
-                netPnl: createBlockChangeCumulativeDeltaSumPattern(this, 'rookie_net'),
-                sopr: createRatioValuePattern2(this, 'rookie'),
-                grossPnl: createBlockCumulativeSumPattern(this, 'rookie_realized_gross_pnl'),
-                sellSideRiskRatio: create_1m1w1y24hPattern8(this, 'rookie_sell_side_risk_ratio'),
-                peakRegret: createBlockCumulativeSumPattern(this, 'rookie_realized_peak_regret'),
-                capitalized: createPricePattern(this, 'rookie_capitalized_price'),
-                profitToLossRatio: create_1m1w1y24hPattern(this, 'rookie_realized_profit_to_loss_ratio'),
-              },
-              costBasis: createInMaxMinPerSupplyPattern(this, 'rookie'),
-              unrealized: createCapitalizedGrossInvestedLossNetNuplProfitSentimentPattern2(this, 'rookie'),
-              investedCapital: createInPattern(this, 'rookie_invested_capital_in'),
-            },
+            discount: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'veteran'),
+            premium: createActivityOutputsRealizedSupplyUnrealizedPattern(this, 'rookie'),
           },
           overAmount: {
             _1sat: createActivityOutputsRealizedSupplyUnrealizedPattern2(this, 'utxos_over_1sat'),
@@ -10871,77 +11387,84 @@ class BrkClient extends BrkClientBase {
             },
           },
           matured: {
-            under1h: createAverageBlockCumulativeSumPattern3(this, 'utxos_under_1h_old_matured_supply'),
-            _1hTo1d: createAverageBlockCumulativeSumPattern3(this, 'utxos_1h_to_1d_old_matured_supply'),
-            _1dTo1w: createAverageBlockCumulativeSumPattern3(this, 'utxos_1d_to_1w_old_matured_supply'),
-            _1wTo1m: createAverageBlockCumulativeSumPattern3(this, 'utxos_1w_to_1m_old_matured_supply'),
-            _1mTo2m: createAverageBlockCumulativeSumPattern3(this, 'utxos_1m_to_2m_old_matured_supply'),
-            _2mTo3m: createAverageBlockCumulativeSumPattern3(this, 'utxos_2m_to_3m_old_matured_supply'),
-            _3mTo4m: createAverageBlockCumulativeSumPattern3(this, 'utxos_3m_to_4m_old_matured_supply'),
-            _4mTo5m: createAverageBlockCumulativeSumPattern3(this, 'utxos_4m_to_5m_old_matured_supply'),
-            _5mTo6m: createAverageBlockCumulativeSumPattern3(this, 'utxos_5m_to_6m_old_matured_supply'),
-            _6mTo1y: createAverageBlockCumulativeSumPattern3(this, 'utxos_6m_to_1y_old_matured_supply'),
-            _1yTo2y: createAverageBlockCumulativeSumPattern3(this, 'utxos_1y_to_2y_old_matured_supply'),
-            _2yTo3y: createAverageBlockCumulativeSumPattern3(this, 'utxos_2y_to_3y_old_matured_supply'),
-            _3yTo4y: createAverageBlockCumulativeSumPattern3(this, 'utxos_3y_to_4y_old_matured_supply'),
-            _4yTo5y: createAverageBlockCumulativeSumPattern3(this, 'utxos_4y_to_5y_old_matured_supply'),
-            _5yTo6y: createAverageBlockCumulativeSumPattern3(this, 'utxos_5y_to_6y_old_matured_supply'),
-            _6yTo7y: createAverageBlockCumulativeSumPattern3(this, 'utxos_6y_to_7y_old_matured_supply'),
-            _7yTo8y: createAverageBlockCumulativeSumPattern3(this, 'utxos_7y_to_8y_old_matured_supply'),
-            _8yTo10y: createAverageBlockCumulativeSumPattern3(this, 'utxos_8y_to_10y_old_matured_supply'),
-            _10yTo12y: createAverageBlockCumulativeSumPattern3(this, 'utxos_10y_to_12y_old_matured_supply'),
-            _12yTo15y: createAverageBlockCumulativeSumPattern3(this, 'utxos_12y_to_15y_old_matured_supply'),
-            over15y: createAverageBlockCumulativeSumPattern3(this, 'utxos_over_15y_old_matured_supply'),
+            under1h: createAverageBlockCumulativeSumPattern2(this, 'utxos_under_1h_old_matured_supply'),
+            _1hTo1d: createAverageBlockCumulativeSumPattern2(this, 'utxos_1h_to_1d_old_matured_supply'),
+            _1dTo1w: createAverageBlockCumulativeSumPattern2(this, 'utxos_1d_to_1w_old_matured_supply'),
+            _1wTo1m: createAverageBlockCumulativeSumPattern2(this, 'utxos_1w_to_1m_old_matured_supply'),
+            _1mTo2m: createAverageBlockCumulativeSumPattern2(this, 'utxos_1m_to_2m_old_matured_supply'),
+            _2mTo3m: createAverageBlockCumulativeSumPattern2(this, 'utxos_2m_to_3m_old_matured_supply'),
+            _3mTo4m: createAverageBlockCumulativeSumPattern2(this, 'utxos_3m_to_4m_old_matured_supply'),
+            _4mTo5m: createAverageBlockCumulativeSumPattern2(this, 'utxos_4m_to_5m_old_matured_supply'),
+            _5mTo6m: createAverageBlockCumulativeSumPattern2(this, 'utxos_5m_to_6m_old_matured_supply'),
+            _6mTo9m: createAverageBlockCumulativeSumPattern2(this, 'utxos_6m_to_9m_old_matured_supply'),
+            _9mTo1y: createAverageBlockCumulativeSumPattern2(this, 'utxos_9m_to_1y_old_matured_supply'),
+            _1yTo18m: createAverageBlockCumulativeSumPattern2(this, 'utxos_1y_to_18m_old_matured_supply'),
+            _18mTo2y: createAverageBlockCumulativeSumPattern2(this, 'utxos_18m_to_2y_old_matured_supply'),
+            _2yTo3y: createAverageBlockCumulativeSumPattern2(this, 'utxos_2y_to_3y_old_matured_supply'),
+            _3yTo4y: createAverageBlockCumulativeSumPattern2(this, 'utxos_3y_to_4y_old_matured_supply'),
+            _4yTo5y: createAverageBlockCumulativeSumPattern2(this, 'utxos_4y_to_5y_old_matured_supply'),
+            _5yTo6y: createAverageBlockCumulativeSumPattern2(this, 'utxos_5y_to_6y_old_matured_supply'),
+            _6yTo7y: createAverageBlockCumulativeSumPattern2(this, 'utxos_6y_to_7y_old_matured_supply'),
+            _7yTo8y: createAverageBlockCumulativeSumPattern2(this, 'utxos_7y_to_8y_old_matured_supply'),
+            _8yTo10y: createAverageBlockCumulativeSumPattern2(this, 'utxos_8y_to_10y_old_matured_supply'),
+            _10yTo12y: createAverageBlockCumulativeSumPattern2(this, 'utxos_10y_to_12y_old_matured_supply'),
+            _12yTo15y: createAverageBlockCumulativeSumPattern2(this, 'utxos_12y_to_15y_old_matured_supply'),
+            over15y: createAverageBlockCumulativeSumPattern2(this, 'utxos_over_15y_old_matured_supply'),
           },
         },
         addr: {
           overAmount: {
-            _1sat: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1sat'),
-            _10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10sats'),
-            _100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100sats'),
-            _1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1k_sats'),
-            _10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10k_sats'),
-            _100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100k_sats'),
-            _1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1m_sats'),
-            _10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10m_sats'),
-            _1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1btc'),
-            _10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10btc'),
-            _100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100btc'),
-            _1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_1k_btc'),
-            _10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_10k_btc'),
+            _1sat: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1sat'),
+            _10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10sats'),
+            _100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100sats'),
+            _1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1k_sats'),
+            _10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10k_sats'),
+            _100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100k_sats'),
+            _1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1m_sats'),
+            _10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10m_sats'),
+            _1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1btc'),
+            _10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10btc'),
+            _100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100btc'),
+            _1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_1k_btc'),
+            _10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_10k_btc'),
           },
           amountRange: {
-            _0sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_0sats'),
-            _1satTo10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1sat_to_10sats'),
-            _10satsTo100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10sats_to_100sats'),
-            _100satsTo1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100sats_to_1k_sats'),
-            _1kSatsTo10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1k_sats_to_10k_sats'),
-            _10kSatsTo100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10k_sats_to_100k_sats'),
-            _100kSatsTo1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100k_sats_to_1m_sats'),
-            _1mSatsTo10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1m_sats_to_10m_sats'),
-            _10mSatsTo1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10m_sats_to_1btc'),
-            _1btcTo10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1btc_to_10btc'),
-            _10btcTo100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10btc_to_100btc'),
-            _100btcTo1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_100btc_to_1k_btc'),
-            _1kBtcTo10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_1k_btc_to_10k_btc'),
-            _10kBtcTo100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_10k_btc_to_100k_btc'),
-            over100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_over_100k_btc'),
+            _0sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_0sats'),
+            _1satTo10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1sat_to_10sats'),
+            _10satsTo100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10sats_to_100sats'),
+            _100satsTo1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100sats_to_1k_sats'),
+            _1kSatsTo10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1k_sats_to_10k_sats'),
+            _10kSatsTo100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10k_sats_to_100k_sats'),
+            _100kSatsTo1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100k_sats_to_1m_sats'),
+            _1mSatsTo10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1m_sats_to_10m_sats'),
+            _10mSatsTo1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10m_sats_to_1btc'),
+            _1btcTo10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1btc_to_10btc'),
+            _10btcTo100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10btc_to_100btc'),
+            _100btcTo1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_100btc_to_1k_btc'),
+            _1kBtcTo10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_1k_btc_to_10k_btc'),
+            _10kBtcTo100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_10k_btc_to_100k_btc'),
+            over100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_over_100k_btc'),
           },
           underAmount: {
-            _10sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10sats'),
-            _100sats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100sats'),
-            _1kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1k_sats'),
-            _10kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10k_sats'),
-            _100kSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100k_sats'),
-            _1mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1m_sats'),
-            _10mSats: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10m_sats'),
-            _1btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1btc'),
-            _10btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10btc'),
-            _100btc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100btc'),
-            _1kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_1k_btc'),
-            _10kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_10k_btc'),
-            _100kBtc: createActivityAddrOutputsRealizedSupplyUnrealizedPattern(this, 'addrs_under_100k_btc'),
+            _10sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10sats'),
+            _100sats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100sats'),
+            _1kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1k_sats'),
+            _10kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10k_sats'),
+            _100kSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100k_sats'),
+            _1mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1m_sats'),
+            _10mSats: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10m_sats'),
+            _1btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1btc'),
+            _10btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10btc'),
+            _100btc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100btc'),
+            _1kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_1k_btc'),
+            _10kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_10k_btc'),
+            _100kBtc: createActivityAddrOutputsRealizedSupplyPattern(this, 'addrs_under_100k_btc'),
           },
+        },
+      },
+      cointime: {
+        activity: {
+          coinblocksDestroyed: createAverageBlockCumulativeSumPattern(this, 'coinblocks_destroyed'),
         },
       },
     };
@@ -10964,7 +11487,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Health check
    *
-   * Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, see `/api/server/sync`.
+   * Liveness probe. Returns server identity, uptime, and indexed/computed heights from local state only (no bitcoind round-trip). For real chain-tip catch-up, request `GET /api/server/sync`.
    *
    * Endpoint: `GET /health`
    * @param {{ signal?: AbortSignal, onValue?: (value: Health) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -11006,7 +11529,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Disk usage
    *
-   * Returns the disk space used by LRK and Litecoin data.
+   * Returns the disk space used by BRK and Bitcoin data.
    *
    * Endpoint: `GET /api/server/disk`
    * @param {{ signal?: AbortSignal, onValue?: (value: DiskUsage) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -11148,7 +11671,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Get raw series data
    *
-   * Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as the standard endpoint.
+   * Returns just the data array without the SeriesData wrapper. Supports the same range and format parameters as `GET /api/series/{series}/{index}`.
    *
    * Endpoint: `GET /api/series/{series}/{index}/data`
    *
@@ -11271,36 +11794,40 @@ class BrkClient extends BrkClientBase {
   /**
    * Available URPD dates
    *
-   * Dates for which a URPD snapshot is available for the cohort. One entry per UTC day, sorted ascending.
+   * Dates for which a URPD snapshot is available for the cohort and selected `weight`. One entry per UTC day, sorted ascending.
    *
    * Endpoint: `GET /api/urpd/{cohort}/dates`
    *
    * @param {Cohort} cohort
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Date[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Date[]>}
    */
-  async listUrpdDates(cohort, { signal, onValue, cache, memCache } = {}) {
-    const path = `/api/urpd/${cohort}/dates`;
+  async listUrpdDates(cohort, weight, { signal, onValue, cache, memCache } = {}) {
+    const params = new URLSearchParams();
+    if (weight !== undefined) params.set('weight', String(weight));
+    const query = params.toString();
+    const path = `/api/urpd/${cohort}/dates${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });
   }
 
   /**
    * Latest URPD
    *
-   * URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served.
-   *
-   * See the URPD tag description for the response shape and `agg` options.
+   * URPD for the most recent available date in the cohort. The response's `date` field echoes which date was served. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }`. `close` and each bucket's `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and bucket `supply` are BTC. `unrealized_pnl` can be negative.
    *
    * Endpoint: `GET /api/urpd/{cohort}`
    *
    * @param {Cohort} cohort
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpd(cohort, agg, { signal, onValue, cache, memCache } = {}) {
+  async getUrpd(cohort, agg, weight, { signal, onValue, cache, memCache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
+    if (weight !== undefined) params.set('weight', String(weight));
     const query = params.toString();
     const path = `/api/urpd/${cohort}${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });
@@ -11309,21 +11836,21 @@ class BrkClient extends BrkClientBase {
   /**
    * URPD at date
    *
-   * URPD for a (cohort, date) pair. Returns `{ cohort, date, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`.
-   *
-   * See the URPD tag description for unit conventions and `agg` options.
+   * URPD for a (cohort, date) pair. Returns `{ cohort, date, weight, aggregation, close, total_supply, buckets }` where each bucket is `{ price_floor, supply, realized_cap, unrealized_pnl }`. `close`, `price_floor`, `realized_cap`, and `unrealized_pnl` are USD; `total_supply` and `supply` are BTC. `unrealized_pnl` can be negative.
    *
    * Endpoint: `GET /api/urpd/{cohort}/{date}`
    *
    * @param {Cohort} cohort
-   * @param {string} date
+   * @param {string} date - Calendar date of the URPD snapshot in `YYYY-MM-DD` format.
    * @param {UrpdAggregation=} [agg] - Aggregation strategy. Default: raw (no aggregation). Accepts `bucket` as alias.
+   * @param {UrpdWeight=} [weight] - Supply weighting. Default: raw (unweighted).
    * @param {{ signal?: AbortSignal, onValue?: (value: Urpd) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Urpd>}
    */
-  async getUrpdAt(cohort, date, agg, { signal, onValue, cache, memCache } = {}) {
+  async getUrpdAt(cohort, date, agg, weight, { signal, onValue, cache, memCache } = {}) {
     const params = new URLSearchParams();
     if (agg !== undefined) params.set('agg', String(agg));
+    if (weight !== undefined) params.set('weight', String(weight));
     const query = params.toString();
     const path = `/api/urpd/${cohort}/${date}${query ? '?' + query : ''}`;
     return this.getJson(path, { signal, onValue, cache, memCache });
@@ -11346,9 +11873,9 @@ class BrkClient extends BrkClientBase {
   }
 
   /**
-   * Current LTC price
+   * Current BTC price
    *
-   * Returns litecoin latest price (exchange-derived, USD only).
+   * Returns bitcoin latest price (on-chain derived, USD only).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
    *
@@ -11364,7 +11891,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Historical price
    *
-   * Get historical LTC/USD price. Optionally specify a UNIX timestamp to get the price at that time.
+   * Get historical BTC/USD price. Optionally specify a UNIX timestamp to get the price at that time.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
    *
@@ -11385,12 +11912,13 @@ class BrkClient extends BrkClientBase {
   /**
    * Address hash-prefix matches
    *
-   * Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata for the returned addresses through `/api/address/{address}`.
+   * Find addresses by address type and by the first 1-16 hex nibbles of RapidHash v3 over the raw address payload bytes. Intended for privacy-preserving client-side wallet discovery without sending raw addresses or xpubs. Fetch metadata with `GET /api/address/{address}`.
    *
    * Endpoint: `GET /api/address/hash-prefix/{addr_type}/{prefix}`
    *
    * @param {OutputType} addr_type
-   * @param {string} prefix
+   * @param {string} prefix - First 1–16 hexadecimal nibbles of the RapidHash v3 hash over the raw
+address payload bytes.
    * @param {{ signal?: AbortSignal, onValue?: (value: AddrHashPrefixMatches) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<AddrHashPrefixMatches>}
    */
@@ -11402,7 +11930,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address information
    *
-   * Retrieve address information including balance and transaction counts. Supports all standard Litecoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
+   * Retrieve address information including current balance and transaction counts. Supports all standard Bitcoin address types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address)*
    *
@@ -11420,7 +11948,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address transactions
    *
-   * Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, use `/address/{address}/txs/chain/{last_seen_txid}`.
+   * Get transaction history for an address, newest first. Returns up to 50 mempool transactions plus a confirmed page sized to fill the response to 50 total (chain floor of 25, so 25-50 confirmed depending on mempool weight). To paginate further confirmed history, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions)*
    *
@@ -11438,7 +11966,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Address confirmed transactions
    *
-   * Get the first 25 confirmed transactions for an address. For pagination, use the path-style form `/txs/chain/{last_seen_txid}`.
+   * Get the first 25 confirmed transactions for an address. For pagination, request `GET /api/address/{address}/txs/chain/{after_txid}` with the last returned txid.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-transactions-chain)*
    *
@@ -11511,13 +12039,13 @@ class BrkClient extends BrkClientBase {
   /**
    * Validate address
    *
-   * Validate a Litecoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses.
+   * Validate a Bitcoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-validate)*
    *
    * Endpoint: `GET /api/v1/validate-address/{address}`
    *
-   * @param {string} address - Litecoin address to validate (can be any string)
+   * @param {string} address - Bitcoin address to validate (can be any string)
    * @param {{ signal?: AbortSignal, onValue?: (value: AddrValidation) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<AddrValidation>}
    */
@@ -11693,7 +12221,7 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/block/{hash}/txid/{index}`
    *
-   * @param {BlockHash} hash - Litecoin block hash
+   * @param {BlockHash} hash - Bitcoin block hash
    * @param {BlockTxIndex} index - Transaction index within the block (0-based)
    * @param {{ signal?: AbortSignal, onValue?: (value: Txid) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Txid>}
@@ -11748,7 +12276,7 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/block/{hash}/txs/{start_index}`
    *
-   * @param {BlockHash} hash - Litecoin block hash
+   * @param {BlockHash} hash - Bitcoin block hash
    * @param {BlockTxIndex} start_index - Starting transaction index within the block (0-based)
    * @param {{ signal?: AbortSignal, onValue?: (value: Transaction[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<Transaction[]>}
@@ -12128,7 +12656,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Projected mempool blocks
    *
-   * Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+   * Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
    *
@@ -12254,7 +12782,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Recent full-RBF replacements
    *
-   * Like `/api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
+   * Same response shape as `GET /api/v1/replacements`, but limited to trees where at least one predecessor was non-signaling (full-RBF).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-fullrbf-replacements)*
    *
@@ -12270,7 +12798,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Projected next block template
    *
-   * Litecoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it as `<hash>` on `/api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
+   * Bitcoin Core's `getblocktemplate` selection: full transaction bodies in GBT order with aggregate stats. The returned `hash` is an opaque content token; pass it to `GET /api/v1/mempool/block-template/diff/{hash}` to fetch deltas instead of refetching the whole template.
    *
    * Endpoint: `GET /api/v1/mempool/block-template`
    * @param {{ signal?: AbortSignal, onValue?: (value: BlockTemplate) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -12284,7 +12812,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Block template diff since hash
    *
-   * Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `/api/v1/mempool/block-template`.
+   * Delta of the projected next block since `<hash>`. `order` is the full new template in order: each entry is either a number (index into the prior template the client cached at `<hash>`) or a transaction object (new body to insert at this position). Walk `order` once to rebuild; `removed` is a convenience list of txids that left so clients can evict cached bodies. After applying, use the response `hash` as `<hash>` on the next call to keep iterating. Returns `404` when `<hash>` has aged out of server history; clients should fall back to `GET /api/v1/mempool/block-template`.
    *
    * Endpoint: `GET /api/v1/mempool/block-template/diff/{hash}`
    *
@@ -12298,9 +12826,9 @@ class BrkClient extends BrkClientBase {
   }
 
   /**
-   * Live LTC/USD price
+   * Live BTC/USD price
    *
-   * Returns the current LTC/USD price in dollars, derived from on-chain round-dollar output patterns in the last 12 blocks plus mempool.
+   * Returns the current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the last 12 blocks plus mempool.
    *
    * Endpoint: `GET /api/mempool/price`
    * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -12312,9 +12840,9 @@ class BrkClient extends BrkClientBase {
   }
 
   /**
-   * Live LTC/USD price
+   * Live BTC/USD price
    *
-   * Current LTC/USD price in dollars. Same value as `/api/mempool/price`. Confirmed per-height history is available at `/api/vecs/height-to-price`.
+   * Current BTC/USD price in dollars. Same value as `GET /api/mempool/price`. Confirmed per-height history is available at `GET /api/series/price/height`.
    *
    * Endpoint: `GET /api/oracle/price`
    * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -12346,7 +12874,8 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/oracle/histogram/payments/{point}`
    *
-   * @param {string} point
+   * @param {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
    * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<number[]>}
    */
@@ -12376,7 +12905,8 @@ class BrkClient extends BrkClientBase {
    *
    * Endpoint: `GET /api/oracle/histogram/outputs/{point}`
    *
-   * @param {string} point
+   * @param {string} point - Confirmed block height as decimal digits (`840000`) or calendar date in
+`YYYY-MM-DD` format.
    * @param {{ signal?: AbortSignal, onValue?: (value: number[]) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<number[]>}
    */
@@ -12638,7 +13168,7 @@ class BrkClient extends BrkClientBase {
   /**
    * Compact OpenAPI specification
    *
-   * Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. Full spec available at `/openapi.json`.
+   * Compact OpenAPI specification optimized for LLM consumption. Removes redundant fields while preserving essential API information. The full specification is available at `GET /openapi.json`.
    *
    * Endpoint: `GET /api.json`
    * @param {{ signal?: AbortSignal, onValue?: (value: *) => void, cache?: boolean, memCache?: boolean }} [options]

@@ -1,19 +1,20 @@
 use brk_error::{OptionData, Result};
 use brk_indexer::Indexer;
-use brk_types::{OutputType, StoredU64};
-use vecdb::{AnyVec, Exit, ReadableVec, VecIndex, WritableVec};
+use vecdb::{AnyVec, Exit, ReadableVec, VecIndex};
 
-use super::{Vecs, WithInputTypes};
-use crate::internal::{CoinbasePolicy, PerBlockCumulativeRolling, walk_blocks};
+use super::Vecs;
+use crate::internal::{CoinbasePolicy, walk_blocks};
+
+const WRITE_INTERVAL: usize = 10_000;
 
 impl Vecs {
     pub(crate) fn compute(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_lengths = indexer.safe_lengths();
 
-        let dep_version = indexer.vecs.inputs.output_type.version()
-            + indexer.vecs.transactions.first_tx_index.version()
-            + indexer.vecs.transactions.first_txin_index.version()
-            + indexer.vecs.transactions.txid.version();
+        let dep_version = indexer.vecs().inputs.output_type.version()
+            + indexer.vecs().transactions.first_tx_index.version()
+            + indexer.vecs().transactions.first_txin_index.version()
+            + indexer.vecs().transactions.txid.version();
 
         self.input_count
             .validate_and_truncate(dep_version, starting_lengths.height)?;
@@ -25,18 +26,19 @@ impl Vecs {
             .min_stateful_len()
             .min(self.tx_count.min_stateful_len());
 
-        let first_tx_index = &indexer.vecs.transactions.first_tx_index;
+        let first_tx_index = &indexer.vecs().transactions.first_tx_index;
         let end = first_tx_index.len();
         if skip < end {
             self.input_count.truncate_if_needed_at(skip)?;
             self.tx_count.truncate_if_needed_at(skip)?;
 
             let fi_batch = first_tx_index.collect_range_at(skip, end);
-            let txid_len = indexer.vecs.transactions.txid.len();
-            let total_txin_len = indexer.vecs.inputs.output_type.len();
+            let txid_len = indexer.vecs().transactions.txid.len();
+            let total_txin_len = indexer.vecs().inputs.output_type.len();
 
-            let mut itype_cursor = indexer.vecs.inputs.output_type.cursor();
-            let mut fi_in_cursor = indexer.vecs.transactions.first_txin_index.cursor();
+            let mut itype_cursor = indexer.vecs().inputs.output_type.cursor();
+            let mut fi_in_cursor = indexer.vecs().transactions.first_txin_index.cursor();
+            let mut height = skip;
 
             walk_blocks(
                 &fi_batch,
@@ -51,21 +53,17 @@ impl Vecs {
                     };
 
                     itype_cursor.advance(fi_in - itype_cursor.position());
-                    for _ in fi_in..next_fi_in {
-                        let otype = itype_cursor.next().unwrap();
+                    itype_cursor.for_each(next_fi_in - fi_in, |otype| {
                         per_tx[otype as usize] += 1;
-                    }
+                    });
                     Ok(())
                 },
                 |agg| {
-                    push_block(
-                        &mut self.input_count,
-                        agg.entries_all,
-                        &agg.entries_per_type,
-                    );
-                    push_block(&mut self.tx_count, agg.txs_all, &agg.txs_per_type);
+                    self.input_count.push_block(&agg.entries_per_type);
+                    self.tx_count.push_block(&agg.txs_per_type);
 
-                    if self.input_count.all.block.batch_limit_reached() {
+                    height += 1;
+                    if height.is_multiple_of(WRITE_INTERVAL) {
                         let _lock = exit.lock();
                         self.input_count.write()?;
                         self.tx_count.write()?;
@@ -79,41 +77,8 @@ impl Vecs {
                 self.input_count.write()?;
                 self.tx_count.write()?;
             }
-
-            self.input_count
-                .compute_rest(starting_lengths.height, exit)?;
-            self.tx_count.compute_rest(starting_lengths.height, exit)?;
         }
 
-        for (otype, source) in self.input_count.by_type.iter_typed() {
-            self.input_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.input_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
-
-        for (otype, source) in self.tx_count.by_type.iter_typed() {
-            self.tx_share.get_mut(otype).compute_count_ratio(
-                source,
-                &self.tx_count.all,
-                starting_lengths.height,
-                exit,
-            )?;
-        }
         Ok(())
-    }
-}
-
-#[inline]
-fn push_block(
-    metric: &mut WithInputTypes<PerBlockCumulativeRolling<StoredU64, StoredU64>>,
-    total: u64,
-    per_type: &[u64; OutputType::COUNT],
-) {
-    metric.all.block.push(StoredU64::from(total));
-    for (otype, vec) in metric.by_type.iter_typed_mut() {
-        vec.block.push(StoredU64::from(per_type[otype as usize]));
     }
 }

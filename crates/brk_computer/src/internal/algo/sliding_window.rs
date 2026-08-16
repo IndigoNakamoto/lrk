@@ -1,133 +1,18 @@
-use std::cmp::Ordering;
-
-/// Sqrt-decomposed sorted structure for O(sqrt(n)) insert/remove/kth.
-///
-/// Maintains `blocks` sorted sub-arrays where each block is sorted and
-/// the blocks are ordered (max of block[i] <= min of block[i+1]).
-/// Total element count is tracked via `total_len`.
-struct SortedBlocks {
-    blocks: Vec<Vec<f64>>,
-    total_len: usize,
-    block_size: usize,
-}
-
-impl SortedBlocks {
-    fn new(capacity: usize) -> Self {
-        let block_size = ((capacity as f64).sqrt() as usize).max(64);
-        Self {
-            blocks: Vec::new(),
-            total_len: 0,
-            block_size,
-        }
-    }
-
-    /// Build from a pre-sorted slice in O(n) by chunking directly into blocks.
-    fn from_sorted(sorted: &[f64], block_size: usize) -> Self {
-        let total_len = sorted.len();
-        let blocks: Vec<Vec<f64>> = sorted.chunks(block_size).map(|c| c.to_vec()).collect();
-        Self {
-            blocks,
-            total_len,
-            block_size,
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.total_len
-    }
-
-    fn is_empty(&self) -> bool {
-        self.total_len == 0
-    }
-
-    /// Insert a value in sorted order. O(sqrt(n)).
-    fn insert(&mut self, value: f64) {
-        self.total_len += 1;
-
-        if self.blocks.is_empty() {
-            self.blocks.push(vec![value]);
-            return;
-        }
-
-        // Find the block where value belongs: first block whose max >= value
-        let block_idx = self
-            .blocks
-            .partition_point(|b| *b.last().unwrap() < value)
-            .min(self.blocks.len() - 1);
-
-        let block = &mut self.blocks[block_idx];
-        let pos = block.partition_point(|a| *a < value);
-        block.insert(pos, value);
-
-        // Split if block too large
-        if block.len() > 2 * self.block_size {
-            let mid = block.len() / 2;
-            let right = block[mid..].to_vec();
-            block.truncate(mid);
-            self.blocks.insert(block_idx + 1, right);
-        }
-    }
-
-    /// Remove one occurrence of value. O(sqrt(n)).
-    fn remove(&mut self, value: f64) -> bool {
-        if self.blocks.is_empty() {
-            return false;
-        }
-
-        // Binary search for first block whose max >= value
-        let bi = self
-            .blocks
-            .partition_point(|b| b.last().is_some_and(|&last| last < value));
-        if bi >= self.blocks.len() {
-            return false;
-        }
-
-        let block = &mut self.blocks[bi];
-        let pos = block.partition_point(|a| *a < value);
-        if pos < block.len() && block[pos] == value {
-            block.remove(pos);
-            self.total_len -= 1;
-            if block.is_empty() {
-                self.blocks.remove(bi);
-            }
-            return true;
-        }
-        false
-    }
-
-    /// Get the k-th smallest element (0-indexed). O(sqrt(n)).
-    fn kth(&self, mut k: usize) -> f64 {
-        for block in &self.blocks {
-            if k < block.len() {
-                return block[k];
-            }
-            k -= block.len();
-        }
-        unreachable!("kth out of bounds")
-    }
-
-    fn first(&self) -> f64 {
-        self.blocks.first().unwrap().first().copied().unwrap()
-    }
-
-    fn last(&self) -> f64 {
-        self.blocks.last().unwrap().last().copied().unwrap()
-    }
-}
+use super::order_statistics::ExactOrderStats;
 
 /// Sorted sliding window for rolling distribution/median computations.
 ///
 /// Uses sqrt-decomposition for O(sqrt(n)) insert/remove/kth instead of
 /// O(n) memmoves with a flat sorted Vec.
 pub(crate) struct SlidingWindowSorted {
-    sorted: SortedBlocks,
+    sorted: ExactOrderStats,
     prev_start: usize,
 }
 
 impl SlidingWindowSorted {
     pub fn with_capacity(cap: usize) -> Self {
         Self {
-            sorted: SortedBlocks::new(cap),
+            sorted: ExactOrderStats::new(cap),
             prev_start: 0,
         }
     }
@@ -140,9 +25,7 @@ impl SlidingWindowSorted {
         if slice.is_empty() {
             return;
         }
-        let mut sorted_copy: Vec<f64> = slice.to_vec();
-        sorted_copy.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
-        self.sorted = SortedBlocks::from_sorted(&sorted_copy, self.sorted.block_size);
+        self.sorted = ExactOrderStats::from_unsorted(slice.to_vec());
     }
 
     /// Add a new value and remove all expired values up to `new_start`.
@@ -251,18 +134,7 @@ impl SlidingWindowSorted {
         // Single pass through blocks to get all values
         let ranks = &rank_set[..rank_count];
         let mut values = [0.0f64; 10];
-        let mut ri = 0;
-        let mut cumulative = 0;
-        for block in &self.sorted.blocks {
-            while ri < rank_count && ranks[ri] - cumulative < block.len() {
-                values[ri] = block[ranks[ri] - cumulative];
-                ri += 1;
-            }
-            cumulative += block.len();
-            if ri >= rank_count {
-                break;
-            }
-        }
+        self.sorted.values_at(ranks, &mut values[..rank_count]);
 
         // Interpolate results
         let mut out = [0.0; N];
