@@ -18,6 +18,7 @@ use vecdb::{ReadOnlyClone, ReadableVec, Ro};
 
 #[cfg(feature = "tokio")]
 mod r#async;
+mod difficulty_scale;
 mod vecs;
 
 mod r#impl;

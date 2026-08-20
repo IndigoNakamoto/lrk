@@ -141,7 +141,13 @@ impl<'a> Ctx<'a> {
             "nonce" => scalar(json!(b.header.nonce)),
             "prev" => scalar(json!(b.header.prev_blockhash.to_string())),
             "merkle" => scalar(json!(b.header.merkle_root.to_string())),
-            "difficulty" => scalar(json!(b.header.difficulty_float())),
+            "difficulty" => {
+                #[cfg(feature = "litecoin")]
+                let d = b.header.difficulty_float() / 4096.0;
+                #[cfg(not(feature = "litecoin"))]
+                let d = b.header.difficulty_float();
+                scalar(json!(d))
+            }
             "txs" => scalar(json!(b.txdata.len())),
             "n_inputs" => scalar(json!(
                 b.txdata.iter().map(|tx| tx.input.len()).sum::<usize>()

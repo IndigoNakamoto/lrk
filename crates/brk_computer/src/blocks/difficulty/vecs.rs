@@ -5,6 +5,8 @@ use vecdb::{Rw, StorageMode};
 use crate::internal::{LazyPerBlock, PerBlock, PercentPerBlock, Resolutions};
 #[derive(Traversable)]
 pub struct Vecs<M: StorageMode = Rw> {
+    /// Resolution aggregates of explorer-scaled difficulty (Height series stays
+    /// on the indexer — a computer Height leaf named `difficulty` would collide).
     pub value: Resolutions<StoredF64>,
     pub hashrate: LazyPerBlock<StoredF64>,
     pub adjustment: PercentPerBlock<BasisPointsSigned32, M>,

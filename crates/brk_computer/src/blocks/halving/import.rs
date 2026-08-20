@@ -14,14 +14,15 @@ impl Vecs {
         version: Version,
         indexes: &indexes::Vecs,
     ) -> Result<Self> {
-        let v2 = Version::TWO;
+        // v3: days_to_halving uses Litecoin 576 blocks/day (was 144).
+        let v3 = Version::new(3);
 
         let blocks_to_halving =
-            PerBlock::forced_import(db, "blocks_to_halving", version + v2, indexes)?;
+            PerBlock::forced_import(db, "blocks_to_halving", version + v3, indexes)?;
 
         let days_to_halving = LazyPerBlock::from_computed::<BlocksToDaysF32>(
             "days_to_halving",
-            version + v2,
+            version + v3,
             blocks_to_halving.height.read_only_boxed_clone(),
             &blocks_to_halving,
         );

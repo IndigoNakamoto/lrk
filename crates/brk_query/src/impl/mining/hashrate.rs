@@ -39,12 +39,15 @@ impl Query {
         let computer = self.computer();
         let current_height = self.height();
 
-        let current_difficulty = *indexer
-            .vecs
-            .blocks
-            .difficulty
-            .collect_one(current_height)
-            .data()?;
+        // Indexer stores powLimit-based difficulty_float; scale for explorers.
+        let current_difficulty = crate::difficulty_scale::explorer_difficulty(
+            *indexer
+                .vecs
+                .blocks
+                .difficulty
+                .collect_one(current_height)
+                .data()?,
+        );
 
         let current_hashrate = self.hashrate_at(current_height)?;
         let current_day1 = computer
