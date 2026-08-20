@@ -6,10 +6,10 @@ mod ratio;
 mod specialized;
 
 pub use arithmetic::{
-    BlocksToDaysF32, DifficultyToHashF64, HalveCents, HalveDollars, HalveSats, HalveSatsToBitcoin,
-    Identity, MaskSats, OddsF64, OneMinusF64, OneMinusPpm, PerSecond, ReturnF32Tenths, ReturnI8,
-    ReturnU16, StoredU16ToStoredU64, StoredU64ToStoredU32, ThsToPhsF32, VBytesToWeight,
-    WeightToVSize,
+    BlocksToDaysF32, DifficultyToHashF64, ExplorerDifficultyF64, HalveCents, HalveDollars,
+    HalveSats, HalveSatsToBitcoin, Identity, MaskSats, OddsF64, OneMinusF64, OneMinusPpm, PerSecond,
+    ReturnF32Tenths, ReturnI8, ReturnU16, StoredU16ToStoredU64, StoredU64ToStoredU32, ThsToPhsF32,
+    VBytesToWeight, WeightToVSize,
 };
 pub use currency::{
     AvgCentsToUsd, AvgSatsToBtc, CentsSignedToDollars, CentsSubtractToCentsSigned,

@@ -6,6 +6,7 @@
   <string>com.litview.watchdog</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/indigo/Projects/lrk/docker/services/watchdog.sh</string>
   </array>
   <key>RunAtLoad</key>

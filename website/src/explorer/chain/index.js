@@ -8,7 +8,7 @@ import { createCubeAnchor, createCubeDiv } from "./cube/index.js";
 
 const LOOKAHEAD = 15;
 const PROJECTED_LIMIT = 8;
-const TARGET_BLOCK_SECONDS = 600;
+const TARGET_BLOCK_SECONDS = 150;
 const MONTHS = [
   "Jan",
   "Feb",

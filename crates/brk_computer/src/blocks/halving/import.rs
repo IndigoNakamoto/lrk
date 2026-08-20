@@ -13,7 +13,8 @@ fn blocks_left_to_halving(height: Height, _: Halving) -> StoredU32 {
 
 impl Vecs {
     pub(crate) fn new(version: Version, indexes: &indexes::Vecs) -> Self {
-        let v2 = Version::TWO;
+        // v3: days_to_halving uses Litecoin 576 blocks/day (was 144).
+        let v3 = Version::new(3);
 
         let epoch = LazyPerBlock::from_height_source::<Identity<Halving>, _>(
             "halving_epoch",
@@ -23,7 +24,7 @@ impl Vecs {
         );
         let blocks_to_halving = LazyPerBlock::from_indexed_source(
             "blocks_to_halving",
-            version + v2,
+            version + Version::TWO,
             &indexes.height.halving,
             blocks_left_to_halving,
             indexes,
@@ -31,7 +32,7 @@ impl Vecs {
 
         let days_to_halving = LazyPerBlock::from_lazy::<BlocksToDaysF32, StoredU32>(
             "days_to_halving",
-            version + v2,
+            version + v3,
             &blocks_to_halving,
         );
 

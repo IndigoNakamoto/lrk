@@ -167,11 +167,36 @@ impl UnaryTransform<StoredF64, StoredF64> for OddsF64 {
     }
 }
 
+/// Scale rust-litecoin `difficulty_float` (powLimit-based) to explorer /
+/// Litecoin Core `GetDifficulty` units (Bitcoin difficulty-1 convention).
+pub struct ExplorerDifficultyF64;
+
+impl UnaryTransform<StoredF64, StoredF64> for ExplorerDifficultyF64 {
+    #[inline(always)]
+    fn apply(difficulty: StoredF64) -> StoredF64 {
+        #[cfg(feature = "litecoin")]
+        {
+            StoredF64::from(*difficulty / crate::blocks::DIFFICULTY_FLOAT_TO_EXPLORER)
+        }
+        #[cfg(not(feature = "litecoin"))]
+        {
+            difficulty
+        }
+    }
+}
+
 pub struct DifficultyToHashF64;
 
 impl UnaryTransform<StoredF64, StoredF64> for DifficultyToHashF64 {
     #[inline(always)]
     fn apply(difficulty: StoredF64) -> StoredF64 {
+        // hashrate ≈ difficulty × 2^32 / target_block_seconds, where difficulty
+        // uses the Bitcoin difficulty-1 convention (diff=1 ⇒ ~2^32 hashes).
+        // Indexed difficulty is rust-litecoin's powLimit-based float, so Litecoin
+        // must also divide by DIFFICULTY_FLOAT_TO_EXPLORER (4096).
+        #[cfg(feature = "litecoin")]
+        const MULTIPLIER: f64 = 4_294_967_296.0 / (4096.0 * 150.0); // 2^32 / (4096 × 150)
+        #[cfg(not(feature = "litecoin"))]
         const MULTIPLIER: f64 = 4_294_967_296.0 / 600.0; // 2^32 / 600
         StoredF64::from(*difficulty * MULTIPLIER)
     }
@@ -214,5 +239,28 @@ mod tests {
         assert_eq!(OddsF64::apply(StoredF64::from(0.5)), StoredF64::from(1.0));
         assert_eq!(OddsF64::apply(StoredF64::from(0.75)), StoredF64::from(3.0));
         assert_eq!(OddsF64::apply(StoredF64::from(1.0)), StoredF64::NAN);
+    }
+}
+
+#[cfg(all(test, feature = "litecoin"))]
+mod litecoin_tests {
+    use super::*;
+
+    #[test]
+    fn litecoin_difficulty_to_hashrate_matches_target_formula() {
+        // bits 0x192c6f5d → explorer difficulty ≈ 96_655_801, hashrate ≈ 2.7676 PH/s
+        let explorer_diff = 96_655_801.08305608_f64;
+        let powlimit_diff = explorer_diff * 4096.0;
+        let hr = *DifficultyToHashF64::apply(StoredF64::from(powlimit_diff));
+        let expected = explorer_diff * (1u64 << 32) as f64 / 150.0;
+        assert!((hr - expected).abs() / expected < 1e-9);
+        assert!((hr / 1e15 - 2.7676).abs() < 0.001);
+    }
+
+    #[test]
+    fn explorer_difficulty_scales_powlimit_float() {
+        let powlimit = StoredF64::from(395_902_161_236.1977_f64);
+        let explorer = *ExplorerDifficultyF64::apply(powlimit);
+        assert!((explorer - 96_655_801.08305608).abs() < 0.01);
     }
 }

@@ -5,6 +5,8 @@ use crate::internal::{LazyPerBlock, LazyPercentPerBlock, Resolutions};
 
 #[derive(Clone, Traversable)]
 pub struct Vecs {
+    /// Resolution aggregates of explorer-scaled difficulty (Height series stays
+    /// on the indexer — a computer Height leaf named `difficulty` would collide).
     pub value: Resolutions<StoredF64>,
     pub hashrate: LazyPerBlock<StoredF64>,
     pub adjustment: LazyPercentPerBlock<PartsPerMillionSigned32>,

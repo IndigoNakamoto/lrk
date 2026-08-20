@@ -1,13 +1,13 @@
 use brk_indexer::Indexer;
 use brk_types::{Epoch, Height, PartsPerMillionSigned32, StoredF64, StoredU32, Version};
-use vecdb::ReadOnlyClone;
+use vecdb::{LazyVec, ReadOnlyClone, ReadableCloneableVec};
 
 use super::Vecs;
 use crate::{
     indexes,
     internal::{
-        BlocksToDaysF32, DifficultyToHashF64, Identity, LazyPerBlock, LazyPercentPerBlock,
-        Resolutions,
+        BlocksToDaysF32, DifficultyToHashF64, ExplorerDifficultyF64, Identity, LazyPerBlock,
+        LazyPercentPerBlock, Resolutions,
     },
 };
 
@@ -31,11 +31,12 @@ fn difficulty_adjustment(
 
 impl Vecs {
     pub(crate) fn new(version: Version, indexer: &Indexer, indexes: &indexes::Vecs) -> Self {
-        let v2 = Version::TWO;
+        // v3: Litecoin block-time / explorer-difficulty scale for hashrate & days.
+        let v3 = Version::new(3);
 
         let hashrate = LazyPerBlock::from_height_source::<DifficultyToHashF64, _>(
             "difficulty_hashrate",
-            version,
+            version + v3,
             indexer.vecs().blocks.difficulty.read_only_clone(),
             indexes,
         );
@@ -48,7 +49,7 @@ impl Vecs {
         );
         let blocks_to_retarget = LazyPerBlock::from_indexed_source(
             "blocks_to_retarget",
-            version + v2,
+            version + Version::TWO,
             &indexes.height.epoch,
             blocks_left_to_retarget,
             indexes,
@@ -56,15 +57,23 @@ impl Vecs {
 
         let days_to_retarget = LazyPerBlock::from_lazy::<BlocksToDaysF32, StoredU32>(
             "days_to_retarget",
-            version + v2,
+            version + v3,
             &blocks_to_retarget,
+        );
+
+        // Scale for resolution charts/API epochs only — do not register a Height
+        // series named `difficulty` (indexer already owns that leaf).
+        let explorer_difficulty = LazyVec::transformed::<ExplorerDifficultyF64>(
+            "difficulty_explorer",
+            version + v3,
+            indexer.vecs().blocks.difficulty.read_only_boxed_clone(),
         );
 
         Self {
             value: Resolutions::forced_import(
                 "difficulty",
-                indexer.vecs().blocks.difficulty.read_only_clone(),
-                version,
+                explorer_difficulty,
+                version + v3,
                 indexes,
             ),
             hashrate,
