@@ -6,6 +6,7 @@
   <string>com.litview.brk</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/indigo/Projects/lrk/docker/services/brk.sh</string>
   </array>
   <key>RunAtLoad</key>
@@ -24,6 +25,10 @@
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>LOG</key>
     <string>info</string>
+    <key>LITECOIN_DATADIR</key>
+    <string>/Volumes/LTC/litecoin</string>
+    <key>BRK_DATA_DIR</key>
+    <string>/Volumes/LTC/brk</string>
   </dict>
 </dict>
 </plist>

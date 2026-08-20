@@ -127,16 +127,14 @@ Share **https://litview.space**. Stop the tunnel with `Ctrl+C` when done.
 **Site empty / still indexing**
 - LRK serves the web UI only after initial sync finishes. Watch progress: `docker compose -f ../docker-compose.yml logs -f`
 
-## Optional: run tunnel on login
+## Production on this Mac
 
-```bash
-sudo cloudflared service install
-```
+Prefer the LaunchAgent from [`../services/`](../services/) (`com.litview.cloudflared`) — **not** `sudo cloudflared service install` (this Mac already runs other Cloudflare tunnels as a system daemon).
 
-Point the service at `docker/cloudflared/config.yml` (see [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/local-management/as-a-service/macos/)).
+`litview.space` / `www.litview.space` DNS should target tunnel **`litview-demo`**. Do not point them at **`litview-m1`** while a secondary host still runs that tunnel with an old BRK.
 
 ## Security notes
 
 - The tunnel exposes your full public LRK API while running.
 - For invite-only demos, add [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) on the hostname.
-- Keep `credentials.json` and `config.yml` out of git (already in `.gitignore`).
+- Keep credentials JSON and `config.yml` out of git (already in `.gitignore`).

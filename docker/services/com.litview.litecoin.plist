@@ -6,6 +6,7 @@
   <string>com.litview.litecoin</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/indigo/Projects/lrk/docker/services/litecoin.sh</string>
   </array>
   <key>RunAtLoad</key>
@@ -22,6 +23,8 @@
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>LITECOIN_DATADIR</key>
+    <string>/Volumes/LTC/litecoin</string>
   </dict>
 </dict>
 </plist>
