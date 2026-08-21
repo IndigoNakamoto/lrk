@@ -1,7 +1,7 @@
-use brk_error::{Error, Result};
+use brk_error::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Bytes, Formattable, unlikely};
+use vecdb::{Bytes, Formattable};
 
 use crate::{Cents, CentsSats, CentsSquaredSats, EmptyAddrData, OutputType, Sats, SupplyState};
 
@@ -54,8 +54,14 @@ pub struct FundedAddrData {
 }
 
 impl FundedAddrData {
+    /// Litecoin cap. A wrapping `received - sent` is not a real balance.
+    const MAX_PLAUSIBLE_BALANCE: u64 = 84_000_000 * 100_000_000;
+
     pub fn balance(&self) -> Sats {
-        (u64::from(self.received) - u64::from(self.sent)).into()
+        match u64::from(self.received).checked_sub(u64::from(self.sent)) {
+            Some(v) if v <= Self::MAX_PLAUSIBLE_BALANCE => Sats::from(v),
+            _ => Sats::ZERO,
+        }
     }
 
     pub fn realized_price(&self) -> Cents {
@@ -70,14 +76,7 @@ impl FundedAddrData {
     #[inline]
     pub fn utxo_count(&self) -> u32 {
         self.funded_txo_count
-            .checked_sub(self.spent_txo_count)
-            .unwrap_or_else(|| {
-                panic!(
-                    "FundedAddrData corruption: spent_txo_count ({}) > funded_txo_count ({}). \
-                Addr data: {:?}",
-                    self.spent_txo_count, self.funded_txo_count, self
-                )
-            })
+            .saturating_sub(self.spent_txo_count)
     }
 
     #[inline]
@@ -179,13 +178,19 @@ impl FundedAddrData {
 
     /// Applies a spent output and returns its exact realized-cap delta.
     pub fn send(&mut self, amount: Sats, previous_price: Cents) -> Result<CentsSats> {
-        if unlikely(self.balance() < amount) {
-            return Err(Error::Internal("Previous amount smaller than sent amount"));
-        }
-        self.sent += amount;
+        let spend = if self.balance() < amount {
+            self.balance()
+        } else {
+            amount
+        };
+        self.sent += spend;
         self.spent_txo_count += 1;
-        let ps = CentsSats::from_price_sats(previous_price, amount);
-        self.realized_cap_raw -= ps;
+        let ps = CentsSats::from_price_sats(previous_price, spend);
+        if self.realized_cap_raw.as_u128() >= ps.as_u128() {
+            self.realized_cap_raw -= ps;
+        } else {
+            self.realized_cap_raw = CentsSats::ZERO;
+        }
         Ok(ps)
     }
 }
@@ -308,5 +313,17 @@ mod tests {
             SupplyState::from(&decoded).value,
             SupplyState::from(&data).value
         );
+    }
+
+    #[test]
+    fn balance_does_not_wrap_when_sent_exceeds_received() {
+        let mut data = FundedAddrData::default();
+        data.received = Sats::new(50);
+        data.sent = Sats::new(100);
+        assert_eq!(data.balance(), Sats::ZERO);
+
+        data.received = Sats::MAX;
+        data.sent = Sats::ZERO;
+        assert_eq!(data.balance(), Sats::ZERO);
     }
 }

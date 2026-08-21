@@ -14,7 +14,7 @@ use brk_mempool::Mempool;
 use brk_query::AsyncQuery;
 use brk_reader::Reader;
 use brk_server::{Server, ServerConfig};
-use tracing::info;
+use tracing::{error, info};
 use vecdb::Exit;
 
 mod config;
@@ -112,9 +112,14 @@ pub fn main() -> anyhow::Result<()> {
 
         Mimalloc::collect();
 
-        computer.compute(&mut indexer, &exit)?;
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            computer.compute(&mut indexer, &exit)
+        })) {
+            Ok(Ok(())) => info!("Total time: {:?}", total_start.elapsed()),
+            Ok(Err(err)) => error!("compute failed (HTTP server stays up): {err:#}"),
+            Err(_) => error!("compute panicked (HTTP server stays up)"),
+        }
 
-        info!("Total time: {:?}", total_start.elapsed());
         info!("Waiting for new blocks...");
 
         while last_height == client.get_last_height()? {

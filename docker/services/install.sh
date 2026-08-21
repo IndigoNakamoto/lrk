@@ -141,6 +141,8 @@ PLIST
     <string>${SUPPORT}/bin/brk</string>
     <key>LITVIEW_ENV</key>
     <string>${SUPPORT}/.env</string>
+    <key>BRK_WEBSITE</key>
+    <string>${REPO_ROOT}/website</string>
     <key>LOG</key>
     <string>info</string>
   </dict>

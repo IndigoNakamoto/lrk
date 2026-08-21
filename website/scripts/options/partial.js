@@ -71,6 +71,22 @@ export function createPartialOptions() {
     profitabilityLoss,
   } = buildCohortData();
 
+  /**
+   * One missing series must not blank the whole browse tree.
+   * @template T
+   * @param {string} name
+   * @param {() => T} build
+   * @returns {T | { name: string, tree: [] }}
+   */
+  function safeSection(name, build) {
+    try {
+      return build();
+    } catch (err) {
+      console.error(`Failed to build ${name} section`, err);
+      return { name, tree: [] };
+    }
+  }
+
   return [
     {
       name: "Explorer",
@@ -81,13 +97,13 @@ export function createPartialOptions() {
     {
       name: "Charts",
       tree: [
-        createMarketSection(),
+        safeSection("Market", createMarketSection),
 
-        createNetworkSection(),
+        safeSection("Network", createNetworkSection),
 
-        createMiningSection(),
+        safeSection("Mining", createMiningSection),
 
-        {
+        safeSection("Distribution", () => ({
           name: "Distribution",
           tree: [
             createCohortFolderAll({ ...cohortAll, name: "Overview" }),
@@ -312,27 +328,30 @@ export function createPartialOptions() {
               ],
             },
           ],
-        },
+        })),
 
-        createInvestingSection(),
+        safeSection("Investing", createInvestingSection),
 
         {
           name: "Frameworks",
-          tree: [createCointimeSection(), createCoinflowSection()],
+          tree: [
+            safeSection("Cointime", createCointimeSection),
+            safeSection("Coinflow", createCoinflowSection),
+          ],
         },
 
         {
           name: "Models",
           tree: [
-            createBedrockSection(),
-            createRarityMeterSection(),
-            createCapitalSentimentSection(),
+            safeSection("Bedrock", createBedrockSection),
+            safeSection("Rarity Meter", createRarityMeterSection),
+            safeSection("Capital Sentiment", createCapitalSentimentSection),
           ],
         },
       ],
     },
 
-    {
+    safeSection("Heatmaps", () => ({
       name: "Heatmaps",
       tree: [
         {
@@ -354,7 +373,7 @@ export function createPartialOptions() {
           ],
         },
       ],
-    },
+    })),
 
     {
       name: "API",

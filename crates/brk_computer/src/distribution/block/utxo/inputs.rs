@@ -53,6 +53,9 @@ pub(crate) fn process_inputs(
     for local_idx in 0..input_count {
         let prev_height = txin_index_to_prev_height[local_idx];
         let value = txin_index_to_value[local_idx];
+        if value.is_max() {
+            continue;
+        }
         let output_type = txin_index_to_output_type[local_idx];
 
         height_to_sent

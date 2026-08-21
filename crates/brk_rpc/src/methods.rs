@@ -15,9 +15,9 @@ use corepc_types::{
         GetRawMempool, GetTxOut,
     },
     v24::{GetMempoolInfo, MempoolEntry},
-    v28::GetBlockchainInfo,
 };
 use rustc_hash::FxHashMap;
+use serde::Deserialize;
 use serde_json::Value;
 use tracing::{debug, info};
 
@@ -112,6 +112,16 @@ fn build_gbt(raw: GetBlockTemplate) -> Result<Vec<BlockTemplateTx>> {
 fn build_min_fee(raw: GetMempoolInfo) -> FeeRate {
     let sat_per_kvb = (raw.mempool_min_fee * 100_000_000.0).round() as u64;
     FeeRate::from(sat_per_kvb as f64 / 1000.0)
+}
+
+/// Litecoin Core reports MWEB as `softforks.*.type = "bip8"`. Bitcoin
+/// `corepc-types` only knows `buried` | `bip9`, so we take the fields we
+/// use and ignore the rest.
+#[derive(Debug, Deserialize)]
+pub struct BlockchainInfo {
+    pub chain: String,
+    pub blocks: u64,
+    pub headers: u64,
 }
 
 impl Client {
@@ -473,7 +483,7 @@ impl Client {
         }
     }
 
-    pub fn get_blockchain_info(&self) -> Result<GetBlockchainInfo> {
+    pub fn get_blockchain_info(&self) -> Result<BlockchainInfo> {
         self.0.call_with_retry("getblockchaininfo", &[])
     }
 
@@ -511,5 +521,25 @@ impl Client {
         s.parse::<bitcoin::BlockHash>()
             .map(BlockHash::from)
             .map_err(|e| Error::Parse(format!("{label}: {e}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BlockchainInfo;
+
+    #[test]
+    fn getblockchaininfo_ignores_bip8_softforks() {
+        let json = r#"{
+            "chain": "main",
+            "blocks": 3163511,
+            "headers": 3163511,
+            "softforks": {
+                "mweb": { "type": "bip8", "active": true, "height": 2213544 }
+            }
+        }"#;
+        let info: BlockchainInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.chain, "main");
+        assert_eq!(info.blocks, info.headers);
     }
 }

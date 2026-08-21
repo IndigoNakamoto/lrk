@@ -1,8 +1,8 @@
 use brk_error::Result;
 use brk_indexer::Indexer;
 use brk_types::{
-    ChunkInput, CpfpClusterTxIndex, FeeRate, OutPoint, Sats, StoredBool, StoredU64, TxInIndex,
-    TxIndex, VSize, linearize,
+    CheckedSub, ChunkInput, CpfpClusterTxIndex, FeeRate, OutPoint, Sats, StoredBool, StoredU64,
+    TxInIndex, TxIndex, VSize, linearize,
 };
 use smallvec::SmallVec;
 use vecdb::{AnyStoredVec, AnyVec, Exit, PcoVec, ReadableVec, VecIndex, WritableVec, unlikely};
@@ -213,11 +213,7 @@ impl Vecs {
             fees.clear();
             fees.reserve(n);
             for j in 0..n {
-                let fee = if unlikely(input_values[j].is_max()) {
-                    Sats::ZERO
-                } else {
-                    input_values[j] - output_values[j]
-                };
+                let fee = tx_fee(input_values[j], output_values[j]);
                 self.fee.tx_index.push(fee);
                 self.fee_rate.push(FeeRate::from((fee, vsizes[j])));
                 fees.push(fee);
@@ -424,6 +420,16 @@ fn cpfp_roles(effective: FeeRate, raw: FeeRate) -> (bool, bool) {
     (effective > raw, effective < raw)
 }
 
+/// Coinbase / unresolved prevouts use `Sats::MAX`. A wrapping `input - output`
+/// would mint a multi-exasat "fee" and crash subsidy as `coinbase < fees`.
+fn tx_fee(input: Sats, output: Sats) -> Sats {
+    if unlikely(input.is_max()) {
+        Sats::ZERO
+    } else {
+        input.checked_sub(output).unwrap_or(Sats::ZERO)
+    }
+}
+
 #[derive(Default)]
 struct Cluster {
     rates: Vec<FeeRate>,
@@ -438,7 +444,14 @@ struct Cluster {
 mod tests {
     use brk_types::{FeeRate, OutPoint, Sats, TxInIndex, TxIndex, VSize, Vout};
 
-    use super::{Cluster, cluster_fee_rates, cpfp_roles};
+    use super::{Cluster, cluster_fee_rates, cpfp_roles, tx_fee};
+
+    #[test]
+    fn tx_fee_does_not_wrap_when_output_exceeds_input() {
+        assert_eq!(tx_fee(Sats::MAX, Sats::new(1_258_935_862)), Sats::ZERO);
+        assert_eq!(tx_fee(Sats::ZERO, Sats::new(1_258_935_862)), Sats::ZERO);
+        assert_eq!(tx_fee(Sats::new(200), Sats::new(50)), Sats::new(150));
+    }
 
     #[test]
     fn marks_actual_cpfp_roles() {

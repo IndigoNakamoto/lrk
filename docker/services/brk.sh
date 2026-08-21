@@ -15,10 +15,13 @@ fi
 
 # Prefer cookie when present; otherwise ~/.brk/config.toml rpcuser/rpcpassword.
 # Force IPv4 — Litecoin listens on *:9332 (v4); localhost can resolve to ::1.
+# Serve the repo website from disk so UI fixes don't wait on a release rebuild.
+WEBSITE="${BRK_WEBSITE:-}"
 exec "$BRK_BIN" \
   --chain litecoin \
   --brkport "$PORT" \
   --rpcconnect 127.0.0.1 \
   --bitcoindir "$DATADIR" \
   --blocksdir "$DATADIR/blocks" \
-  --brkdir "$BRKDIR"
+  --brkdir "$BRKDIR" \
+  ${WEBSITE:+--website "$WEBSITE"}

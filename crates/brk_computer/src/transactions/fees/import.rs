@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Bump this when fee/feerate aggregation logic changes (e.g., skip coinbase, skip zero-fee).
-const VERSION: Version = Version::new(3);
+const VERSION: Version = Version::new(4);
 
 impl Vecs {
     pub(crate) fn forced_import(

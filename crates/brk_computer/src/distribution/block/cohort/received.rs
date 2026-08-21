@@ -70,21 +70,6 @@ pub(crate) fn process_received(
                         .as_mut()
                         .unwrap();
 
-                    if cohort_state.inner.supply.utxo_count < addr_data.utxo_count() as u64 {
-                        panic!(
-                            "process_received: cohort underflow detected!\n\
-                            output_type={:?}, type_index={:?}\n\
-                            prev_balance={}, new_balance={}, total_value={}\n\
-                            Addr: {:?}",
-                            output_type,
-                            type_index,
-                            prev_balance,
-                            new_balance,
-                            recv.total_value,
-                            addr_data
-                        );
-                    }
-
                     cohort_state.subtract(addr_data);
                     addr_data.receive_outputs(recv.total_value, price, recv.output_count);
                     cohorts

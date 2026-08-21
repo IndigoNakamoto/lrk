@@ -62,7 +62,7 @@ impl Vecs {
                 dca_stack_from_source(&metric_name, version, indexes, source, &spot_price)
             })?;
 
-        let first_price_day = Day1::try_from(Date::new(2010, 7, 12)).unwrap();
+        let first_price_day = first_known_price_day();
         let dca_cost_basis = ByDcaPeriod::try_from_period(&dca_stack, |name, days, stack| {
             let metric_name = format!("dca_cost_basis_{name}");
             let source = LazyIndexedVec::new(
@@ -329,4 +329,15 @@ fn lump_sum_sats(total_invested: Dollars, past_price: Cents) -> Sats {
     } else {
         Sats::from(Bitcoin::from(total_invested / Dollars::from(past_price)))
     }
+}
+
+/// First calendar day with usable USD history for DCA cost-basis.
+/// Bitcoin: Mt. Gox (2010-07-12). Litecoin: Bitfinex LTC/USD (~2013-04).
+/// Falls back to day-index 0 if the date is before this chain's epoch.
+fn first_known_price_day() -> Day1 {
+    #[cfg(feature = "litecoin")]
+    let date = Date::new(2013, 4, 1);
+    #[cfg(not(feature = "litecoin"))]
+    let date = Date::new(2010, 7, 12);
+    Day1::try_from(date).unwrap_or_else(|_| Day1::from(0))
 }

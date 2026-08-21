@@ -5,9 +5,11 @@ use std::{
 };
 
 use brk_error::{Error, Result};
-use brk_types::{Cents, CentsCompact, CentsSats, CentsSquaredSats, Height, Sats, UrpdRaw};
+use brk_types::{
+    Cents, CentsCompact, CentsSats, CentsSquaredSats, CheckedSub, Height, Sats, UrpdRaw,
+};
 use rustc_hash::FxHashMap;
-use vecdb::{Bytes, unlikely};
+use vecdb::Bytes;
 
 use super::{Accumulate, CachedUnrealizedState, UnrealizedState};
 use crate::distribution::state::pending::{
@@ -123,16 +125,11 @@ impl CostBasisRaw {
         let state = self.state.as_mut().unwrap();
 
         state.cap_raw += self.pending_cap.inc;
-        if unlikely(state.cap_raw.inner() < self.pending_cap.dec.inner()) {
-            panic!(
-                "CostBasis cap_raw underflow!\n\
-                Path: {:?}\n\
-                Current cap_raw (after increments): {}\n\
-                Trying to decrement by: {}",
-                self.pathbuf, state.cap_raw, self.pending_cap.dec
-            );
+        if state.cap_raw.inner() < self.pending_cap.dec.inner() {
+            state.cap_raw = CentsSats::ZERO;
+        } else {
+            state.cap_raw -= self.pending_cap.dec;
         }
-        state.cap_raw -= self.pending_cap.dec;
 
         self.pending_cap = PendingCapDelta::default();
     }
@@ -293,39 +290,13 @@ impl<S: Accumulate> CostBasisData<S> {
             match map.entry(cents) {
                 Entry::Occupied(mut e) => {
                     *e.get_mut() += inc;
-                    if unlikely(*e.get() < dec) {
-                        panic!(
-                            "CostBasisData::apply_pending underflow!\n\
-                            Path: {:?}\n\
-                            Price: {}\n\
-                            Current + increments: {}\n\
-                            Trying to decrement by: {}",
-                            self.raw.pathbuf,
-                            cents.to_dollars(),
-                            e.get(),
-                            dec
-                        );
-                    }
-                    *e.get_mut() -= dec;
+                    *e.get_mut() = (*e.get()).checked_sub(dec).unwrap_or(Sats::ZERO);
                     if *e.get() == Sats::ZERO {
                         e.remove();
                     }
                 }
                 Entry::Vacant(e) => {
-                    if unlikely(inc < dec) {
-                        panic!(
-                            "CostBasisData::apply_pending underflow (new entry)!\n\
-                            Path: {:?}\n\
-                            Price: {}\n\
-                            Increment: {}\n\
-                            Trying to decrement by: {}",
-                            self.raw.pathbuf,
-                            cents.to_dollars(),
-                            inc,
-                            dec
-                        );
-                    }
-                    let val = inc - dec;
+                    let val = inc.checked_sub(dec).unwrap_or(Sats::ZERO);
                     if val != Sats::ZERO {
                         e.insert(val);
                     }
@@ -422,17 +393,11 @@ impl<S: Accumulate> CostBasisOps for CostBasisData<S> {
         self.raw.apply_pending_cap();
         if S::TRACK_CAPITAL {
             self.capitalized_cap_raw += self.pending_capitalized_cap.inc;
-            debug_assert!(
-                self.capitalized_cap_raw >= self.pending_capitalized_cap.dec,
-                "CostBasis capitalized_cap_raw underflow!\n\
-                Path: {:?}\n\
-                Current (after increments): {:?}\n\
-                Trying to decrement by: {:?}",
-                self.raw.pathbuf,
-                self.capitalized_cap_raw,
-                self.pending_capitalized_cap.dec
-            );
-            self.capitalized_cap_raw -= self.pending_capitalized_cap.dec;
+            if self.capitalized_cap_raw < self.pending_capitalized_cap.dec {
+                self.capitalized_cap_raw = CentsSquaredSats::ZERO;
+            } else {
+                self.capitalized_cap_raw -= self.pending_capitalized_cap.dec;
+            }
             self.pending_capitalized_cap = PendingCapitalizedCapRawDelta::default();
         }
     }

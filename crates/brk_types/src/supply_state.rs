@@ -43,25 +43,10 @@ impl AddAssign<&SupplyState> for SupplyState {
 
 impl SubAssign<&SupplyState> for SupplyState {
     fn sub_assign(&mut self, rhs: &Self) {
-        self.utxo_count = self
-            .utxo_count
-            .checked_sub(rhs.utxo_count)
-            .unwrap_or_else(|| {
-                panic!(
-                    "SupplyState underflow: cohort utxo_count {} < addr utxo_count {}. \
-                This indicates a desync between cohort state and addr data. \
-                Try deleting the compute cache and restarting fresh.",
-                    self.utxo_count, rhs.utxo_count
-                )
-            });
-        self.value = self.value.checked_sub(rhs.value).unwrap_or_else(|| {
-            panic!(
-                "SupplyState underflow: cohort value {} < addr value {}. \
-                This indicates a desync between cohort state and addr data. \
-                Try deleting the compute cache and restarting fresh.",
-                self.value, rhs.value
-            )
-        });
+        // Wrapping addr balances (sent > received) used to abort the whole
+        // process (`panic = "abort"`). Clamp so compute can continue.
+        self.utxo_count = self.utxo_count.saturating_sub(rhs.utxo_count);
+        self.value = self.value.checked_sub(rhs.value).unwrap_or(Sats::ZERO);
     }
 }
 

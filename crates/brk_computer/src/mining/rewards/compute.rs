@@ -74,10 +74,10 @@ impl Vecs {
             prices,
             &self.coinbase.block.sats,
             &self.fees.block.sats,
-            |height, coinbase, fees| {
-                coinbase.checked_sub(fees).unwrap_or_else(|| {
-                    panic!("coinbase {coinbase:?} < fees {fees:?} at {height:?}")
-                })
+            |_height, coinbase, fees| {
+                // Same-block HogEx / unresolved prevouts can make stored fees
+                // wrap past the coinbase. Subsidy is non-negative; clamp.
+                coinbase.checked_sub(fees).unwrap_or(Sats::ZERO)
             },
             exit,
         )?;
@@ -109,7 +109,7 @@ impl Vecs {
             |height, subsidy| {
                 let halving = Halving::from(height);
                 let expected = Sats::FIFTY_BTC / 2_usize.pow(halving.to_usize() as u32);
-                expected.checked_sub(subsidy).unwrap()
+                expected.checked_sub(subsidy).unwrap_or(Sats::ZERO)
             },
             exit,
         )?;

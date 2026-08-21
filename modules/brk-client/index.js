@@ -9833,6 +9833,10 @@ class BrkClient extends BrkClientBase {
           transferVolume: createAverageBlockCumulativeSumPattern2(this, 'transfer_volume_bis'),
           txPerSec: create_1m1w1y24hPattern(this, 'tx_per_sec'),
         },
+        hogex: {
+          txCount: createAverageBlockCumulativeSumPattern(this, 'hogex_tx_count'),
+          rawInputVolume: createAverageBlockCumulativeSumPattern2(this, 'raw_input_volume'),
+        },
       },
       inputs: {
         raw: {
@@ -9923,6 +9927,8 @@ class BrkClient extends BrkClientBase {
             unknown: createAverageBlockCumulativeSumPattern(this, 'unknown_outputs_output_count'),
             empty: createAverageBlockCumulativeSumPattern(this, 'empty_outputs_output_count'),
             opReturn: createAverageBlockCumulativeSumPattern(this, 'op_return_output_count'),
+            mwebPegPool: createAverageBlockCumulativeSumPattern(this, 'mweb_peg_pool_output_count'),
+            mwebPegin: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_output_count'),
           },
           spendableOutputCount: createAverageBlockCumulativeSumPattern(this, 'spendable_output_count'),
           outputShare: {
@@ -9939,11 +9945,33 @@ class BrkClient extends BrkClientBase {
             empty: create_1m1w1y24hPercentPpmRatioPattern(this, 'empty_outputs_output_share'),
             opReturn: create_1m1w1y24hPercentPpmRatioPattern(this, 'op_return_output_share'),
           },
-          txCount: createAllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_count'),
+          txCount: {
+            ...createAllEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern(this, 'tx_count'),
+            mwebPegPool: createAverageBlockCumulativeSumPattern(this, 'tx_count_with_mweb_peg_pool_output'),
+            mwebPegin: createAverageBlockCumulativeSumPattern(this, 'tx_count_with_mweb_pegin_output'),
+          },
           txShare: createEmptyOpP2aP2msP2pk33P2pk65P2pkhP2shP2trP2wpkhP2wshUnknownPattern2(this, 'tx_share_with'),
         },
         value: {
           opReturn: createBlockCumulativePattern(this, 'op_return_value'),
+        },
+        mweb: {
+          balance: createBtcCentsSatsUsdPattern(this, 'mweb_balance'),
+          outputsValue: createBlockCumulativePattern(this, 'mweb_outputs_value'),
+          inputsValue: createBlockCumulativePattern(this, 'mweb_inputs_value'),
+          pegPool: {
+            balance: createBtcCentsSatsUsdPattern(this, 'mweb_peg_pool_balance'),
+            outputsValue: createBlockCumulativePattern(this, 'mweb_peg_pool_outputs_value'),
+            inputsValue: createBlockCumulativePattern(this, 'mweb_peg_pool_inputs_value'),
+          },
+          pegin: {
+            balance: createBtcCentsSatsUsdPattern(this, 'mweb_pegin_balance'),
+            outputsValue: createBlockCumulativePattern(this, 'mweb_pegin_outputs_value'),
+            inputsValue: createBlockCumulativePattern(this, 'mweb_pegin_inputs_value'),
+          },
+          peginCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegin_count'),
+          pegoutValue: createBlockCumulativePattern(this, 'mweb_pegout_value'),
+          pegoutCount: createAverageBlockCumulativeSumPattern(this, 'mweb_pegout_count'),
         },
       },
       addrs: {

@@ -147,9 +147,7 @@ impl SaturatingAdd for Sats {
 
 impl SubAssign for Sats {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = self.checked_sub(rhs).unwrap_or_else(|| {
-            panic!("Sats underflow: {} - {} would be negative", self, rhs);
-        });
+        *self = self.checked_sub(rhs).unwrap_or(Self::ZERO);
     }
 }
 

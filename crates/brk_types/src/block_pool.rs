@@ -25,3 +25,15 @@ pub struct BlockPool {
     /// Miner name tags found in coinbase scriptsig
     pub miner_names: Option<Vec<String>>,
 }
+
+impl Default for BlockPool {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: "Unknown".to_string(),
+            slug: PoolSlug::Unknown,
+            block_number: 0,
+            miner_names: None,
+        }
+    }
+}

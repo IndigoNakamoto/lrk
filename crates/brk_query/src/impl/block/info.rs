@@ -8,7 +8,7 @@ use brk_types::{
     BlockExtras, BlockHash, BlockHashPrefix, BlockHeader, BlockInfo, BlockInfoV1, BlockPool,
     FeeRate, Height, PoolSlug, Sats, Timestamp, TxIndex, VSize, pools_for_chain,
 };
-use vecdb::{ReadableVec, VecIndex};
+use vecdb::{AnyVec, ReadableVec, VecIndex};
 
 use crate::Query;
 
@@ -63,7 +63,11 @@ impl Query {
             return Err(Error::OutOfRange("Block height out of range".into()));
         }
         let h = height.to_usize();
-        self.blocks_v1_range(h, h + 1)?
+        let mut blocks = self.blocks_v1_range(h, h + 1)?;
+        if blocks.is_empty() {
+            blocks = self.blocks_v1_indexer_only(h, h + 1)?;
+        }
+        blocks
             .pop()
             .ok_or(Error::NotFound("Block not found".into()))
     }
@@ -98,9 +102,16 @@ impl Query {
 
     /// V1 most recent `count` blocks with extras ending at `start_height`
     /// (default tip), returned in descending-height order.
+    ///
+    /// Falls back to indexer-only rows (empty extras) while computer
+    /// fee/pool series are still catching up, so the explorer is not blank.
     pub fn blocks_v1(&self, start_height: Option<Height>, count: u32) -> Result<Vec<BlockInfoV1>> {
         let (begin, end) = self.resolve_block_range(start_height, count, self.height());
-        self.blocks_v1_range(begin, end)
+        let blocks = self.blocks_v1_range(begin, end)?;
+        if !blocks.is_empty() {
+            return Ok(blocks);
+        }
+        self.blocks_v1_indexer_only(begin, end)
     }
 
     // === Range queries (bulk reads) ===
@@ -194,16 +205,40 @@ impl Query {
         Ok(blocks)
     }
 
+    /// Indexer-stamped `BlockInfoV1` with empty extras. Used while computer
+    /// fee/pool series have not reached `[begin, end)` yet.
+    fn blocks_v1_indexer_only(&self, begin: usize, end: usize) -> Result<Vec<BlockInfoV1>> {
+        Ok(self
+            .blocks_range(begin, end)?
+            .into_iter()
+            .map(|info| {
+                let virtual_size = info.weight.to_vbytes_ceil() as f64;
+                BlockInfoV1 {
+                    extras: BlockExtras {
+                        virtual_size,
+                        ..BlockExtras::default()
+                    },
+                    stale: false,
+                    info,
+                }
+            })
+            .collect())
+    }
+
     /// Build `BlockInfoV1` rows for `[begin, end)` in descending-height order.
-    /// `end` is re-clamped to `bound.height` (single snapshot covering both
-    /// indexer-stamped and computer-stamped vecs, since `safe_lengths` only
-    /// advances after compute). Returns `Internal` on per-block header read
-    /// failures.
+    ///
+    /// `end` is clamped to both the indexer safe-length and the computer
+    /// extras series (`fees.block.sats`). Import publishes indexer
+    /// `safe_lengths` before compute has written those extras, so serving
+    /// the tip during a recompute would otherwise short-read and panic
+    /// (`panic = "abort"`). Returns an empty vec when extras are not ready
+    /// yet; `Internal` on per-block header read failures.
     pub(crate) fn blocks_v1_range(&self, begin: usize, end: usize) -> Result<Vec<BlockInfoV1>> {
         let safe = self.safe_lengths();
         let height_len = safe.height.to_usize();
         let tx_index_len = safe.tx_index.to_usize();
-        let end = end.min(height_len);
+        let extras_len = self.computer().mining.rewards.fees.block.sats.len();
+        let end = end.min(height_len).min(extras_len);
         if begin >= end {
             return Ok(Vec::new());
         }
@@ -332,47 +367,48 @@ impl Query {
             .timestamp
             .collect_range_at(median_start, end);
 
-        // All bulk reads above span `[begin, end)` (or `[median_start, end)`).
-        // Caller's `end <= bound.height + 1` precondition guarantees populated
-        // slots, so short reads are impossible.
-        debug_assert!(
-            [
-                blockhashes.len(),
-                difficulties.len(),
-                timestamps.len(),
-                sizes.len(),
-                weights.len(),
-                positions.len(),
-                pool_slugs.len(),
-                segwit_txs.len(),
-                segwit_sizes.len(),
-                segwit_weights.len(),
-                fee_sats.len(),
-                subsidy_sats.len(),
-                input_counts.len(),
-                output_counts.len(),
-                utxo_set_sizes.len(),
-                input_volumes.len(),
-                prices.len(),
-                output_volumes.len(),
-                fr_min.len(),
-                fr_pct10.len(),
-                fr_pct25.len(),
-                fr_median.len(),
-                fr_pct75.len(),
-                fr_pct90.len(),
-                fr_max.len(),
-                fa_min.len(),
-                fa_pct10.len(),
-                fa_pct25.len(),
-                fa_median.len(),
-                fa_pct75.len(),
-                fa_pct90.len(),
-                fa_max.len(),
-            ]
-            .iter()
-            .all(|&l| l == count)
-        );
+        // Indexer-stamped reads are covered by `end <= height_len`. Computer
+        // extras can still be short during a first compute / version bump —
+        // return empty instead of indexing past them (`panic = "abort"`).
+        if ![
+            pool_slugs.len(),
+            fee_sats.len(),
+            subsidy_sats.len(),
+            input_counts.len(),
+            output_counts.len(),
+            utxo_set_sizes.len(),
+            input_volumes.len(),
+            prices.len(),
+            output_volumes.len(),
+            fr_min.len(),
+            fr_pct10.len(),
+            fr_pct25.len(),
+            fr_median.len(),
+            fr_pct75.len(),
+            fr_pct90.len(),
+            fr_max.len(),
+            fa_min.len(),
+            fa_pct10.len(),
+            fa_pct25.len(),
+            fa_median.len(),
+            fa_pct75.len(),
+            fa_pct90.len(),
+            fa_max.len(),
+        ]
+        .iter()
+        .all(|&l| l == count)
+        {
+            return Ok(Vec::new());
+        }
+        debug_assert_eq!(blockhashes.len(), count);
+        debug_assert_eq!(difficulties.len(), count);
+        debug_assert_eq!(timestamps.len(), count);
+        debug_assert_eq!(sizes.len(), count);
+        debug_assert_eq!(weights.len(), count);
+        debug_assert_eq!(positions.len(), count);
+        debug_assert_eq!(segwit_txs.len(), count);
+        debug_assert_eq!(segwit_sizes.len(), count);
+        debug_assert_eq!(segwit_weights.len(), count);
         debug_assert!(first_tx_indexes.len() >= count);
         debug_assert_eq!(median_timestamps.len(), end - median_start);
 

@@ -1,4 +1,4 @@
-const CACHE = "v1";
+const CACHE = "v3";
 const ROOT = "/";
 const API = "/api";
 

@@ -165,7 +165,9 @@ pub(super) fn finalize_outputs(
                             .debug_checked_push(lengths.empty_output_index, tx_index);
                         lengths.empty_output_index.copy_then_increment()
                     }
-                    OutputType::Unknown => {
+                    OutputType::Unknown
+                    | OutputType::MWEBPegPool
+                    | OutputType::MWEBPegIn => {
                         let index = lengths.unknown_output_index;
                         scripts
                             .unknown

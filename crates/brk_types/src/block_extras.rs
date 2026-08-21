@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{BlockPool, Dollars, FeeRate, Sats, Weight};
 
 /// Extended block data matching mempool.space /api/v1/blocks extras
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct BlockExtras {
     /// Total fees in satoshis
     #[serde(rename = "totalFees")]
