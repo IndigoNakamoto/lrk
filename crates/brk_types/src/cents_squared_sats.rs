@@ -44,7 +44,7 @@ impl AddAssign<u128> for CentsSquaredSats {
 impl SubAssign<u128> for CentsSquaredSats {
     #[inline(always)]
     fn sub_assign(&mut self, rhs: u128) {
-        self.0 -= rhs;
+        self.0 = self.0.saturating_sub(rhs);
     }
 }
 
@@ -67,14 +67,14 @@ impl Sub for CentsSquaredSats {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
-        Self(self.0 - rhs.0)
+        Self(self.0.saturating_sub(rhs.0))
     }
 }
 
 impl SubAssign for CentsSquaredSats {
     #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
+        self.0 = self.0.saturating_sub(rhs.0);
     }
 }
 

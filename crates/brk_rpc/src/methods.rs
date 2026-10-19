@@ -14,7 +14,7 @@ use corepc_types::{
         GetBlockHeaderVerbose, GetBlockTemplate, GetBlockVerboseOne, GetBlockVerboseZero,
         GetRawMempool, GetTxOut,
     },
-    v24::{GetMempoolInfo, MempoolEntry},
+    v24::MempoolEntry,
 };
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
@@ -25,6 +25,18 @@ use tracing::{debug, info};
 /// response when querying a confirmed transaction without `-txindex`.
 /// The mempool fetcher tolerates these per-item failures silently.
 const RPC_NOT_FOUND: i32 = -5;
+
+/// Litecoin Core rejects `getblocktemplate` unless both rule sets are named.
+fn gbt_rules() -> Value {
+    #[cfg(feature = "litecoin")]
+    {
+        serde_json::json!({ "rules": ["mweb", "segwit"] })
+    }
+    #[cfg(not(feature = "litecoin"))]
+    {
+        serde_json::json!({ "rules": ["segwit"] })
+    }
+}
 
 use crate::{BlockTemplateTx, Client};
 
@@ -105,11 +117,21 @@ fn build_gbt(raw: GetBlockTemplate) -> Result<Vec<BlockTemplateTx>> {
     Ok(result)
 }
 
+/// The one `getmempoolinfo` field the fetcher uses. Litecoin Core 0.21
+/// omits `total_fee` (added in Bitcoin Core 24), so `corepc-types`'
+/// `v24::GetMempoolInfo` fails to deserialize there. Unknown fields are
+/// ignored; `mempoolminfee` exists in every Core version.
+#[derive(Debug, Deserialize)]
+pub struct MempoolInfo {
+    #[serde(rename = "mempoolminfee")]
+    pub mempool_min_fee: f64,
+}
+
 /// Convert bitcoind's `mempoolminfee` (BTC/kvB f64) to sat/vB. Round-trip
 /// via integer sat/kvB (bitcoind's native CFeeRate unit) so the f64 drift
 /// in the JSON-decoded value can't push 1.0 sat/vB to 1.0...e-13 above 1.0
 /// and trip `ceil_to(0.001)` downstream.
-fn build_min_fee(raw: GetMempoolInfo) -> FeeRate {
+fn build_min_fee(raw: MempoolInfo) -> FeeRate {
     let sat_per_kvb = (raw.mempool_min_fee * 100_000_000.0).round() as u64;
     FeeRate::from(sat_per_kvb as f64 / 1000.0)
 }
@@ -374,7 +396,7 @@ impl Client {
         let requests: [(&str, Vec<Value>); 3] = [
             (
                 "getblocktemplate",
-                vec![serde_json::json!({ "rules": ["segwit"] })],
+                vec![gbt_rules()],
             ),
             ("getrawmempool", vec![Value::Bool(false)]),
             ("getmempoolinfo", vec![]),
@@ -526,7 +548,17 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use super::BlockchainInfo;
+    use super::{BlockchainInfo, MempoolInfo, build_min_fee};
+
+    #[test]
+    fn getmempoolinfo_without_total_fee_parses() {
+        // Exact payload from Litecoin Core 0.21.5.6 (no `total_fee`,
+        // no `incrementalrelayfee`, no `fullrbf`).
+        let json = r#"{"loaded":true,"size":497,"bytes":116468,"usage":694256,"maxmempool":300000000,"mempoolminfee":0.00001000,"minrelaytxfee":0.00001000,"unbroadcastcount":0}"#;
+        let info: MempoolInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.mempool_min_fee, 0.00001);
+        assert_eq!(f64::from(build_min_fee(info)), 1.0);
+    }
 
     #[test]
     fn getblockchaininfo_ignores_bip8_softforks() {

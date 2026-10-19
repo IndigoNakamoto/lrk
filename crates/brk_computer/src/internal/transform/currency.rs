@@ -103,9 +103,10 @@ impl BinaryTransform<Cents, Cents, CentsSigned> for CentsSubtractToCentsSigned {
             panic!("Cents::NAN cannot be converted to CentsSigned");
         }
         let difference = i128::from(a.inner()) - i128::from(b.inner());
-        CentsSigned::new(
-            i64::try_from(difference).expect("Cents subtraction overflowed CentsSigned"),
-        )
+        // Cohort sums can sit at `Cents::MAX_FINITE` after a saturated add.
+        // That difference does not fit in i64; clamp instead of aborting compute.
+        let clamped = difference.clamp(i64::MIN as i128, i64::MAX as i128);
+        CentsSigned::new(clamped as i64)
     }
 }
 
@@ -151,5 +152,21 @@ mod tests {
     #[should_panic(expected = "Cents::NAN cannot be converted to CentsSigned")]
     fn signed_cents_reject_nan() {
         CentsSubtractToCentsSigned::apply(Cents::NAN, Cents::ZERO);
+    }
+
+    #[test]
+    fn signed_cents_difference_saturates_to_i64() {
+        assert_eq!(
+            CentsSubtractToCentsSigned::apply(Cents::MAX_FINITE, Cents::ZERO).inner(),
+            i64::MAX
+        );
+        assert_eq!(
+            CentsSubtractToCentsSigned::apply(Cents::ZERO, Cents::MAX_FINITE).inner(),
+            i64::MIN
+        );
+        assert_eq!(
+            CentsSubtractToCentsSigned::apply(Cents::new(50), Cents::new(20)).inner(),
+            30
+        );
     }
 }

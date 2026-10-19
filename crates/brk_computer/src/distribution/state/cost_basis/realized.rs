@@ -54,7 +54,16 @@ impl MinimalRealizedState {
 
     #[inline]
     pub(crate) fn decrement_cap(&mut self, cap: CentsSats) {
-        self.cap_raw -= cap.as_u128();
+        // A spend whose cost basis exceeds the cohort (MWEB / unresolved
+        // prevouts around height 2_161_454) must not wrap `u128`. Wrapping
+        // poisons realized cap for the rest of the chain and the overlapping
+        // cohort sum then overflows `Cents`.
+        let dec = cap.as_u128();
+        if self.cap_raw < dec {
+            self.cap_raw = 0;
+        } else {
+            self.cap_raw -= dec;
+        }
     }
 
     #[inline]
@@ -78,7 +87,7 @@ impl RealizedOps for MinimalRealizedState {
         if self.cap_raw == 0 {
             return Cents::ZERO;
         }
-        Cents::new((self.cap_raw / Sats::ONE_BTC_U128) as u64)
+        Cents::from_coin_raw(self.cap_raw)
     }
 
     #[inline]
@@ -86,7 +95,7 @@ impl RealizedOps for MinimalRealizedState {
         if self.profit_raw == 0 {
             return Cents::ZERO;
         }
-        Cents::new((self.profit_raw / Sats::ONE_BTC_U128) as u64)
+        Cents::from_coin_raw(self.profit_raw)
     }
 
     #[inline]
@@ -94,7 +103,7 @@ impl RealizedOps for MinimalRealizedState {
         if self.loss_raw == 0 {
             return Cents::ZERO;
         }
-        Cents::new((self.loss_raw / Sats::ONE_BTC_U128) as u64)
+        Cents::from_coin_raw(self.loss_raw)
     }
 
     #[inline]
@@ -175,7 +184,7 @@ impl RealizedOps for CoreRealizedState {
         if unlikely(self.value_destroyed_raw == 0) {
             return Cents::ZERO;
         }
-        Cents::new((self.value_destroyed_raw / Sats::ONE_BTC_U128) as u64)
+        Cents::from_coin_raw(self.value_destroyed_raw)
     }
 
     #[inline]
@@ -358,7 +367,7 @@ impl RealizedState {
         if cap_raw == 0 {
             return Cents::ZERO;
         }
-        Cents::new((self.capitalized_cap_raw / cap_raw) as u64)
+        Cents::saturating_from_u128(self.capitalized_cap_raw / cap_raw)
     }
 
     /// Get raw realized cap for aggregation.
@@ -379,7 +388,7 @@ impl RealizedState {
         if self.peak_regret_raw == 0 {
             return Cents::ZERO;
         }
-        Cents::new((self.peak_regret_raw / Sats::ONE_BTC_U128) as u64)
+        Cents::from_coin_raw(self.peak_regret_raw)
     }
 
     /// Raw peak regret for lossless aggregation.
@@ -435,5 +444,16 @@ mod tests {
         assert_eq!(state.value_destroyed(), Cents::new(10_000));
         assert_eq!(state.sent_in_profit(), Sats::ONE_BTC);
         assert_eq!(state.sent_in_loss(), Sats::ZERO);
+    }
+
+    #[test]
+    fn cap_decrement_saturates_instead_of_wrapping() {
+        let mut state = MinimalRealizedState::default();
+        state.increment(Cents::new(10_000), Sats::ONE_BTC);
+        state.decrement_cap(CentsSats::from_price_sats(
+            Cents::new(50_000),
+            Sats::ONE_BTC,
+        ));
+        assert_eq!(state.cap(), Cents::ZERO);
     }
 }

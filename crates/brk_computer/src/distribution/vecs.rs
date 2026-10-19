@@ -423,15 +423,29 @@ impl Vecs {
         let current_height = Height::from(self.supply_state.len());
         let min_stateful = self.min_stateful_len();
 
-        // 2. Determine start mode and recover/reset state
-        // Clamp to starting_lengths.height to handle reorg (indexer may require earlier start)
-        let resume_target = current_height.min(starting_lengths.height);
-        if resume_target < current_height {
+        // 2. Determine start mode and recover/reset state.
+        // Behind the published snapshot: an interrupted rebuild already
+        // truncated these vecs, so the prefix is not resumable.
+        // Ahead of the indexed chain: a real reorg. Roll back to the chain.
+        // Otherwise resume at the computer height, including when that height
+        // is ahead of the published snapshot (the last pass wrote it and then
+        // failed before publish).
+        let indexed_len = Height::from(indexer.vecs().blocks.blockhash.len());
+        let resume_target = if current_height < starting_lengths.height {
+            info!(
+                "Distribution height {} is behind published height {}, starting fresh",
+                current_height, starting_lengths.height
+            );
+            Height::ZERO
+        } else if current_height > indexed_len {
             info!(
                 "Reorg detected: rolling back from {} to {}",
-                current_height, resume_target
+                current_height, indexed_len
             );
-        }
+            indexed_len
+        } else {
+            current_height
+        };
         let start_mode = determine_start_mode(min_stateful.min(resume_target), resume_target);
 
         // Try to resume from checkpoint, fall back to fresh start if needed

@@ -137,6 +137,33 @@ impl Cents {
         }
     }
 
+    /// Cents from a `price_cents * coin_units` accumulator.
+    ///
+    /// Divides by one coin. A wrapped or out-of-range accumulator saturates at
+    /// [`Self::MAX_FINITE`] instead of truncating into a second huge value.
+    #[inline]
+    pub fn from_coin_raw(raw: u128) -> Self {
+        if raw == 0 {
+            return Self::ZERO;
+        }
+        let cents = raw / Sats::ONE_BTC_U128;
+        if cents >= u64::MAX as u128 {
+            Self::MAX_FINITE
+        } else {
+            Self(cents as u64)
+        }
+    }
+
+    /// Finite cents from a widened integer. Out-of-range values saturate.
+    #[inline]
+    pub fn saturating_from_u128(value: u128) -> Self {
+        if value >= u64::MAX as u128 {
+            Self::MAX_FINITE
+        } else {
+            Self(value as u64)
+        }
+    }
+
     /// Round to nearest dollar, then apply N significant digits.
     /// E.g., 12345 (= $123.45) → 12300 (= $123.00) with 5 digits
     /// E.g., 1234567 (= $12345.67) → 1234600 (= $12346.00) with 5 digits
@@ -251,7 +278,10 @@ impl Add for Cents {
     type Output = Self;
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
-        self.checked_add(rhs).expect("Cents overflow")
+        // Litecoin cohort sums can exceed u64 cents after an MWEB-era
+        // cost-basis underflow. Saturating keeps the compute pass alive;
+        // a wrapped input is clamped upstream in `from_coin_raw`.
+        self.checked_add(rhs).unwrap_or(Self::MAX_FINITE)
     }
 }
 
@@ -433,6 +463,23 @@ mod tests {
         assert_eq!(Cents::NAN / finite, Cents::NAN);
         assert_eq!(Cents::NAN.checked_add(finite), Some(Cents::NAN));
         assert_eq!(Cents::NAN.checked_sub(finite), Some(Cents::NAN));
+    }
+
+    #[test]
+    fn add_saturates_at_max_finite() {
+        assert_eq!(Cents::MAX_FINITE + Cents::new(1), Cents::MAX_FINITE);
+        assert_eq!(Cents::new(1) + Cents::new(2), Cents::new(3));
+        assert_eq!(Cents::NAN + Cents::new(1), Cents::NAN);
+    }
+
+    #[test]
+    fn from_coin_raw_saturates_instead_of_truncating() {
+        assert_eq!(Cents::from_coin_raw(0), Cents::ZERO);
+        assert_eq!(
+            Cents::from_coin_raw(Sats::ONE_BTC_U128 * 12_345),
+            Cents::new(12_345)
+        );
+        assert_eq!(Cents::from_coin_raw(u128::MAX), Cents::MAX_FINITE);
     }
 
     #[test]

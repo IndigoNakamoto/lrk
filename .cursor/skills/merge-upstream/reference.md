@@ -34,13 +34,17 @@ the next crash.
 |---|---|
 | MWEB outputs `unreachable!` | Indexer treats `MWEBPegPool` / `MWEBPegIn` like unknown scripts |
 | `softforks.*.type = "bip8"` | Local `BlockchainInfo` in `brk_rpc` (ignore extra fields) |
+| `getmempoolinfo` lacks `total_fee` (Core 0.21) | Local `MempoolInfo` in `brk_rpc` instead of `v24::GetMempoolInfo`; otherwise mempool tick fails every second and the served tip stays stale |
+| `getblocktemplate` needs `mweb` rule | `gbt_rules()` in `brk_rpc` |
+| `Cents` overflow in overlapping cohorts | Saturating `Cents::add`, `from_coin_raw`, clamped `CentsSubtractToCentsSigned`, saturating `decrement_cap` |
+| Compute panic pins served tip | `safe_lengths` only advances after a full compute pass; a repeating panic in `compute()` means `/api/blocks/tip/height` freezes while `/health` still reports `blocks_behind: 0`. Check `brk.out.log` for `compute panicked` |
 | First USD day 2010-07-12 | Litecoin `Date::new(2013, 4, 1)` in investing import |
 | `Sats::MAX` prevouts → fake fees | `tx_fee` saturates; fee VERSION 4 |
 | `coinbase < fees` | Subsidy clamps to 0 |
 | Wrapping `received - sent` | `FundedAddrData::balance` checked + 84M LTC cap |
 | Empty-wallet convert panic | `max(sent, received)` |
 | Cohort / cost-basis underflow | Early-return or saturate to 0 |
-| `Sats::SubAssign` panic | Saturate to 0 |
+| `Sats::SubAssign` pan ic | Saturate to 0 |
 | Explorer OOB while extras empty | Clamp extras len + indexer-only fallback |
 | JS client missing MWEB | Bindgen `--features bindgen,litecoin` + `outputs.mweb` |
 | Browse tree `TypeError` | Guard `outputs.mweb`; `safeSection` per folder |
