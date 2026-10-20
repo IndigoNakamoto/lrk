@@ -21,10 +21,15 @@ impl Vecs {
         let realized_cap_cents = &all_metrics.realized.cap.cents.height;
         let circulating_supply = &all_metrics.supply.total.btc.height;
 
-        self.investor.cents.height.compute_subtract(
+        // investor_cap = realized_cap - thermo_cap. On Litecoin the realized
+        // cap is saturated to zero through the MWEB-era cost-basis gap, so it
+        // can sit below the cumulative thermo cap. Saturate instead of
+        // aborting the compute pass (which would pin the served tip).
+        self.investor.cents.height.compute_transform2(
             starting_lengths.height,
             realized_cap_cents,
             &self.thermo.cents.height,
+            |(i, realized, thermo, ..)| (i, realized.saturating_sub(thermo)),
             exit,
         )?;
 

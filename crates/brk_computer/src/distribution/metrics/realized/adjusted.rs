@@ -35,16 +35,22 @@ impl AdjustedSopr {
         under_1h_value_destroyed: &impl ReadableVec<Height, Cents>,
         exit: &Exit,
     ) -> Result<()> {
-        self.transfer_volume.cumulative.height.compute_subtract(
+        // `all - under_1h` is non-negative on a clean chain. On Litecoin the
+        // `all` cumulative can sit at `Cents::MAX_FINITE` after a saturated
+        // add while `under_1h` keeps growing, so saturate to zero instead of
+        // aborting the whole compute pass (which would pin the served tip).
+        self.transfer_volume.cumulative.height.compute_transform2(
             starting_lengths.height,
             base_transfer_volume,
             under_1h_transfer_volume,
+            |(i, base, under_1h, ..)| (i, base.saturating_sub(under_1h)),
             exit,
         )?;
-        self.value_destroyed.cumulative.height.compute_subtract(
+        self.value_destroyed.cumulative.height.compute_transform2(
             starting_lengths.height,
             base_value_destroyed,
             under_1h_value_destroyed,
+            |(i, base, under_1h, ..)| (i, base.saturating_sub(under_1h)),
             exit,
         )?;
 

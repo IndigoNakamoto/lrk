@@ -36,7 +36,7 @@ the next crash.
 | `softforks.*.type = "bip8"` | Local `BlockchainInfo` in `brk_rpc` (ignore extra fields) |
 | `getmempoolinfo` lacks `total_fee` (Core 0.21) | Local `MempoolInfo` in `brk_rpc` instead of `v24::GetMempoolInfo`; otherwise mempool tick fails every second and the served tip stays stale |
 | `getblocktemplate` needs `mweb` rule | `gbt_rules()` in `brk_rpc` |
-| `Cents` overflow in overlapping cohorts | Saturating `Cents::add`, `from_coin_raw`, clamped `CentsSubtractToCentsSigned`, saturating `decrement_cap` |
+| `Cents` overflow in overlapping cohorts | Saturating `Cents::add`, `from_coin_raw`, clamped `CentsSubtractToCentsSigned`, saturating `decrement_cap`; `saturating_sub` for adjusted SOPR (`all - under_1h`) and cointime investor cap (`realized - thermo`) |
 | Compute panic pins served tip | `safe_lengths` only advances after a full compute pass; a repeating panic in `compute()` means `/api/blocks/tip/height` freezes while `/health` still reports `blocks_behind: 0`. Check `brk.out.log` for `compute panicked` |
 | First USD day 2010-07-12 | Litecoin `Date::new(2013, 4, 1)` in investing import |
 | `Sats::MAX` prevouts → fake fees | `tx_fee` saturates; fee VERSION 4 |
