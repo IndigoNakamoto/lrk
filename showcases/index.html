@@ -2287,6 +2287,7 @@
       /** @typedef {{ id: string, name: string, kind?: string, line: string, about: string, href: string, live?: boolean, made?: string, copy?: string, face?: string }} Title */
       /** @type {Title[]} */
       const APPS = /** @type {any[]} */ ([
+        { id: "explorer", kind: "Blocks", line: "Every block, transaction and address, and what gets you in.", href: "/explorer/", live: true, made: "Each block, the mempool and every transaction's coins" },
         { id: "studio", kind: "Charts", line: "Chart any series: overlay, stack, derive, share.", href: "/studio/", made: "Every series Bitview computes from the chain" },
         { id: "oracle", kind: "Price", line: "Bitcoin's price, read from the chain alone.", href: "/oracle/", live: true, made: "Round-dollar payments in each block" },
         { id: "globe", kind: "Mining", line: "Where blocks are mined, live and since 2011.", href: "/globe/", live: true, made: "Each block's mining pool and its home country" },
@@ -2315,6 +2316,7 @@
         "/stack/": { "name": "Stack", "about": "Dollar-cost averaging that saves from each all-time high and buys bitcoin from the cycle's floor: what any plan since 2010 would be worth, beside the plain plan buying the same each time, and how every start and length turned out." },
         "/compass/": { "name": "Compass", "about": "Where Bitcoin's market stands, day by day since 2011: price against what its long-term and short-term holders paid, and which way their trends point: nine moods, from Fear to Optimism, and how long each has lasted." },
         "/calendar/": { "name": "Calendar", "about": "Every day of every year since 2009, the mining pool that found the most Bitcoin blocks, and every block of any day." },
+        "/explorer/": { "name": "Explorer", "about": "What it takes to get into the next Litecoin block, and every block, transaction and address: where a payment is, when it gets in and what it paid, read exactly from the chain." },
         "/series/": { "name": "Series", "about": "Every series Bitview computes from the chain, browsed like files: what each one is, its intervals, its history drawn, and how to fetch it." },
         "/logs/": { "name": "Logs", "about": "This Bitview server, live: requests a minute, response times, refusals and failures, each route, the last block, and every line it logs." },
         "/api/": { "about": "Free Bitcoin on-chain analytics API: thousands of time series, blocks, transactions, addresses, the mempool and mining. No key, no account." },

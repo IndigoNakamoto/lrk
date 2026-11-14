@@ -152,7 +152,7 @@ P2PK33Bytes = str
 # The 2-byte witness program of a P2A (pay-to-anchor) output.
 P2ABytes = str
 # Output type names used by Esplora and mempool.space.
-OutputTypeNormalized = Literal["p2pk", "p2pkh", "multisig", "p2sh", "op_return", "v0_p2wpkh", "v0_p2wsh", "v1_p2tr", "anchor", "empty", "unknown"]
+OutputTypeNormalized = Union[Literal["p2pk", "p2pkh", "multisig", "p2sh", "op_return", "v0_p2wpkh", "v0_p2wsh", "v1_p2tr", "anchor", "empty", "unknown"], Literal["witness_mweb_hogaddr"], Literal["witness_mweb_pegin"]]
 # An output's script type (P2PKH, P2WPKH, P2SH, P2TR…).
 OutputType = Union[Literal["p2pk65", "p2pk33", "p2pkh", "p2ms", "p2sh", "op_return", "p2wpkh", "p2wsh", "p2tr", "p2a", "empty_script", "unknown_script"], Literal["mweb_peg_pool"], Literal["mweb_peg_in"]]
 # Protocol or format detected in an OP_RETURN output.

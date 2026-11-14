@@ -1607,7 +1607,7 @@ Returns: JSON `ServerVersion`
 
 ### `OutputTypeNormalized`
 
-`p2pk | p2pkh | multisig | p2sh | op_return | v0_p2wpkh | v0_p2wsh | v1_p2tr | anchor | empty | unknown`
+`p2pk | p2pkh | multisig | p2sh | op_return | v0_p2wpkh | v0_p2wsh | v1_p2tr | anchor | empty | unknown | witness_mweb_hogaddr | witness_mweb_pegin`
 
 ### `PaginatedSeries`
 

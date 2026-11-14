@@ -122,6 +122,7 @@ else for (const [id, status] of answers) if (status !== 200) problems.push(`seri
  * ("text": a canvas's words, "scene": everything but its canvas, and its tags), and where its cover and its banner are
  * cut, in its screen's points: [x, y, width, height]. A cover 960×600; a banner 1,900 wide and 2,880 (@2x). */
 const PICTURES = {
+  explorer: { url: "/explorer/", settle: 9000, cover: [8, 60, 1344, 840] },
   studio: { url: "/studio/presets/bedrock/awake/floors-colored", screen: [2600, 1150], settle: 16000, cover: [677, 120, 1488, 930], banner: [265, 120, 1900, 930] },
   oracle: { url: "/oracle/", settle: 9000, cover: [0, 228, 928, 580], banner: [0, 244, 1440, 628] },
   globe: { url: "/globe/", settle: 9000, hide: "text", cover: [166, 44, 720, 450], banner: [43, 64, 966, 450] },

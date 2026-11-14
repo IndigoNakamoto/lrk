@@ -997,7 +997,7 @@ before it (live, the mempool's as the next block's), each block's counts weighte
 /**
  * Output type names used by Esplora and mempool.space.
  *
- * @typedef {("p2pk"|"p2pkh"|"multisig"|"p2sh"|"op_return"|"v0_p2wpkh"|"v0_p2wsh"|"v1_p2tr"|"anchor"|"empty"|"unknown")} OutputTypeNormalized
+ * @typedef {(("p2pk"|"p2pkh"|"multisig"|"p2sh"|"op_return"|"v0_p2wpkh"|"v0_p2wsh"|"v1_p2tr"|"anchor"|"empty"|"unknown")|("witness_mweb_hogaddr")|("witness_mweb_pegin"))} OutputTypeNormalized
  */
 /**
  * Index of a P2A (pay-to-anchor) address.

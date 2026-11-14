@@ -315,20 +315,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,
@@ -702,20 +714,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,
@@ -1192,20 +1216,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,
@@ -1578,20 +1614,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,
@@ -3416,20 +3464,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,
@@ -12479,20 +12539,32 @@
               "type": "string"
             },
             "OutputTypeNormalized": {
-              "enum": [
-                "p2pk",
-                "p2pkh",
-                "multisig",
-                "p2sh",
-                "op_return",
-                "v0_p2wpkh",
-                "v0_p2wsh",
-                "v1_p2tr",
-                "anchor",
-                "empty",
-                "unknown"
-              ],
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "p2pk",
+                    "p2pkh",
+                    "multisig",
+                    "p2sh",
+                    "op_return",
+                    "v0_p2wpkh",
+                    "v0_p2wsh",
+                    "v1_p2tr",
+                    "anchor",
+                    "empty",
+                    "unknown"
+                  ]
+                },
+                {
+                  "const": "witness_mweb_hogaddr",
+                  "type": "string"
+                },
+                {
+                  "const": "witness_mweb_pegin",
+                  "type": "string"
+                }
+              ]
             },
             "RawLockTime": {
               "minimum": 0,

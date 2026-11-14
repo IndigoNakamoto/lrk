@@ -107,6 +107,14 @@ pub enum OutputTypeNormalized {
     P2A,
     Empty,
     Unknown,
+    /// Litecoin Core's name for the HogEx output holding the MWEB pool.
+    #[cfg(feature = "litecoin")]
+    #[serde(rename = "witness_mweb_hogaddr")]
+    MwebHogAddr,
+    /// Litecoin Core's name for a peg-in into MWEB.
+    #[cfg(feature = "litecoin")]
+    #[serde(rename = "witness_mweb_pegin")]
+    MwebPegIn,
 }
 
 impl fmt::Display for OutputTypeNormalized {
@@ -124,6 +132,10 @@ impl fmt::Display for OutputTypeNormalized {
                 Self::P2A => "anchor",
                 Self::Empty => "empty",
                 Self::Unknown => "unknown",
+                #[cfg(feature = "litecoin")]
+                Self::MwebHogAddr => "witness_mweb_hogaddr",
+                #[cfg(feature = "litecoin")]
+                Self::MwebPegIn => "witness_mweb_pegin",
             },
             f,
         )
@@ -197,7 +209,9 @@ impl OutputType {
             Self::EmptyScript => OutputTypeNormalized::Empty,
             Self::UnknownScript => OutputTypeNormalized::Unknown,
             #[cfg(feature = "litecoin")]
-            Self::MWEBPegPool | Self::MWEBPegIn => OutputTypeNormalized::Unknown,
+            Self::MWEBPegPool => OutputTypeNormalized::MwebHogAddr,
+            #[cfg(feature = "litecoin")]
+            Self::MWEBPegIn => OutputTypeNormalized::MwebPegIn,
         }
     }
 
