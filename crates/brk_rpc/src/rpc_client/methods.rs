@@ -131,7 +131,11 @@ impl Client {
     /// is exact even when a tx vanishes from the mempool listing between the GBT
     /// and `getrawmempool` calls; no follow-up entry fetch can race it.
     pub fn fetch_mempool_state(&self) -> Result<(MempoolState, Vec<BlockTemplateTx>)> {
+        #[cfg(not(feature = "litecoin"))]
         let template_args = (json!({ "rules": ["segwit"] }),);
+        // Litecoin Core refuses a template request without the MWEB rule.
+        #[cfg(feature = "litecoin")]
+        let template_args = (json!({ "rules": ["mweb", "segwit"] }),);
         let calls = [
             RpcCall::new("getblocktemplate", &template_args)?,
             RpcCall::new("getrawmempool", &(false,))?,
