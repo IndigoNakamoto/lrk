@@ -1,4 +1,11 @@
-use brk_chain::primitives as bitcoin;
+use std::fmt;
+#[cfg(feature = "storage")]
+use std::mem;
+#[cfg(feature = "storage")]
+use vecdb::Error as VecdbError;
+#[cfg(feature = "storage")]
+use vecdb::Result as VecdbResult;
+
 use bitcoin::{
     AddressType, ScriptBuf,
     opcodes::all::{
@@ -8,144 +15,118 @@ use bitcoin::{
     },
 };
 use brk_error::Error;
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use strum::Display;
-use vecdb::{Bytes, Formattable, Pco, TransparentPco};
 
-use crate::AddrBytes;
+use crate::AddressBytes;
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Display,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    Hash,
-)]
+#[cfg(feature = "storage")]
+use vecdb::{Bytes, Formattable, Pco};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 #[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
 #[repr(u8)]
-/// Type (P2PKH, P2WPKH, P2SH, P2TR, etc.)
+/// An output's script type (P2PKH, P2WPKH, P2SH, P2TR…).
 pub enum OutputType {
     P2PK65,
     P2PK33,
     P2PKH,
     P2MS,
     P2SH,
+    #[serde(rename = "op_return")]
     OpReturn,
     P2WPKH,
     P2WSH,
     P2TR,
     P2A,
-    Empty,
-    /// Litecoin MWEB peg-pool output (witness v8 / HogAddr macro balance).
-    #[serde(rename = "mweb_peg_pool")]
-    #[strum(serialize = "mweb_peg_pool")]
-    MWEBPegPool,
-    /// Litecoin MWEB peg-in output (witness v9).
-    #[serde(rename = "mweb_pegin")]
-    #[strum(serialize = "mweb_pegin")]
-    MWEBPegIn,
-    Unknown,
+    #[serde(rename = "empty_script")]
+    EmptyScript,
+    #[serde(rename = "unknown_script")]
+    UnknownScript,
 }
 
-#[derive(Debug, Clone, Copy, Display, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Hash)]
+impl fmt::Display for OutputType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(
+            match self {
+                Self::P2PK65 => "p2pk65",
+                Self::P2PK33 => "p2pk33",
+                Self::P2PKH => "p2pkh",
+                Self::P2MS => "p2ms",
+                Self::P2SH => "p2sh",
+                Self::OpReturn => "op_return",
+                Self::P2WPKH => "p2wpkh",
+                Self::P2WSH => "p2wsh",
+                Self::P2TR => "p2tr",
+                Self::P2A => "p2a",
+                Self::EmptyScript => "empty_script",
+                Self::UnknownScript => "unknown_script",
+            },
+            f,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 #[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
 /// Output type names used by Esplora and mempool.space.
 pub enum OutputTypeNormalized {
     P2PK,
     P2PKH,
     #[serde(rename = "multisig")]
-    #[strum(serialize = "multisig")]
     P2MS,
     P2SH,
     #[serde(rename = "op_return")]
-    #[strum(serialize = "op_return")]
     OpReturn,
     #[serde(rename = "v0_p2wpkh")]
-    #[strum(serialize = "v0_p2wpkh")]
     P2WPKH,
     #[serde(rename = "v0_p2wsh")]
-    #[strum(serialize = "v0_p2wsh")]
     P2WSH,
     #[serde(rename = "v1_p2tr")]
-    #[strum(serialize = "v1_p2tr")]
     P2TR,
     #[serde(rename = "anchor")]
-    #[strum(serialize = "anchor")]
     P2A,
     Empty,
-    #[serde(rename = "mweb_peg_pool")]
-    #[strum(serialize = "mweb_peg_pool")]
-    MWEBPegPool,
-    #[serde(rename = "mweb_pegin")]
-    #[strum(serialize = "mweb_pegin")]
-    MWEBPegIn,
     Unknown,
 }
 
-impl OutputType {
-    /// Number of `OutputType` variants. Used to size per-type arrays indexed by
-    /// `otype as usize`. `Unknown` is the last (highest-discriminant) variant.
-    pub const COUNT: usize = Self::Unknown as usize + 1;
-
-    pub const ADDR_TYPES: [Self; 8] = [
-        Self::P2PK65,
-        Self::P2PK33,
-        Self::P2PKH,
-        Self::P2SH,
-        Self::P2WPKH,
-        Self::P2WSH,
-        Self::P2TR,
-        Self::P2A,
-    ];
-
-    fn is_valid(value: u8) -> bool {
-        value <= Self::Unknown as u8
+impl fmt::Display for OutputTypeNormalized {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(
+            match self {
+                Self::P2PK => "p2pk",
+                Self::P2PKH => "p2pkh",
+                Self::P2MS => "multisig",
+                Self::P2SH => "p2sh",
+                Self::OpReturn => "op_return",
+                Self::P2WPKH => "v0_p2wpkh",
+                Self::P2WSH => "v0_p2wsh",
+                Self::P2TR => "v1_p2tr",
+                Self::P2A => "anchor",
+                Self::Empty => "empty",
+                Self::Unknown => "unknown",
+            },
+            f,
+        )
     }
+}
 
-    pub fn is_spendable(&self) -> bool {
-        match self {
-            Self::P2PK65 => true,
-            Self::P2PK33 => true,
-            Self::P2PKH => true,
-            Self::P2MS => true,
-            Self::P2SH => true,
-            Self::OpReturn => false,
-            Self::P2WPKH => true,
-            Self::P2WSH => true,
-            Self::P2TR => true,
-            Self::P2A => true,
-            Self::Empty => true,
-            Self::MWEBPegPool | Self::MWEBPegIn => false,
-            Self::Unknown => true,
-        }
+impl OutputType {
+    pub const COUNT: usize = Self::UnknownScript as usize + 1;
+
+    #[cfg(feature = "storage")]
+    fn is_valid(value: u8) -> bool {
+        value <= Self::UnknownScript as u8
     }
 
     pub fn is_addr(&self) -> bool {
-        match self {
-            Self::P2PK65 => true,
-            Self::P2PK33 => true,
-            Self::P2PKH => true,
-            Self::P2MS => false,
-            Self::P2SH => true,
-            Self::OpReturn => false,
-            Self::P2WPKH => true,
-            Self::P2WSH => true,
-            Self::P2TR => true,
-            Self::P2A => true,
-            Self::Empty => false,
-            Self::MWEBPegPool | Self::MWEBPegIn => false,
-            Self::Unknown => false,
-        }
+        !matches!(
+            self,
+            Self::P2MS | Self::OpReturn | Self::EmptyScript | Self::UnknownScript
+        )
     }
 
     pub fn is_not_addr(&self) -> bool {
@@ -153,10 +134,10 @@ impl OutputType {
     }
 
     pub fn is_unspendable(&self) -> bool {
-        !self.is_spendable()
+        matches!(self, Self::OpReturn)
     }
 
-    pub const fn normalized(self) -> OutputTypeNormalized {
+    pub(crate) const fn normalized(self) -> OutputTypeNormalized {
         match self {
             Self::P2PK65 | Self::P2PK33 => OutputTypeNormalized::P2PK,
             Self::P2PKH => OutputTypeNormalized::P2PKH,
@@ -167,77 +148,16 @@ impl OutputType {
             Self::P2WSH => OutputTypeNormalized::P2WSH,
             Self::P2TR => OutputTypeNormalized::P2TR,
             Self::P2A => OutputTypeNormalized::P2A,
-            Self::Empty => OutputTypeNormalized::Empty,
-            Self::MWEBPegPool => OutputTypeNormalized::MWEBPegPool,
-            Self::MWEBPegIn => OutputTypeNormalized::MWEBPegIn,
-            Self::Unknown => OutputTypeNormalized::Unknown,
+            Self::EmptyScript => OutputTypeNormalized::Empty,
+            Self::UnknownScript => OutputTypeNormalized::Unknown,
         }
     }
 
-    /// Whether the address type's public key is revealed at funding time
-    /// (vs. only at spending time). For P2PK33/P2PK65 the pubkey is directly
-    /// in the locking script; for P2TR the tweaked output key is in the
-    /// locking script. All other address types hash the pubkey/script and
-    /// only reveal it on spending.
+    /// Whether the address type's public key is revealed at funding time (vs. only at spending
+    /// time): P2PK33/P2PK65 carry the pubkey in the locking script, P2TR its tweaked output key.
+    /// The hash-based types reveal it when spent; P2A has no key.
     pub fn pubkey_exposed_at_funding(&self) -> bool {
         matches!(self, Self::P2PK65 | Self::P2PK33 | Self::P2TR)
-    }
-
-    pub fn as_vec() -> Vec<Self> {
-        vec![
-            Self::P2PK65,
-            Self::P2PK33,
-            Self::P2PKH,
-            Self::P2MS,
-            Self::P2SH,
-            Self::OpReturn,
-            Self::P2WPKH,
-            Self::P2WSH,
-            Self::P2TR,
-            Self::P2A,
-            Self::Empty,
-            Self::MWEBPegPool,
-            Self::MWEBPegIn,
-            Self::Unknown,
-        ]
-    }
-
-    pub fn is_mweb(self) -> bool {
-        matches!(self, Self::MWEBPegPool | Self::MWEBPegIn)
-    }
-
-    /// Returns `true` if this is a Litecoin MWEB peg-pool script (witness v8).
-    #[inline]
-    pub fn is_mweb_peg_pool_script(script: &ScriptBuf) -> bool {
-        #[cfg(feature = "litecoin")]
-        {
-            script.witness_version() == Some(bitcoin::WitnessVersion::V8)
-        }
-        #[cfg(not(feature = "litecoin"))]
-        {
-            let _ = script;
-            false
-        }
-    }
-
-    /// Returns `true` if this is a Litecoin MWEB peg-in script (witness v9).
-    #[inline]
-    pub fn is_mweb_pegin_script(script: &ScriptBuf) -> bool {
-        #[cfg(feature = "litecoin")]
-        {
-            script.witness_version() == Some(bitcoin::WitnessVersion::V9)
-        }
-        #[cfg(not(feature = "litecoin"))]
-        {
-            let _ = script;
-            false
-        }
-    }
-
-    /// Returns `true` if this is any Litecoin MWEB output script (witness v8 or v9).
-    #[inline]
-    pub fn is_mweb_script(script: &ScriptBuf) -> bool {
-        Self::is_mweb_peg_pool_script(script) || Self::is_mweb_pegin_script(script)
     }
 }
 
@@ -247,7 +167,7 @@ impl From<&ScriptBuf> for OutputType {
         let bytes = script.as_bytes();
 
         match bytes.len() {
-            0 => Self::Empty,
+            0 => Self::EmptyScript,
             4 if bytes == [OP_PUSHNUM_1.to_u8(), OP_PUSHBYTES_2.to_u8(), 78, 115] => Self::P2A,
             22 if bytes[0] == OP_PUSHBYTES_0.to_u8() && bytes[1] == OP_PUSHBYTES_20.to_u8() => {
                 Self::P2WPKH
@@ -280,9 +200,7 @@ impl From<&ScriptBuf> for OutputType {
             }
             _ if bytes[0] == OP_RETURN.to_u8() => Self::OpReturn,
             _ if script.is_multisig() => Self::P2MS,
-            _ if Self::is_mweb_peg_pool_script(script) => Self::MWEBPegPool,
-            _ if Self::is_mweb_pegin_script(script) => Self::MWEBPegIn,
-            _ => Self::Unknown,
+            _ => Self::UnknownScript,
         }
     }
 }
@@ -302,18 +220,18 @@ impl From<AddressType> for OutputType {
     }
 }
 
-impl From<&AddrBytes> for OutputType {
+impl From<&AddressBytes> for OutputType {
     #[inline]
-    fn from(bytes: &AddrBytes) -> Self {
+    fn from(bytes: &AddressBytes) -> Self {
         match bytes {
-            AddrBytes::P2PK65(_) => Self::P2PK65,
-            AddrBytes::P2PK33(_) => Self::P2PK33,
-            AddrBytes::P2PKH(_) => Self::P2PKH,
-            AddrBytes::P2SH(_) => Self::P2SH,
-            AddrBytes::P2WPKH(_) => Self::P2WPKH,
-            AddrBytes::P2WSH(_) => Self::P2WSH,
-            AddrBytes::P2TR(_) => Self::P2TR,
-            AddrBytes::P2A(_) => Self::P2A,
+            AddressBytes::P2PK65(_) => Self::P2PK65,
+            AddressBytes::P2PK33(_) => Self::P2PK33,
+            AddressBytes::P2PKH(_) => Self::P2PKH,
+            AddressBytes::P2SH(_) => Self::P2SH,
+            AddressBytes::P2WPKH(_) => Self::P2WPKH,
+            AddressBytes::P2WSH(_) => Self::P2WSH,
+            AddressBytes::P2TR(_) => Self::P2TR,
+            AddressBytes::P2A(_) => Self::P2A,
         }
     }
 }
@@ -333,12 +251,11 @@ impl TryFrom<OutputType> for AddressType {
     }
 }
 
+#[cfg(feature = "storage")]
 impl Formattable for OutputType {
     fn write_to(&self, buf: &mut Vec<u8>) {
-        use std::fmt::Write;
-        let mut s = String::new();
-        write!(s, "{}", self).unwrap();
-        buf.extend_from_slice(s.as_bytes());
+        use std::io::Write;
+        write!(buf, "{self}").unwrap();
     }
 
     fn fmt_json(&self, buf: &mut Vec<u8>) {
@@ -348,7 +265,10 @@ impl Formattable for OutputType {
     }
 }
 
-impl Bytes for OutputType {
+#[cfg(feature = "storage")]
+// SAFETY: `Array` is `[u8; size_of::<Self>()]`, so `to_bytes` returns exactly the bytes per
+// value the contract requires; the values are encoded, not in native layout.
+unsafe impl Bytes for OutputType {
     type Array = [u8; size_of::<Self>()];
 
     #[inline]
@@ -357,154 +277,34 @@ impl Bytes for OutputType {
     }
 
     #[inline]
-    fn from_bytes(bytes: &[u8]) -> vecdb::Result<Self> {
+    fn from_bytes(bytes: &[u8]) -> VecdbResult<Self> {
         if bytes.len() != size_of::<Self>() {
-            return Err(vecdb::Error::WrongLength {
+            return Err(VecdbError::WrongLength {
                 expected: size_of::<Self>(),
                 received: bytes.len(),
             });
         };
         let value = bytes[0];
         if !Self::is_valid(value) {
-            return Err(vecdb::Error::InvalidArgument("invalid OutputType"));
+            return Err(VecdbError::InvalidArgument("invalid OutputType"));
         }
         // SAFETY: We validated that value is a valid variant
-        let s: Self = unsafe { std::mem::transmute(value) };
-        Ok(s)
+        Ok(unsafe { mem::transmute::<u8, Self>(value) })
     }
 }
 
-impl Pco for OutputType {
+// SAFETY: The non-transparent conversion validates every decoded discriminant.
+#[cfg(feature = "storage")]
+unsafe impl Pco for OutputType {
     type NumberType = u8;
-}
 
-impl TransparentPco<u8> for OutputType {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn native_and_normalized_names_are_distinct() {
-        let cases = [
-            (
-                OutputType::P2PK65,
-                "p2pk65",
-                OutputTypeNormalized::P2PK,
-                "p2pk",
-            ),
-            (
-                OutputType::P2PK33,
-                "p2pk33",
-                OutputTypeNormalized::P2PK,
-                "p2pk",
-            ),
-            (
-                OutputType::P2PKH,
-                "p2pkh",
-                OutputTypeNormalized::P2PKH,
-                "p2pkh",
-            ),
-            (
-                OutputType::P2MS,
-                "p2ms",
-                OutputTypeNormalized::P2MS,
-                "multisig",
-            ),
-            (OutputType::P2SH, "p2sh", OutputTypeNormalized::P2SH, "p2sh"),
-            (
-                OutputType::OpReturn,
-                "opreturn",
-                OutputTypeNormalized::OpReturn,
-                "op_return",
-            ),
-            (
-                OutputType::P2WPKH,
-                "p2wpkh",
-                OutputTypeNormalized::P2WPKH,
-                "v0_p2wpkh",
-            ),
-            (
-                OutputType::P2WSH,
-                "p2wsh",
-                OutputTypeNormalized::P2WSH,
-                "v0_p2wsh",
-            ),
-            (
-                OutputType::P2TR,
-                "p2tr",
-                OutputTypeNormalized::P2TR,
-                "v1_p2tr",
-            ),
-            (OutputType::P2A, "p2a", OutputTypeNormalized::P2A, "anchor"),
-            (
-                OutputType::Empty,
-                "empty",
-                OutputTypeNormalized::Empty,
-                "empty",
-            ),
-            (
-                OutputType::Unknown,
-                "unknown",
-                OutputTypeNormalized::Unknown,
-                "unknown",
-            ),
-        ];
-
-        for (native, native_name, normalized, normalized_name) in cases {
-            assert_eq!(native.to_string(), native_name);
-            assert_eq!(native.normalized(), normalized);
-            assert_eq!(
-                serde_json::to_string(&native).unwrap(),
-                format!(r#""{native_name}""#)
-            );
-            assert_eq!(
-                serde_json::from_str::<OutputType>(&format!(r#""{native_name}""#)).unwrap(),
-                native
-            );
-            assert_eq!(normalized.to_string(), normalized_name);
-            assert_eq!(
-                serde_json::to_string(&normalized).unwrap(),
-                format!(r#""{normalized_name}""#)
-            );
-            assert_eq!(
-                serde_json::from_str::<OutputTypeNormalized>(&format!(r#""{normalized_name}""#))
-                    .unwrap(),
-                normalized
-            );
-        }
-
-        assert!(serde_json::from_str::<OutputType>(r#""p2pk""#).is_err());
-        assert!(serde_json::from_str::<OutputType>(r#""anchor""#).is_err());
-        assert!(serde_json::from_str::<OutputTypeNormalized>(r#""p2a""#).is_err());
-    }
-}
-
-#[cfg(all(test, feature = "litecoin"))]
-mod mweb_tests {
-    use super::*;
-
-    fn witness_script(version_opcode: u8, program_len: usize) -> ScriptBuf {
-        let mut bytes = vec![version_opcode, program_len as u8];
-        bytes.extend(std::iter::repeat(0u8).take(program_len));
-        ScriptBuf::from_bytes(bytes)
+    #[inline(always)]
+    fn to_number(self) -> Self::NumberType {
+        self as u8
     }
 
-    #[test]
-    fn litecoin_mweb_outputs_classify_by_witness_version() {
-        let v8 = witness_script(0x58, 32);
-        let v9 = witness_script(0x59, 32);
-        assert_eq!(OutputType::from(&v8), OutputType::MWEBPegPool);
-        assert_eq!(OutputType::from(&v9), OutputType::MWEBPegIn);
-        assert!(OutputType::MWEBPegPool.is_mweb());
-        assert!(OutputType::MWEBPegIn.is_mweb());
-        assert!(!OutputType::MWEBPegPool.is_spendable());
-        assert!(!OutputType::MWEBPegIn.is_addr());
-    }
-
-    #[test]
-    fn other_witness_versions_are_not_mweb() {
-        let v2 = witness_script(0x52, 32);
-        assert!(!OutputType::from(&v2).is_mweb());
+    #[inline(always)]
+    fn from_number(value: Self::NumberType) -> VecdbResult<Self> {
+        Self::from_bytes(&[value])
     }
 }

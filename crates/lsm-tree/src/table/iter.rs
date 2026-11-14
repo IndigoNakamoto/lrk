@@ -2,143 +2,47 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use super::{BlockOffset, DataBlock, GlobalTableId, data_block::Iter as DataBlockIter};
+use std::marker::PhantomData;
+
+use super::{
+    DataBlock, Table, bound::Bound, data_block::DataBlock as DataBlockDataBlock,
+    owned_data_block_iter::OwnedDataBlockIter,
+};
 use crate::{
-    Cache, CompressionType, InternalValue, SeqNo, UserKey,
-    file_accessor::FileAccessor,
+    InternalValue, RecordBytes, Result, Slice,
     table::{
-        BlockHandle,
-        block::ParsedItem,
+        KeyedBlockHandle,
         block_index::{BlockIndexIter, BlockIndexIterImpl},
-        util::load_block,
     },
 };
-use self_cell::self_cell;
-use std::{path::PathBuf, sync::Arc};
-
-type InnerIter<'a> = DataBlockIter<'a>;
-
-pub enum Bound {
-    Included(UserKey),
-    Excluded(UserKey),
-}
-type Bounds = (Option<Bound>, Option<Bound>);
-
-self_cell!(
-    pub struct OwnedDataBlockIter {
-        owner: DataBlock,
-
-        #[covariant]
-        dependent: InnerIter,
-    }
-);
-
-impl OwnedDataBlockIter {
-    fn seek_lower_inclusive(&mut self, needle: &[u8], _seqno: SeqNo) -> bool {
-        self.with_dependent_mut(|_, m| m.seek(needle /* TODO: , seqno */))
-    }
-
-    fn seek_upper_inclusive(&mut self, needle: &[u8], _seqno: SeqNo) -> bool {
-        self.with_dependent_mut(|_, m| m.seek_upper(needle /* TODO: , seqno */))
-    }
-
-    fn seek_lower_exclusive(&mut self, needle: &[u8], _seqno: SeqNo) -> bool {
-        self.with_dependent_mut(|_, m| m.seek_exclusive(needle /* TODO: , seqno */))
-    }
-
-    fn seek_upper_exclusive(&mut self, needle: &[u8], _seqno: SeqNo) -> bool {
-        self.with_dependent_mut(|_, m| m.seek_upper_exclusive(needle /* TODO: , seqno */))
-    }
-
-    pub fn seek_lower_bound(&mut self, bound: &Bound, seqno: SeqNo) -> bool {
-        match bound {
-            Bound::Included(key) => self.seek_lower_inclusive(key, seqno),
-            Bound::Excluded(key) => self.seek_lower_exclusive(key, seqno),
-        }
-    }
-
-    pub fn seek_upper_bound(&mut self, bound: &Bound, seqno: SeqNo) -> bool {
-        match bound {
-            Bound::Included(key) => self.seek_upper_inclusive(key, seqno),
-            Bound::Excluded(key) => self.seek_upper_exclusive(key, seqno),
-        }
-    }
-}
-
-impl Iterator for OwnedDataBlockIter {
-    type Item = InternalValue;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_dependent_mut(|block, iter| {
-            iter.next().map(|item| item.materialize(&block.inner.data))
-        })
-    }
-}
-
-impl DoubleEndedIterator for OwnedDataBlockIter {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.with_dependent_mut(|block, iter| {
-            iter.next_back()
-                .map(|item| item.materialize(&block.inner.data))
-        })
-    }
-}
 
 fn create_data_block_reader(block: DataBlock) -> OwnedDataBlockIter {
-    OwnedDataBlockIter::new(block, super::data_block::DataBlock::iter)
+    OwnedDataBlockIter::new(block, DataBlockDataBlock::iter)
 }
 
-pub struct Iter {
-    table_id: GlobalTableId,
-    path: Arc<PathBuf>,
-
-    global_seqno: SeqNo,
+pub struct Iter<K = Slice, V = Slice> {
+    record: PhantomData<(K, V)>,
+    table: Table,
 
     #[expect(clippy::struct_field_names)]
     index_iter: BlockIndexIterImpl,
 
-    file_accessor: FileAccessor,
-    cache: Arc<Cache>,
-    compression: CompressionType,
-
     index_initialized: bool,
-
-    lo_offset: BlockOffset,
     lo_data_block: Option<OwnedDataBlockIter>,
-
-    hi_offset: BlockOffset,
     hi_data_block: Option<OwnedDataBlockIter>,
 
-    range: Bounds,
+    range: (Option<Bound>, Option<Bound>),
 }
 
-impl Iter {
-    pub fn new(
-        table_id: GlobalTableId,
-        global_seqno: SeqNo,
-        path: Arc<PathBuf>,
-        index_iter: BlockIndexIterImpl,
-        file_accessor: FileAccessor,
-        cache: Arc<Cache>,
-        compression: CompressionType,
-    ) -> Self {
+impl<K: RecordBytes, V: RecordBytes> Iter<K, V> {
+    pub fn new(table: Table, index_iter: BlockIndexIterImpl) -> Self {
         Self {
-            table_id,
-            path,
-
-            global_seqno,
-
+            record: PhantomData,
+            table,
             index_iter,
-            file_accessor,
-            cache,
-            compression,
 
             index_initialized: false,
-
-            lo_offset: BlockOffset(0),
             lo_data_block: None,
-
-            hi_offset: BlockOffset(u64::MAX),
             hi_data_block: None,
 
             range: (None, None),
@@ -154,240 +58,159 @@ impl Iter {
     }
 }
 
-impl Iterator for Iter {
-    type Item = crate::Result<InternalValue>;
+impl<K: RecordBytes, V: RecordBytes> Iter<K, V> {
+    /// Narrows the index to the blocks overlapping the bounds, once, before the first read.
+    ///
+    /// Returns `false` if no block overlaps. Exact bounds are applied inside the boundary
+    /// data blocks.
+    fn init_index(&mut self) -> bool {
+        self.index_initialized = true;
+        let ok = self
+            .range
+            .0
+            .as_ref()
+            .is_none_or(|bound| self.index_iter.seek_lower(bound.key(), u64::MAX))
+            && self
+                .range
+                .1
+                .as_ref()
+                .is_none_or(|bound| self.index_iter.seek_upper(bound.key(), u64::MAX));
+        if !ok {
+            self.lo_data_block = None;
+            self.hi_data_block = None;
+        }
+        ok
+    }
+
+    fn read_block(&self, handle: &KeyedBlockHandle) -> Result<OwnedDataBlockIter> {
+        let block = self.table.load_data_block(handle.as_ref())?;
+        Ok(create_data_block_reader(block))
+    }
+
+    /// Returns the upper bound if it can cut into the block ending at `handle`'s key.
+    fn upper_bound_within(&self, handle: &KeyedBlockHandle) -> Option<&Bound> {
+        self.range
+            .1
+            .as_ref()
+            .filter(|bound| handle.end_key() >= bound.key())
+    }
+
+    fn rebase(&self, item: Result<InternalValue<K, V>>) -> Result<InternalValue<K, V>> {
+        item.map(|mut value| {
+            value.key.seqno += self.table.global_seqno();
+            value
+        })
+    }
+}
+
+impl<K: RecordBytes, V: RecordBytes> Iterator for Iter<K, V> {
+    type Item = Result<InternalValue<K, V>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Always try to keep iterating inside the already-materialized low data block first; this
-        // lets callers consume multiple entries without touching the index or cache again.
-        if let Some(block) = &mut self.lo_data_block
-            && let Some(item) = block
-                .next()
-                .map(|mut v| {
-                    v.key.seqno += self.global_seqno;
-                    v
-                })
-                .map(Ok)
+        // Keep iterating inside the already-materialized low data block first.
+        if let Some(item) = self
+            .lo_data_block
+            .as_mut()
+            .and_then(OwnedDataBlockIter::next_as)
         {
-            return Some(item);
+            return Some(self.rebase(item));
         }
 
-        if !self.index_initialized {
-            // Lazily initialize the index iterator here (not in `new`) so callers can set bounds
-            // before we incur any seek or I/O cost. Bounds exclusivity is enforced at the data-
-            // block level; index seeks only narrow the span of blocks to touch.
-            let mut ok = if let Some(bound) = &self.range.0 {
-                // Seek to the first block whose end key is ≥ lower bound.
-                // If this fails we can immediately conclude the range is empty.
-                let key = match bound {
-                    Bound::Included(k) | Bound::Excluded(k) => k,
-                };
-                self.index_iter.seek_lower(key, u64::MAX)
-            } else {
-                true
-            };
-
-            if ok {
-                // Apply an upper-bound seek to cap the block span, but keep exact high-key
-                // handling inside the data block so exclusivity is respected precisely.
-                if let Some(bound) = &self.range.1 {
-                    let key = match bound {
-                        Bound::Included(k) | Bound::Excluded(k) => k,
-                    };
-                    ok = self.index_iter.seek_upper(key, u64::MAX);
-                }
-            }
-
-            self.index_initialized = true;
-
-            if !ok {
-                // No block in the index overlaps the requested window, so we clear state and return
-                // EOF without attempting to touch any data blocks.
-                self.lo_data_block = None;
-                self.hi_data_block = None;
-                return None;
-            }
+        if !self.index_initialized && !self.init_index() {
+            return None;
         }
 
         loop {
             let Some(handle) = self.index_iter.next() else {
-                // No more block handles coming from the index.  Flush any pending items buffered on
-                // the high side (used by reverse iteration) before signalling completion.
-                if let Some(block) = &mut self.hi_data_block
-                    && let Some(item) = block
-                        .next()
-                        .map(|mut v| {
-                            v.key.seqno += self.global_seqno;
-                            v
-                        })
-                        .map(Ok)
+                // Flush any items buffered on the high side by reverse iteration.
+                if let Some(item) = self
+                    .hi_data_block
+                    .as_mut()
+                    .and_then(OwnedDataBlockIter::next_as)
                 {
-                    return Some(item);
+                    return Some(self.rebase(item));
                 }
 
-                // Nothing left to serve; drop both buffers so the iterator can be reused safely.
                 self.lo_data_block = None;
                 self.hi_data_block = None;
                 return None;
             };
             let handle = fail_iter!(handle);
+            let mut reader = fail_iter!(self.read_block(&handle));
 
-            // Load the next data block referenced by the index handle.  We try the shared block
-            // cache first to avoid hitting the filesystem, and fall back to `load_block` on miss.
-            let block = match self.cache.get_block(self.table_id, handle.offset()) {
-                Some(block) => block,
-                None => {
-                    fail_iter!(load_block(
-                        self.table_id,
-                        &self.path,
-                        &self.file_accessor,
-                        &self.cache,
-                        &BlockHandle::new(handle.offset(), handle.size()),
-                        crate::table::block::BlockType::Data,
-                        self.compression,
-                    ))
-                }
-            };
-            let block = DataBlock::new(block);
-
-            let mut reader = create_data_block_reader(block);
-
-            // Forward path: seek the low side first to avoid returning entries below the lower
-            // bound, then clamp the iterator on the high side. This guarantees iteration stays in
-            // [low, high] with exact control over inclusivity/exclusivity.
-            if let Some(bound) = &self.range.0 {
-                reader.seek_lower_bound(bound, SeqNo::MAX);
+            // Index seeks are exact, so only the first block can hold keys below the lower
+            // bound, and only a block ending at or past the upper bound can exceed it.
+            // Seek the low side first, then clamp the high side.
+            if self.lo_data_block.is_none()
+                && let Some(bound) = &self.range.0
+            {
+                reader.seek_lower_bound(bound);
             }
-            if let Some(bound) = &self.range.1 {
-                reader.seek_upper_bound(bound, SeqNo::MAX);
+            if let Some(bound) = self.upper_bound_within(&handle) {
+                reader.seek_upper_bound(bound);
             }
 
-            let item = reader.next();
+            let item = reader.next_as::<K, V>();
 
-            self.lo_offset = handle.offset();
             self.lo_data_block = Some(reader);
 
-            if let Some(mut item) = item {
-                item.key.seqno += self.global_seqno;
-
-                // Serving the first item immediately avoids stashing it in a temporary buffer and
-                // keeps block iteration semantics identical to the simple case at the top.
-                return Some(Ok(item));
+            if let Some(item) = item {
+                return Some(self.rebase(item));
             }
         }
     }
 }
 
-impl DoubleEndedIterator for Iter {
+impl<K: RecordBytes, V: RecordBytes> DoubleEndedIterator for Iter<K, V> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        // Mirror the forward iterator: prefer consuming buffered items from the high data block to
-        // avoid touching the index once a block has been materialized.
-        if let Some(block) = &mut self.hi_data_block
-            && let Some(item) = block
-                .next_back()
-                .map(|mut v| {
-                    v.key.seqno += self.global_seqno;
-                    v
-                })
-                .map(Ok)
+        // Mirror the forward iterator: prefer the already-materialized high data block.
+        if let Some(item) = self
+            .hi_data_block
+            .as_mut()
+            .and_then(OwnedDataBlockIter::next_back_as)
         {
-            return Some(item);
+            return Some(self.rebase(item));
         }
 
-        if !self.index_initialized {
-            // Mirror forward iteration: initialize lazily so bounds can be applied up-front. The
-            // index only restricts which blocks we consider; tight bound enforcement happens in
-            // the data block readers below.
-            let mut ok = if let Some(bound) = &self.range.0 {
-                let key = match bound {
-                    Bound::Included(k) | Bound::Excluded(k) => k,
-                };
-                self.index_iter.seek_lower(key, u64::MAX)
-            } else {
-                true
-            };
-
-            if ok && let Some(bound) = &self.range.1 {
-                let key = match bound {
-                    Bound::Included(k) | Bound::Excluded(k) => k,
-                };
-                ok = self.index_iter.seek_upper(key, u64::MAX);
-            }
-
-            self.index_initialized = true;
-
-            if !ok {
-                // No index span overlaps the requested window; clear both buffers and finish early.
-                self.lo_data_block = None;
-                self.hi_data_block = None;
-                return None;
-            }
+        if !self.index_initialized && !self.init_index() {
+            return None;
         }
 
         loop {
             let Some(handle) = self.index_iter.next_back() else {
-                // Once we exhaust the index in reverse order, flush any items that were buffered on
-                // the low side (set when iterating forward first) before signalling completion.
-                if let Some(block) = &mut self.lo_data_block
-                    && let Some(item) = block
-                        .next_back()
-                        .map(|mut v| {
-                            v.key.seqno += self.global_seqno;
-                            v
-                        })
-                        .map(Ok)
+                // Flush any items buffered on the low side by forward iteration.
+                if let Some(item) = self
+                    .lo_data_block
+                    .as_mut()
+                    .and_then(OwnedDataBlockIter::next_back_as)
                 {
-                    return Some(item);
+                    return Some(self.rebase(item));
                 }
 
-                // Nothing left to produce; reset both buffers to keep the iterator reusable.
                 self.lo_data_block = None;
                 self.hi_data_block = None;
                 return None;
             };
             let handle = fail_iter!(handle);
+            let mut reader = fail_iter!(self.read_block(&handle));
 
-            // Retrieve the next data block from the cache (or disk on miss) so the high-side reader
-            // can serve entries in reverse order.
-            let block = match self.cache.get_block(self.table_id, handle.offset()) {
-                Some(block) => block,
-                None => {
-                    fail_iter!(load_block(
-                        self.table_id,
-                        &self.path,
-                        &self.file_accessor,
-                        &self.cache,
-                        &BlockHandle::new(handle.offset(), handle.size()),
-                        crate::table::block::BlockType::Data,
-                        self.compression,
-                    ))
-                }
-            };
-            let block = DataBlock::new(block);
-
-            let mut reader = create_data_block_reader(block);
-
-            // Reverse path: clamp the high side first so `next_back` never yields an entry above
-            // the upper bound, then apply the low-side seek to avoid stepping below the lower
-            // bound during reverse traversal.
-            if let Some(bound) = &self.range.1 {
-                reader.seek_upper_bound(bound, SeqNo::MAX);
+            // Clamp the high side first, then the low side. Once forward iteration has read
+            // the first block, every block reached from the back lies above the lower bound.
+            if let Some(bound) = self.upper_bound_within(&handle) {
+                reader.seek_upper_bound(bound);
             }
-            if let Some(bound) = &self.range.0 {
-                reader.seek_lower_bound(bound, SeqNo::MAX);
+            if self.lo_data_block.is_none()
+                && let Some(bound) = &self.range.0
+            {
+                reader.seek_lower_bound(bound);
             }
 
-            let item = reader.next_back();
+            let item = reader.next_back_as::<K, V>();
 
-            self.hi_offset = handle.offset();
             self.hi_data_block = Some(reader);
 
-            if let Some(mut item) = item {
-                item.key.seqno += self.global_seqno;
-
-                // Emit the first materialized entry immediately to match the forward path and avoid
-                // storing it in a temporary buffer.
-                return Some(Ok(item));
+            if let Some(item) = item {
+                return Some(self.rebase(item));
             }
         }
     }

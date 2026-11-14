@@ -1,0 +1,113 @@
+use std::ops::{Add, AddAssign, Sub, SubAssign};
+
+use brk_types::{Cents, CentsSats};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "storage")]
+use vecdb::Bytes;
+
+/// Raw cents squared (u128) - stores cents² × sats without division.
+/// Used for precise accumulation of capitalized cap values: Σ(price² × sats).
+/// capitalized_price = capitalized_cap_raw / realized_cap_raw
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[cfg_attr(feature = "storage", derive(Bytes))]
+pub struct CentsSquaredSats(u128);
+
+impl CentsSquaredSats {
+    #[inline(always)]
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    #[inline(always)]
+    pub const fn inner(self) -> u128 {
+        self.0
+    }
+
+    /// Capitalized cap (price² × sats) = price × (price × sats)
+    #[inline(always)]
+    pub fn from_price_cents_sats(price: Cents, value: CentsSats) -> Self {
+        Self(price.inner() as u128 * value.inner())
+    }
+
+    /// The capitalized price (cents per BTC) given the realized cap, rounded to the nearest cent;
+    /// undefined (NaN) without cap.
+    #[inline(always)]
+    pub fn capitalized_price(self, cap: CentsSats) -> Cents {
+        let cap = cap.inner();
+        if cap == 0 {
+            return Cents::NAN;
+        }
+        Cents::from((self.0 + cap / 2) / cap)
+    }
+}
+
+impl AddAssign<u128> for CentsSquaredSats {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: u128) {
+        self.0 += rhs;
+    }
+}
+
+impl SubAssign<u128> for CentsSquaredSats {
+    #[inline(always)]
+    fn sub_assign(&mut self, rhs: u128) {
+        self.0 -= rhs;
+    }
+}
+
+impl Add for CentsSquaredSats {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for CentsSquaredSats {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl Sub for CentsSquaredSats {
+    type Output = Self;
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl SubAssign for CentsSquaredSats {
+    #[inline(always)]
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl From<u128> for CentsSquaredSats {
+    #[inline(always)]
+    fn from(value: u128) -> Self {
+        Self(value)
+    }
+}
+
+impl From<CentsSquaredSats> for u128 {
+    #[inline(always)]
+    fn from(value: CentsSquaredSats) -> Self {
+        value.0
+    }
+}
+
+impl From<usize> for CentsSquaredSats {
+    #[inline(always)]
+    fn from(value: usize) -> Self {
+        Self(value as u128)
+    }
+}
+
+brk_types::impl_int_format!(CentsSquaredSats);

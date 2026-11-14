@@ -1,0 +1,27 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / Scripts
+
+# Type Alias: Scripts
+
+> **Scripts** = `object`
+
+Defined in: modules/bitview-client/index.js:6731
+
+## Type Parameters
+
+## Type Declaration
+
+### emptyScript
+
+> **emptyScript**: [`ScriptType`](ScriptType.md)
+
+### p2ms
+
+> **p2ms**: [`IndexerP2ms`](IndexerP2ms.md)
+
+### unknownScript
+
+> **unknownScript**: [`IndexerUnknownScript`](IndexerUnknownScript.md)

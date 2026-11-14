@@ -1,0 +1,104 @@
+use std::{
+  fmt::{Display, Formatter, Result},
+  io::Write,
+};
+
+use crate::{
+  bit_reader::BitReader,
+  bit_writer::BitWriter,
+  errors::{PcoError, PcoResult},
+};
+
+/// The format version of pco used to compress a file.
+///
+/// During compression, this gets stored in the file.
+/// Version can affect the encoding of the rest of the file, so older versions
+/// of pco might return corruption errors when running on data compressed
+/// by newer versions.
+/// Pco will attempt to decompress if it's possible the library can read the
+/// file (the library supports the file's major version), even if it's possible
+/// the library will fail later in the file (which can happen if the library
+/// doesn't yet support the file's minor version).
+///
+/// You will not need to manually instantiate this.
+/// However, in some circumstances you may want to inspect this during
+/// decompression.
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FormatVersion {
+  major: u8,
+  minor: u8,
+}
+
+/// The default FormatVersion is used when compressing files.
+impl Default for FormatVersion {
+  fn default() -> Self {
+    Self { major: 4, minor: 1 }
+  }
+}
+
+impl Display for FormatVersion {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    write!(f, "{}.{}", self.major, self.minor)
+  }
+}
+
+impl FormatVersion {
+  pub(crate) const MAX_ENCODED_SIZE: usize = 2;
+
+  /// Returns the max format version that can definitely be decompressed by the
+  /// current library version.
+  pub(crate) fn max_supported() -> Self {
+    Self { major: 4, minor: 1 }
+  }
+
+  /// Returns whether this format version can definitely be read by the current
+  /// library version, or None if it can maybe be decompressed without a
+  /// guarantee.
+  fn can_be_decompressed(&self) -> Option<bool> {
+    let max_supported = FormatVersion::max_supported();
+    if max_supported >= *self {
+      Some(true)
+    } else if max_supported.major >= self.major {
+      None
+    } else {
+      Some(false)
+    }
+  }
+
+  pub(crate) fn read_from(reader: &mut BitReader) -> PcoResult<Self> {
+    let major = reader.read_aligned_bytes(1)?[0];
+    let minor = if major >= 4 {
+      reader.read_aligned_bytes(1)?[0]
+    } else {
+      0
+    };
+    let file_version = FormatVersion { major, minor };
+
+    if file_version.can_be_decompressed() == Some(false) {
+      return Err(PcoError::corruption(format!(
+        "File's format version ({}) definitely cannot be decompressed by this \
+        library version; its major version is less than the max supported {}. \
+        Consider upgrading Pco.",
+        file_version,
+        FormatVersion::default(),
+      )));
+    }
+
+    Ok(file_version)
+  }
+
+  pub(crate) fn write_to<W: Write>(&self, writer: &mut BitWriter<W>) -> PcoResult<usize> {
+    assert!(self.major >= 4);
+    writer.write_aligned_bytes(&[self.major, self.minor])?;
+    Ok(2)
+  }
+
+  pub(crate) fn used_old_gcds(&self) -> bool {
+    self.major == 0
+  }
+
+  pub(crate) fn supports_delta_variants(&self) -> bool {
+    self.major >= 3
+  }
+}

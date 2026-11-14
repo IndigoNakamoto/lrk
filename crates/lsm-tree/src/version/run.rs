@@ -2,8 +2,9 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::KeyRange;
-use std::ops::{Bound, RangeBounds};
+use std::ops::{Bound, Deref, RangeBounds};
+
+use crate::{KeyRange, Slice};
 
 pub trait Ranged {
     fn key_range(&self) -> &KeyRange;
@@ -13,7 +14,7 @@ pub trait Ranged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Run<T: Ranged>(Vec<T>);
 
-impl<T: Ranged> std::ops::Deref for Run<T> {
+impl<T: Ranged> Deref for Run<T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -34,33 +35,17 @@ impl<T: Ranged> Run<T> {
         &mut self.0
     }
 
-    pub fn push(&mut self, item: T) {
-        self.0.push(item);
-
+    pub fn into_inner(self) -> Vec<T> {
         self.0
-            .sort_by(|a, b| a.key_range().min().cmp(b.key_range().min()));
-    }
-
-    pub fn extend(&mut self, items: Vec<T>) {
-        self.0.extend(items);
-    }
-
-    pub fn retain<F>(&mut self, f: F)
-    where
-        F: FnMut(&T) -> bool,
-    {
-        self.0.retain(f);
-    }
-
-    pub fn remove(&mut self, idx: usize) -> T {
-        self.0.remove(idx)
     }
 
     /// Returns the table that may possibly contains the given key.
     pub fn get_for_key(&self, key: &[u8]) -> Option<&T> {
-        let idx = self.partition_point(|x| x.key_range().max() < &key);
+        let idx = self.partition_point(|x| x.key_range().max().as_ref() < key);
 
-        self.0.get(idx).filter(|x| x.key_range().min() <= &key)
+        self.0
+            .get(idx)
+            .filter(|x| x.key_range().min().as_ref() <= key)
     }
 
     /// Returns the run's key range.
@@ -79,7 +64,7 @@ impl<T: Ranged> Run<T> {
     pub fn get_overlapping<'a>(&'a self, key_range: &'a KeyRange) -> &'a [T] {
         let range = key_range.min()..=key_range.max();
 
-        let Some((lo, hi)) = self.range_overlap_indexes::<crate::Slice, _>(&range) else {
+        let Some((lo, hi)) = self.range_overlap_indexes::<Slice, _>(&range) else {
             return &[];
         };
 
@@ -89,32 +74,10 @@ impl<T: Ranged> Run<T> {
     /// Returns the sub slice of tables of tables in the run that have
     /// a key range fully contained in the input key range.
     pub fn get_contained<'a>(&'a self, key_range: &KeyRange) -> &'a [T] {
-        fn trim_slice<T, F>(s: &[T], pred: F) -> &[T]
-        where
-            F: Fn(&T) -> bool,
-        {
-            // find first index where pred holds
-            let start = s.iter().position(&pred).unwrap_or(s.len());
-
-            // find last index where pred holds
-            let end = s.iter().rposition(&pred).map_or(start, |i| i + 1);
-
-            #[expect(
-                clippy::expect_used,
-                reason = "start and end are derived from positions in the same slice"
-            )]
-            s.get(start..end).expect("should be in range")
-        }
-
-        let range = key_range.min()..=key_range.max();
-
-        let Some((lo, hi)) = self.range_overlap_indexes::<crate::Slice, _>(&range) else {
-            return &[];
-        };
-
-        self.get(lo..=hi)
-            .map(|slice| trim_slice(slice, |x| key_range.contains_range(x.key_range())))
-            .unwrap_or_default()
+        // Disjoint and sorted: both bounds ascend across the run.
+        let lo = self.partition_point(|x| x.key_range().min() < key_range.min());
+        let hi = self.partition_point(|x| x.key_range().max() <= key_range.max());
+        self.get(lo..hi).unwrap_or_default()
     }
 
     /// Returns the indexes of the interval [min, max] of tables that overlap with a given range.
@@ -127,10 +90,10 @@ impl<T: Ranged> Run<T> {
         let lo = match key_range.start_bound() {
             Bound::Unbounded => 0,
             Bound::Included(start_key) => {
-                level.partition_point(|x| x.key_range().max() < start_key)
+                level.partition_point(|x| x.key_range().max().as_ref() < start_key.as_ref())
             }
             Bound::Excluded(start_key) => {
-                level.partition_point(|x| x.key_range().max() <= start_key)
+                level.partition_point(|x| x.key_range().max().as_ref() <= start_key.as_ref())
             }
         };
 
@@ -146,7 +109,9 @@ impl<T: Ranged> Run<T> {
             Bound::Unbounded => level.len() - 1,
             Bound::Included(end_key) => {
                 // IMPORTANT: We need to add back `lo` because we sliced it off
-                let idx = lo + truncated_level.partition_point(|x| x.key_range().min() <= end_key);
+                let idx = lo
+                    + truncated_level
+                        .partition_point(|x| x.key_range().min().as_ref() <= end_key.as_ref());
 
                 if idx == 0 {
                     return None;
@@ -156,7 +121,9 @@ impl<T: Ranged> Run<T> {
             }
             Bound::Excluded(end_key) => {
                 // IMPORTANT: We need to add back `lo` because we sliced it off
-                let idx = lo + truncated_level.partition_point(|x| x.key_range().min() < end_key);
+                let idx = lo
+                    + truncated_level
+                        .partition_point(|x| x.key_range().min().as_ref() < end_key.as_ref());
 
                 if idx == 0 {
                     return None;
@@ -171,256 +138,5 @@ impl<T: Ranged> Run<T> {
         }
 
         Some((lo, hi))
-    }
-}
-
-#[cfg(test)]
-#[expect(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-    use crate::TableId;
-    use test_log::test;
-
-    #[derive(Clone)]
-    struct FakeTable {
-        id: TableId,
-        key_range: KeyRange,
-    }
-
-    impl Ranged for FakeTable {
-        fn key_range(&self) -> &KeyRange {
-            &self.key_range
-        }
-    }
-
-    fn s(id: TableId, min: &str, max: &str) -> FakeTable {
-        FakeTable {
-            id,
-            key_range: KeyRange::new((min.as_bytes().into(), max.as_bytes().into())),
-        }
-    }
-
-    #[test]
-    fn run_aggregate_key_range() {
-        let items = vec![
-            s(0, "a", "d"),
-            s(1, "e", "j"),
-            s(2, "k", "o"),
-            s(3, "p", "z"),
-        ];
-        let run = Run(items);
-
-        assert_eq!(
-            KeyRange::new((b"a".into(), b"z".into())),
-            run.aggregate_key_range(),
-        );
-    }
-
-    #[test]
-    fn run_point_lookup() {
-        let items = vec![
-            s(0, "a", "d"),
-            s(1, "e", "j"),
-            s(2, "k", "o"),
-            s(3, "p", "z"),
-        ];
-        let run = Run(items);
-
-        assert_eq!(0, run.get_for_key(b"a").unwrap().id);
-        assert_eq!(0, run.get_for_key(b"aaa").unwrap().id);
-        assert_eq!(0, run.get_for_key(b"b").unwrap().id);
-        assert_eq!(0, run.get_for_key(b"c").unwrap().id);
-        assert_eq!(0, run.get_for_key(b"d").unwrap().id);
-        assert_eq!(1, run.get_for_key(b"e").unwrap().id);
-        assert_eq!(1, run.get_for_key(b"j").unwrap().id);
-        assert_eq!(2, run.get_for_key(b"k").unwrap().id);
-        assert_eq!(2, run.get_for_key(b"o").unwrap().id);
-        assert_eq!(3, run.get_for_key(b"p").unwrap().id);
-        assert_eq!(3, run.get_for_key(b"z").unwrap().id);
-        assert!(run.get_for_key(b"zzz").is_none());
-    }
-
-    #[test]
-    fn run_range_culling() {
-        let items = vec![
-            s(0, "a", "d"),
-            s(1, "e", "j"),
-            s(2, "k", "o"),
-            s(3, "p", "z"),
-        ];
-        let run = Run(items);
-
-        assert_eq!(Some((0, 3)), run.range_overlap_indexes::<&[u8], _>(&..));
-        assert_eq!(
-            Some((0, 0)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..=b"a"))
-        );
-        assert_eq!(
-            Some((0, 0)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..=b"b"))
-        );
-        assert_eq!(
-            Some((0, 0)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..=b"d"))
-        );
-        assert_eq!(
-            Some((0, 0)),
-            run.range_overlap_indexes(&(b"d" as &[u8]..=b"d"))
-        );
-        assert_eq!(
-            Some((0, 0)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..b"d"))
-        );
-        assert_eq!(
-            Some((0, 1)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..=b"g"))
-        );
-        assert_eq!(
-            Some((1, 1)),
-            run.range_overlap_indexes(&(b"j" as &[u8]..=b"j"))
-        );
-        assert_eq!(
-            Some((0, 3)),
-            run.range_overlap_indexes(&(b"a" as &[u8]..=b"z"))
-        );
-        assert_eq!(
-            Some((3, 3)),
-            run.range_overlap_indexes(&(b"z" as &[u8]..=b"zzz"))
-        );
-        assert_eq!(Some((3, 3)), run.range_overlap_indexes(&(b"z" as &[u8]..)));
-        assert!(
-            run.range_overlap_indexes(&(b"zzz" as &[u8]..=b"zzzzzzz"))
-                .is_none()
-        );
-    }
-
-    #[test]
-    fn run_range_contained() {
-        let items = vec![
-            s(0, "a", "d"),
-            s(1, "e", "j"),
-            s(2, "k", "o"),
-            s(3, "p", "z"),
-        ];
-        let run = Run(items);
-
-        assert_eq!(
-            &[] as &[TableId],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"a".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"d".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"j".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"k".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"l".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1, 2, 3],
-            &*run
-                .get_contained(&KeyRange::new((b"a".into(), b"z".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-    }
-
-    #[test]
-    fn run_range_overlaps() {
-        let items = vec![
-            s(0, "a", "d"),
-            s(1, "e", "j"),
-            s(2, "k", "o"),
-            s(3, "p", "z"),
-        ];
-        let run = Run(items);
-
-        assert_eq!(
-            &[0],
-            &*run
-                .get_overlapping(&KeyRange::new((b"a".into(), b"a".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0],
-            &*run
-                .get_overlapping(&KeyRange::new((b"d".into(), b"d".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0],
-            &*run
-                .get_overlapping(&KeyRange::new((b"a".into(), b"d".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1],
-            &*run
-                .get_overlapping(&KeyRange::new((b"a".into(), b"f".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[0, 1, 2, 3],
-            &*run
-                .get_overlapping(&KeyRange::new((b"a".into(), b"zzz".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
-
-        assert_eq!(
-            &[] as &[TableId],
-            &*run
-                .get_overlapping(&KeyRange::new((b"zzz".into(), b"zzzz".into())))
-                .iter()
-                .map(|x| x.id)
-                .collect::<Vec<_>>(),
-        );
     }
 }

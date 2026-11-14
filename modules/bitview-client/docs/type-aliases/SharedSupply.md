@@ -1,0 +1,35 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / SharedSupply
+
+# Type Alias: SharedSupply
+
+> **SharedSupply** = `object`
+
+Defined in: modules/bitview-client/index.js:4479
+
+## Type Parameters
+
+## Type Declaration
+
+### delta
+
+> **delta**: [`Delta`](Delta.md)\<[`Bitcoin`](Bitcoin.md) \| `null`\>
+
+### inLoss
+
+> **inLoss**: [`PredicateSupply`](PredicateSupply.md)
+
+### inProfit
+
+> **inProfit**: [`PredicateSupply`](PredicateSupply.md)
+
+### share
+
+> **share**: [`SeriesPattern1`](SeriesPattern1.md)\<[`Percent`](Percent.md) \| `null`\>
+
+### total
+
+> **total**: [`Value`](Value.md)

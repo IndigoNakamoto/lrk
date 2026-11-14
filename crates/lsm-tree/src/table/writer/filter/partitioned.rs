@@ -2,19 +2,21 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::{fs::File, io::BufWriter};
+
+use log::trace;
+use sfa::Writer;
+
 use super::FilterWriter;
 use crate::{
-    CompressionType, UserKey,
-    checksum::ChecksummedWriter,
+    InternalValue, RecordBytes, Result, Slice,
     config::BloomConstructionPolicy,
     table::{
-        Block, BlockHandle, BlockOffset, IndexBlock, KeyedBlockHandle,
-        block::Header as BlockHeader, filter::standard_bloom::Builder,
+        Block, BlockHandle, BlockOffset, KeyedBlockHandle,
+        block::{BlockType, Header as BlockHeader},
+        filter::standard_bloom::Builder,
+        writer::{META_PARTITION_SIZE, index::write_partitioned},
     },
-};
-use std::{
-    fs::File,
-    io::{BufWriter, Seek, Write},
 };
 
 pub struct PartitionedFilterWriter {
@@ -23,18 +25,12 @@ pub struct PartitionedFilterWriter {
     tli_handles: Vec<KeyedBlockHandle>,
 
     /// Key hashes for AMQ filter
-    pub bloom_hash_buffer: Vec<u64>,
-    approx_filter_size: usize,
-
-    partition_size: u32,
+    bloom_hash_buffer: Vec<u64>,
 
     bloom_policy: BloomConstructionPolicy,
 
-    relative_file_pos: u64,
-
-    last_key: Option<UserKey>,
-
-    compression: CompressionType,
+    /// Buffered key count at which a partition reaches `META_PARTITION_SIZE`.
+    partition_key_limit: usize,
 }
 
 impl PartitionedFilterWriter {
@@ -43,21 +39,14 @@ impl PartitionedFilterWriter {
             final_filter_buffer: Vec::new(),
 
             bloom_hash_buffer: Vec::new(),
-            approx_filter_size: 0,
 
             tli_handles: Vec::new(),
-            partition_size: 4_096,
             bloom_policy,
-
-            relative_file_pos: 0,
-
-            last_key: None,
-
-            compression: CompressionType::None,
+            partition_key_limit: bloom_policy.partition_key_limit(META_PARTITION_SIZE),
         }
     }
 
-    fn spill_filter_partition(&mut self, key: &UserKey) -> crate::Result<()> {
+    fn spill_filter_partition(&mut self, key: &[u8]) -> Result<()> {
         let filter_bytes = {
             let mut builder = self.bloom_policy.init(self.bloom_hash_buffer.len());
 
@@ -68,11 +57,11 @@ impl PartitionedFilterWriter {
             builder.build()
         };
 
+        let offset = self.final_filter_buffer.len() as u64;
         let header = Block::write_into(
             &mut self.final_filter_buffer,
             &filter_bytes,
-            crate::table::block::BlockType::Filter,
-            CompressionType::None,
+            BlockType::Filter,
         )?;
 
         #[expect(
@@ -82,128 +71,53 @@ impl PartitionedFilterWriter {
         let bytes_written = (header.data_length as usize + BlockHeader::serialized_len()) as u32;
 
         self.tli_handles.push(KeyedBlockHandle::new(
-            key.clone(),
+            key.into(),
             0,
-            BlockHandle::new(BlockOffset(self.relative_file_pos), bytes_written),
+            BlockHandle::new(BlockOffset(offset), bytes_written),
         ));
 
-        log::trace!(
+        trace!(
             "Built Bloom filter partition ({}B) with end_key={key:?} at +{:#X?}",
             filter_bytes.len(),
-            self.relative_file_pos,
-        );
-
-        self.bloom_hash_buffer.clear();
-        self.approx_filter_size = 0;
-        self.relative_file_pos += u64::from(bytes_written);
-
-        Ok(())
-    }
-
-    fn write_top_level_index(
-        &mut self,
-        file_writer: &mut sfa::Writer<ChecksummedWriter<BufWriter<File>>>,
-        index_base_offset: BlockOffset,
-    ) -> crate::Result<()> {
-        file_writer.start("filter_tli")?;
-
-        for item in &mut self.tli_handles {
-            item.shift(index_base_offset);
-        }
-
-        let mut bytes = vec![];
-        IndexBlock::encode_into(&mut bytes, &self.tli_handles)?;
-
-        let header = Block::write_into(
-            file_writer,
-            &bytes,
-            crate::table::block::BlockType::Index,
-            self.compression,
-        )?;
-
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "blocks never even approach u32 size"
-        )]
-        let bytes_written = BlockHeader::serialized_len() as u32 + header.data_length;
-
-        debug_assert!(bytes_written > 0, "Top level index should never be empty");
-
-        log::trace!(
-            "Written filter top level index, with {} pointers ({bytes_written} bytes) at {index_base_offset:#X?}",
-            self.tli_handles.len(),
+            offset,
         );
 
         Ok(())
     }
 }
 
-impl<W: std::io::Write + std::io::Seek> FilterWriter<W> for PartitionedFilterWriter {
-    fn use_partition_size(mut self: Box<Self>, size: u32) -> Box<dyn FilterWriter<W>> {
-        self.partition_size = size;
-        self
-    }
+impl<K: RecordBytes, V: RecordBytes> FilterWriter<K, V> for PartitionedFilterWriter {
+    fn register_block(&mut self, items: &[InternalValue<K, V>]) -> Result<()> {
+        for item in items {
+            let key = item.key.user_key.as_ref();
+            self.bloom_hash_buffer.push(Builder::get_hash(key));
 
-    fn use_tli_compression(
-        mut self: Box<Self>,
-        compression: CompressionType,
-    ) -> Box<dyn FilterWriter<W>> {
-        self.compression = compression;
-        self
-    }
-
-    fn set_filter_policy(
-        mut self: Box<Self>,
-        policy: BloomConstructionPolicy,
-    ) -> Box<dyn FilterWriter<W>> {
-        self.bloom_policy = policy;
-        self
-    }
-
-    fn register_key(&mut self, key: &UserKey) -> crate::Result<()> {
-        self.bloom_hash_buffer.push(Builder::get_hash(key));
-
-        self.approx_filter_size = self
-            .bloom_policy
-            .estimated_filter_size(self.bloom_hash_buffer.len());
-
-        self.last_key = Some(key.clone());
-
-        if self.approx_filter_size >= self.partition_size as usize {
-            self.spill_filter_partition(key)?;
+            if self.bloom_hash_buffer.len() >= self.partition_key_limit {
+                self.spill_filter_partition(key)?;
+            }
         }
-
         Ok(())
     }
 
     fn finish(
         mut self: Box<Self>,
-        file_writer: &mut sfa::Writer<ChecksummedWriter<BufWriter<File>>>,
-    ) -> crate::Result<usize> {
-        if self.last_key.is_none() {
-            log::trace!("Filter writer has not seen any writes - not building filter");
-            return Ok(0);
-        }
-
+        file_writer: &mut Writer<BufWriter<File>>,
+        last_key: &Slice,
+    ) -> Result<()> {
         if !self.bloom_hash_buffer.is_empty() {
-            #[expect(
-                clippy::expect_used,
-                reason = "last key must exist because of initial check"
-            )]
-            let last_key = self.last_key.take().expect("last key should exist");
-            self.spill_filter_partition(&last_key)?;
+            self.spill_filter_partition(last_key)?;
         }
 
-        let index_base_offset = BlockOffset(file_writer.get_mut().stream_position()?);
+        if self.final_filter_buffer.is_empty() {
+            return Ok(());
+        }
 
-        file_writer.start("filter")?;
-        file_writer.write_all(&self.final_filter_buffer)?;
-        log::trace!("Concatted filter partitions onto blocks file");
-
-        let block_count = self.tli_handles.len();
-
-        self.write_top_level_index(file_writer, index_base_offset)?;
-
-        Ok(block_count)
+        write_partitioned(
+            file_writer,
+            "filter",
+            &self.final_filter_buffer,
+            "filter_tli",
+            &mut self.tli_handles,
+        )
     }
 }

@@ -1,86 +1,130 @@
-# Litecoin Research Kit
+# Bitview and the Bitcoin Research Kit
 
-[![MIT Licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/IndigoNakamoto/lrk/blob/main/docs/LICENSE.md)
+[![Bitview](https://img.shields.io/crates/v/bitviewd.svg?label=bitviewd)](https://crates.io/crates/bitviewd)
 
-> A Litecoin fork of [Bitcoin Research Kit](https://github.com/bitcoinresearchkit/brk) (BRK).
+Bitview turns a Bitcoin Core node into a local Bitcoin data platform for chain
+exploration, mempool data, and on-chain research. The official free hosted
+instance is [bitview.space](https://bitview.space).
 
-Open-source Litecoin data toolkit that can parse blocks, index the chain, compute metrics, serve data, and render it — all from a Litecoin Core node. It combines what on-chain analytics providers and block explorers do separately into a single self-hostable package, with historical USD pricing from exchange data (Bitfinex and Coinbase) and live price from your mempool.
+- **Bitcoin Research Kit (BRK):** reusable Rust primitives for reading Bitcoin
+  Core data, RPC, mempool tracking, storage, domain types, and the on-chain
+  price oracle.
+- **Bitview:** the self-hostable application that composes BRK with a typed
+  indexer and analytics plugin graph, query layer, REST server, showcases, and
+  generated clients.
 
-[litview](https://litview.space) is the official free hosted instance of LRK.
+**Used by**
 
-## Data
+<a href="https://x.com/_checkonchain"><img src="https://pbs.twimg.com/profile_images/2090310945637855234/YA09g3v9_400x400.jpg" width="50" alt="Checkonchain" title="Checkonchain" style="border-radius:50%" /></a>
+<a href="https://x.com/newhedge_io"><img src="https://pbs.twimg.com/profile_images/1575960313916178448/taaprZ6q_400x400.jpg" width="50" alt="Newhedge" title="Newhedge" style="border-radius:50%" /></a>
+<a href="https://x.com/qfilabs"><img src="https://pbs.twimg.com/profile_images/2087768325904322560/z2xeJsWy_400x400.jpg" width="50" alt="QFI Labs" title="QFI Labs" style="border-radius:50%" /></a>
+<a href="https://x.com/TheBitcoinLayer"><img src="https://pbs.twimg.com/profile_images/1674609666507112449/yP-mZb5H_400x400.jpg" width="50" alt="The Bitcoin Layer" title="The Bitcoin Layer" style="border-radius:50%" /></a>
+<a href="https://x.com/PapangLabs"><img src="https://pbs.twimg.com/profile_images/2090676888054231040/mIX07S9f_400x400.jpg" width="50" alt="Papang Labs" title="Papang Labs" style="border-radius:50%" /></a>
+<a href="https://x.com/atreidis_app"><img src="https://pbs.twimg.com/profile_images/2050569617890783232/S8T4kt6w_400x400.png" width="50" alt="Atreidis" title="Atreidis" style="border-radius:50%" /></a>
+<a href="https://x.com/SparrowWallet"><img src="https://pbs.twimg.com/profile_images/1299262054977556481/p8Za-LLX_400x400.jpg" width="50" alt="Sparrow Wallet" title="Sparrow Wallet" style="border-radius:50%" /></a>
 
-**Zero external dependencies.** LRK needs only a Litecoin Core node. 8,000+ metrics across 15 time resolutions, all computed locally from your own copy of the blockchain. Historical LTC/USD prices are built in (Bitfinex back to 2013, Coinbase from 2016), with live price from your mempool. Your node, your data.
+See [Architecture](./ARCHITECTURE.md) for the component and data-flow details.
 
-**Blockchain:** Blocks, transactions, addresses, UTXOs — including MWEB (MimbleWimble Extension Blocks).
+## Repository map
 
-**Metrics:** Supply distributions, holder cohorts, network activity, fee markets, mining, and market indicators.
+| Path | Purpose |
+|---|---|
+| `crates/brk_*` | Reusable Bitcoin primitives |
+| `crates/bitview_plugin_*` | Official indexing and analytics plugins |
+| `crates/bitview*` | Plugin contract, runtime, composition, query/server stack, daemon, code generation, and Rust clients |
+| `crates/{vecdb,rawdb,byteview,fjall,lsm-tree}` | Storage and data infrastructure |
+| [`examples/custom_plugin`](../examples/custom_plugin) | Runnable external-plugin and custom-composition example |
+| [`modules/bitview-client`](../modules/bitview-client) | JavaScript/TypeScript client |
+| [`packages/bitview_client`](../packages/bitview_client) | Python client |
+| `showcases` | Showcase pages, served by the server, and Studio |
+| `docs`, `benches`, `docker`, and `scripts` | Project documentation, measurements, packaging, and maintenance tooling |
 
-**Indexes:** Date, height, halving epoch, address type, UTXO age.
+## Use Bitview
 
-**Mempool:** Fee estimation, projected blocks, unconfirmed transactions.
+The hosted showcases, API, and MCP endpoint require no account or authentication:
 
-**Mining pools:** Pool attribution from the [litecoinspace](https://litecoinspace.org) mining-pool list.
-
-## Usage
-
-### Website
-
-Browse metrics and charts at [litview.space](https://litview.space), no signup required.
-
-### API
-
-```bash
-curl https://litview.space/api/mempool/price
-```
-
-Query metrics and blockchain data in JSON or CSV. No rate limit.
-
-[Documentation](https://litview.space/api) · [JavaScript](https://www.npmjs.com/package/brk-client) · [Python](https://pypi.org/project/brk-client) · [Rust](https://crates.io/crates/brk_client) · [llms.txt](https://litview.space/llms.txt) · [LLM-friendly schema](https://litview.space/api.json)
-
-### MCP
-
-Connect any Streamable HTTP MCP client to:
-
-```text
-https://mcp.bitview.space/
-```
-
-The server is stateless, read-only, and requires no authentication. Its tools
-are generated from the same OpenAPI operations as the typed clients.
-
-### Self-host
-
-LRK must be built with the `litecoin` Cargo feature so the MWEB-aware block/transaction decoder is selected at compile time. A default (Bitcoin) build will fail to index once it reaches the first MWEB block.
-
-```bash
-git clone https://github.com/IndigoNakamoto/lrk.git && cd lrk
-cargo install --locked --path crates/brk_cli --features litecoin
-brk --chain litecoin
-```
-
-Run your own website and API. All you need is Litecoin Core with `server=1`.
-
-> **Disk space:** Plan for ~375 GB total — ~250 GB for a full Litecoin Core node plus ~125 GB for LRK's index and computed metrics. LRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file); tools like `ls -l` or Finder report the logical file size, not actual disk usage. Use `du -sh` to see real usage.
-
-[Guide](https://github.com/IndigoNakamoto/lrk/blob/main/crates/brk_cli/README.md) · [Professional hosting](./PROFESSIONAL_HOSTING.md)
-
-### Library
+- [Bitview](https://bitview.space), its front page, Studio and showcases
+- [Interactive API](https://bitview.space/api)
+- [OpenAPI](https://bitview.space/openapi.json)
+- MCP client endpoint: `https://mcp.bitview.space/`
+- [CLI](https://crates.io/crates/bitview_cli)
+- [JavaScript](https://www.npmjs.com/package/bitview-client)
+- [Python](https://pypi.org/project/bitview-client)
+- [Rust](https://crates.io/crates/bitview_client)
 
 ```bash
-cargo add brk --features litecoin
+curl https://bitview.space/api/mempool/price
+curl https://bitview.space/api/series/count
 ```
 
-Build custom applications in Rust. Use the full stack or individual components (parser, indexer, computer, server).
+Find series identifiers with `/api/series/search?q=<concept>`.
 
-[Reference](https://docs.rs/brk) · [Architecture](./ARCHITECTURE.md)
+## Self-host Bitview
 
-## Links
+```bash
+rustup update && RUSTFLAGS="-C target-cpu=native" cargo install --locked bitviewd
+bitviewd
+```
+
+The default composition needs Linux or macOS, a mainnet Bitcoin Core node with
+RPC and complete `blk*.dat` files from genesis, about 290 GiB for Bitview plus
+Bitcoin Core storage and growth headroom, and 16 GB of RAM recommended for a
+full sync. The showcases and API are served at [localhost:3110](http://localhost:3110),
+to this machine only unless `serverbind` says otherwise.
+
+See the [`bitviewd` guide](../crates/bitviewd) for requirements, disk usage,
+installation, configuration, initial sync, and custom compositions.
+
+## Build with BRK
+
+```toml
+[dependencies]
+brk_reader = "0.12"
+brk_rpc = "0.12"
+brk_types = "0.12"
+```
+
+For a new Bitview metric or composition, start with the
+[custom plugin example](../examples/custom_plugin) and the
+[`bitview_plugin` contract](../crates/bitview_plugin).
+
+## Develop
+
+The repository pins its Rust toolchain in `rust-toolchain.toml`.
+
+```bash
+cargo check --workspace
+cargo api   # records the API snapshots
+cargo bindgen   # regenerates the clients
+```
+
+## Documentation
 
 - [Changelog](./CHANGELOG.md)
-- [Contributing](https://github.com/IndigoNakamoto/lrk/issues)
-- [Upstream BRK](https://github.com/bitcoinresearchkit/brk)
+- [Professional hosting](./PROFESSIONAL_HOSTING.md)
+
+## Support and community
+
+BRK is supported by [OpenSats](https://opensats.org/) from December 2024 through
+June 2027.
+
+[Discord](https://discord.gg/WACpShCB7M) ·
+[X](https://x.com/_nym21_) ·
+[Issues](https://github.com/bitcoinresearchkit/mono/issues) ·
+[Support](mailto:support@bitview.space)
+
+### Donations
+
+<a href="https://x.com/_Checkmatey_"><img src="https://pbs.twimg.com/profile_images/1657255419172253698/ncG0Gt8e_400x400.jpg" width="50" alt="_Checkmatey_" title="_Checkmatey_" style="border-radius:50%" /></a>
+<a href="https://x.com/JohanMBergman"><img src="https://pbs.twimg.com/profile_images/1958587470120988673/7rlY5csu_400x400.jpg" width="50" alt="Johan Bergman" title="Johan Bergman" style="border-radius:50%" /></a>
+<a href="https://x.com/alonshvartsman"><img src="https://pbs.twimg.com/profile_images/2057096517954007041/7nv7ygDB_400x400.jpg" width="50" alt="Alon Shvartsman" title="Alon Shvartsman" style="border-radius:50%" /></a>
+<a href="https://x.com/clearmined1"><img src="https://pbs.twimg.com/profile_images/1657777901830541313/6OAaR8XF_400x400.png" width="50" alt="ClearMined" title="ClearMined" style="border-radius:50%" /></a>
+<a href="https://x.com/PositiveCrypto"><img src="https://pbs.twimg.com/profile_images/1506441769424142336/msV99x2s_400x400.jpg" width="50" alt="Philip Swift" title="Philip Swift" style="border-radius:50%" /></a>
+
+<img src="./qr.png" alt="Bitcoin donation QR code" width="120" />
+
+[`bc1pkqvzn3pepug695xtvwmpm0sjd6n9j55v792cwfruzkqzrf2jn47s3hq0ts`](bitcoin:bc1pkqvzn3pepug695xtvwmpm0sjd6n9j55v792cwfruzkqzrf2jn47s3hq0ts)
 
 ## License
 
-[MIT](./LICENSE.md)
+[MIT](../LICENSE)

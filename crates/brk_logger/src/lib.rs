@@ -1,26 +1,33 @@
 #![doc = include_str!("../README.md")]
 
+use std::{backtrace::Backtrace, env, fs, io, panic, path::Path, time::Duration};
+
+use format::Formatter;
+use hook::HookLayer;
+use rate_limit::RateLimitedFile;
+pub use rate_limit::{LEVEL_NAMES, log_file_date};
+pub use tail::{Line, Recent, recent, started};
+use tail::TailLayer;
+use tracing::{Event, Level, error, field};
+use tracing_log::LogTracer;
+use tracing_subscriber::{
+    filter::Targets, fmt, layer::SubscriberExt, registry as TracingSubscriberRegistry,
+    util::SubscriberInitExt,
+};
+
 mod format;
 mod hook;
 mod rate_limit;
+mod tail;
 
-use std::{io, path::Path, time::Duration};
-
-use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
-
-use format::Formatter;
-use hook::{HookLayer, LOG_HOOK};
-use rate_limit::{RateLimitedFile, is_log_file};
-
-/// Days to keep log files before cleanup
 const MAX_LOG_AGE_DAYS: u64 = 7;
 
 /// Initialize the global tracing subscriber with a colorized console layer.
 ///
 /// If `dir` is `Some`, also writes daily log files to that directory:
 /// `YYYY-MM-DD.txt` for the combined log and `YYYY-MM-DD_<level>.txt` for each
-/// tracing level. The directory is created if it does not exist, and any
-/// `*.txt` file older than 7 days is pruned on startup.
+/// tracing level. The directory is created if it does not exist, and those
+/// files older than 7 days are pruned on startup.
 pub fn init(dir: Option<&Path>) -> io::Result<()> {
     #[cfg(debug_assertions)]
     const DEFAULT_LEVEL: &str = "debug";
@@ -32,28 +39,27 @@ pub fn init(dir: Option<&Path>) -> io::Result<()> {
 
 /// Initialize the logger with a caller-selected fallback level.
 ///
-/// `LOG` and `RUST_LOG` still take precedence. This is useful for services
-/// whose normal debug traffic is too verbose for their default execution mode.
+/// `RUST_LOG` takes precedence over `LOG`, which takes precedence over `default_level`.
 pub fn init_with_default_level(dir: Option<&Path>, default_level: &str) -> io::Result<()> {
-    tracing_log::LogTracer::init().ok();
-    install_panic_hook();
+    LogTracer::init().ok();
 
-    let level = std::env::var("LOG").unwrap_or_else(|_| default_level.to_string());
+    let level = env::var("LOG").unwrap_or_else(|_| default_level.to_string());
 
-    let directives = std::env::var("RUST_LOG").unwrap_or_else(|_| {
+    let directives = env::var("RUST_LOG").unwrap_or_else(|_| {
         format!(
-            "{level},bitcoin=off,corepc=off,tracing=off,aide=off,fjall=off,lsm_tree=off,tower_http=off"
+            "{level},bitcoin=off,corepc=off,tracing=off,aide=off,fjall=off,lsm_tree=off,tower_http=off,rmcp=warn"
         )
     });
 
     let filter: Targets = directives
         .parse()
-        .unwrap_or_else(|_| Targets::new().with_default(tracing::Level::INFO));
+        .unwrap_or_else(|_| Targets::new().with_default(Level::INFO));
 
-    let registry = tracing_subscriber::registry()
+    let registry = TracingSubscriberRegistry()
         .with(filter)
         .with(fmt::layer().event_format(Formatter::<true>))
-        .with(HookLayer);
+        .with(HookLayer)
+        .with(TailLayer);
 
     if let Some(dir) = dir {
         let writer = RateLimitedFile::new(dir)?;
@@ -71,40 +77,36 @@ pub fn init_with_default_level(dir: Option<&Path>, default_level: &str) -> io::R
         registry.init();
     }
 
+    install_panic_hook();
+
     Ok(())
 }
 
+/// Chains the previous hook so panics always reach stderr whatever the log
+/// filters say, then records them through tracing (log files included).
 fn install_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let location = info
-            .location()
-            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-            .unwrap_or_else(|| "unknown".to_string());
-        let payload = info.payload();
-        let msg = payload
-            .downcast_ref::<&str>()
-            .copied()
-            .map(str::to_owned)
-            .or_else(|| payload.downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "Box<dyn Any>".to_owned());
-        let backtrace = std::backtrace::Backtrace::capture();
-        tracing::error!(location, backtrace = %backtrace, "panic: {msg}");
+    let previous = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        previous(info);
+        let location = info.location().map(field::display);
+        let msg = info.payload_as_str().unwrap_or("Box<dyn Any>");
+        let backtrace = Backtrace::capture();
+        error!(location, backtrace = %backtrace, "panic: {msg}");
     }));
 }
 
-/// Register a hook that gets called for every log message.
+/// Registers the process's single hook, which receives every event the filter admits; errors if
+/// one is already registered.
 pub fn register_hook<F>(hook: F) -> Result<(), &'static str>
 where
-    F: Fn(&str) + Send + Sync + 'static,
+    F: for<'a> Fn(&Event<'a>) + Send + Sync + 'static,
 {
-    LOG_HOOK
-        .set(Box::new(hook))
-        .map_err(|_| "Hook already registered")
+    hook::register(hook)
 }
 
 fn cleanup_old_logs(dir: &Path) {
     let max_age = Duration::from_secs(MAX_LOG_AGE_DAYS * 24 * 60 * 60);
-    let Ok(entries) = std::fs::read_dir(dir) else {
+    let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
 
@@ -113,7 +115,7 @@ fn cleanup_old_logs(dir: &Path) {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        if !is_log_file(name) {
+        if log_file_date(name).is_none() {
             continue;
         }
 
@@ -122,7 +124,7 @@ fn cleanup_old_logs(dir: &Path) {
             && let Ok(age) = modified.elapsed()
             && age > max_age
         {
-            let _ = std::fs::remove_file(&path);
+            let _ = fs::remove_file(&path);
         }
     }
 }

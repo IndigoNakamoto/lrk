@@ -1,0 +1,89 @@
+use brk_types::{BlockHash, Height, TxIndex, Txid};
+use vecdb::ReadableVec;
+
+use super::ResolvedConfirmedTx;
+use crate::{Error, Query, ReadPin, Result, check_bound};
+
+/// One logical read of this query's published indexer state.
+///
+/// Pins the published prefix against rollback without blocking ordinary appends.
+/// Dependent reads must reuse this pin instead of acquiring another one.
+pub(crate) struct IndexerRead<'a> {
+    query: &'a Query,
+    pin: ReadPin,
+}
+
+impl Query {
+    pub(crate) fn read_indexer(&self) -> Result<IndexerRead<'_>> {
+        Ok(self.read_indexer_at(self.pin_safe_lengths()?))
+    }
+
+    /// Continue a read under a pin an earlier resolution took.
+    pub(crate) fn read_indexer_at(&self, pin: ReadPin) -> IndexerRead<'_> {
+        IndexerRead { query: self, pin }
+    }
+}
+
+impl IndexerRead<'_> {
+    pub(crate) fn pin(&self) -> &ReadPin {
+        &self.pin
+    }
+
+    pub(crate) fn query(&self) -> &Query {
+        self.query
+    }
+
+    /// Read a confirmed block hash inside the pinned prefix.
+    fn confirmed_block_hash(&self, height: Height) -> Result<BlockHash> {
+        let query = self.query;
+        check_bound(&self.pin, height, self.pin.lengths().height)?;
+        if height >= self.pin.lengths().height {
+            return Err(Error::UnknownTxid);
+        }
+        let hash = query
+            .indexer()
+            .vecs()
+            .blocks
+            .blockhash
+            .collect_one(height)
+            .ok_or(Error::UnknownTxid)?;
+        Ok(hash)
+    }
+
+    pub(crate) fn resolve_confirmed_tx(&self, txid: &Txid) -> Result<ResolvedConfirmedTx> {
+        let (index, height) = self.resolve_confirmed_position(txid)?;
+        let block_hash = self.confirmed_block_hash(height)?;
+        Ok(ResolvedConfirmedTx {
+            txid: *txid,
+            index,
+            height,
+            block_hash,
+            settled: self.pin.lengths().is_settled(height),
+        })
+    }
+
+    /// Resolve the position without reading a block hash the caller may not need.
+    pub(crate) fn resolve_confirmed_position(&self, txid: &Txid) -> Result<(TxIndex, Height)> {
+        let index = self.query.resolve_tx_index_bounded(txid, &self.pin)?;
+        let safe = self.pin.lengths();
+        let height = self.query.confirmed_status_height_bounded(index, safe)?;
+        if height >= safe.height {
+            return Err(Error::UnknownTxid);
+        }
+        Ok((index, height))
+    }
+
+    /// Revalidate an async handoff without repeating its txid-prefix store lookup.
+    pub(crate) fn revalidate_confirmed_tx(
+        &self,
+        tx: ResolvedConfirmedTx,
+    ) -> Result<(Txid, TxIndex, Height)> {
+        // The block hash commits to the transaction list and its ordering.
+        // Since the token was exactly verified when constructed, confirming
+        // that the same block remains at the same height is sufficient.
+        if self.confirmed_block_hash(tx.height)? != tx.block_hash {
+            return Err(Error::UnknownTxid);
+        }
+        Ok((tx.txid, tx.index, tx.height))
+    }
+}

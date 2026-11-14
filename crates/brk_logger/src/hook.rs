@@ -1,30 +1,27 @@
-use std::{fmt::Write, sync::OnceLock};
+use std::sync::OnceLock;
 
-use tracing::{Event, Subscriber, field::Field};
+use tracing::{Event, Subscriber};
+use tracing_subscriber::{Layer, layer::Context};
 
-type LogHook = Box<dyn Fn(&str) + Send + Sync>;
+type Hook = dyn for<'a> Fn(&Event<'a>) + Send + Sync;
 
-pub static LOG_HOOK: OnceLock<LogHook> = OnceLock::new();
+static LOG_HOOK: OnceLock<Box<Hook>> = OnceLock::new();
 
 pub struct HookLayer;
 
-impl<S: Subscriber> tracing_subscriber::Layer<S> for HookLayer {
-    fn on_event(&self, event: &Event<'_>, _: tracing_subscriber::layer::Context<'_, S>) {
+impl<S: Subscriber> Layer<S> for HookLayer {
+    fn on_event(&self, event: &Event<'_>, _: Context<'_, S>) {
         if let Some(hook) = LOG_HOOK.get() {
-            let mut msg = String::new();
-            event.record(&mut MessageVisitor(&mut msg));
-            hook(&msg);
+            hook(event);
         }
     }
 }
 
-struct MessageVisitor<'a>(&'a mut String);
-
-impl tracing::field::Visit for MessageVisitor<'_> {
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        if field.name() == "message" {
-            self.0.clear();
-            let _ = write!(self.0, "{value:?}");
-        }
-    }
+pub fn register<F>(hook: F) -> Result<(), &'static str>
+where
+    F: for<'a> Fn(&Event<'a>) + Send + Sync + 'static,
+{
+    LOG_HOOK
+        .set(Box::new(hook))
+        .map_err(|_| "Hook already registered")
 }

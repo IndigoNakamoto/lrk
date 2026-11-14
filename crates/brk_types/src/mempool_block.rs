@@ -1,37 +1,43 @@
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{FeeRate, Sats, VSize};
 
 /// Block info in a mempool.space like format for fee estimation.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct MempoolBlock {
-    /// Total serialized block size in bytes (witness + non-witness).
-    #[schemars(example = 1604417)]
-    pub block_size: u64,
+    /// Sum of the transactions' serialized sizes in bytes (witness + non-witness), without header
+    /// or coinbase.
+    #[cfg_attr(feature = "schemars", schemars(example = 1604417))]
+    block_size: u64,
 
-    /// Total block virtual size in vbytes
-    #[schemars(example = 998368.0)]
-    pub block_v_size: f64,
+    /// Sum of the transactions' virtual sizes in vbytes
+    #[cfg_attr(feature = "schemars", schemars(example = 998368.0))]
+    block_v_size: f64,
 
     /// Number of transactions in the projected block
-    #[schemars(example = 863)]
-    pub n_tx: u32,
+    #[cfg_attr(feature = "schemars", schemars(example = 863))]
+    n_tx: u32,
 
     /// Total fees in satoshis
-    #[schemars(example = 8875608)]
-    pub total_fees: Sats,
+    #[cfg_attr(feature = "schemars", schemars(example = 8875608))]
+    total_fees: Sats,
 
     /// Median fee rate in sat/vB
-    #[schemars(example = 10.5)]
-    pub median_fee: FeeRate,
+    #[cfg_attr(feature = "schemars", schemars(example = 10.5))]
+    median_fee: FeeRate,
 
-    /// Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
-    #[schemars(example = example_fee_range())]
-    pub fee_range: [FeeRate; 7],
+    /// Vsize-weighted percentiles of the transactions' CPFP chunk fee rates, in sat/vB:
+    /// [0, 10, 25, 50, 75, 90, 100] for the first block, [5, 10, 25, 50, 75, 90, 95] for the
+    /// later projected ones
+    #[cfg_attr(feature = "schemars", schemars(example = example_fee_range()))]
+    fee_range: [FeeRate; 7],
 }
 
+#[cfg(feature = "schemars")]
 fn example_fee_range() -> [FeeRate; 7] {
     [
         FeeRate::new(1.0),

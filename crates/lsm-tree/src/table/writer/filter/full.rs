@@ -2,18 +2,21 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::{fs::File, io::BufWriter, time::Instant};
+
+use log::trace;
+use sfa::Writer;
+
 use super::FilterWriter;
 use crate::{
-    CompressionType, UserKey,
-    checksum::ChecksummedWriter,
+    InternalValue, RecordBytes, Result, Slice,
     config::BloomConstructionPolicy,
-    table::{Block, filter::standard_bloom::Builder},
+    table::{Block, block::BlockType, filter::standard_bloom::Builder},
 };
-use std::{fs::File, io::BufWriter};
 
 pub struct FullFilterWriter {
     /// Key hashes for AMQ filter
-    pub bloom_hash_buffer: Vec<u64>,
+    bloom_hash_buffer: Vec<u64>,
 
     bloom_policy: BloomConstructionPolicy,
 }
@@ -27,45 +30,34 @@ impl FullFilterWriter {
     }
 }
 
-impl<W: std::io::Write + std::io::Seek> FilterWriter<W> for FullFilterWriter {
-    fn use_partition_size(self: Box<Self>, _: u32) -> Box<dyn FilterWriter<W>> {
-        self
-    }
-
-    fn use_tli_compression(self: Box<Self>, _: CompressionType) -> Box<dyn FilterWriter<W>> {
-        self
-    }
-
-    fn set_filter_policy(
-        mut self: Box<Self>,
-        policy: BloomConstructionPolicy,
-    ) -> Box<dyn FilterWriter<W>> {
-        self.bloom_policy = policy;
-        self
-    }
-
-    fn register_key(&mut self, key: &UserKey) -> crate::Result<()> {
-        self.bloom_hash_buffer.push(Builder::get_hash(key));
+impl<K: RecordBytes, V: RecordBytes> FilterWriter<K, V> for FullFilterWriter {
+    fn register_block(&mut self, items: &[InternalValue<K, V>]) -> Result<()> {
+        self.bloom_hash_buffer.extend(
+            items
+                .iter()
+                .map(|item| Builder::get_hash(item.key.user_key.as_ref())),
+        );
         Ok(())
     }
 
     fn finish(
         self: Box<Self>,
-        file_writer: &mut sfa::Writer<ChecksummedWriter<BufWriter<File>>>,
-    ) -> crate::Result<usize> {
+        file_writer: &mut Writer<BufWriter<File>>,
+        _last_key: &Slice,
+    ) -> Result<()> {
         if self.bloom_hash_buffer.is_empty() {
-            log::trace!("Filter writer has no buffered hashes - not building filter");
+            trace!("Filter writer has no buffered hashes - not building filter");
         } else {
             file_writer.start("filter")?;
 
             let n = self.bloom_hash_buffer.len();
 
-            log::trace!(
+            trace!(
                 "Constructing Bloom filter with {n} entries: {:?}",
                 self.bloom_policy,
             );
 
-            let start = std::time::Instant::now();
+            let start = Instant::now();
 
             let filter_bytes = {
                 let mut builder = self.bloom_policy.init(n);
@@ -77,20 +69,15 @@ impl<W: std::io::Write + std::io::Seek> FilterWriter<W> for FullFilterWriter {
                 builder.build()
             };
 
-            log::trace!(
+            trace!(
                 "Built Bloom filter ({}B) in {:?}",
                 filter_bytes.len(),
                 start.elapsed(),
             );
 
-            Block::write_into(
-                file_writer,
-                &filter_bytes,
-                crate::table::block::BlockType::Filter,
-                CompressionType::None,
-            )?;
+            Block::write_into(file_writer, &filter_bytes, BlockType::Filter)?;
         }
 
-        Ok(1)
+        Ok(())
     }
 }

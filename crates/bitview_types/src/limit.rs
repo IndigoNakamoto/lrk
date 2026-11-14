@@ -1,0 +1,24 @@
+use std::fmt;
+
+use derive_more::Deref;
+use schemars::JsonSchema;
+use serde::Deserialize;
+
+/// Maximum number of results to return; each parameter states what omitting it means.
+#[derive(Debug, Clone, Copy, Deref, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[allow(clippy::duplicated_attributes)]
+#[schemars(example = 1, example = 10, example = 100)]
+pub struct Limit(usize);
+
+impl fmt::Display for Limit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<usize> for Limit {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}

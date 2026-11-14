@@ -1,0 +1,288 @@
+use crate::{ReadPin, check_bound};
+use bitcoin::Transaction as BitcoinTransaction;
+use bitview_plugin_indexer::SafeLengths;
+use bitview_primitives::{Bytes32, TxInIndex, TypeIndex};
+use bitview_types::BlockTxIndex;
+use brk_types::{
+    BlkPosition, Height, OutPoint, OutputType, RawLockTime, Sats, SigOps32, Transaction, TxIn,
+    TxIndex, TxOut, TxStatus, Txid, Vout, Weight,
+};
+use rustc_hash::FxHashMap;
+use vecdb::{ReadableVec, VecIndex};
+
+use crate::{Error, OptionData, Query, Result};
+
+impl Query {
+    pub(crate) fn block_txs_at_height(
+        &self,
+        height: Height,
+        start_index: BlockTxIndex,
+        count: u32,
+        guard: &ReadPin,
+    ) -> Result<Vec<Transaction>> {
+        let (first, tx_count) = self.block_tx_range(height, guard)?;
+        let start: usize = start_index.into();
+        if start >= tx_count {
+            return Err(Error::OutOfRange(
+                "start index past last transaction in block".into(),
+            ));
+        }
+        let count = (count as usize).min(tx_count - start);
+        let indices: Vec<TxIndex> = (first + start..first + start + count)
+            .map(TxIndex::from)
+            .collect();
+        self.transactions_at_indices(&indices, guard)
+    }
+    /// The txids of the block at `height`, in block order; errors as [`Self::block_tx_range`].
+    pub(crate) fn block_txids_by_height(
+        &self,
+        height: Height,
+        guard: &ReadPin,
+    ) -> Result<Vec<Txid>> {
+        let (first, tx_count) = self.block_tx_range(height, guard)?;
+        let txids = self
+            .indexer()
+            .vecs()
+            .transactions
+            .txid
+            .collect_range_at(first, first + tx_count);
+        if txids.len() != tx_count {
+            return Err(Error::Internal("Short block txid read"));
+        }
+        Ok(txids)
+    }
+    /// The txid at an in-block offset; `OutOfRange` past the block's last transaction, other
+    /// errors as [`Self::block_tx_range`].
+    pub(crate) fn block_txid_at_index_by_height(
+        &self,
+        height: Height,
+        index: usize,
+        guard: &ReadPin,
+    ) -> Result<Txid> {
+        let (first, tx_count) = self.block_tx_range(height, guard)?;
+        if index >= tx_count {
+            return Err(Error::OutOfRange("Transaction index out of range".into()));
+        }
+        self.indexer()
+            .vecs()
+            .transactions
+            .txid
+            .collect_one_at(first + index)
+            .ok_or(Error::Internal("Block txid missing"))
+    }
+    /// Internal batch read; caller holds its pin from selection.
+    pub(crate) fn transactions_at_indices(
+        &self,
+        indices: &[TxIndex],
+        guard: &ReadPin,
+    ) -> Result<Vec<Transaction>> {
+        if indices.is_empty() {
+            return Ok(Vec::new());
+        }
+        let safe = guard.lengths();
+        if indices.iter().any(|index| *index >= safe.tx_index) {
+            return Err(Error::UnknownTxid);
+        }
+
+        let len = indices.len();
+
+        // Sort positions ascending for sequential I/O (O(n) when already sorted)
+        let mut order: Vec<usize> = (0..len).collect();
+        order.sort_unstable_by_key(|&i| indices[i]);
+
+        let indexer = self.indexer();
+
+        let txids = indexer.vecs().transactions.txid.reader();
+        let mut total_size_cursor = indexer.vecs().transactions.total_size.cursor();
+        let mut sigops_cursor = indexer.vecs().transactions.total_sigop_cost.cursor();
+        let mut first_txin_cursor = indexer.vecs().transactions.first_txin_index.cursor();
+        let mut position_cursor = indexer.vecs().transactions.position.cursor();
+
+        struct DecodedTx {
+            pos: usize,
+            tx_index: TxIndex,
+            txid: Txid,
+            total_size: Bytes32,
+            total_sigop_cost: SigOps32,
+            status: TxStatus,
+            decoded: BitcoinTransaction,
+            first_txin_index: TxInIndex,
+            outpoints: Vec<OutPoint>,
+        }
+
+        // One mapping for the request; the cursor answers a block's transactions in O(1).
+        let tx_heights = self.plugins().mappings.tx_heights.load();
+        let mut tx_heights = tx_heights.cursor();
+
+        let mut decoded_txs: Vec<DecodedTx> = Vec::with_capacity(len);
+        let mut total_inputs: usize = 0;
+        let mut cached_status: Option<(Height, TxStatus)> = None;
+
+        for &pos in &order {
+            let tx_index = indices[pos];
+            let idx = tx_index.to_usize();
+
+            let txid: Txid = txids.try_get_at(idx).data()?;
+            let total_size: Bytes32 = total_size_cursor.get(idx).data()?;
+            let total_sigop_cost: SigOps32 = sigops_cursor.get(idx).data()?;
+            let first_txin_index: TxInIndex = first_txin_cursor.get(idx).data()?;
+            let position: BlkPosition = position_cursor.get(idx).data()?;
+
+            // Every index is below `safe.tx_index` (checked above).
+            let height: Height = tx_heights.get(tx_index).data()?;
+            let status = if let Some((h, ref s)) = cached_status
+                && h == height
+            {
+                s.clone()
+            } else {
+                let s = self.confirmed_status_at_bounded(height, safe)?;
+                cached_status = Some((height, s.clone()));
+                s
+            };
+
+            let (_, decoded) = indexer.read_tx_at(position, *total_size as usize, txid)?;
+
+            total_inputs += decoded.input.len();
+
+            decoded_txs.push(DecodedTx {
+                pos,
+                tx_index,
+                txid,
+                total_size,
+                total_sigop_cost,
+                status,
+                decoded,
+                first_txin_index,
+                outpoints: Vec::new(),
+            });
+        }
+
+        // Sequential input cursors reuse decompressed pages, and reading output type, type index
+        // and value from the input vecs avoids random reads of the output vecs.
+        let mut outpoint_cursor = indexer.vecs().inputs.outpoint.cursor();
+        let mut input_output_type_cursor = indexer.vecs().inputs.output_type.cursor();
+        let mut input_type_index_cursor = indexer.vecs().inputs.type_index.cursor();
+        let mut input_value_cursor = indexer.vecs().inputs.value.cursor();
+
+        // Distinct transactions spend distinct outpoints: one row per prevout, no map.
+        let mut prevouts: Vec<(OutPoint, OutputType, TypeIndex, Sats)> =
+            Vec::with_capacity(total_inputs);
+
+        for dtx in &mut decoded_txs {
+            let start = usize::from(dtx.first_txin_index);
+            let count = dtx.decoded.input.len();
+            let mut outpoints = Vec::with_capacity(count);
+            for i in 0..count {
+                let op: OutPoint = outpoint_cursor.get(start + i).data()?;
+                if op.is_not_coinbase() {
+                    let ot: OutputType = input_output_type_cursor.get(start + i).data()?;
+                    let ti: TypeIndex = input_type_index_cursor.get(start + i).data()?;
+                    let val: Sats = input_value_cursor.get(start + i).data()?;
+                    prevouts.push((op, ot, ti, val));
+                }
+                outpoints.push(op);
+            }
+            dtx.outpoints = outpoints;
+        }
+
+        // Sort by (output_type, type_index) for sequential BytesVec access within each address
+        // type's file; non-address output indices are chronological within each script type, so
+        // a decoded parent serves its adjacent outputs.
+
+        let mut scripts = indexer.output_scripts();
+
+        prevouts.sort_unstable_by_key(|&(_, ot, ti, _)| (ot, ti));
+
+        let mut prevout_map: FxHashMap<OutPoint, TxOut> =
+            FxHashMap::with_capacity_and_hasher(prevouts.len(), Default::default());
+
+        let prevout_count = prevouts.len();
+        for (op, output_type, type_index, value) in prevouts {
+            let script_pubkey =
+                scripts.get(op.tx_index(), op.vout(), output_type, type_index, value)?;
+            prevout_map.insert(op, TxOut::from((script_pubkey, value)));
+        }
+        drop(scripts);
+        debug_assert_eq!(prevout_map.len(), prevout_count, "an outpoint spent twice");
+
+        let mut txs: Vec<Option<Transaction>> = (0..len).map(|_| None).collect();
+
+        for dtx in decoded_txs {
+            let weight = Weight::from(dtx.decoded.weight());
+            let input: Vec<TxIn> = dtx
+                .decoded
+                .input
+                .into_iter()
+                .enumerate()
+                .map(|(j, txin)| {
+                    let outpoint = dtx.outpoints[j];
+                    let is_coinbase = outpoint.is_coinbase();
+
+                    let (prev_txid, prev_vout, prevout) = if is_coinbase {
+                        (Txid::COINBASE, Vout::MAX, None)
+                    } else {
+                        let prev_txid = Txid::from(txin.previous_output.txid);
+                        let prev_txout = prevout_map.remove(&outpoint).data()?;
+                        (prev_txid, outpoint.vout(), Some(prev_txout))
+                    };
+
+                    Ok(TxIn {
+                        txid: prev_txid,
+                        vout: prev_vout,
+                        prevout,
+                        script_sig: txin.script_sig,
+                        witness: txin.witness,
+                        is_coinbase,
+                        sequence: txin.sequence.0,
+                    })
+                })
+                .collect::<Result<_>>()?;
+
+            let output: Vec<TxOut> = dtx.decoded.output.into_iter().map(TxOut::from).collect();
+
+            let mut transaction = Transaction {
+                index: Some(dtx.tx_index),
+                txid: dtx.txid,
+                version: dtx.decoded.version.into(),
+                lock_time: RawLockTime::from(dtx.decoded.lock_time),
+                total_size: *dtx.total_size as usize,
+                weight,
+                total_sigop_cost: dtx.total_sigop_cost.into(),
+                fee: Sats::ZERO,
+                input,
+                output,
+                status: dtx.status,
+            };
+
+            transaction.compute_fee();
+            txs[dtx.pos] = Some(transaction);
+        }
+
+        Ok(txs.into_iter().map(Option::unwrap).collect())
+    }
+    /// The block at `height`'s transactions as `(first, count)` in the flat tx vecs, under
+    /// `pin`: the published tip block ends at `pin`'s transaction length, never at the writer's
+    /// unpublished one. `OutOfRange` past the published tip; `Internal` for boundaries that
+    /// are missing, empty or past the published data.
+    pub(crate) fn block_tx_range(
+        &self,
+        height: Height,
+        pin: &SafeLengths,
+    ) -> Result<(usize, usize)> {
+        let safe = pin.lengths();
+        check_bound(pin, height, safe.height)?;
+        if height >= safe.height {
+            return Err(Error::OutOfRange("Block height out of range".into()));
+        }
+        let first_tx_index = &self.indexer().vecs().transactions.first_tx_index;
+        let first = first_tx_index.collect_one(height).data()?;
+        let next_height = height.incremented();
+        let next = if next_height < safe.height {
+            first_tx_index.collect_one(next_height).data()?
+        } else {
+            safe.tx_index
+        };
+        let count = Self::block_tx_count(first, next, safe.tx_index)?;
+        Ok((first.to_usize(), count as usize))
+    }
+}

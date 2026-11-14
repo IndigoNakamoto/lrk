@@ -1,0 +1,22 @@
+[package]
+name = "bitview_client"
+description = "Synchronous Rust client for the Bitview API"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["bitcoin", "blockchain", "analytics", "on-chain"]
+categories = ["api-bindings", "cryptography::cryptocurrencies"]
+
+[dependencies]
+bitview_cohort = { workspace = true }
+bitview_primitives = { workspace = true }
+bitview_types = { workspace = true }
+bitview_catalog = { workspace = true }
+brk_types = { workspace = true }
+percent-encoding = "2.3.2"
+rapidhash = { workspace = true }
+ureq = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

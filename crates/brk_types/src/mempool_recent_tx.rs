@@ -1,19 +1,20 @@
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{Sats, Transaction, Txid, VSize};
 
 /// Simplified mempool transaction for the `/api/mempool/recent` endpoint.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 pub struct MempoolRecentTx {
-    /// Transaction ID
     pub txid: Txid,
     /// Transaction fee (sats)
-    pub fee: Sats,
+    fee: Sats,
     /// Virtual size (vbytes)
-    pub vsize: VSize,
+    vsize: VSize,
     /// Total output value (sats)
-    pub value: Sats,
+    value: Sats,
 }
 
 impl From<(&Txid, &Transaction)> for MempoolRecentTx {

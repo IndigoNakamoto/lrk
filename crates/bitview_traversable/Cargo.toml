@@ -1,0 +1,25 @@
+[package]
+name = "bitview_traversable"
+description = "Traversal of Bitview's stored vectors and public series catalog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+derive = ["bitview_traversable_derive"]
+pco = ["vecdb/pco"]
+zerocopy = ["vecdb/zerocopy"]
+lz4 = ["vecdb/lz4"]
+zstd = ["vecdb/zstd"]
+
+[dependencies]
+bitview_primitives = { workspace = true }
+bitview_traversable_derive = { workspace = true, optional = true }
+bitview_catalog = { workspace = true }
+indexmap = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+vecdb = { workspace = true }

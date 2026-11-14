@@ -2,18 +2,20 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::GlobalTableId;
-use quick_cache::{UnitWeighter, sync::Cache as QuickCache};
-use std::{fs::File, sync::Arc};
+use std::{fs::File, io::Result, path::Path, sync::Arc};
 
-type Item = Arc<File>;
+use quick_cache::{UnitWeighter, sync::Cache as QuickCache};
+use rustc_hash::FxBuildHasher;
+
+use crate::GlobalTableId;
 
 /// Caches file descriptors to tables
 pub struct DescriptorTable {
-    inner: QuickCache<GlobalTableId, Item, UnitWeighter, rustc_hash::FxBuildHasher>,
+    inner: QuickCache<GlobalTableId, Arc<File>, UnitWeighter, FxBuildHasher>,
 }
 
 impl DescriptorTable {
+    /// Creates a descriptor cache able to retain up to `capacity` open files.
     #[must_use]
     pub fn new(capacity: usize) -> Self {
         use quick_cache::sync::DefaultLifecycle;
@@ -22,27 +24,25 @@ impl DescriptorTable {
             1_000,
             capacity as u64,
             UnitWeighter,
-            rustc_hash::FxBuildHasher,
+            FxBuildHasher,
             DefaultLifecycle::default(),
         );
 
         Self { inner: quick_cache }
     }
 
-    pub(crate) fn len(&self) -> usize {
-        self.inner.len()
+    /// Returns the cached descriptor, opening it exactly once on a concurrent miss.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the table file cannot be opened.
+    pub(crate) fn access_or_open(&self, id: GlobalTableId, path: &Path) -> Result<Arc<File>> {
+        self.inner
+            .get_or_insert_with(&id, || File::open(path).map(Arc::new))
     }
 
-    #[must_use]
-    pub fn access_for_table(&self, id: &GlobalTableId) -> Option<Arc<File>> {
-        self.inner.get(id)
-    }
-
-    pub fn insert_for_table(&self, id: GlobalTableId, item: Item) {
-        self.inner.insert(id, item);
-    }
-
-    pub fn remove_for_table(&self, id: &GlobalTableId) {
-        self.inner.remove(id);
+    /// Removes a table's descriptor from the cache.
+    pub(crate) fn remove_for_table(&self, id: GlobalTableId) {
+        self.inner.remove(&id);
     }
 }

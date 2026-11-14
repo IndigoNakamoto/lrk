@@ -2,13 +2,21 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::GlobalTableId;
-use crate::table::block::Header;
-use crate::table::{Block, BlockOffset};
-use quick_cache::Weighter;
-use quick_cache::sync::Cache as QuickCache;
+use quick_cache::{
+    OptionsBuilder, Weighter,
+    sync::{Cache as QuickCache, DefaultLifecycle},
+};
+use rustc_hash::FxBuildHasher;
 
-#[derive(Eq, std::hash::Hash, PartialEq)]
+use crate::{
+    GlobalTableId,
+    table::{
+        Block, BlockOffset,
+        block::{BlockType, Header},
+    },
+};
+
+#[derive(Clone, Eq, std::hash::Hash, PartialEq)]
 struct CacheKey(GlobalTableId, u64);
 
 impl CacheKey {
@@ -26,11 +34,13 @@ impl Weighter<CacheKey, Block> for BlockWeighter {
     }
 }
 
-/// Cache in which table blocks are cached in memory
-/// after being retrieved from disk
+type BlockCache = QuickCache<CacheKey, Block, BlockWeighter, FxBuildHasher>;
+
+/// Shared cache for decoded table blocks.
 ///
-/// This speeds up consecutive queries to nearby data, improving
-/// read performance for hot data.
+/// Indexes and filters receive seven eighths of the capacity. The remaining
+/// eighth keeps reused data blocks without letting random data reads evict
+/// the metadata needed by many lookups.
 ///
 /// # Examples
 ///
@@ -44,69 +54,60 @@ impl Weighter<CacheKey, Block> for BlockWeighter {
 /// let cache = Arc::new(Cache::with_capacity_bytes(64 * 1_000 * 1_000));
 ///
 /// # let folder = tempfile::tempdir()?;
-/// let tree1 = Config::new(folder, Default::default(), Default::default()).use_cache(cache.clone()).open()?;
+/// let tree1 = Tree::open(Config::new(folder.path()).use_cache(cache.clone()))?;
 /// # let folder = tempfile::tempdir()?;
-/// let tree2 = Config::new(folder, Default::default(), Default::default()).use_cache(cache.clone()).open()?;
+/// let tree2 = Tree::open(Config::new(folder.path()).use_cache(cache.clone()))?;
 /// #
 /// # Ok::<(), lsm_tree::Error>(())
 /// ```
 pub struct Cache {
     // NOTE: rustc_hash performed best: https://fjall-rs.github.io/post/fjall-2-1
-    /// Concurrent cache implementation
-    data: QuickCache<CacheKey, Block, BlockWeighter, rustc_hash::FxBuildHasher>,
-
-    /// Capacity in bytes
-    capacity: u64,
+    data: BlockCache,
+    metadata: BlockCache,
 }
 
 impl Cache {
-    /// Creates a new block cache with roughly `n` bytes of capacity.
+    /// Creates a block cache with roughly `bytes` bytes of capacity.
     #[must_use]
     pub fn with_capacity_bytes(bytes: u64) -> Self {
-        use quick_cache::sync::DefaultLifecycle;
+        let data_bytes = bytes / 8;
+        Self {
+            data: Self::create_cache(data_bytes),
+            metadata: Self::create_cache(bytes - data_bytes),
+        }
+    }
 
+    fn create_cache(bytes: u64) -> BlockCache {
         #[expect(clippy::expect_used, reason = "nothing we can do if it fails")]
-        let opts = quick_cache::OptionsBuilder::new()
+        let opts = OptionsBuilder::new()
             .weight_capacity(bytes)
             .hot_allocation(0.8)
             .estimated_items_capacity(10_000)
             .build()
             .expect("cache options should be valid");
 
-        let quick_cache = QuickCache::with_options(
+        QuickCache::with_options(
             opts,
             BlockWeighter,
-            rustc_hash::FxBuildHasher,
+            FxBuildHasher,
             DefaultLifecycle::default(),
-        );
-
-        Self {
-            data: quick_cache,
-            capacity: bytes,
-        }
+        )
     }
 
-    /// Returns the amount of cached bytes.
-    #[must_use]
-    pub fn size(&self) -> u64 {
-        self.data.weight()
-    }
-
-    /// Returns the cache capacity in bytes.
-    #[must_use]
-    pub fn capacity(&self) -> u64 {
-        self.capacity
-    }
-
-    #[doc(hidden)]
-    #[must_use]
-    pub fn get_block(&self, id: GlobalTableId, offset: BlockOffset) -> Option<Block> {
-        let key = CacheKey::from_id(id, offset);
-        self.data.get(&key)
-    }
-
-    #[doc(hidden)]
-    pub fn insert_block(&self, id: GlobalTableId, offset: BlockOffset, block: Block) {
-        self.data.insert(CacheKey::from_id(id, offset), block);
+    /// Returns the cached block, loading it once on a miss: concurrent misses wait for that
+    /// load instead of repeating it.
+    pub(crate) fn get_or_load(
+        &self,
+        id: GlobalTableId,
+        offset: BlockOffset,
+        block_type: BlockType,
+        load: impl FnOnce() -> crate::Result<Block>,
+    ) -> crate::Result<Block> {
+        let cache = if block_type == BlockType::Data {
+            &self.data
+        } else {
+            &self.metadata
+        };
+        cache.get_or_insert_with(&CacheKey::from_id(id, offset), load)
     }
 }

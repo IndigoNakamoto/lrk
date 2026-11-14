@@ -2,13 +2,48 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::{
+    cmp::Ordering,
+    io::{Cursor, Seek},
+    marker::PhantomData,
+};
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use varint_rs::VarintReader;
+
 use super::binary_index::Reader as BinaryIndexReader;
 use crate::{
-    SeqNo, Slice,
-    table::{Block, block::Trailer},
+    Slice,
+    table::{Block, block::Trailer, util::SliceIndexes},
 };
-use byteorder::{LittleEndian, ReadBytesExt};
-use std::{io::Cursor, marker::PhantomData};
+
+/// Skips the next `len` bytes of an item at `offset`, returning where they lie in the block.
+#[inline]
+pub fn skip_field(reader: &mut Cursor<&[u8]>, offset: usize, len: usize) -> SliceIndexes {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "blocks are a few megabytes at most, so positions fit into usize"
+    )]
+    let start = offset + reader.position() as usize;
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "field lengths are bounded by u32::MAX"
+    )]
+    let skip = len as i64;
+    unwrap!(reader.seek_relative(skip));
+    SliceIndexes(start, start + len)
+}
+
+/// Reads a whole key's length (unless fixed) and skips the key.
+#[inline]
+pub fn read_key(
+    reader: &mut Cursor<&[u8]>,
+    offset: usize,
+    fixed_key_len: Option<u16>,
+) -> SliceIndexes {
+    let len = fixed_key_len.unwrap_or_else(|| unwrap!(reader.read_u16_varint()));
+    skip_field(reader, offset, len.into())
+}
 
 /// Represents an object that was parsed from a byte array
 ///
@@ -17,7 +52,7 @@ pub trait ParsedItem<M> {
     /// Compares this item's key with a needle.
     ///
     /// We can not access the key directly because it may be comprised of prefix + suffix.
-    fn compare_key(&self, needle: &[u8], bytes: &[u8]) -> std::cmp::Ordering;
+    fn compare_key(&self, needle: &[u8], bytes: &[u8]) -> Ordering;
 
     /// Returns the byte offset of the key's start position.
     fn key_offset(&self) -> usize;
@@ -37,7 +72,7 @@ pub trait Decodable<ParsedItem> {
         data: &'a [u8],
         fixed_key_len: Option<u16>,
         fixed_value_len: Option<u32>,
-    ) -> Option<(&'a [u8], SeqNo)>;
+    ) -> Option<(&'a [u8], u64)>;
 
     /// Parses a restart head from a reader.
     ///
@@ -110,9 +145,6 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
 
         let binary_index_len = unwrap!(reader.read_u32::<LittleEndian>());
         let binary_index_offset = unwrap!(reader.read_u32::<LittleEndian>());
-        let _hash_index_len = unwrap!(reader.read_u32::<LittleEndian>());
-        let _hash_index_offset = unwrap!(reader.read_u32::<LittleEndian>());
-        let _prefix_truncation = unwrap!(reader.read_u8());
 
         let has_fixed_key_len = unwrap!(reader.read_u8()) != 0;
         let fixed_key_len = unwrap!(reader.read_u16::<LittleEndian>());
@@ -158,14 +190,14 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
         )
     }
 
-    fn get_key_at(&self, pos: usize) -> (&[u8], SeqNo) {
+    fn get_key_at(&self, pos: usize) -> (&[u8], u64) {
         let bytes = &self.block.data;
 
         #[expect(
-            unsafe_code,
-            reason = "pos is always retrieved from the binary index which we consider to be trustworthy"
+            clippy::indexing_slicing,
+            reason = "restart pointers are validated when the block is loaded"
         )]
-        let mut cursor = Cursor::new(unsafe { bytes.get_unchecked(pos..) });
+        let mut cursor = Cursor::new(&bytes[pos..]);
 
         #[expect(
             clippy::expect_used,
@@ -181,140 +213,48 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
         .expect("should parse restart key")
     }
 
-    fn partition_point<F>(&self, pred: F) -> Option<(/* offset */ usize, /* idx */ usize)>
-    where
-        F: Fn(&[u8], SeqNo) -> bool,
-    {
-        // The first pass over the binary index emulates `Iterator::partition_point` over the
-        // restart heads that are in natural key order.  We keep track of both the byte offset and
-        // the restart index because callers need the offset to seed the linear scanner, while the
-        // index is sometimes reused (for example by `seek_upper`).
-        //
-        // In contrast to the usual `partition_point`, we intentionally return the *last* restart
-        // entry when the predicate continues to hold for every head key.  Forward scans rely on
-        // this behaviour to land on the final restart interval and resume the linear scan there
-        // instead of erroneously reporting "not found".
+    fn partition_point(
+        &self,
+        pred: impl Fn(&[u8], u64) -> bool,
+        next: bool,
+    ) -> Option<(usize, usize, bool)> {
         let binary_index = self.get_binary_index_reader();
-
-        debug_assert!(
-            binary_index.len() >= 1,
-            "binary index should never be empty",
-        );
-
-        let mut left: usize = 0;
-        let mut right = binary_index.len();
-
-        if right == 0 {
+        if binary_index.len() == 0 {
             return None;
         }
-
-        while left < right {
-            let mid = usize::midpoint(left, right);
-
-            let offset = binary_index.get(mid);
-
-            let (head_key, head_seqno) = self.get_key_at(offset);
-
-            if pred(head_key, head_seqno) {
-                left = mid + 1;
-            } else {
-                right = mid;
-            }
-        }
-
-        if left == 0 {
-            return Some((0, 0));
-        }
-
-        if left == binary_index.len() {
-            let idx = binary_index.len() - 1;
-            let offset = binary_index.get(idx);
-            return Some((offset, idx));
-        }
-
-        let offset = binary_index.get(left - 1);
-
-        Some((offset, left - 1))
-    }
-
-    // TODO:
-    fn partition_point_2<F>(&self, pred: F) -> Option<(/* offset */ usize, /* idx */ usize)>
-    where
-        F: Fn(&[u8], SeqNo) -> bool,
-    {
-        // `partition_point_2` mirrors `partition_point` but keeps the *next* restart entry instead
-        // of the previous one. This variant is used exclusively by reverse scans (`seek_upper`)
-        // that want the first restart whose head key exceeds the predicate. Returning the raw
-        // offset preserves the ability to reuse linear scanning infrastructure without duplicating
-        // decoder logic.
-        let binary_index = self.get_binary_index_reader();
-
-        debug_assert!(
-            binary_index.len() >= 1,
-            "binary index should never be empty",
-        );
-
-        let mut left: usize = 0;
-        let mut right = binary_index.len();
-
-        if right == 0 {
-            return None;
-        }
-
-        while left < right {
-            let mid = usize::midpoint(left, right);
-
-            let offset = binary_index.get(mid);
-
-            let (head_key, head_seqno) = self.get_key_at(offset);
-
-            if pred(head_key, head_seqno) {
-                left = mid + 1;
-            } else {
-                right = mid;
-            }
-        }
-
-        if left == binary_index.len() {
-            let idx = binary_index.len() - 1;
-            let offset = binary_index.get(idx);
-            return Some((offset, idx));
-        }
-
-        let offset = binary_index.get(left);
-
-        Some((offset, left))
-    }
-
-    pub fn set_lo_offset(&mut self, offset: usize) {
-        self.lo_scanner.offset = offset;
+        let position = binary_index.partition_point(|offset| {
+            let (key, seqno) = self.get_key_at(offset);
+            pred(key, seqno)
+        });
+        // Index blocks need the first end key after the predicate; data blocks
+        // start scanning at the preceding restart. Both clamp to the last head.
+        let index = if next {
+            position.min(binary_index.len() - 1)
+        } else {
+            position.saturating_sub(1)
+        };
+        Some((
+            binary_index.get(index),
+            index,
+            position == binary_index.len(),
+        ))
     }
 
     /// Seeks using the given predicate.
     ///
     /// Returns `false` if the key does not possible exist.
-    pub fn seek(&mut self, pred: impl Fn(&[u8], SeqNo) -> bool, second_partition: bool) -> bool {
+    pub fn seek(&mut self, pred: impl Fn(&[u8], u64) -> bool, second_partition: bool) -> bool {
         // TODO: make this nicer, maybe predicate that can affect the resulting index...?
-        let result = if second_partition {
-            self.partition_point_2(&pred)
-        } else {
-            self.partition_point(&pred)
-        };
+        let result = self.partition_point(pred, second_partition);
 
         // Binary index lookup
-        let Some((offset, _)) = result else {
+        let Some((offset, _, beyond_last)) = result else {
             return false;
         };
 
-        if second_partition && self.restart_interval == 1 && {
-            let (key, seqno) = self.get_key_at(offset);
-            pred(key, seqno)
-        } {
-            // `second_partition == true` means we ran the "look one restart ahead" search used by
-            // index blocks. When the predicate is still true at the chosen restart head it means
-            // the caller asked us to seek strictly beyond the last entry. In that case we skip any
-            // costly parsing and flip both scanners into an "exhausted" state so the outer iterator
-            // immediately reports EOF.
+        if second_partition && self.restart_interval == 1 && beyond_last {
+            // The binary search already established that no index entry matches.
+            // Exhaust both scanners without parsing the last key again.
             let end = self.block.data.len();
 
             self.lo_scanner.offset = end;
@@ -339,17 +279,13 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
     /// Returns `false` if the key does not possible exist.
     pub fn seek_upper(
         &mut self,
-        pred: impl Fn(&[u8], SeqNo) -> bool,
+        pred: impl Fn(&[u8], u64) -> bool,
         second_partition: bool,
     ) -> bool {
-        let result = if second_partition {
-            self.partition_point_2(&pred)
-        } else {
-            self.partition_point(&pred)
-        };
+        let result = self.partition_point(pred, second_partition);
 
         // Binary index lookup
-        let Some((offset, idx)) = result else {
+        let Some((offset, idx, _)) = result else {
             return false;
         };
 
@@ -394,10 +330,10 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
             let offset = self.hi_scanner.offset;
 
             #[expect(
-                unsafe_code,
-                reason = "cursor is advanced by read_ operations which check for EOF, and the cursor starts at 0 - the slice is never empty"
+                clippy::indexing_slicing,
+                reason = "a corrupt record extent panics instead of reading out of bounds"
             )]
-            let mut reader = Cursor::new(unsafe { self.block.data.get_unchecked(offset..) });
+            let mut reader = Cursor::new(&self.block.data[offset..]);
 
             #[expect(
                 clippy::cast_possible_truncation,
@@ -423,10 +359,10 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
             let offset = self.hi_scanner.offset;
 
             #[expect(
-                unsafe_code,
-                reason = "cursor is advanced by read_ operations which check for EOF, and the cursor starts at 0 - the slice is never empty"
+                clippy::indexing_slicing,
+                reason = "a corrupt record extent panics instead of reading out of bounds"
             )]
-            let mut reader = Cursor::new(unsafe { self.block.data.get_unchecked(offset..) });
+            let mut reader = Cursor::new(&self.block.data[offset..]);
 
             #[expect(clippy::expect_used, reason = "base key offset is expected to exist")]
             #[expect(
@@ -464,10 +400,10 @@ impl<'a, Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Decoder<'a, Item, Pa
         let is_restart = self.hi_scanner.stack.is_empty();
 
         #[expect(
-            unsafe_code,
-            reason = "cursor is advanced by read_ operations which check for EOF, and the cursor starts at 0 - the slice is never empty"
+            clippy::indexing_slicing,
+            reason = "a corrupt record extent panics instead of reading out of bounds"
         )]
-        let mut reader = Cursor::new(unsafe { self.block.data.get_unchecked(offset..) });
+        let mut reader = Cursor::new(&self.block.data[offset..]);
 
         Self::parse_current_item(
             &mut reader,
@@ -493,11 +429,10 @@ impl<Item: Decodable<Parsed>, Parsed: ParsedItem<Item>> Iterator for Decoder<'_,
         let is_restart: bool = self.lo_scanner.remaining_in_interval == 0;
 
         #[expect(
-            unsafe_code,
-            reason = "cursor is advanced by read_ operations which check for EOF, and the cursor starts at 0 - the slice is never empty"
+            clippy::indexing_slicing,
+            reason = "a corrupt record extent panics instead of reading out of bounds"
         )]
-        let mut reader =
-            Cursor::new(unsafe { self.block.data.get_unchecked(self.lo_scanner.offset..) });
+        let mut reader = Cursor::new(&self.block.data[self.lo_scanner.offset..]);
 
         #[expect(
             clippy::cast_possible_truncation,

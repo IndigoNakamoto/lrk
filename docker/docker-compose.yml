@@ -1,55 +1,44 @@
-name: brk
-
-# Environment variables (set in a .env file or shell):
-#
-# Litecoin (default for this fork):
-#   CHAIN_DATA_DIR  — path to litecoin data directory  (default: /path/to/litecoin)
-#   RPC_HOST        — litecoind RPC host               (default: localhost)
-#   RPC_USER        — litecoind RPC user               (default: litecoin)
-#   RPC_PASSWORD    — litecoind RPC password           (default: litecoin)
-#   CHAIN           — "litecoin" or "bitcoin"          (default: litecoin)
-#
-# Bitcoin: set CHAIN=bitcoin plus the matching CHAIN_DATA_DIR/RPC_* values.
-# (Note: the image is built with the `litecoin` feature; a Bitcoin node works,
-#  but MWEB-specific decoding is only exercised on Litecoin.)
+name: bitview
 
 services:
-  brk:
+  bitview:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: brk:latest
-    container_name: brk
+    image: bitview:latest
+    container_name: bitview
     restart: unless-stopped
     ports:
-      - 7070:3110
+      # (This machine only; drop `127.0.0.1:` to serve its network.)
+      - 127.0.0.1:7070:3110
     volumes:
-      - ${CHAIN_DATA_DIR:-/path/to/litecoin}:/chaindata:ro
-      - ${BRK_DATA_DIR:-./brk-data}:/home/brk/.brk
+      - ${BITCOIN_DATA_DIR:-/path/to/bitcoin}:/bitcoin:ro
+      - ${BITVIEW_DATA_VOLUME:-bitview-data}:/home/bitview/.bitview
+      # Bind mount alternative (uncomment and set BITVIEW_DATA_DIR in .env):
+      # - ${BITVIEW_DATA_DIR:-./bitview-data}:/home/bitview/.bitview
     command:
-      - --chaindir
-      - /chaindata
+      - --bitcoindir
+      - /bitcoin
       - --blocksdir
-      - /chaindata/blocks
-      - --brkdir
-      - /home/brk/.brk
-      - --chain
-      - "${CHAIN:-litecoin}"
+      - /bitcoin/blocks
+      - --bitviewdir
+      - /home/bitview/.bitview
       - --rpcconnect
-      - "${RPC_HOST:-localhost}"
+      - "${BTC_RPC_HOST:-localhost}"
+      # Without BTC_RPC_PASSWORD, bitviewd uses the cookie at /bitcoin/.cookie.
       - --rpcuser
-      - "${RPC_USER:-litecoin}"
+      - "${BTC_RPC_USER:-}"
       - --rpcpassword
-      - "${RPC_PASSWORD:-litecoin}"
-      # Cookie file alternative (uncomment and remove rpcuser/rpcpassword above):
-      # - --rpccookiefile
-      # - /chaindata/.cookie
+      - "${BTC_RPC_PASSWORD:-}"
+      # Shared vector cache size in bytes (default 2 GiB):
+      # - --cachebudget
+      # - "4294967296"
     healthcheck:
-      test: ["CMD", "pgrep", "-x", "brk"]
+      test: ["CMD", "pgrep", "-x", "bitviewd"]
       interval: 30s
       retries: 3
       start_period: 10s
 
 volumes:
-  brk-data:
+  bitview-data:
     driver: local

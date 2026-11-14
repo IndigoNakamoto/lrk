@@ -1,4 +1,4 @@
-FROM rust:1.93-bookworm AS builder
+FROM rust:1.99.1-bookworm AS builder
 
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
@@ -6,33 +6,32 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
-# The server embeds the website at compile time via
-# include_dir!("$CARGO_MANIFEST_DIR/website") in brk_website, where that path
-# is a symlink to the top-level website/, which in turn symlinks
-# scripts/modules -> ../../modules. Both real directories must be in the build
-# context or the include_dir! step fails with a dangling symlink.
-COPY website website
+# Workspace member (root Cargo.toml) and the showcases embedded by bitview_website
+# (crates/bitview_website/showcases -> showcases, showcases/modules -> modules).
+COPY examples examples
+COPY showcases showcases
 COPY modules modules
+# The changelog the Changes page reads (showcases/changes/CHANGELOG.md -> docs/CHANGELOG.md):
+# include_dir! fails on a link left dangling.
+COPY docs/CHANGELOG.md docs/CHANGELOG.md
 
-# Litecoin requires the MWEB-aware decoder, selected via the `litecoin` feature
-# on brk_cli (the `brk` binary). A default build fails to index at the first
-# MWEB block.
-RUN cargo build --release --locked -p brk_cli --features litecoin
+RUN cargo build --release --locked -p bitviewd
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates procps && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -s /bin/bash brk
+RUN useradd -m -u 1000 -s /bin/bash bitview
 
-COPY --from=builder /app/target/release/brk /usr/local/bin/brk
+COPY --from=builder /app/target/release/bitviewd /usr/local/bin/bitviewd
 
-USER brk
+USER bitview
 
-RUN mkdir -p /home/brk/.brk
+RUN mkdir -p /home/bitview/.bitview
 
 EXPOSE 3110
 
-WORKDIR /home/brk
+WORKDIR /home/bitview
 
-ENTRYPOINT ["brk"]
+# (Every interface inside the container, for a published port to reach it; the host decides who can.)
+ENTRYPOINT ["bitviewd", "--serverbind", "0.0.0.0"]

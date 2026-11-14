@@ -2,15 +2,19 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-pub mod bit_array;
-pub mod block;
-pub mod standard_bloom;
+use std::f32::consts::LN_2;
 
 use standard_bloom::Builder as StandardBloomFilterBuilder;
 
+pub mod bit_array;
+pub mod standard_bloom;
+
+/// Controls the size of Bloom filters written into tables.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum BloomConstructionPolicy {
+    /// Uses a fixed number of Bloom-filter bits for every key.
     BitsPerKey(f32),
+    /// Sizes the Bloom filter for the requested false-positive rate.
     FalsePositiveRate(f32),
 }
 
@@ -21,96 +25,86 @@ impl Default for BloomConstructionPolicy {
 }
 
 impl BloomConstructionPolicy {
+    /// Creates a filter builder sized for `n` keys.
     #[must_use]
-    pub fn init(&self, n: usize) -> StandardBloomFilterBuilder {
-        use standard_bloom::Builder;
+    pub(crate) fn init(self, n: usize) -> StandardBloomFilterBuilder {
+        assert!(n > 0 && self.is_active());
+        let (bytes, k) = self.sizing(n);
+        StandardBloomFilterBuilder::new(bytes, k)
+    }
 
+    /// Returns whether this policy enables Bloom-filter construction.
+    #[must_use]
+    pub(crate) fn is_active(self) -> bool {
         match self {
-            Self::BitsPerKey(bpk) => Builder::with_bpk(n, *bpk),
-            Self::FalsePositiveRate(fpr) => Builder::with_fp_rate(n, *fpr),
+            Self::BitsPerKey(bpk) => bpk > 0.0,
+            Self::FalsePositiveRate(fpr) => fpr > 0.0,
         }
     }
 
+    /// Returns the smallest key count whose filter fills `partition_size` bytes,
+    /// computed once per writer instead of per key. Policies below one bit per key never fill
+    /// a partition.
     #[must_use]
-    pub fn is_active(&self) -> bool {
-        match self {
-            Self::BitsPerKey(bpk) => *bpk > 0.0,
-            Self::FalsePositiveRate(fpr) => *fpr > 0.0,
+    pub(crate) fn partition_key_limit(self, partition_size: u32) -> usize {
+        // Bits per key before sizing rounds up to whole bytes.
+        let bits_per_key = match self {
+            Self::BitsPerKey(bpk) => f64::from(bpk),
+            Self::FalsePositiveRate(fpr) => -f64::from(fpr.ln()) / f64::from(LN_2).powi(2),
+        };
+        if !self.is_active() || bits_per_key < 1.0 {
+            return usize::MAX;
         }
-    }
-
-    /// Returns the estimated filter size in bytes.
-    #[must_use]
-    pub fn estimated_filter_size(&self, n: usize) -> usize {
-        if n == 0 {
-            return 0;
-        }
-
+        let partition_size = partition_size as usize;
+        // A filter never exceeds `bits_per_key * n / 8` bytes plus two bytes of rounding, so no
+        // smaller count fills a partition; the threshold lies a few counts above this bound.
         #[expect(
-            clippy::cast_precision_loss,
             clippy::cast_possible_truncation,
+            clippy::cast_precision_loss,
             clippy::cast_sign_loss,
-            reason = "this positive estimate intentionally floors to a whole number of bytes"
+            reason = "a positive bound far below usize::MAX"
         )]
+        let lower =
+            ((8 * partition_size).saturating_sub(16) as f64 / (bits_per_key * 1.001)) as usize;
+        // With at least one bit per key, `8 * partition_size` keys always fill a partition.
+        (lower.max(1)..=8 * partition_size)
+            .find(|&n| self.sizing(n).0 >= partition_size)
+            .unwrap_or(usize::MAX)
+    }
+
+    /// The bit array's size in bytes and the hash count of a filter for `n` keys: the one sizing
+    /// rule construction and partition planning share.
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss,
+        reason = "positive bit counts far below usize::MAX"
+    )]
+    fn sizing(self, n: usize) -> (usize, usize) {
         match self {
-            Self::BitsPerKey(bpk) => (*bpk * (n as f32)) as usize / 8,
+            Self::BitsPerKey(bpk) => {
+                // NOTE: Round up so a fractional bpk never yields zero bits
+                let bits = (n as f64 * f64::from(bpk)).ceil() as usize;
+                (bits.div_ceil(8), hash_count(bpk))
+            }
             Self::FalsePositiveRate(fpr) => {
-                let m = StandardBloomFilterBuilder::calculate_m(n, *fpr);
-                let bpk = (m / n) as f32;
-                (bpk * (n as f32)) as usize / 8
+                // NOTE: Some sensible minimum
+                let fpr = fpr.max(0.000_000_1);
+                // m = -n ln(fpr) / ln(2)^2 bits, rounded up to whole bytes
+                let bits = -(n as f32 * fpr.ln()) / LN_2.powi(2);
+                let bytes = (bits / 8.0).ceil() as usize;
+                (bytes, hash_count((bytes * 8 / n) as f32))
             }
         }
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-enum FilterType {
-    StandardBloom,
-    BlockedBloom,
-}
-
-impl TryFrom<u8> for FilterType {
-    type Error = crate::Error;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::StandardBloom),
-            1 => Ok(Self::BlockedBloom),
-            _ => Err(crate::Error::InvalidTag(("FilterType", value))),
-        }
-    }
-}
-
-impl From<FilterType> for u8 {
-    fn from(value: FilterType) -> Self {
-        match value {
-            FilterType::StandardBloom => 0,
-            FilterType::BlockedBloom => 1,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_log::test;
-
-    #[test]
-    fn bloom_estimated_size_bpk() {
-        let policy = BloomConstructionPolicy::BitsPerKey(10.0);
-        let n = 1_000_000;
-        let estimated_size = policy.estimated_filter_size(n);
-        // For 1 million keys and 10 bits per key, the size should be around 1.25 MB
-        assert_eq!(estimated_size, 1_250_000);
-    }
-
-    #[test]
-    fn bloom_estimated_size_fpr() {
-        let policy = BloomConstructionPolicy::FalsePositiveRate(0.01);
-        let n = 1_000_000;
-        let estimated_size = policy.estimated_filter_size(n);
-        // For 1 million keys and 1% false positive rate, the size should be around 1.2 MB
-        assert!((estimated_size as f32) < 1_300_000.0);
-        assert!((estimated_size as f32) > 1_100_000.0);
-    }
+/// `bpk * ln(2)` hash functions, at least one.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "bpk easily fits into usize and LN_2 < 1.0"
+)]
+fn hash_count(bpk: f32) -> usize {
+    ((bpk * LN_2) as usize).max(1)
 }

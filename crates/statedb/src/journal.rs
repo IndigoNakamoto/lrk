@@ -1,0 +1,342 @@
+use crate::util::{atomic_write, invalid};
+use std::{
+    fs::{self, File, OpenOptions},
+    io::{BufWriter, Error, Read, Result, Seek, SeekFrom, Write},
+    os::unix::fs::FileExt,
+    path::{Path, PathBuf},
+};
+
+const MAGIC: &[u8; 8] = b"ORIGIN03";
+const INDEX_BYTES: usize = 8;
+const MAX_RECORD: usize = 128 * 1024 * 1024;
+
+/// A single writer; readers borrow the published prefix. Unpublished tails are discarded on reopen.
+pub(crate) struct Journal {
+    path: PathBuf,
+    read_end: u64,
+    data: BufWriter<File>,
+    index_file: File,
+    index: Vec<u64>,
+    committed: usize,
+    poisoned: bool,
+    pub version: u64,
+    /// Declared last: fields drop in order, so the writer lock outlives `data`'s final flush.
+    writer_lock: Option<File>,
+}
+impl Journal {
+    pub fn open(path: &Path) -> Result<Self> {
+        Self::open_inner(path, true)
+    }
+    pub fn open_reader(path: &Path) -> Result<Self> {
+        Self::open_inner(path, false)
+    }
+    fn open_inner(path: &Path, writable: bool) -> Result<Self> {
+        if writable {
+            fs::create_dir_all(path)?;
+        }
+        let lock = if writable {
+            Some(
+                OpenOptions::new()
+                    .create(true)
+                    .truncate(false)
+                    .read(true)
+                    .write(true)
+                    .open(path.join("writer"))?,
+            )
+        } else {
+            None
+        };
+        if let Some(lock) = &lock {
+            lock.try_lock().map_err(Error::other)?;
+        }
+        let mut data = OpenOptions::new()
+            .create(writable)
+            .truncate(false)
+            .read(true)
+            .write(writable)
+            .open(path.join("data"))?;
+        let mut index_file = OpenOptions::new()
+            .create(writable)
+            .truncate(false)
+            .read(true)
+            .write(writable)
+            .open(path.join("index"))?;
+        let manifest = path.join("commit");
+        // Manifest words: version, start height (always 0, kept for the format), count, data end.
+        let published = manifest.try_exists()?;
+        let (version, count, end) = if published {
+            let bytes = fs::read(&manifest)?;
+            if bytes.len() != 40 || &bytes[..8] != MAGIC {
+                return Err(invalid("invalid origin journal manifest"));
+            }
+            let get = |i| u64::from_le_bytes(bytes[i..i + 8].try_into().unwrap());
+            if get(16) != 0 {
+                return Err(invalid("origin journal starts above genesis"));
+            }
+            (get(8), get(24) as usize, get(32))
+        } else {
+            if !writable {
+                return Err(invalid("missing published journal"));
+            }
+            if data.metadata()?.len() != 0 || index_file.metadata()?.len() != 0 {
+                return Err(invalid("missing commit for nonempty origin journal"));
+            }
+            (0, 0, 0)
+        };
+        let index_len = count
+            .checked_mul(INDEX_BYTES)
+            .ok_or_else(|| invalid("index overflow"))?;
+        // A reader only reads below its ceiling: a rewind may be truncating the rest.
+        if count > u32::MAX as usize
+            || writable
+                && (index_file.metadata()?.len() < index_len as u64 || data.metadata()?.len() < end)
+        {
+            return Err(invalid("incomplete committed journal"));
+        }
+        let mut index = Vec::new();
+        if writable {
+            let mut bytes = vec![0; index_len];
+            index_file.read_exact(&mut bytes)?;
+            index.reserve(count);
+            let mut previous = 0;
+            for chunk in bytes.as_chunks::<INDEX_BYTES>().0 {
+                let next = u64::from_le_bytes(chunk[..8].try_into().unwrap());
+                if next < previous || next - previous > MAX_RECORD as u64 {
+                    return Err(invalid("invalid journal offset"));
+                }
+                index.push(next);
+                previous = next;
+            }
+            if previous != end {
+                return Err(invalid("journal index does not match commit"));
+            }
+            data.set_len(end)?;
+            data.seek(SeekFrom::Start(end))?;
+            index_file.set_len(index_len as u64)?;
+            index_file.seek(SeekFrom::Start(index_len as u64))?;
+        } else if count == 0 && end != 0 {
+            return Err(invalid("empty journal has data"));
+        }
+        let mut this = Self {
+            path: path.to_owned(),
+            writer_lock: lock,
+            read_end: end,
+            data: BufWriter::with_capacity(if writable { 1024 * 1024 } else { 0 }, data),
+            index_file,
+            index,
+            committed: count,
+            poisoned: false,
+            version,
+        };
+        if !published {
+            this.commit_inner(true)?;
+        }
+        Ok(this)
+    }
+    pub fn len(&self) -> usize {
+        if self.writer_lock.is_some() {
+            self.index.len()
+        } else {
+            self.committed
+        }
+    }
+    fn healthy(&self) -> Result<()> {
+        if self.poisoned {
+            Err(invalid("origin writer failed; reopen before reuse"))
+        } else {
+            Ok(())
+        }
+    }
+    /// Runs one write; a failure leaves the files mid-update, so later use must reopen.
+    fn write(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<()> {
+        debug_assert!(self.writer_lock.is_some());
+        self.healthy()?;
+        let result = f(self);
+        self.poisoned = result.is_err();
+        result
+    }
+    pub fn push(&mut self, bytes: &[u8]) -> Result<()> {
+        if bytes.len() > MAX_RECORD || self.len() >= u32::MAX as usize {
+            return Err(invalid("origin record exceeds limits"));
+        }
+        let end = self.index.last().map_or(0, |&v| v) + bytes.len() as u64;
+        self.write(|this| {
+            this.data.write_all(bytes)?;
+            this.index.push(end);
+            Ok(())
+        })
+    }
+    fn bounds(&self, height: usize) -> Result<(u64, u64)> {
+        self.healthy()?;
+        if height >= self.committed {
+            return Err(invalid("height outside published origin history"));
+        }
+        let (start, end) = if self.writer_lock.is_some() {
+            (
+                if height == 0 {
+                    0
+                } else {
+                    self.index[height - 1]
+                },
+                self.index[height],
+            )
+        } else {
+            let mut offsets = [0; 2 * INDEX_BYTES];
+            let first = height.saturating_sub(1);
+            let n = if height == 0 {
+                INDEX_BYTES
+            } else {
+                2 * INDEX_BYTES
+            };
+            self.index_file
+                .read_exact_at(&mut offsets[..n], (first * INDEX_BYTES) as u64)?;
+            (
+                if height == 0 {
+                    0
+                } else {
+                    u64::from_le_bytes(offsets[..8].try_into().unwrap())
+                },
+                u64::from_le_bytes(offsets[n - 8..n].try_into().unwrap()),
+            )
+        };
+        if end < start
+            || end - start > MAX_RECORD as u64
+            || self.writer_lock.is_none() && end > self.read_end
+        {
+            return Err(invalid("invalid published journal offset"));
+        }
+        Ok((start, end))
+    }
+    pub(crate) fn read_prefix(&self, height: usize, bytes: &mut [u8]) -> Result<()> {
+        let (start, end) = self.bounds(height)?;
+        if end - start < bytes.len() as u64 {
+            return Err(invalid("truncated record prefix"));
+        }
+        self.data.get_ref().read_exact_at(bytes, start)
+    }
+    pub(crate) fn read_batch(
+        &self,
+        height: usize,
+        end: usize,
+        index_bytes: &mut Vec<u8>,
+        records: &mut Vec<usize>,
+        bytes: &mut Vec<u8>,
+    ) -> Result<()> {
+        self.healthy()?;
+        if height >= end || end > self.committed {
+            return Err(invalid("range outside published origin history"));
+        }
+        let n = end - height;
+        let first = height.saturating_sub(1);
+        if self.writer_lock.is_none() {
+            index_bytes.resize((n + usize::from(height > 0)) * INDEX_BYTES, 0);
+            self.index_file
+                .read_exact_at(index_bytes, (first * INDEX_BYTES) as u64)?;
+        }
+        let offset = |entry: usize| {
+            if self.writer_lock.is_some() {
+                self.index[entry]
+            } else {
+                let at = (entry - first) * INDEX_BYTES;
+                let v = &index_bytes[at..at + INDEX_BYTES];
+                u64::from_le_bytes(v.try_into().unwrap())
+            }
+        };
+        let start = if height == 0 { 0 } else { offset(height - 1) };
+        let published_end = if self.writer_lock.is_some() {
+            self.index[self.committed - 1]
+        } else {
+            self.read_end
+        };
+        let mut previous = start;
+        records.clear();
+        for entry in height..end {
+            let next = offset(entry);
+            if next < previous || next > published_end || next - previous > MAX_RECORD as u64 {
+                return Err(invalid("invalid published journal offset"));
+            }
+            // A window holds a record and its successor, so large records remain readable;
+            // ordinary windows stay bounded.
+            if next - start > 1024 * 1024 && records.len() >= 2 {
+                break;
+            }
+            records.push((next - start) as usize);
+            previous = next;
+        }
+        bytes.resize((previous - start) as usize, 0);
+        self.data.get_ref().read_exact_at(bytes, start)?;
+        Ok(())
+    }
+    pub fn commit(&mut self) -> Result<()> {
+        self.commit_inner(false)
+    }
+    fn commit_inner(&mut self, force: bool) -> Result<()> {
+        self.write(|this| {
+            if !force && this.index.len() == this.committed {
+                return Ok(());
+            }
+            this.data.flush()?;
+            let mut bytes = Vec::with_capacity((this.index.len() - this.committed) * INDEX_BYTES);
+            for &end in &this.index[this.committed..] {
+                bytes.extend_from_slice(&end.to_le_bytes());
+            }
+            this.index_file
+                .seek(SeekFrom::Start((this.committed * INDEX_BYTES) as u64))?;
+            this.index_file.write_all(&bytes)?;
+            this.publish(this.index.len())?;
+            this.committed = this.index.len();
+            Ok(())
+        })
+    }
+    fn publish(&self, count: usize) -> Result<()> {
+        let mut bytes = MAGIC.to_vec();
+        for n in [
+            self.version,
+            0,
+            count as u64,
+            if count == 0 { 0 } else { self.index[count - 1] },
+        ] {
+            bytes.extend_from_slice(&n.to_le_bytes());
+        }
+        atomic_write(&self.path.join("commit"), &bytes)
+    }
+    pub fn truncate(&mut self, height: usize) -> Result<()> {
+        if height > self.index.len() {
+            return Err(invalid("invalid origin truncate"));
+        }
+        // Truncating at the end (the common update) only publishes an uncommitted tail.
+        if height == self.index.len() {
+            return self.commit();
+        }
+        if height > self.committed {
+            self.commit()?;
+        }
+        self.write(|this| {
+            this.data.flush()?;
+            this.publish(height)?;
+            let end = if height == 0 {
+                0
+            } else {
+                this.index[height - 1]
+            };
+            this.data.get_mut().set_len(end)?;
+            this.data.get_mut().seek(SeekFrom::Start(end))?;
+            this.index_file.set_len((height * INDEX_BYTES) as u64)?;
+            this.index_file
+                .seek(SeekFrom::Start((height * INDEX_BYTES) as u64))?;
+            this.index.truncate(height);
+            this.committed = height;
+            Ok(())
+        })
+    }
+    pub fn validate_version(&mut self, version: u64) -> Result<()> {
+        self.write(|this| {
+            if version != this.version {
+                this.truncate(0)?;
+                this.version = version;
+                this.commit_inner(true)?;
+            }
+            Ok(())
+        })
+    }
+}

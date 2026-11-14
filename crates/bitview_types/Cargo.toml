@@ -1,0 +1,21 @@
+[package]
+name = "bitview_types"
+description = "Query protocol and schema types shared throughout Bitview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+bitcoin = { workspace = true }
+bitview_cohort = { workspace = true }
+bitview_primitives = { workspace = true }
+brk_oracle = { workspace = true }
+brk_types = { workspace = true }
+derive_more = { workspace = true }
+itoa = { workspace = true }
+jiff = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_json = { workspace = true }

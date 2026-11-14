@@ -1,0 +1,55 @@
+use bitview_primitives::{TxOutIndex, TypeIndex};
+use bitview_traversable::Traversable;
+use brk_error::Result;
+use brk_types::{Height, OutputType, Sats, Version};
+use vecdb::{
+    AnyStoredVec, Budgeted, BytesVec, Database, ImportableVec, OverflowVec, PcoVec, Rw, StorageMode,
+};
+
+#[derive(Traversable)]
+pub struct OutputsVecs<M: StorageMode = Rw> {
+    /// Global zero-based transaction-output index in canonical blockchain
+    /// order. At `height`, this is where the block begins and equals the number
+    /// of outputs in preceding blocks; at `tx_index`, it identifies the
+    /// transaction's first output.
+    pub first_txout_index: M::Stored<PcoVec<Height, TxOutIndex, Budgeted>>,
+    /// Value of the output, in satoshis.
+    pub value: M::Stored<OverflowVec<TxOutIndex, Sats>>,
+    /// Bitview's locking-script classification of an output. At `txout_index`, this
+    /// classifies the indexed output; at `txin_index`, it classifies the
+    /// previous output spent by the input. Coinbase inputs use `unknown_script`.
+    pub output_type: M::Stored<BytesVec<TxOutIndex, OutputType>>,
+    /// Zero-based index within Bitview's collection of the output's type. At
+    /// `txout_index`, this identifies the indexed output; at `txin_index`, it
+    /// identifies the previous output spent by the input, null for a coinbase
+    /// input. Address types index distinct addresses, while other types index
+    /// outputs in canonical order.
+    pub type_index: M::Stored<BytesVec<TxOutIndex, TypeIndex>>,
+}
+
+impl OutputsVecs {
+    pub fn import(db: &Database, version: Version) -> Result<Self> {
+        let (first_txout_index, value, output_type, type_index) = parallel_import! {
+            first_txout_index = PcoVec::import(db, "first_txout_index", version),
+            value = OverflowVec::import(db, "output_value", version),
+            output_type = BytesVec::import(db, "output_type", version),
+            type_index = BytesVec::import(db, "type_index", version),
+        };
+        Ok(Self {
+            first_txout_index,
+            value,
+            output_type,
+            type_index,
+        })
+    }
+
+    pub fn iter_any(&self) -> impl Iterator<Item = &dyn AnyStoredVec> {
+        [
+            &self.first_txout_index as &dyn AnyStoredVec,
+            &self.value,
+            &self.output_type,
+            &self.type_index,
+        ]
+        .into_iter()
+    }
+}

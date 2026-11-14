@@ -1,0 +1,38 @@
+[package]
+name = "bitview"
+description = "The Bitview daemon runtime: configuration, bootstrap, updates and serving for any plugin composition"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage = "https://bitview.dev"
+repository.workspace = true
+readme = "README.md"
+keywords = ["bitcoin", "analytics", "blockchain", "data", "self-hosted"]
+
+[features]
+default = []
+full-api = ["chain", "series", "urpd", "bitview_server/full-api"]
+chain = ["price", "bitview_server/chain"]
+series = ["bitview_server/series"]
+urpd = ["price", "bitview_server/urpd"]
+price = ["dep:brk_mempool", "bitview_server/price"]
+
+[dependencies]
+brk_alloc = { workspace = true }
+brk_exit = { workspace = true }
+bitview_plugin = { workspace = true }
+bitview_query = { workspace = true }
+bitview_server = { workspace = true }
+brk_error = { workspace = true, features = ["tokio", "vecdb"] }
+brk_logger = { workspace = true }
+brk_mempool = { workspace = true, optional = true }
+brk_reader = { workspace = true }
+brk_rpc = { workspace = true }
+lexopt = "0.3"
+owo-colors = { workspace = true }
+libc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+vecdb = { workspace = true }

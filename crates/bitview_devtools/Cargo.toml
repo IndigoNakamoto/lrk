@@ -1,0 +1,41 @@
+[package]
+name = "bitview_devtools"
+description = "Development snapshots of Bitview's API and storage surface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+aide = { workspace = true }
+axum = { workspace = true }
+bitview = { workspace = true }
+bitview_bindgen = { workspace = true }
+bitview_catalog = { workspace = true }
+bitview_default = { workspace = true }
+bitview_plugin = { workspace = true }
+bitview_query = { workspace = true, features = ["full-api"] }
+bitview_server = { workspace = true, features = ["full-api"] }
+brk_error = { workspace = true, features = ["serde_json", "vecdb"] }
+brk_exit = { workspace = true }
+brk_reader = { workspace = true }
+brk_rpc = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+vecdb = { workspace = true }
+
+[[bin]]
+name = "bitview-api"
+path = "src/bin/api.rs"
+
+[[bin]]
+name = "bitview-surface"
+path = "src/bin/surface.rs"
+
+[[bin]]
+name = "bitview-bindgen"
+path = "src/bin/bindgen.rs"

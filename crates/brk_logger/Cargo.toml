@@ -1,16 +1,16 @@
 [package]
 name = "brk_logger"
-description = "A thin wrapper around tracing with size-based log rotation"
+description = "Tracing setup with daily combined and per-level log files"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude = ["examples/"]
 
 [dependencies]
 jiff = { workspace = true }
 owo-colors = { workspace = true }
+parking_lot = { workspace = true }
 tracing = { workspace = true }
 tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }

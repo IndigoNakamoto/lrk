@@ -1,31 +1,33 @@
-use brk_chain::primitives as bitcoin;
+use bitcoin::transaction::Version;
 use derive_more::Deref;
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Raw transaction version (i32) from Bitcoin protocol.
+/// Raw transaction version: the protocol's 32 bits read unsigned, as Esplora reports them.
 /// Unlike TxVersion (u8, indexed), this preserves non-standard values
 /// used in coinbase txs for miner signaling/branding.
-#[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(
+#[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(
     example = &1,
     example = &2,
     example = &3,
     example = &536_870_912,
     example = &805_306_368
-)]
-pub struct TxVersionRaw(i32);
+))]
+pub struct TxVersionRaw(u32);
 
-impl From<bitcoin::transaction::Version> for TxVersionRaw {
+impl From<Version> for TxVersionRaw {
     #[inline]
-    fn from(value: bitcoin::transaction::Version) -> Self {
-        Self(value.0)
+    fn from(value: Version) -> Self {
+        Self(value.0.cast_unsigned())
     }
 }
 
-impl From<TxVersionRaw> for bitcoin::transaction::Version {
+impl From<TxVersionRaw> for Version {
     #[inline]
     fn from(value: TxVersionRaw) -> Self {
-        Self(value.0)
+        Self(value.0.cast_signed())
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "brk_types"
-description = "Structs used throughout BRK"
+description = "Bitcoin primitives shared across BRK and Bitview"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,26 +8,22 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
-litecoin = ["brk_chain/litecoin", "brk_error/litecoin"]
+default = []
+schemars = ["dep:schemars", "dep:serde_json", "vecdb?/schemars"]
+storage = ["dep:vecdb", "brk_error/vecdb"]
 
 [dependencies]
-brk_chain = { workspace = true }
-brk_error = { workspace = true, features = ["bitcoin", "jiff", "pco", "serde_json", "vecdb"] }
-byteview = { workspace = true }
-derive_more = { workspace = true }
-indexmap = { workspace = true }
-itoa = "1.0.18"
+bitcoin = { workspace = true }
+brk_error = { workspace = true, features = ["bitcoin", "jiff"] }
+derive_more = { workspace = true, features = ["add", "add_assign", "from", "into", "not", "sum"] }
+itoa = { workspace = true }
 jiff = { workspace = true }
-pco = { workspace = true }
-rapidhash = { workspace = true }
-rustc-hash = { workspace = true }
-ryu = "1.0.23"
-schemars = { workspace = true }
+ryu = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
-serde_bytes = { workspace = true }
-strum = { version = "0.28", features = ["derive"] }
-vecdb = { workspace = true }
+serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true }
+vecdb = { workspace = true, optional = true }
 
-[package.metadata.cargo-machete]
-ignored = ["serde_bytes"]
+[dev-dependencies]
+serde_json = { workspace = true }

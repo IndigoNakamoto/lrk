@@ -1,0 +1,15 @@
+use derive_more::{Deref, DerefMut};
+
+use bitview_primitives::Seconds;
+use bitview_traversable::Traversable;
+use vecdb::{Rw, StorageMode};
+
+use bitview_vecs::PerBlockCumulativeAverage;
+
+#[derive(Deref, DerefMut, Traversable)]
+pub struct Vecs<M: StorageMode = Rw>(
+    /// Nonnegative difference in seconds between this block's header timestamp
+    /// and the previous block's. Genesis is zero, and a timestamp earlier than
+    /// its predecessor is clamped to zero.
+    pub PerBlockCumulativeAverage<Seconds, M>,
+);

@@ -1,41 +1,33 @@
 use derive_more::Deref;
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Input index in the spending transaction
-#[derive(
-    Debug, Deref, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
-#[schemars(example = &0, example = &1, example = &2, example = &5, example = &10)]
+#[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(example = &0, example = &1, example = &2, example = &5, example = &10))]
 pub struct Vin(u16);
 
 impl Vin {
-    pub const ZERO: Self = Vin(0);
-    pub const ONE: Self = Vin(1);
-
+    const ZERO: Self = Vin(0);
     pub fn is_zero(&self) -> bool {
         *self == Self::ZERO
     }
 }
 
-const U16_MAX_AS_U32: u32 = u16::MAX as u32;
 impl From<u32> for Vin {
     #[inline]
     fn from(value: u32) -> Self {
-        if value > U16_MAX_AS_U32 {
-            panic!()
-        }
+        debug_assert!(value <= u16::MAX as u32, "vin {value} does not fit a u16");
         Self(value as u16)
     }
 }
 
-const U16_MAX_AS_USIZE: usize = u16::MAX as usize;
 impl From<usize> for Vin {
     #[inline]
     fn from(value: usize) -> Self {
-        if value > U16_MAX_AS_USIZE {
-            panic!()
-        }
+        debug_assert!(value <= u16::MAX as usize, "vin {value} does not fit a u16");
         Self(value as u16)
     }
 }

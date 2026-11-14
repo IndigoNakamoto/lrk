@@ -1,0 +1,153 @@
+use std::{cmp, mem::MaybeUninit};
+
+use super::worst_case_categorical_entropy;
+use crate::{
+  compression_intermediates::Bid,
+  constants::{Bitlen, QUANT_REQUIRED_BITS_SAVED_PER_NUM},
+  data_types::{float::Float, latent_priv::LatentPriv, SplitLatents},
+  dyn_slices::DynLatentSlice,
+  errors::PcoResult,
+  metadata::{DynLatents, Mode},
+  sampling::{self, PrimaryLatentAndSavings},
+};
+
+#[inline(never)]
+pub(crate) fn join_latents<F: Float>(
+  k: Bitlen,
+  primary: DynLatentSlice,
+  secondary: Option<DynLatentSlice>,
+  dst: &mut [MaybeUninit<F>],
+) -> PcoResult<()> {
+  let primary = primary.downcast::<F::L>().unwrap();
+  let secondary = secondary.unwrap().downcast::<F::L>().unwrap();
+  // For any float `num` such that `split_latents([num], k) == [[y], [m]]`, we have
+  //     num.is_sign_positive() == (y >= sign_cutoff)
+  let sign_cutoff = F::L::MID >> k;
+  let lowest_k_bits_max = (F::L::ONE << k) - F::L::ONE;
+  for ((&y, &m), dst) in primary.iter().zip(secondary.iter()).zip(dst.iter_mut()) {
+    let is_pos_as_float = y >= sign_cutoff;
+    // `m` is untrusted, so it may exceed k bits, in which case this wraps and
+    // we decode to garbage (but never panic). Our own compressor only ever
+    // emits k-bit `m`s; see the debug assertion in `split_latents`.
+    let lowest_k_bits = if is_pos_as_float {
+      m
+    } else {
+      lowest_k_bits_max.wrapping_sub(m)
+    };
+    dst.write(F::from_latent_ordered(
+      (y << k).wrapping_add(lowest_k_bits),
+    ));
+  }
+
+  Ok(())
+}
+
+pub(crate) fn split_latents<F: Float>(page_nums: &[F], k: Bitlen) -> SplitLatents {
+  let n = page_nums.len();
+  let mut primary = Vec::with_capacity(n);
+  let mut secondary = Vec::with_capacity(n);
+  let lowest_k_bits_max = (F::L::ONE << k) - F::L::ONE;
+  for &num in page_nums {
+    let num_ = num.to_latent_ordered();
+    primary.push(num_ >> k);
+    let lowest_k_bits = num_ & lowest_k_bits_max;
+    // Motivation for the sign-dependent logic below:
+    // In the common case where `num` is exactly quantized, we want the secondary to always be
+    // zero.  But when `num` is negative, `lowest_k_bits == lowest_k_bits_max`.  So we manually
+    // flip it here, and un-flip it in `join_latents`.
+    let secondary_latent = if num.is_sign_positive_() {
+      lowest_k_bits
+    } else {
+      lowest_k_bits_max - lowest_k_bits
+    };
+    // `join_latents` relies on this, so it's worth asserting that we uphold it
+    debug_assert!(
+      secondary_latent >> k == F::L::ZERO,
+      "Invalid FloatQuant secondary latent: m must be a k-bit integer"
+    );
+    secondary.push(secondary_latent);
+  }
+
+  SplitLatents {
+    primary: DynLatents::new(primary),
+    secondary: Some(DynLatents::new(secondary)),
+  }
+}
+
+pub(crate) fn compute_bid<F: Float>(sample: &[F]) -> Option<Bid<F>> {
+  let (k, bits_saved_per_infrequent_primary) = estimate_best_k_and_bits_saved(sample);
+  let bits_saved_per_num = sampling::est_bits_saved_per_num(sample, |x| {
+    let primary = x.to_latent_bits() >> k;
+    PrimaryLatentAndSavings {
+      primary,
+      bits_saved: bits_saved_per_infrequent_primary,
+    }
+  });
+  if bits_saved_per_num > QUANT_REQUIRED_BITS_SAVED_PER_NUM {
+    Some(Bid {
+      mode: Mode::FloatQuant(k),
+      bits_saved_per_num,
+      split_fn: Box::new(move |nums| split_latents(nums, k)),
+    })
+  } else {
+    None
+  }
+}
+
+fn estimate_best_k_and_bits_saved_from_hist(
+  cumulative_hist: &[u32],
+  sample_len: usize,
+) -> (Bitlen, f64) {
+  let sample_len = sample_len as f64;
+  let mut best_k = 0;
+  let mut best_bits_saved = 0.0;
+
+  // There may be multiple local maxima in the function from
+  // k -> bits_saved_per_infrequent_primary.
+  // We just want the first one, since later ones are likely to make the
+  // distribution of (x >> k) degenerate and easily-memorizable.
+  for (k, &occurrences) in cumulative_hist.iter().enumerate().skip(1) {
+    // Here we borrow the worst case bits saved approach from int mult utils,
+    // taking a lower confidence bound estimate for the number of occurrences.
+    // And then we consider the worst case, where the probability distribution
+    // of adjustments has a spike at 0 and is uniform elsewhere.
+    if occurrences == 0 {
+      continue;
+    }
+
+    let occurrences = occurrences as f64;
+    let freq = occurrences / sample_len;
+    let n_categories = (1_u64 << k) - 1;
+    let worst_case_bits_per_infrequent_primary =
+      worst_case_categorical_entropy(freq, n_categories as f64);
+    let bits_saved_per_infrequent_primary = k as f64 - worst_case_bits_per_infrequent_primary;
+    if bits_saved_per_infrequent_primary > best_bits_saved {
+      best_k = k as Bitlen;
+      best_bits_saved = bits_saved_per_infrequent_primary;
+    } else {
+      break;
+    }
+  }
+
+  (best_k, best_bits_saved)
+}
+
+fn estimate_best_k_and_bits_saved<F: Float>(sample: &[F]) -> (Bitlen, f64) {
+  let mut hist = vec![0; (F::PRECISION_BITS + 1) as usize];
+  for x in sample {
+    // Using the fact that significand bits come last in
+    // the floating-point representations we care about
+    let trailing_mantissa_zeros = cmp::min(F::PRECISION_BITS, x.trailing_zeros());
+    hist[trailing_mantissa_zeros as usize] += 1
+  }
+
+  // turn it into a cumulative histogram from k -> # of samples with *at least*
+  // k trailing bits
+  let mut rev_csum = 0;
+  for x in hist.iter_mut().rev() {
+    rev_csum += *x;
+    *x = rev_csum;
+  }
+
+  estimate_best_k_and_bits_saved_from_hist(&hist, sample.len())
+}

@@ -1,21 +1,17 @@
-//! Global allocator and memory utilities for brk.
+//! mimalloc re-export and eager memory collection for BRK.
 //!
-//! This crate sets mimalloc as the global allocator and provides
-//! utilities for monitoring and managing memory.
+//! Binaries choose mimalloc themselves:
+//! `#[global_allocator] static GLOBAL: brk_alloc::MiMalloc = brk_alloc::MiMalloc;`.
+//! This crate never installs an allocator, so libraries depending on it leave the choice to the
+//! final binary. [`collect`] only affects memory mimalloc manages.
 
-use mimalloc::MiMalloc as Allocator;
+use libmimalloc_sys::mi_collect;
 
-#[global_allocator]
-static GLOBAL: Allocator = Allocator;
+pub use mimalloc::MiMalloc;
 
-/// Mimalloc allocator utilities
-pub struct Mimalloc;
-
-impl Mimalloc {
-    /// Eagerly free memory back to OS.
-    /// Only call at natural pause points.
-    #[inline]
-    pub fn collect() {
-        unsafe { libmimalloc_sys::mi_collect(true) }
-    }
+/// Eagerly returns mimalloc's free memory to the OS.
+/// Only call at natural pause points.
+#[inline]
+pub fn collect() {
+    unsafe { mi_collect(true) }
 }

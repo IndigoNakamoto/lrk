@@ -1,73 +1,40 @@
-use crate::{READ_CHUNK_SIZE, ReadableVec, VecIndex, VecValue};
-
 use super::{
     super::{CompressionStrategy, ReadWriteCompressedVec},
     ReadOnlyCompressedVec,
 };
+use crate::{
+    VecIndex, VecValue,
+    cache::{Cache, CachePolicy},
+    variants::{compressed::inner::persisted::CompressedPersisted, stored_reads::StoredReads},
+};
 
-impl<I, T, S> ReadableVec<I, T> for ReadOnlyCompressedVec<I, T, S>
+impl<I, T, S, C: CachePolicy> StoredReads<T> for ReadOnlyCompressedVec<I, T, S, C>
 where
     I: VecIndex,
     T: VecValue,
     S: CompressionStrategy<T>,
 {
-    #[inline(always)]
-    fn cursor_chunk_size(&self) -> usize {
-        let per_page = ReadWriteCompressedVec::<I, T, S>::PER_PAGE;
-        per_page * READ_CHUNK_SIZE.div_ceil(per_page)
-    }
-
-    #[inline(always)]
-    fn read_into_at(&self, from: usize, to: usize, buf: &mut Vec<T>) {
-        let len = self.base.len();
-        let from = from.min(len);
-        let to = to.min(len);
-        if from >= to {
-            return;
-        }
-        buf.reserve(to - from);
-
-        let reader = self.base.region().create_reader();
-        let pages = self.pages.read();
-        ReadWriteCompressedVec::<I, T, S>::read_stored_pages_into(&reader, &pages, from, to, buf);
-    }
-
-    #[inline]
-    fn for_each_range_dyn_at(&self, from: usize, to: usize, f: &mut dyn FnMut(T)) {
-        self.fold_range_at(from, to, (), |(), v| f(v));
-    }
-
-    #[inline]
-    fn fold_range_at<B, F: FnMut(B, T) -> B>(&self, from: usize, to: usize, init: B, f: F) -> B
+    type Persisted<'a>
+        = CompressedPersisted<'a, T, S>
     where
-        Self: Sized,
-    {
-        let len = self.base.len();
-        let from = from.min(len);
-        let to = to.min(len);
-        if from >= to {
-            return init;
-        }
-        self.fold_source(from, to, len, init, f)
+        Self: 'a;
+
+    const CHUNK_SIZE: usize = ReadWriteCompressedVec::<I, T, S>::PER_PAGE;
+
+    #[inline(always)]
+    fn cache(&self) -> Option<&Cache<T>> {
+        C::cache(&self.cache)
     }
 
-    #[inline]
-    fn try_fold_range_at<B, E, F: FnMut(B, T) -> std::result::Result<B, E>>(
-        &self,
-        from: usize,
-        to: usize,
-        init: B,
-        f: F,
-    ) -> std::result::Result<B, E>
-    where
-        Self: Sized,
-    {
-        let len = self.base.len();
-        let from = from.min(len);
-        let to = to.min(len);
-        if from >= to {
-            return Ok(init);
-        }
-        self.try_fold_source(from, to, len, init, f)
+    #[inline(always)]
+    fn layers(&self) -> (usize, &[T]) {
+        (self.base.stored_len(), &[])
+    }
+
+    #[inline(always)]
+    fn persisted(&self) -> Self::Persisted<'_> {
+        CompressedPersisted::new(&self.base.region, &self.pages)
     }
 }
+
+impl_stored_readable!(ReadOnlyCompressedVec, CompressionStrategy);

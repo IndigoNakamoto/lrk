@@ -7,7 +7,6 @@ ROOT_DIR="$SCRIPT_DIR/.."
 echo "=== BRK Quick Release ==="
 echo ""
 
-# Check if version argument provided
 if [ -z "$1" ]; then
     echo "Usage: $0 <version|bump>"
     echo "Examples:"
@@ -32,20 +31,15 @@ if [ "$RELEASE_ARG" = "$CURRENT_VERSION" ] &&
     echo ""
 fi
 
-# Load tokens
 if [ -f "$SCRIPT_DIR/.tokens" ]; then
     source "$SCRIPT_DIR/.tokens"
 fi
 
-# ============================================================================
-# 0. VERIFY TOKENS
-# ============================================================================
-
-echo "=== Verifying tokens ==="
+echo "=== Checking credentials ==="
 echo ""
 
 echo "--- npm ---"
-npm whoami || { echo "npm not authenticated. Run: npm login"; exit 1; }
+(cd "$ROOT_DIR/modules/bitview-client" && bun pm whoami) || { echo "npm not authenticated. Run: bunx --bun npm login"; exit 1; }
 echo ""
 
 echo "--- PyPI ---"
@@ -55,10 +49,6 @@ if [ -z "$UV_PUBLISH_TOKEN" ]; then
 fi
 echo "OK"
 echo ""
-
-# ============================================================================
-# 1. BUILD
-# ============================================================================
 
 if [ "$RESUME_RELEASE" = false ]; then
     echo "=== Building ==="
@@ -70,20 +60,16 @@ if [ "$RESUME_RELEASE" = false ]; then
     echo ""
 
     echo "--- JavaScript ---"
-    cd "$ROOT_DIR/modules/brk-client"
-    # JS doesn't need build step, just verify it loads
-    node -e "import('./index.js')"
+    cd "$ROOT_DIR/modules/bitview-client"
+    # JavaScript needs no build step; importing checks the generated module.
+    bun -e "await import('./index.js')"
     echo "OK"
     echo ""
 
     echo "--- Python ---"
-    cd "$ROOT_DIR/packages/brk_client"
+    cd "$ROOT_DIR/packages/bitview_client"
     uv build
     echo ""
-
-    # ============================================================================
-    # 2. GENERATE DOCS
-    # ============================================================================
 
     echo "=== Generating docs ==="
     echo ""
@@ -96,16 +82,11 @@ if [ "$RESUME_RELEASE" = false ]; then
     "$SCRIPT_DIR/python-docs.sh"
     echo ""
 
-    # Commit generated docs
     cd "$ROOT_DIR"
     git add -A
     git commit -m "docs: update generated docs" || echo "No doc changes to commit"
     echo ""
 fi
-
-# ============================================================================
-# 3. CARGO RELEASE (Rust crates)
-# ============================================================================
 
 echo "=== Rust release ==="
 echo ""
@@ -127,27 +108,19 @@ fi
 echo ""
 echo "Released Rust crates at version: $VERSION"
 
-# ============================================================================
-# 4. JAVASCRIPT PACKAGE
-# ============================================================================
-
 echo ""
 echo "=== JavaScript package ==="
 "$SCRIPT_DIR/js-publish.sh" "$VERSION"
 echo ""
-
-# ============================================================================
-# 5. PYTHON PACKAGE
-# ============================================================================
 
 echo ""
 echo "=== Python package ==="
 "$SCRIPT_DIR/python-publish.sh" "$VERSION"
 echo ""
 
-# ============================================================================
-# DONE
-# ============================================================================
+echo ""
+echo "=== MCP Registry ==="
+"$SCRIPT_DIR/mcp-publish.sh" "$VERSION"
+echo ""
 
-echo "=== Done! ==="
 echo "Released v$VERSION"

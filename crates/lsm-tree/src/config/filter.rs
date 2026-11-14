@@ -16,27 +16,13 @@ pub enum FilterPolicyEntry {
     Bloom(BloomConstructionPolicy),
 }
 
-/// Filter policy
-#[derive(Debug, Clone, PartialEq)]
-pub struct FilterPolicy(Vec<FilterPolicyEntry>);
-
-impl std::ops::Deref for FilterPolicy {
-    type Target = [FilterPolicyEntry];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+super::level_policy!(
+    /// Filter construction, per level.
+    FilterPolicy(FilterPolicyEntry),
+    "filter"
+);
 
 impl FilterPolicy {
-    pub(crate) fn get(&self, level: usize) -> FilterPolicyEntry {
-        #[expect(clippy::expect_used, reason = "policy is expected not to be empty")]
-        self.0
-            .get(level)
-            .copied()
-            .unwrap_or_else(|| self.last().copied().expect("policy should not be empty"))
-    }
-
     /// Disables all filters.
     ///
     /// **Not recommended unless you know what you are doing!**
@@ -45,22 +31,11 @@ impl FilterPolicy {
         Self::all(FilterPolicyEntry::None)
     }
 
-    /// Uses the same block size in every level.
-    #[must_use]
-    pub fn all(c: FilterPolicyEntry) -> Self {
-        Self(vec![c])
-    }
-
-    /// Constructs a custom block size policy.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the policy is empty or contains more than 255 elements.
-    #[must_use]
-    pub fn new(policy: impl Into<Vec<FilterPolicyEntry>>) -> Self {
-        let policy = policy.into();
-        assert!(!policy.is_empty(), "compression policy may not be empty");
-        assert!(policy.len() <= 255, "compression policy is too large");
-        Self(policy)
+    /// The Bloom policy of `level`, if it builds filters.
+    pub(crate) fn bloom_at(&self, level: usize) -> Option<BloomConstructionPolicy> {
+        match self.at_level(level) {
+            FilterPolicyEntry::Bloom(policy) if policy.is_active() => Some(policy),
+            FilterPolicyEntry::Bloom(_) | FilterPolicyEntry::None => None,
+        }
     }
 }

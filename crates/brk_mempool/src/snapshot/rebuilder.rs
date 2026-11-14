@@ -1,105 +1,74 @@
-//! # Locking
-//!
-//! Two locks live on `Rebuilder`: `history` and `snapshot`. Writes always
-//! land on `history` first, then `snapshot`, so any `next_block_hash` a
-//! reader sees in the published snapshot is already recorded in
-//! `historical_block0`. No read path ever holds both, and no path holds
-//! a `State` guard together with either Rebuilder lock - the cycle reads
-//! `State` once to build the snapshot, then drops it before touching
-//! these locks.
+//! Builds the writer's graph; only completed candidates become public.
 
-use std::{
-    collections::VecDeque,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::sync::Arc;
 
-use brk_types::{FeeRate, NextBlockHash, Txid, TxidPrefix};
-use parking_lot::RwLock;
-use rustc_hash::FxHashSet;
+use brk_types::{FeeRate, Txid};
 
-use crate::State;
+use crate::{State, key::TxKey};
 
-use super::{Partitioner, Snapshot, TxIndex};
+use super::{Snapshot, TxIndex, partition};
 
 const NUM_BLOCKS: usize = 8;
-const HISTORY: usize = 10;
 
 #[derive(Default)]
 pub struct Rebuilder {
-    snapshot: RwLock<Arc<Snapshot>>,
-    /// Past block-0 txid lists keyed by `next_block_hash`, oldest first.
-    /// Ordered so `block_template_diff` can emit `Retained(prior_index)`
-    /// entries that line up with the client's cached prior template.
-    history: RwLock<VecDeque<(NextBlockHash, Vec<Txid>)>>,
-    rebuild_count: AtomicU64,
+    snapshot: Arc<Snapshot>,
 }
 
 impl Rebuilder {
-    /// Rebuild every cycle. `min_fee` participates in the result, so a
-    /// "skip if no add/remove" gate would freeze served fees when Core's
-    /// `mempoolminfee` drifts on a quiet pool.
-    ///
-    /// History is updated before the snapshot Arc is swapped so a reader
-    /// can never observe a `next_block_hash` that hasn't been recorded
-    /// yet. `block_template_diff(current_hash)` returning 404 in the
-    /// publish gap would force unnecessary client refetches.
-    pub fn tick(&self, lock: &RwLock<State>, gbt_txids: &[Txid], min_fee: FeeRate) {
-        let snap = Self::build_snapshot(lock, gbt_txids, min_fee);
-        let block0: Vec<Txid> = snap.block0_txids().collect();
-        let next_hash = snap.next_block_hash;
+    pub fn restore(&mut self, snapshot: Arc<Snapshot>) {
+        self.snapshot = snapshot;
+    }
 
-        let mut hist = self.history.write();
-        hist.retain(|(h, _)| *h != next_hash);
-        hist.push_back((next_hash, block0));
-        while hist.len() > HISTORY {
-            hist.pop_front();
+    /// Reuse the private graph only when all of its inputs are unchanged.
+    /// Publication and template history are committed together by the writer.
+    pub fn tick(&mut self, state: &State, gbt_txids: &[Txid], min_fee: FeeRate) {
+        let snapshot = &self.snapshot;
+        if !snapshot.blocks.is_empty()
+            && snapshot.min_fee == min_fee
+            && snapshot.content_revision == state.txs.content_revision()
+            && snapshot.block0_txids().eq(gbt_txids.iter().copied())
+        {
+            return;
         }
-        drop(hist);
 
-        *self.snapshot.write() = Arc::new(snap);
-
-        self.rebuild_count.fetch_add(1, Ordering::Relaxed);
+        self.snapshot = Arc::new(Self::build_snapshot(state, gbt_txids, min_fee));
     }
 
-    /// Past block-0 ordered txid list for `hash`, or `None` if it has
-    /// aged out (or was never seen). Used by `block_template_diff` to
-    /// decide 200 vs 404 and to resolve `Retained(prior_index)` entries.
-    pub fn historical_block0(&self, hash: NextBlockHash) -> Option<Vec<Txid>> {
-        self.history
-            .read()
+    fn build_snapshot(state: &State, gbt_txids: &[Txid], min_fee: FeeRate) -> Snapshot {
+        let (txs, key_to_idx) = Snapshot::build_txs(&state.txs);
+        let (bodies, digests): (Vec<_>, Vec<_>) = gbt_txids
             .iter()
-            .find(|(h, _)| *h == hash)
-            .map(|(_, block0)| block0.clone())
-    }
-
-    pub fn rebuild_count(&self) -> u64 {
-        self.rebuild_count.load(Ordering::Relaxed)
-    }
-
-    fn build_snapshot(lock: &RwLock<State>, gbt_txids: &[Txid], min_fee: FeeRate) -> Snapshot {
-        let (txs, prefix_to_idx) = {
-            let state = lock.read();
-            Snapshot::build_txs(&state.txs)
-        };
+            .filter_map(|txid| state.txs.record(txid))
+            .map(|record| (record.tx.clone(), record.digest))
+            .unzip();
 
         let block0: Vec<TxIndex> = gbt_txids
             .iter()
-            .filter_map(|txid| prefix_to_idx.get(&TxidPrefix::from(txid)).copied())
+            .filter_map(|txid| {
+                key_to_idx
+                    .get(&TxKey::from(txid))
+                    .copied()
+                    .filter(|index| txs[index.as_usize()].txid == *txid)
+            })
             .collect();
-        let excluded: FxHashSet<TxIndex> = block0.iter().copied().collect();
-        let rest = Partitioner::partition(&txs, &excluded, NUM_BLOCKS.saturating_sub(1));
+        let mut excluded = vec![0; txs.len()];
+        for index in &block0 {
+            excluded[index.as_usize()] = 1;
+        }
+        let rest = partition::partition(&txs, &excluded, NUM_BLOCKS - 1);
 
         let mut blocks = Vec::with_capacity(NUM_BLOCKS);
         blocks.push(block0);
         blocks.extend(rest);
 
-        Snapshot::build(txs, blocks, prefix_to_idx, min_fee)
+        let missing = bodies.len() != gbt_txids.len();
+        let mut snapshot = Snapshot::build(txs, blocks, key_to_idx, min_fee);
+        snapshot.set_template(bodies, &digests, state.txs.content_revision(), missing);
+        snapshot
     }
 
-    pub fn snapshot(&self) -> Arc<Snapshot> {
-        self.snapshot.read().clone()
+    pub fn snapshot(&self) -> &Arc<Snapshot> {
+        &self.snapshot
     }
 }

@@ -1,0 +1,16 @@
+[package]
+name = "bitview_catalog"
+description = "Shared series catalog model and construction metadata for Bitview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+bitview_primitives = { workspace = true }
+derive_more = { workspace = true, features = ["from", "into_iterator"] }
+indexmap = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_json = { workspace = true }

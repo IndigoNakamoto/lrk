@@ -2,26 +2,26 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::{
+    fs,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+
+use log::{trace, warn};
+
 use super::{block_index::BlockIndexImpl, meta::ParsedMeta, regions::ParsedRegions};
 use crate::{
-    Checksum, GlobalTableId, SeqNo,
-    cache::Cache,
-    file_accessor::FileAccessor,
-    table::{IndexBlock, filter::block::FilterBlock},
-    tree::inner::TreeId,
-};
-use std::{
-    path::PathBuf,
-    sync::{Arc, atomic::AtomicBool},
+    GlobalTableId,
+    table::{IndexBlock, filter::standard_bloom::StandardBloomFilterReader, util::BlockSource},
 };
 
 pub struct Inner {
-    pub path: Arc<PathBuf>,
-
-    pub(crate) tree_id: TreeId,
-
+    /// The table file, its descriptor and block caches
     #[doc(hidden)]
-    pub(crate) file_accessor: FileAccessor,
+    pub source: BlockSource,
 
     /// Parsed metadata
     #[doc(hidden)]
@@ -35,33 +35,25 @@ pub struct Inner {
     #[doc(hidden)]
     pub block_index: Arc<BlockIndexImpl>,
 
-    /// Block cache
-    ///
-    /// Stores index and data blocks
-    #[doc(hidden)]
-    pub cache: Arc<Cache>,
-
     /// Pinned filter index (in case of partitioned filters)
-    pub(super) pinned_filter_index: Option<IndexBlock>,
+    pub pinned_filter_index: Option<IndexBlock>,
 
     /// Pinned AMQ filter
-    pub pinned_filter_block: Option<FilterBlock>,
+    pub pinned_filter_block: Option<StandardBloomFilterReader>,
 
     /// True when the table was compacted away or dropped
     ///
-    /// May be kept alive until all Arcs to the table have been dropped (to facilitate snapshots)
+    /// Open readers keep the table alive until they finish.
     pub is_deleted: AtomicBool,
 
-    pub(super) checksum: Checksum,
-
-    pub(super) global_seqno: SeqNo,
+    pub global_seqno: u64,
 }
 
 impl Inner {
     /// Gets the global table ID.
     #[must_use]
-    pub(super) fn global_id(&self) -> GlobalTableId {
-        (self.tree_id, self.metadata.id).into()
+    pub fn global_id(&self) -> GlobalTableId {
+        self.source.table_id
     }
 }
 
@@ -69,19 +61,15 @@ impl Drop for Inner {
     fn drop(&mut self) {
         let global_id = self.global_id();
 
-        if self.is_deleted.load(std::sync::atomic::Ordering::Acquire) {
-            log::trace!("Cleanup deleted table {global_id:?} at {:?}", self.path);
+        if self.is_deleted.load(Ordering::Acquire) {
+            let path = &self.source.path;
+            trace!("Cleanup deleted table {global_id:?} at {path:?}");
 
-            if let Err(e) = std::fs::remove_file(&*self.path) {
-                log::warn!(
-                    "Failed to cleanup deleted table {global_id:?} at {:?}: {e:?}",
-                    self.path,
-                );
+            if let Err(e) = fs::remove_file(&**path) {
+                warn!("Failed to cleanup deleted table {global_id:?} at {path:?}: {e:?}");
             }
 
-            self.file_accessor.as_descriptor_table().inspect(|d| {
-                d.remove_for_table(&global_id);
-            });
+            self.source.descriptor_table.remove_for_table(global_id);
         }
     }
 }

@@ -1,0 +1,45 @@
+# bitview_traversable_derive
+
+Derives `bitview_traversable::Traversable` for structs. Generated traversal
+builds the public `TreeNode`, walks every exportable vec, and keeps a separate
+visible-only iterator. `vecdb::ReadOnlyClone` is derived under the rules below.
+
+Field attributes:
+
+- `skip` excludes a field from traversal; its read-only projection clones it.
+- `flatten` merges a nested tree into its parent.
+- `hidden` keeps a field exportable while omitting it from the public tree and
+  visible iterator.
+- `rename = "name"` changes its tree key.
+- `wrap = "path"` places it below an additional path.
+
+The only struct attribute is `merge`. Single-field tuple structs delegate
+transparently. Doc comments are collected as series-description fragments.
+
+```rust,ignore
+#[derive(Traversable)]
+struct Metrics<M: StorageMode = Rw> {
+    #[traversable(flatten)]
+    public: PublicMetrics,
+    #[traversable(hidden)]
+    internal: InternalMetrics,
+    cache: M::WriteOnly<Cache>,
+}
+```
+
+For structs generic over `M: StorageMode`, the generated read-only projection
+uses the same struct with `M = Ro`; fields independent of `M` are cloned.
+Without a `StorageMode` param, unbounded type params and params used as a bare,
+non-skipped field type propagate `ReadOnlyClone`; without such a field, no
+implementation is generated.
+
+Use `M::WriteOnly<T>` for computation-only state. It is exactly `T` in `Rw`
+and `()` in `Ro`. The derive automatically omits these fields from traversal
+and produces `()` when projecting to read-only mode. No field attribute or
+`Clone`, `Default`, or `ReadOnlyClone` implementation on `T` is needed.
+State queries need must be an ordinary field, not `WriteOnly`.
+
+Keep shared `Database` handles: stored vectors hold weak database references,
+so the read-only composition must retain an owner even if only writer code
+calls the handle's methods. Publication gates and query lookup tables likewise
+remain ordinary shared fields.

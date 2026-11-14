@@ -1,0 +1,457 @@
+//! Live `/api/series/*` API: catalog, search, info, single-series, bulk.
+
+use std::result::Result as StdResult;
+
+use aide::axum::{ApiRouter, routing::get_with};
+use axum::{
+    body::Bytes,
+    extract::{Path, Query},
+    http::HeaderMap,
+    response::{IntoResponse, Response},
+};
+use bitview_catalog::TreeNode;
+use bitview_primitives::{Index, SeriesName};
+use bitview_query::{Error as QueryError, Output, Query as BrkQuery, ResolvedQuery};
+use bitview_types::{
+    DataRangeFormat, DetailedSeriesCount, Format, PaginatedSeries, Pagination, SearchQuery,
+    SeriesData, SeriesInfo, SeriesNameWithIndex, SeriesSelection,
+};
+use brk_types::Version;
+use serde_json::{Value, to_vec};
+
+use crate::{
+    AppState, CacheParams, Error,
+    api::tags,
+    error::Result,
+    extended::{HeaderMapExtended, ResponseExtended, TransformResponseExtended},
+    params::{Empty, SeriesParam},
+    request_state::RequestState,
+};
+
+pub async fn serve_list(state: AppState, headers: HeaderMap, pagination: Pagination) -> Response {
+    AppState::respond_with_future(&headers, state.series_bodies.list.clone(), async {
+        let bytes = state
+            .read_admitted(move |query| Ok(Bytes::from(to_vec(&query.series_list(pagination))?)))
+            .await?;
+        Ok((
+            bytes,
+            HeaderMapExtended::insert_content_type_application_json,
+        ))
+    })
+    .await
+}
+
+pub async fn serve_search(state: AppState, headers: HeaderMap, search: SearchQuery) -> Response {
+    if search.q.len() > MAX_INPUT_BYTES {
+        return Error::bad_request(format!(
+            "search query exceeds {MAX_INPUT_BYTES} UTF-8 bytes"
+        ))
+        .into_response();
+    }
+    AppState::respond_with_future(&headers, state.series_bodies.search.clone(), async {
+        let bytes = state
+            .run_with_admission(&state.series_bodies.search_query, move |query| {
+                Ok(Bytes::from(to_vec(&query.search_series(&search))?))
+            })
+            .await?;
+        Ok((
+            bytes,
+            HeaderMapExtended::insert_content_type_application_json,
+        ))
+    })
+    .await
+}
+
+const MAX_INPUT_BYTES: usize = 1024;
+
+pub async fn serve_series_info(
+    state: AppState,
+    headers: HeaderMap,
+    series: SeriesName,
+) -> Result<Response> {
+    validate_name(&series)?;
+    if let Some(info) = state.query.sync(|q| q.resolve_series_info(&series)) {
+        return Ok(Response::cached_json(
+            &headers,
+            &state.series_bodies.info,
+            || info.into_info(),
+        ));
+    }
+
+    let error = state
+        .read_with_admission(&state.series_bodies.search_query, move |q| {
+            Ok(q.missing_series_error(&series))
+        })
+        .await?;
+    Err(error.into())
+}
+
+fn validate_name(series: &SeriesName) -> Result<()> {
+    if series.len() > MAX_INPUT_BYTES {
+        return Err(Error::bad_request(format!(
+            "series name exceeds {MAX_INPUT_BYTES} UTF-8 bytes"
+        )));
+    }
+    Ok(())
+}
+
+pub async fn serve_latest(
+    state: AppState,
+    headers: HeaderMap,
+    series: SeriesName,
+    index: Index,
+) -> Result<Response> {
+    validate_name(&series)?;
+    let bytes = state
+        .read_with_admission(&state.series_bodies.data_query, move |q| {
+            Ok(Bytes::from(q.latest_json(&series, index)?))
+        })
+        .await?;
+    Ok(state.respond_json_content_bytes(&headers, bytes))
+}
+
+pub async fn serve_len(
+    state: AppState,
+    headers: HeaderMap,
+    series: SeriesName,
+    index: Index,
+) -> Result<Response> {
+    validate_name(&series)?;
+    let length = state
+        .read_with_admission(&state.series_bodies.data_query, move |q| {
+            q.len(&series, index)
+        })
+        .await?;
+    // The JSON number depends only on length, not on the chain tip or deploy.
+    let params = CacheParams::live(format!("len1-{length}"));
+    Ok(Response::cached_json(&headers, &params, || length))
+}
+
+pub async fn serve_version(
+    state: AppState,
+    headers: HeaderMap,
+    series: SeriesName,
+    index: Index,
+) -> Result<Response> {
+    validate_name(&series)?;
+    if let Some(version) = state.query.sync(|q| q.find_version(&series, index))? {
+        let params = CacheParams::live(format!("sv1-{version}"));
+        return Ok(Response::cached_json(&headers, &params, || version));
+    }
+    let error = state
+        .read_with_admission(&state.series_bodies.search_query, move |q| {
+            Ok(q.missing_series_error(&series))
+        })
+        .await?;
+    Err(error.into())
+}
+
+/// Shared response pipeline for formatted series data.
+///
+/// One admitted blocking job keeps resolution and formatting under the same
+/// pin. Matching validators skip filename and body preparation.
+pub async fn serve(
+    state: AppState,
+    headers: HeaderMap,
+    params: SeriesSelection,
+    to_bytes: impl FnOnce(&BrkQuery, ResolvedQuery) -> StdResult<Bytes, QueryError>
+    + Clone
+    + Send
+    + 'static,
+) -> Result<Response> {
+    params.series.iter().try_for_each(validate_name)?;
+    let max_weight = state.max_weight;
+    let cdn_cache_mode = state.cdn_cache_mode;
+    state
+        .read_with_admission(&state.series_bodies.data_query, move |q| {
+            let resolved = q.resolve(params, max_weight)?;
+            let cache_params = CacheParams::series(&resolved, cdn_cache_mode);
+            if cache_params.etag.matches(&headers) {
+                return Ok(Response::new_not_modified(&cache_params));
+            }
+            let csv_filename = match resolved.format() {
+                Format::CSV => Some(resolved.csv_filename()),
+                Format::JSON => None,
+            };
+            let bytes = to_bytes(q, resolved)?;
+            Ok(AppState::assemble_response(
+                cache_params,
+                bytes,
+                move |h| match csv_filename {
+                    Some(filename) => {
+                        h.insert_content_disposition_attachment(&filename);
+                        h.insert_content_type_text_csv();
+                    }
+                    None => h.insert_content_type_application_json(),
+                },
+            ))
+        })
+        .await
+        .map_err(Into::into)
+}
+
+fn output_to_bytes(out: Output) -> Bytes {
+    match out {
+        Output::CSV(s) => Bytes::from(s),
+        Output::Json(v) => Bytes::from(v),
+    }
+}
+
+pub(super) fn add_routes(router: ApiRouter<AppState>) -> ApiRouter<AppState> {
+    router.api_route(
+        "/api/series",
+        get_with(
+            async |headers: HeaderMap, _: Empty, RequestState(state): RequestState| {
+                state.series_bodies.catalog.respond(&headers)
+            },
+            |op| op
+                .id("get_series_tree")
+                .tag(tags::SERIES)
+                .mcp_ignore()
+                .summary("Series catalog")
+                .description(
+                    "The available series as a tree of categories and subcategories."
+                )
+                .json_response::<TreeNode>()
+                .not_modified(),
+        ),
+    )
+    .api_route(
+        "/api/series/count",
+        get_with(
+            async |
+                headers: HeaderMap,
+                _: Empty,
+                RequestState(state): RequestState
+            | {
+                state.series_bodies.count.respond(&headers)
+            },
+            |op| op
+                .id("get_series_count")
+                .tag(tags::SERIES)
+                .summary("Series count")
+                .description("Returns the number of series available per index type.")
+                .json_response::<DetailedSeriesCount>()
+                .not_modified(),
+        ),
+    )
+    .api_route(
+        "/api/series/indexes",
+        get_with(
+            async |
+                headers: HeaderMap,
+                _: Empty,
+                RequestState(state): RequestState
+            | {
+                state.series_bodies.indexes.respond(&headers)
+            },
+            |op| op
+                .id("list_indexes")
+                .tag(tags::SERIES)
+                .summary("List available indexes")
+                .description(
+                    "Returns every index a series can be read at, by the name series routes take."
+                )
+                .json_response::<Vec<Index>>()
+                .not_modified(),
+        ),
+    )
+    .api_route(
+        "/api/series/list",
+        get_with(
+            async |
+                headers: HeaderMap,
+                RequestState(state): RequestState,
+                Query(pagination): Query<Pagination>
+            | {
+                serve_list(state, headers, pagination).await
+            },
+            |op| op
+                .id("list_series")
+                .tag(tags::SERIES)
+                .summary("Series list")
+                .description("Paginated flat list of all available series names.")
+                .json_response::<PaginatedSeries>()
+                .not_modified(),
+        ),
+    )
+    .api_route(
+        "/api/series/search",
+        get_with(
+            async |
+                headers: HeaderMap,
+                RequestState(state): RequestState,
+                Query(query): Query<SearchQuery>
+            | {
+                serve_search(state, headers, query).await
+            },
+            |op| op
+                .id("search_series")
+                .tag(tags::SERIES)
+                .summary("Search series")
+                .description(&format!("Search series by name or descriptive terms. Results prioritize whole query words in names, then descriptions, then fuzzy names, then fuzzy descriptions. Word order does not matter. Descriptions provide cohort terminology and formulas. The decoded q parameter is limited to {MAX_INPUT_BYTES} UTF-8 bytes."))
+                .json_response::<Vec<SeriesName>>()
+                .not_modified(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}",
+        get_with(
+            async |
+                headers: HeaderMap,
+                _: Empty,
+                RequestState(state): RequestState,
+                Path(path): Path<SeriesParam>
+            | -> Result<Response> {
+                serve_series_info(state, headers, path.series).await
+            },
+            |op| op
+                .id("get_series_info")
+                .tag(tags::SERIES)
+                .summary("Get series info")
+                .description(&format!("Returns the optional description, supported indexes, the indexes whose values can be null, the value type, and the optional unit (what the value type measures) for the specified series. The decoded series name is limited to {MAX_INPUT_BYTES} UTF-8 bytes."))
+                .json_response::<SeriesInfo>()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}/{index}",
+        get_with(
+            async |headers: HeaderMap,
+                   RequestState(state): RequestState,
+                   Path(path): Path<SeriesNameWithIndex>,
+                   Query(range): Query<DataRangeFormat>|
+                   -> Response {
+                let params = SeriesSelection::from((path.index, path.series, range));
+                serve(state, headers, params, |q, r| q.format(r).map(output_to_bytes))
+                    .await
+                    .into_response()
+            },
+            |op| op
+                .id("get_series")
+                .tag(tags::SERIES)
+                .summary("Get series data")
+                .description(
+                    "Rows selected by a range of positions, dates or timestamps, as JSON or CSV."
+                )
+                .json_response::<SeriesData>()
+                .csv_response()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}/{index}/data",
+        get_with(
+            async |headers: HeaderMap,
+                   RequestState(state): RequestState,
+                   Path(path): Path<SeriesNameWithIndex>,
+                   Query(range): Query<DataRangeFormat>|
+                   -> Response {
+                let params = SeriesSelection::from((path.index, path.series, range));
+                serve(state, headers, params, |q, r| q.format_raw(r).map(output_to_bytes))
+                    .await
+                    .into_response()
+            },
+            |op| op
+                .id("get_series_data")
+                .tag(tags::SERIES)
+                .mcp_ignore()
+                .summary("Get raw series data")
+                .description(
+                    "The data array without the `SeriesData` wrapper. \
+                    Supports the same range and format parameters as \
+                    `GET /api/series/{series}/{index}`."
+                )
+                .json_response::<Vec<Value>>()
+                .csv_response()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}/{index}/latest",
+        get_with(
+            async |headers: HeaderMap,
+                   _: Empty,
+                   RequestState(state): RequestState,
+                   Path(path): Path<SeriesNameWithIndex>| {
+                serve_latest(state, headers, path.series, path.index).await
+            },
+            |op| op
+                .id("get_series_latest")
+                .tag(tags::SERIES)
+                .summary("Get latest series value")
+                .description(
+                    "Returns the single most recent value for a series, unwrapped (not inside a SeriesData object)."
+                )
+                .json_response::<Value>()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}/{index}/len",
+        get_with(
+            async |headers: HeaderMap,
+                   _: Empty,
+                   RequestState(state): RequestState,
+                   Path(path): Path<SeriesNameWithIndex>| {
+                serve_len(state, headers, path.series, path.index).await
+            },
+            |op| op
+                .id("get_series_len")
+                .tag(tags::SERIES)
+                .summary("Get series data length")
+                .json_response::<usize>()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/{series}/{index}/version",
+        get_with(
+            async |headers: HeaderMap,
+                   _: Empty,
+                   RequestState(state): RequestState,
+                   Path(path): Path<SeriesNameWithIndex>|
+                   -> Result<Response> {
+                serve_version(state, headers, path.series, path.index).await
+            },
+            |op| op
+                .id("get_series_version")
+                .tag(tags::SERIES)
+                .summary("Get series version")
+                .description("Returns the vector's schema/computation version, not its length or latest update. Appends and reorgs do not by themselves change this version.")
+                .json_response::<Version>()
+                .not_modified()
+                .not_found(),
+        ),
+    )
+    .api_route(
+        "/api/series/bulk",
+        get_with(
+            async |headers: HeaderMap,
+                   Query(params): Query<SeriesSelection>,
+                   RequestState(state): RequestState|
+                   -> Response {
+                serve(state, headers, params, |q, r| q.format_bulk(r).map(output_to_bytes))
+                    .await
+                    .into_response()
+            },
+            |op| op
+                .id("get_series_bulk")
+                .tag(tags::SERIES)
+                .summary("Bulk series data")
+                .not_found()
+                .description(
+                    "Fetch multiple series in a single request. Supports filtering by index and date range. \
+                    Returns an array of SeriesData objects. For a single series, use `get_series` instead."
+                )
+                .json_response::<Vec<SeriesData>>()
+                .csv_response()
+                .not_modified(),
+        ),
+    )
+}

@@ -1,0 +1,25 @@
+use brk_types::{BlockHash, Height};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BlockStatus {
+    #[schemars(example = true)]
+    pub in_best_chain: bool,
+
+    /// Block height (null unless in the best chain)
+    pub height: Option<Height>,
+
+    /// Hash of the next block in the best chain (null if tip)
+    pub next_best: Option<BlockHash>,
+}
+
+impl BlockStatus {
+    pub fn in_best_chain(height: Height, next_best: Option<BlockHash>) -> Self {
+        Self {
+            in_best_chain: true,
+            height: Some(height),
+            next_best,
+        }
+    }
+}

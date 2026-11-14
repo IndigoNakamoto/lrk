@@ -1,0 +1,13 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / P2PKHBytes
+
+# Type Alias: P2PKHBytes
+
+> **P2PKHBytes** = `string`
+
+Defined in: modules/bitview-client/index.js:1040
+
+## Type Parameters

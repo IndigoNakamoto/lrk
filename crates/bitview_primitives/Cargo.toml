@@ -1,0 +1,27 @@
+[package]
+name = "bitview_primitives"
+description = "Bitview's index, value and state types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+storage = ["dep:rayon", "dep:vecdb", "brk_types/storage"]
+
+[dependencies]
+bitcoin = { workspace = true }
+brk_error = { workspace = true, features = ["bitcoin", "jiff", "serde_json"] }
+brk_types = { workspace = true, features = ["schemars"] }
+derive_more = { workspace = true }
+itoa = { workspace = true }
+jiff = { workspace = true }
+rapidhash = { workspace = true }
+rayon = { workspace = true, optional = true }
+rustc-hash = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+vecdb = { workspace = true, optional = true }

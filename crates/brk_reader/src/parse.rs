@@ -1,45 +1,49 @@
-use brk_chain::primitives as bitcoin;
 use std::io::Cursor;
 
-use bitcoin::{Transaction, VarInt, block::Header, consensus::Decodable};
+use bitcoin::{Block as BitcoinBlock, Transaction, VarInt, block::Header, consensus::Decodable};
 use brk_error::{Error, Result};
-use brk_types::{BlkMetadata, Block, BlockHash, Height, ReadBlock};
+use brk_types::{BlkPosition, BlockHash, Height, ReadBlock};
 
 use crate::{XORBytes, XORIndex, canonical::CanonicalRange};
 
-pub(crate) const HEADER_LEN: usize = 80;
+pub const HEADER_LEN: usize = 80;
 
-/// Decodes the header onto a stack buffer so `bytes` stays untouched:
-/// the body parse later re-XORs the full block from the original phase.
-pub(crate) fn peek_canonical(
+/// The canonical offset and header of the block in `bytes`, `None` for any other block. A block
+/// of the range that does not follow its canonical predecessor is an error: the range was resolved
+/// across a reorg. Decodes the header onto a stack buffer so `bytes` stays untouched: the body
+/// parse later re-XORs the full block from the original phase.
+pub fn peek_canonical(
     bytes: &[u8],
     mut xor_state: XORIndex,
     xor_bytes: XORBytes,
     canonical: &CanonicalRange,
-) -> Option<(u32, Header)> {
+) -> Result<Option<(u32, Header)>> {
     if bytes.len() < HEADER_LEN {
-        return None;
+        return Ok(None);
     }
     let mut header_buf = [0u8; HEADER_LEN];
     header_buf.copy_from_slice(&bytes[..HEADER_LEN]);
     xor_state.bytes(&mut header_buf, xor_bytes);
-    let header = Header::consensus_decode_from_finite_reader(&mut &header_buf[..]).ok()?;
-    let offset = canonical.offset_of(&BlockHash::from(header.block_hash()))?;
-    Some((offset, header))
+    let header = Header::consensus_decode_from_finite_reader(&mut &header_buf[..])
+        .expect("an 80-byte header always decodes");
+    let Some(offset) = canonical.offset_of(&BlockHash::from(header.block_hash())) else {
+        return Ok(None);
+    };
+    if !canonical.verify_prev(offset, &BlockHash::from(header.prev_blockhash)) {
+        return Err(Error::Internal("canonical batch stitched across a reorg"));
+    }
+    Ok(Some((offset, header)))
 }
 
-pub(crate) fn parse_canonical_body(
+pub fn parse_canonical_body(
     mut bytes: Vec<u8>,
-    metadata: BlkMetadata,
+    position: BlkPosition,
     mut xor_state: XORIndex,
     xor_bytes: XORBytes,
     height: Height,
     header: Header,
 ) -> Result<ReadBlock> {
-    if bytes.len() < HEADER_LEN {
-        return Err(Error::Internal("Block bytes shorter than header"));
-    }
-
+    debug_assert!(bytes.len() >= HEADER_LEN);
     xor_state.bytes(&mut bytes, xor_bytes);
     let bitcoin_hash = header.block_hash();
 
@@ -52,30 +56,19 @@ pub(crate) fn parse_canonical_body(
     // wrapping is pure overhead and compounds across ~2000 tx fields.
     let tx_count = VarInt::consensus_decode_from_finite_reader(&mut cursor)?.0 as usize;
     let mut txdata = Vec::with_capacity(tx_count);
-    let mut tx_metadata = Vec::with_capacity(tx_count);
     let mut tx_offsets = Vec::with_capacity(tx_count);
     for _ in 0..tx_count {
-        let tx_start = cursor.position() as u32;
-        tx_offsets.push(tx_start);
+        tx_offsets.push(cursor.position() as u32);
         let tx = Transaction::consensus_decode_from_finite_reader(&mut cursor)?;
-        let tx_len = cursor.position() as u32 - tx_start;
         txdata.push(tx);
-        tx_metadata.push(BlkMetadata::new(metadata.position() + tx_start, tx_len));
     }
 
-    let raw_bytes = cursor.into_inner();
-    #[cfg(not(feature = "litecoin"))]
-    let primitive_block = bitcoin::Block { header, txdata };
-    // Litecoin's `Block` carries the MWEB extension block; the indexer
-    // ignores it (peg-in/peg-out are visible as normal txs), so default
-    // it to `None`.
-    #[cfg(feature = "litecoin")]
-    let primitive_block = bitcoin::Block {
-        header,
-        txdata,
-        mweb_block: None,
-    };
-    let mut block = Block::from((height, bitcoin_hash, primitive_block));
-    block.set_raw_data(raw_bytes, tx_offsets);
-    Ok(ReadBlock::from((block, metadata, tx_metadata)))
+    Ok(ReadBlock::new(
+        height,
+        BlockHash::from(bitcoin_hash),
+        BitcoinBlock { header, txdata },
+        position,
+        cursor.into_inner(),
+        tx_offsets,
+    ))
 }

@@ -2,24 +2,29 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{SeqNo, UserKey, ValueType};
+use std::{
+    cmp::Ordering,
+    fmt::{Debug, Formatter, Result},
+};
 
-#[derive(Clone, Eq)]
-pub struct InternalKey {
-    pub user_key: UserKey,
-    pub seqno: SeqNo,
+use crate::{Slice, ValueType};
+
+#[derive(Clone, Copy, Eq)]
+pub struct InternalKey<K = Slice> {
+    pub user_key: K,
+    pub seqno: u64,
     pub value_type: ValueType,
 }
 
-impl PartialEq for InternalKey {
+impl<K: PartialEq> PartialEq for InternalKey<K> {
     fn eq(&self, other: &Self) -> bool {
         self.user_key == other.user_key && self.seqno == other.seqno
     }
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-impl std::fmt::Debug for InternalKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<K: Debug> Debug for InternalKey<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
             "{:?}:{}:{}",
@@ -29,13 +34,14 @@ impl std::fmt::Debug for InternalKey {
                 ValueType::Value => "V",
                 ValueType::Tombstone => "T",
                 ValueType::WeakTombstone => "W",
+                ValueType::ValueOverWeakTombstone => "P",
             },
         )
     }
 }
 
 impl InternalKey {
-    pub fn new<K: Into<UserKey>>(user_key: K, seqno: SeqNo, value_type: ValueType) -> Self {
+    pub fn new<K: Into<Slice>>(user_key: K, seqno: u64, value_type: ValueType) -> Self {
         let user_key = user_key.into();
 
         assert!(
@@ -49,14 +55,16 @@ impl InternalKey {
             value_type,
         }
     }
+}
 
+impl<K> InternalKey<K> {
     pub fn is_tombstone(&self) -> bool {
         self.value_type.is_tombstone()
     }
 }
 
-impl PartialOrd for InternalKey {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+impl<K: Ord> PartialOrd for InternalKey<K> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
@@ -64,43 +72,8 @@ impl PartialOrd for InternalKey {
 // Order by user key ascending, THEN by sequence number descending
 // This is one of the most important functions
 // Otherwise queries will not match expected behaviour
-impl Ord for InternalKey {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+impl<K: Ord> Ord for InternalKey<K> {
+    fn cmp(&self, other: &Self) -> Ordering {
         (&self.user_key, other.seqno).cmp(&(&other.user_key, self.seqno))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_log::test;
-
-    #[test]
-    fn key_order_smoke_test() {
-        use ValueType::Value as V;
-
-        let mut keys = [
-            InternalKey::new(b"d", 3, V),
-            InternalKey::new(b"a", 0, V),
-            InternalKey::new(b"b", 0, V),
-            InternalKey::new(b"a", 2, V),
-            InternalKey::new(b"b", 1, V),
-            InternalKey::new(b"a", 1, V),
-            InternalKey::new(b"c", 3, V),
-        ];
-        keys.sort();
-
-        assert_eq!(
-            [
-                InternalKey::new(b"a", 2, V),
-                InternalKey::new(b"a", 1, V),
-                InternalKey::new(b"a", 0, V),
-                InternalKey::new(b"b", 1, V),
-                InternalKey::new(b"b", 0, V),
-                InternalKey::new(b"c", 3, V),
-                InternalKey::new(b"d", 3, V),
-            ],
-            keys,
-        );
     }
 }

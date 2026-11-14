@@ -1,16 +1,13 @@
-//! In-memory holders for live mempool state. Plain owned types with
-//! no internal locks: `crate::state::State` aggregates them under a
-//! single `RwLock` so the cycle steps and read-side accessors share
-//! one lock-order discipline.
+//! Working stores with frozen read data and shared immutable transaction bodies.
 
-mod addr_tracker;
-mod live_histograms;
-mod outpoint_spends;
-mod tx_graveyard;
-mod tx_store;
+pub mod addr_tracker;
+pub mod live_payments;
+pub mod outpoint_spends;
+pub mod tx_graveyard;
+pub mod tx_store;
 
 pub use addr_tracker::AddrTracker;
-pub use live_histograms::LiveHistograms;
+pub use live_payments::LivePayments;
 pub use outpoint_spends::OutpointSpends;
-pub use tx_graveyard::{TxGraveyard, TxTombstone};
-pub use tx_store::TxStore;
+pub use tx_graveyard::TxGraveyard;
+pub use tx_store::{ReadOnlyTxStore, TxStore};

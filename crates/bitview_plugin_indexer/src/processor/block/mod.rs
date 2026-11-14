@@ -1,0 +1,81 @@
+use bitcoin::{VarInt, Weight, block::Header};
+use bitview_primitives::BlockHashPrefix;
+use brk_error::{Error, Result};
+use brk_types::Timestamp;
+use tracing::error;
+use vecdb::WritableVec;
+
+use super::{BlockProcessor, transaction::ComputedTx};
+use crate::lengths::IndexerLengths as _;
+
+impl BlockProcessor<'_> {
+    pub fn process_block_metadata(&mut self) -> Result<()> {
+        let height = self.height;
+        let blockhash = self.block.hash();
+        let blockhash_prefix = BlockHashPrefix::from(blockhash);
+
+        if cfg!(debug_assertions)
+            && self
+                .stores
+                .block_height(&blockhash_prefix)?
+                .is_some_and(|prev_height| prev_height != height)
+        {
+            error!("BlockHash: {blockhash}");
+            return Err(Error::Internal("BlockHash prefix collision"));
+        }
+
+        self.lengths.push(self.vecs);
+
+        self.stores.insert_block_height(blockhash_prefix, height);
+
+        self.vecs
+            .blocks
+            .blockhash
+            .debug_checked_push(height, *blockhash);
+        self.vecs
+            .blocks
+            .coinbase_tag
+            .debug_checked_push(height, self.block.coinbase_tag());
+        self.vecs
+            .blocks
+            .difficulty
+            .debug_checked_push(height, self.block.header.difficulty_float().into());
+        self.vecs
+            .blocks
+            .timestamp
+            .debug_checked_push(height, Timestamp::from(self.block.header.time));
+
+        Ok(())
+    }
+
+    /// Pushes the block's size, weight and SegWit totals from the per-transaction sizes
+    /// [`ComputedTx`] already holds, without serializing the transactions again.
+    pub fn push_block_size_and_weight(&mut self, txs: &[ComputedTx]) {
+        let overhead = Header::SIZE + VarInt::from(txs.len()).size();
+        let mut total_size = overhead;
+        let mut weight = Weight::from_non_witness_data_size(overhead as u64);
+        let mut sw_txs = 0u16;
+        let mut sw_size = 0usize;
+        let mut sw_weight = Weight::ZERO;
+
+        for (i, tx) in txs.iter().enumerate() {
+            total_size += tx.total_size as usize;
+            weight += tx.weight();
+            if i > 0 && tx.is_segwit() {
+                sw_txs += 1;
+                sw_size += tx.total_size as usize;
+                sw_weight += tx.weight();
+            }
+        }
+
+        let h = self.height;
+        let blocks = &mut self.vecs.blocks;
+        blocks.size.debug_checked_push(h, total_size.into());
+        blocks.weight.debug_checked_push(h, weight.into());
+        blocks.segwit_tx_count.debug_checked_push(h, sw_txs.into());
+        blocks.segwit_tx_size.debug_checked_push(h, sw_size.into());
+        blocks
+            .segwit_tx_weight
+            .debug_checked_push(h, sw_weight.into());
+    }
+}

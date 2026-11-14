@@ -10,7 +10,7 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    pub(crate) fn new(bytes: &'a [u8], offset: u32, len: u32, step_size: u8) -> Self {
+    pub fn new(bytes: &'a [u8], offset: u32, len: u32, step_size: u8) -> Self {
         let offset = offset as usize;
         let len = len as usize;
         let step_size = step_size as usize;
@@ -31,7 +31,21 @@ impl<'a> Reader<'a> {
         self.bytes.len() / self.step_size
     }
 
-    pub(crate) fn get(&self, idx: usize) -> usize {
+    pub fn partition_point(&self, pred: impl Fn(usize) -> bool) -> usize {
+        if self.step_size == 2 {
+            self.bytes
+                .as_chunks::<2>()
+                .0
+                .partition_point(|bytes| pred(usize::from(u16::from_le_bytes(*bytes))))
+        } else {
+            self.bytes
+                .as_chunks::<4>()
+                .0
+                .partition_point(|bytes| pred(u32::from_le_bytes(*bytes) as usize))
+        }
+    }
+
+    pub fn get(&self, idx: usize) -> usize {
         let offset = idx * self.step_size;
 
         #[expect(

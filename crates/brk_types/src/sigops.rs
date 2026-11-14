@@ -1,18 +1,19 @@
+use derive_more::{Add, AddAssign, Deref, From, Into, Sub, SubAssign, Sum};
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Formattable, Pco};
 
-use crate::VSize;
+use crate::{CheckedSub, SigOps32, VSize};
 
-/// BIP-141 sigop cost. The block-level budget is 80,000, so a `u32`
-/// fits a single tx's count with room to spare.
-///
-/// Witness sigops count as 1; legacy and P2SH-redeem sigops count as 4.
-/// Five vbytes per sigop is the policy adjustment Core applies in
-/// `nSigOpCost` to discourage sigop-heavy txs (`max(weight/4, sigops*5)`).
+#[cfg(feature = "storage")]
+use vecdb::Pco;
+
+/// BIP-141 signature-operation cost: legacy and P2SH-redeem sigops count four and witness sigops
+/// one. Sums over many transactions or blocks use the full 64 bits.
 #[derive(
     Debug,
     Default,
+    Deref,
     Clone,
     Copy,
     PartialEq,
@@ -22,63 +23,84 @@ use crate::VSize;
     Hash,
     Serialize,
     Deserialize,
-    Pco,
-    JsonSchema,
+    Add,
+    AddAssign,
+    Sub,
+    SubAssign,
+    Sum,
+    From,
+    Into,
 )]
-#[serde(transparent)]
-pub struct SigOps(u32);
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
+pub struct SigOps(u64);
 
 impl SigOps {
     pub const ZERO: Self = Self(0);
 
-    /// Vbytes per sigop under BIP-141 policy. Core's `nSigOpCost`
-    /// adjustment factor: `adjusted_vsize = max(vsize, sigops * 5)`.
-    pub const VBYTES_PER_SIGOP: u64 = 5;
+    /// Vbytes per sigop under BIP-141 policy.
+    const VBYTES_PER_SIGOP: u64 = 5;
 
     #[inline]
-    pub const fn new(value: u32) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
-    }
-
-    /// BIP-141 vbyte equivalent of this sigop count.
-    #[inline]
-    pub fn vsize_cost(self) -> VSize {
-        VSize::new(u64::from(self.0) * Self::VBYTES_PER_SIGOP)
     }
 
     /// Policy-adjusted vsize: `max(vsize, sigops * 5)`. The denominator
     /// Core uses when ranking sigop-heavy txs at fixed fee.
     #[inline]
     pub fn adjust_vsize(self, vsize: VSize) -> VSize {
-        vsize.max(self.vsize_cost())
+        vsize.max(VSize::new(self.0 * Self::VBYTES_PER_SIGOP))
     }
 }
 
-impl From<u32> for SigOps {
+/// Narrowing to the storage form: a transaction's sigop cost fits 32 bits (checked in dev builds).
+impl From<SigOps> for SigOps32 {
     #[inline]
-    fn from(value: u32) -> Self {
-        Self(value)
+    fn from(value: SigOps) -> Self {
+        debug_assert!(
+            u32::try_from(value.0).is_ok(),
+            "{} doesn't fit SigOps32",
+            value.0
+        );
+        Self::new(value.0 as u32)
+    }
+}
+
+impl From<SigOps32> for SigOps {
+    #[inline]
+    fn from(value: SigOps32) -> Self {
+        Self(u64::from(u32::from(value)))
     }
 }
 
 impl From<usize> for SigOps {
     #[inline]
     fn from(value: usize) -> Self {
-        Self(value as u32)
+        Self(value as u64)
     }
 }
 
-impl From<SigOps> for u32 {
+/// Saturating (`as` from a float clamps and maps NaN to zero).
+impl From<f64> for SigOps {
+    #[inline]
+    fn from(value: f64) -> Self {
+        Self(value as u64)
+    }
+}
+
+impl From<SigOps> for f64 {
     #[inline]
     fn from(value: SigOps) -> Self {
-        value.0
+        value.0 as f64
     }
 }
 
-impl Formattable for SigOps {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
+impl CheckedSub for SigOps {
+    #[inline]
+    fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.0.checked_sub(rhs.0).map(Self)
     }
 }
+
+crate::impl_int_format!(SigOps);

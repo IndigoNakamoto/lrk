@@ -1,51 +1,59 @@
 #![doc = include_str!("../README.md")]
 
-use std::{borrow::Cow, cmp::Ordering, fmt::Debug, fs, hash::Hash, mem, ops::Range, path::Path};
+use std::{
+    cmp::Ordering,
+    fs,
+    hash::Hash,
+    marker::PhantomData,
+    ops::{Bound, RangeBounds},
+    path::Path,
+};
 
 use brk_error::Result;
-use brk_types::Version;
-use byteview::ByteView;
-use fjall::{Database, Keyspace, KeyspaceCreateOptions, config::*};
+use brk_types::{StoreValue, Version};
+use fjall::{
+    Database, FORMAT_VERSION, Keyspace, KeyspaceCreateOptions, ReadView, RecordBytes, config::*,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 mod any;
 mod item;
 mod kind;
 mod meta;
-mod mode;
+mod pending;
+mod pending_ingest;
+#[cfg(test)]
+mod tests;
 
 use item::Item;
-use meta::StoreMeta;
+use meta::checked_open;
+use pending::Pending;
 
 pub use any::*;
 pub use kind::*;
-pub use mode::*;
+pub use pending_ingest::PendingIngest;
 
-const MAJOR_FJALL_VERSION: Version = Version::new(4);
+const BLOCK_CACHE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
-pub fn open_database(path: &Path) -> fjall::Result<Database> {
-    Database::builder(path.join("fjall"))
-        .cache_size(3 * 1024 * 1024 * 1024)
-        .max_cached_files(Some(512))
-        .open()
+pub fn open_database(path: &Path) -> Result<Database> {
+    Ok(Database::builder(path.join("fjall"))
+        .cache_size(BLOCK_CACHE_BYTES)
+        .max_cached_files(512)
+        .open()?)
 }
-
-pub type PendingIngest = Box<dyn FnOnce() -> Result<()> + Send>;
 
 #[derive(Clone)]
 pub struct Store<K, V> {
-    meta: StoreMeta,
     keyspace: Keyspace,
-    puts: FxHashMap<K, V>,
-    dels: FxHashSet<K>,
-    caches: Vec<FxHashMap<K, V>>,
+    pending: Pending<K, V>,
 }
 
 impl<K, V> Store<K, V>
 where
-    K: Debug + Clone + From<ByteView> + Ord + Eq + Hash,
-    V: Debug + Clone + From<ByteView>,
-    ByteView: From<K> + From<V>,
+    K: StoreValue + Ord + Hash,
+    V: StoreValue,
+    K::Bytes: RecordBytes,
+    V::Bytes: RecordBytes,
     Self: Send + Sync,
 {
     pub fn import(
@@ -53,63 +61,24 @@ where
         path: &Path,
         name: &str,
         version: Version,
-        mode: Mode,
         kind: Kind,
-    ) -> Result<Self> {
-        Self::import_inner(db, path, name, version, mode, kind, 0)
-    }
-
-    pub fn import_cached(
-        db: &Database,
-        path: &Path,
-        name: &str,
-        version: Version,
-        mode: Mode,
-        kind: Kind,
-        max_batches: u8,
-    ) -> Result<Self> {
-        Self::import_inner(db, path, name, version, mode, kind, max_batches)
-    }
-
-    fn import_inner(
-        db: &Database,
-        path: &Path,
-        name: &str,
-        version: Version,
-        mode: Mode,
-        kind: Kind,
-        max_batches: u8,
     ) -> Result<Self> {
         fs::create_dir_all(path)?;
 
-        let (meta, keyspace) = StoreMeta::checked_open(
+        let keyspace = checked_open(
             &path.join(format!("meta/{name}")),
-            MAJOR_FJALL_VERSION + version,
-            || {
-                Self::open_keyspace(db, name, mode, kind).inspect_err(|e| {
-                    eprintln!("{e}");
-                    eprintln!("Delete {path:?} and try again");
-                })
-            },
+            Version::new(u32::from(FORMAT_VERSION)) + version,
+            || Self::open_keyspace(db, name, kind),
         )?;
-
-        let mut caches = vec![];
-        for _ in 0..max_batches {
-            caches.push(FxHashMap::default());
-        }
-
         Ok(Self {
-            meta,
             keyspace,
-            puts: FxHashMap::default(),
-            dels: FxHashSet::default(),
-            caches,
+            pending: Pending::new(kind),
         })
     }
 
-    fn open_keyspace(database: &Database, name: &str, _mode: Mode, kind: Kind) -> Result<Keyspace> {
+    fn open_keyspace(database: &Database, name: &str, kind: Kind) -> Result<Keyspace> {
         let mut options = KeyspaceCreateOptions::default()
-            .manual_journal_persist(true)
+            .compaction_records::<K::Bytes, V::Bytes>()
             .filter_block_partitioning_policy(PartitioningPolicy::new([false, false, true]))
             .index_block_partitioning_policy(PartitioningPolicy::new([false, false, true]));
 
@@ -141,7 +110,6 @@ where
             Kind::Vec => {
                 options = options
                     .data_block_restart_interval_policy(RestartIntervalPolicy::all(8))
-                    .max_memtable_size(8 * 1024 * 1024)
                     .filter_policy(FilterPolicy::disabled())
                     .filter_block_pinning_policy(PinningPolicy::all(false))
                     .index_block_pinning_policy(PinningPolicy::all(false));
@@ -152,181 +120,88 @@ where
     }
 
     #[inline]
-    pub fn get<'a>(&'a self, key: &'a K) -> Result<Option<Cow<'a, V>>>
-    where
-        ByteView: From<&'a K>,
-    {
-        if let Some(v) = self.puts.get(key) {
-            return Ok(Some(Cow::Borrowed(v)));
+    pub fn get(&self, key: &K) -> Result<Option<V>> {
+        if let Some(pending) = self.pending.get(key) {
+            return Ok(pending.copied());
         }
-
-        for cache in &self.caches {
-            if let Some(v) = cache.get(key) {
-                return Ok(Some(Cow::Borrowed(v)));
-            }
-        }
-
-        if let Some(slice) = self.keyspace.get_standard(ByteView::from(key))? {
-            Ok(Some(Cow::Owned(V::from(ByteView::from(slice)))))
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> Result<bool> {
-        self.keyspace.is_empty().map_err(|e| e.into())
+        Ok(self
+            .keyspace
+            .get_as::<V::Bytes>(key.to_store_bytes().as_ref())?
+            .map(V::from_store_bytes))
     }
 
     #[inline]
     pub fn insert(&mut self, key: K, value: V) {
-        let _ = self.dels.is_empty() || self.dels.remove(&key);
-        self.puts.insert(key, value);
+        self.pending.insert(key, value);
     }
 
     #[inline]
     pub fn remove(&mut self, key: K) {
-        if self.puts.remove(&key).is_some() {
-            return;
+        self.pending.remove(key);
+    }
+
+    /// Pins the ingested records for later reads. Call it with nothing pending: the view holds
+    /// only ingested records.
+    pub fn view(&self) -> StoreView<K, V> {
+        debug_assert!(
+            self.pending.is_empty(),
+            "a store view excludes pending writes"
+        );
+        StoreView {
+            view: self.keyspace.read_view(),
+            records: PhantomData,
         }
-        let newly_inserted = self.dels.insert(key);
-        debug_assert!(newly_inserted, "Double deletion at {:?}", self.meta.path());
     }
 
-    /// Clear all caches. Call after bulk removals (e.g., rollback) to prevent stale reads.
+    /// The ingested records in `range`, storage errors as `Err` items.
     #[inline]
-    pub fn clear_caches(&mut self) {
-        for cache in &mut self.caches {
-            *cache = FxHashMap::default();
-        }
-    }
-
-    /// Takes buffered puts/dels and returns a closure that ingests them into the keyspace.
-    /// The store is left with empty buffers, ready for the next batch. The caller must
-    /// persist the database after ingestion before treating the data as durable.
-    pub fn take_pending_ingest(&mut self) -> Option<PendingIngest>
-    where
-        K: Send + 'static,
-        V: Send + 'static,
-        for<'a> ByteView: From<&'a K> + From<&'a V>,
-    {
-        let puts = mem::take(&mut self.puts);
-        let dels = mem::take(&mut self.dels);
-
-        if puts.is_empty() && dels.is_empty() {
-            return None;
-        }
-
-        let keyspace = self.keyspace.clone();
-
-        Some(Box::new(move || Self::ingest_owned(&keyspace, puts, dels)))
-    }
-
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = (K, V)> {
-        self.keyspace
-            .iter_standard()
-            .map(Result::unwrap)
-            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
-    }
-
-    #[inline]
-    pub fn prefix<P: Into<ByteView>>(
+    pub fn range<B: StoreValue>(
         &self,
-        prefix: P,
-    ) -> impl DoubleEndedIterator<Item = (K, V)> + '_ {
-        let prefix: ByteView = prefix.into();
+        range: impl RangeBounds<B>,
+    ) -> impl DoubleEndedIterator<Item = Result<(K, V)>> + '_ {
+        let bytes = |bound: Bound<&B>| bound.map(StoreValue::to_store_bytes);
         self.keyspace
-            .prefix_standard(prefix)
-            .map(Result::unwrap)
-            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
+            .range_as::<K::Bytes, V::Bytes, _, _>((
+                bytes(range.start_bound()),
+                bytes(range.end_bound()),
+            ))
+            .map(|result| {
+                let (k, v) = result?;
+                Ok((K::from_store_bytes(k), V::from_store_bytes(v)))
+            })
     }
 
-    #[inline]
-    pub fn range<B: Into<ByteView>>(
-        &self,
-        range: Range<B>,
-    ) -> impl DoubleEndedIterator<Item = (K, V)> + '_ {
-        let start: ByteView = range.start.into();
-        let end: ByteView = range.end.into();
-        self.keyspace
-            .range_standard(start..end)
-            .map(Result::unwrap)
-            .map(|(k, v)| (K::from(ByteView::from(k)), V::from(ByteView::from(v))))
-    }
-
-    pub fn approximate_len(&self) -> usize {
-        self.keyspace.approximate_len()
-    }
-
-    fn ingest<'a>(
-        keyspace: &Keyspace,
-        puts: impl Iterator<Item = (&'a K, &'a V)>,
-        dels: impl Iterator<Item = &'a K>,
-    ) -> Result<()>
-    where
-        ByteView: From<&'a K> + From<&'a V>,
-        K: 'a,
-        V: 'a,
-    {
-        let mut items: Vec<Item<&'a K, &'a V>> = puts
-            .map(|(key, value)| Item::Value { key, value })
-            .chain(dels.map(Item::Tomb))
-            .collect();
-
-        items.sort_unstable();
-
-        let mut ingestion = keyspace.start_ingestion()?;
-        // FxHashMap/FxHashSet keep keys unique and disjoint; sorting therefore
-        // proves the strict ordering required by ingestion.
-        for item in items {
-            match item {
-                Item::Value { key, value } => {
-                    ingestion.write(ByteView::from(key), ByteView::from(value))?;
-                }
-                Item::Tomb(key) => {
-                    ingestion.write_weak_tombstone(ByteView::from(key))?;
-                }
-            }
-        }
-        // Store keyspaces are mutated only through these ingestion phases, so
-        // no journaled Fjall write can race their completion.
-        ingestion.finish_exclusive()?;
-
-        Ok(())
-    }
-
-    fn ingest_owned(keyspace: &Keyspace, puts: FxHashMap<K, V>, dels: FxHashSet<K>) -> Result<()> {
+    fn ingest_hashed(keyspace: &Keyspace, puts: FxHashMap<K, V>, dels: FxHashSet<K>) -> Result<()> {
         let mut puts: Vec<_> = puts.into_iter().collect();
         let mut dels: Vec<_> = dels.into_iter().collect();
 
-        puts.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+        puts.sort_unstable_by_key(|(key, _)| *key);
         dels.sort_unstable();
 
         let mut puts = puts.into_iter().peekable();
         let mut dels = dels.into_iter().peekable();
-        let mut ingestion = keyspace.start_ingestion()?;
+        let mut ingestion = keyspace.start_ingestion_as::<K::Bytes, V::Bytes>()?;
 
         // The buffers are unique and disjoint, and this merge emits them in
         // strict key order, so release builds can skip re-cloning each key.
-        while puts.peek().is_some() || dels.peek().is_some() {
+        loop {
             match (puts.peek(), dels.peek()) {
                 (Some((put_key, _)), Some(del_key)) => match put_key.cmp(del_key) {
                     Ordering::Less => {
                         let (key, value) = puts.next().unwrap();
-                        ingestion.write(ByteView::from(key), ByteView::from(value))?;
+                        ingestion.write(key.to_store_bytes(), value.to_store_bytes())?;
                     }
                     Ordering::Greater => {
-                        ingestion.write_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
+                        ingestion.write_weak_tombstone(dels.next().unwrap().to_store_bytes())?;
                     }
                     Ordering::Equal => unreachable!("key is both inserted and deleted"),
                 },
                 (Some(_), None) => {
                     let (key, value) = puts.next().unwrap();
-                    ingestion.write(ByteView::from(key), ByteView::from(value))?;
+                    ingestion.write(key.to_store_bytes(), value.to_store_bytes())?;
                 }
                 (None, Some(_)) => {
-                    ingestion.write_weak_tombstone(ByteView::from(dels.next().unwrap()))?;
+                    ingestion.write_weak_tombstone(dels.next().unwrap().to_store_bytes())?;
                 }
                 (None, None) => break,
             }
@@ -334,34 +209,92 @@ where
 
         // Store keyspaces are mutated only through these ingestion phases, so
         // no journaled Fjall write can race their completion.
-        ingestion.finish_exclusive()?;
+        ingestion.finish()?;
         Ok(())
+    }
+
+    fn ingest_sequential(keyspace: &Keyspace, mut changes: Vec<Item<K, V>>) -> Result<()> {
+        // Equal-key operations must retain their arrival order.
+        changes.sort_by(|left, right| left.key().cmp(right.key()));
+
+        let mut ingestion = keyspace.start_ingestion_as::<K::Bytes, V::Bytes>()?;
+        for same_key in changes.chunk_by(|left, right| left.key() == right.key()) {
+            match Item::reduce(same_key) {
+                Some(Item::Value { key, value }) => {
+                    ingestion.write(key.to_store_bytes(), value.to_store_bytes())?;
+                }
+                Some(Item::Tomb(key)) => ingestion.write_weak_tombstone(key.to_store_bytes())?,
+                None => {}
+            }
+        }
+
+        ingestion.finish()?;
+        Ok(())
+    }
+}
+
+/// A store's ingested records pinned at one moment: later writes and ingestions stay invisible
+/// to it, and the tables it reads stay on disk while it lives.
+pub struct StoreView<K, V> {
+    view: ReadView,
+    records: PhantomData<fn() -> (K, V)>,
+}
+
+impl<K, V> Clone for StoreView<K, V> {
+    fn clone(&self) -> Self {
+        Self {
+            view: self.view.clone(),
+            records: PhantomData,
+        }
+    }
+}
+
+impl<K, V> StoreView<K, V>
+where
+    K: StoreValue,
+    V: StoreValue,
+    K::Bytes: RecordBytes,
+    V::Bytes: RecordBytes,
+{
+    /// The pinned records under `prefix`, storage errors as `Err` items.
+    #[inline]
+    pub fn prefix<P: StoreValue>(
+        &self,
+        prefix: P,
+    ) -> impl DoubleEndedIterator<Item = Result<(K, V)>> + use<K, V, P> {
+        self.view
+            .prefix_as::<K::Bytes, V::Bytes>(prefix.to_store_bytes().as_ref())
+            .map(|result| {
+                let (k, v) = result?;
+                Ok((K::from_store_bytes(k), V::from_store_bytes(v)))
+            })
     }
 }
 
 impl<K, V> AnyStore for Store<K, V>
 where
-    K: Debug + Clone + From<ByteView> + Ord + Eq + Hash,
-    V: Debug + Clone + From<ByteView>,
-    for<'a> ByteView: From<K> + From<V> + From<&'a K> + From<&'a V>,
+    K: StoreValue + Ord + Hash + Send + 'static,
+    V: StoreValue + Send + 'static,
+    K::Bytes: RecordBytes,
+    V::Bytes: RecordBytes,
     Self: Send + Sync,
 {
-    fn ingest_pending(&mut self) -> Result<()> {
-        let puts = mem::take(&mut self.puts);
-        let dels = mem::take(&mut self.dels);
+    fn is_empty(&self) -> Result<bool> {
+        self.keyspace.is_empty().map_err(|e| e.into())
+    }
 
-        if puts.is_empty() && dels.is_empty() {
-            return Ok(());
+    fn take_pending_ingest(&mut self) -> Option<PendingIngest> {
+        let pending = self.pending.take();
+
+        if pending.is_empty() {
+            return None;
         }
 
-        if self.caches.is_empty() {
-            Self::ingest_owned(&self.keyspace, puts, dels)?;
-        } else {
-            Self::ingest(&self.keyspace, puts.iter(), dels.iter())?;
-            self.caches.pop();
-            self.caches.insert(0, puts);
-        }
+        let keyspace = self.keyspace.clone();
 
-        Ok(())
+        Some(PendingIngest::new(move || match pending {
+            Pending::Hashed { puts, dels } => Self::ingest_hashed(&keyspace, puts, dels),
+            Pending::Sequential(changes) => Self::ingest_sequential(&keyspace, changes),
+        }))
     }
 }

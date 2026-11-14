@@ -1,11 +1,13 @@
-use crate::{Error, Result};
+use crate::Error;
 
 use super::Bytes;
 
 macro_rules! impl_bytes_for_numeric {
     ($($t:ty),*) => {
         $(
-            impl Bytes for $t {
+            // SAFETY: `to_le_bytes` has the primitive's size; on little-endian targets, they
+            // are the in-memory bytes of a padding-free primitive valid for every bit pattern.
+            unsafe impl Bytes for $t {
                 type Array = [u8; std::mem::size_of::<$t>()];
                 const IS_NATIVE_LAYOUT: bool = cfg!(target_endian = "little");
 
@@ -15,7 +17,7 @@ macro_rules! impl_bytes_for_numeric {
                 }
 
                 #[inline]
-                fn from_bytes(bytes: &[u8]) -> Result<Self> {
+                fn from_bytes(bytes: &[u8]) -> crate::Result<Self> {
                     let arr: [u8; std::mem::size_of::<$t>()] = bytes
                         .try_into()
                         .map_err(|_| Error::WrongLength {
