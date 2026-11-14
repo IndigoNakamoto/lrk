@@ -14,6 +14,8 @@ const PAGE_SIZE: usize = 4096;
 pub mod addrs;
 pub mod blocks;
 pub mod inputs;
+#[cfg(feature = "litecoin")]
+pub mod mweb;
 pub mod op_return;
 pub mod outputs;
 pub mod scripts;
@@ -22,6 +24,8 @@ pub mod transactions;
 pub use addrs::*;
 pub use blocks::*;
 pub use inputs::*;
+#[cfg(feature = "litecoin")]
+pub use mweb::*;
 pub use op_return::*;
 pub use outputs::*;
 pub use scripts::*;
@@ -39,6 +43,8 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub addrs: AddrsVecs<M>,
     pub scripts: ScriptsVecs<M>,
     pub op_return: OpReturnVecs<M>,
+    #[cfg(feature = "litecoin")]
+    pub mweb: MwebVecs<M>,
 }
 
 impl Vecs {
@@ -55,6 +61,8 @@ impl Vecs {
             scripts = ScriptsVecs::import(&db, version),
             op_return = OpReturnVecs::import(&db, version),
         };
+        #[cfg(feature = "litecoin")]
+        let mweb = MwebVecs::import(&db, version)?;
 
         let this = Self {
             db,
@@ -65,6 +73,8 @@ impl Vecs {
             addrs,
             scripts,
             op_return,
+            #[cfg(feature = "litecoin")]
+            mweb,
         };
 
         this.db.retain_accessed_regions()?;
@@ -138,13 +148,17 @@ impl Vecs {
     }
 
     fn iter_any_stored_vec(&self) -> impl Iterator<Item = &dyn AnyStoredVec> {
-        self.blocks
+        let vecs = self
+            .blocks
             .iter_any()
             .chain(self.transactions.iter_any())
             .chain(self.inputs.iter_any())
             .chain(self.outputs.iter_any())
             .chain(self.addrs.iter_any())
             .chain(self.scripts.iter_any())
-            .chain(self.op_return.iter_any())
+            .chain(self.op_return.iter_any());
+        #[cfg(feature = "litecoin")]
+        let vecs = vecs.chain(self.mweb.iter_any());
+        vecs
     }
 }

@@ -201,7 +201,7 @@ impl OutputRanges {
 /// The output types whose scripts the indexer does not keep: read from their transaction.
 fn script_in_parent(output_type: OutputType) -> bool {
     matches!(
-        output_type,
+        output_type.storage_type(),
         OutputType::P2MS | OutputType::UnknownScript | OutputType::OpReturn
     )
 }

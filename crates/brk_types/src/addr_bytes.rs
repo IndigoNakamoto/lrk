@@ -64,6 +64,8 @@ impl AddressBytes {
             | OutputType::UnknownScript
             | OutputType::EmptyScript
             | OutputType::OpReturn => Err(Error::WrongAddrType),
+            #[cfg(feature = "litecoin")]
+            OutputType::MWEBPegPool | OutputType::MWEBPegIn => Err(Error::WrongAddrType),
         }
     }
 
@@ -139,6 +141,8 @@ impl TryFrom<(&ScriptBuf, OutputType)> for AddressBytes {
             | OutputType::OpReturn => {
                 unreachable!()
             }
+            #[cfg(feature = "litecoin")]
+            OutputType::MWEBPegPool | OutputType::MWEBPegIn => unreachable!(),
         })
     }
 }

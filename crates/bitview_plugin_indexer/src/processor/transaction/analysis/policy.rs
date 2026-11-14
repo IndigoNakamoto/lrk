@@ -163,6 +163,8 @@ pub fn is_dust(value: Amount, output_type: OutputType, script: &Script) -> bool 
         OutputType::P2WSH | OutputType::P2TR => 330,
         OutputType::P2A => 240,
         OutputType::EmptyScript => 471,
+        #[cfg(feature = "litecoin")]
+        OutputType::MWEBPegPool | OutputType::MWEBPegIn => return false,
     };
 
     value.to_sat() < threshold

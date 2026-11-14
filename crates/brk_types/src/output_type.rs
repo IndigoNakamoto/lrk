@@ -14,6 +14,8 @@ use bitcoin::{
         OP_RETURN,
     },
 };
+#[cfg(feature = "litecoin")]
+use bitcoin::opcodes::all::{OP_PUSHNUM_8, OP_PUSHNUM_9};
 use brk_error::Error;
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
@@ -45,6 +47,16 @@ pub enum OutputType {
     EmptyScript,
     #[serde(rename = "unknown_script")]
     UnknownScript,
+    /// The MWEB pool's HogAddr: HogEx output 0, a witness v8 program holding every coin inside
+    /// the extension block. Moved by consensus each block, never owned by a user.
+    #[cfg(feature = "litecoin")]
+    #[serde(rename = "mweb_peg_pool")]
+    MWEBPegPool,
+    /// A peg-in into MWEB: a witness v9 program committing to its kernel, swept into the HogEx
+    /// in the same block.
+    #[cfg(feature = "litecoin")]
+    #[serde(rename = "mweb_peg_in")]
+    MWEBPegIn,
 }
 
 impl fmt::Display for OutputType {
@@ -63,6 +75,10 @@ impl fmt::Display for OutputType {
                 Self::P2A => "p2a",
                 Self::EmptyScript => "empty_script",
                 Self::UnknownScript => "unknown_script",
+                #[cfg(feature = "litecoin")]
+                Self::MWEBPegPool => "mweb_peg_pool",
+                #[cfg(feature = "litecoin")]
+                Self::MWEBPegIn => "mweb_peg_in",
             },
             f,
         )
@@ -115,18 +131,48 @@ impl fmt::Display for OutputTypeNormalized {
 }
 
 impl OutputType {
-    pub const COUNT: usize = Self::UnknownScript as usize + 1;
+    #[cfg(not(feature = "litecoin"))]
+    const LAST: Self = Self::UnknownScript;
+    #[cfg(feature = "litecoin")]
+    const LAST: Self = Self::MWEBPegIn;
+
+    pub const COUNT: usize = Self::LAST as usize + 1;
 
     #[cfg(feature = "storage")]
     fn is_valid(value: u8) -> bool {
-        value <= Self::UnknownScript as u8
+        value <= Self::LAST as u8
     }
 
     pub fn is_addr(&self) -> bool {
         !matches!(
             self,
             Self::P2MS | Self::OpReturn | Self::EmptyScript | Self::UnknownScript
-        )
+        ) && !self.is_mweb()
+    }
+
+    /// Whether this is one of MWEB's protocol outputs (the HogAddr or a peg-in), which move
+    /// coins between the transparent chain and the extension block rather than between owners.
+    #[inline]
+    pub const fn is_mweb(&self) -> bool {
+        #[cfg(feature = "litecoin")]
+        {
+            matches!(self, Self::MWEBPegPool | Self::MWEBPegIn)
+        }
+        #[cfg(not(feature = "litecoin"))]
+        {
+            false
+        }
+    }
+
+    /// The type whose per-type index space and script vecs this type's outputs share: MWEB
+    /// outputs are numbered among the unknown scripts, which is what they are to Bitcoin rules.
+    #[inline]
+    pub const fn storage_type(self) -> Self {
+        if self.is_mweb() {
+            Self::UnknownScript
+        } else {
+            self
+        }
     }
 
     pub fn is_not_addr(&self) -> bool {
@@ -150,6 +196,8 @@ impl OutputType {
             Self::P2A => OutputTypeNormalized::P2A,
             Self::EmptyScript => OutputTypeNormalized::Empty,
             Self::UnknownScript => OutputTypeNormalized::Unknown,
+            #[cfg(feature = "litecoin")]
+            Self::MWEBPegPool | Self::MWEBPegIn => OutputTypeNormalized::Unknown,
         }
     }
 
@@ -197,6 +245,14 @@ impl From<&ScriptBuf> for OutputType {
             }
             67 if bytes[0] == OP_PUSHBYTES_65.to_u8() && bytes[66] == OP_CHECKSIG.to_u8() => {
                 Self::P2PK65
+            }
+            #[cfg(feature = "litecoin")]
+            34 if bytes[0] == OP_PUSHNUM_8.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::MWEBPegPool
+            }
+            #[cfg(feature = "litecoin")]
+            34 if bytes[0] == OP_PUSHNUM_9.to_u8() && bytes[1] == OP_PUSHBYTES_32.to_u8() => {
+                Self::MWEBPegIn
             }
             _ if bytes[0] == OP_RETURN.to_u8() => Self::OpReturn,
             _ if script.is_multisig() => Self::P2MS,

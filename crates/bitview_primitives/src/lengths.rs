@@ -112,7 +112,7 @@ impl Lengths {
     }
 
     pub fn to_type_index(mut self, output_type: OutputType) -> TypeIndex {
-        match output_type {
+        match output_type.storage_type() {
             OutputType::EmptyScript => *self.empty_script_output_index,
             OutputType::OpReturn => *self.op_return_output_index,
             OutputType::P2MS => *self.p2ms_output_index,

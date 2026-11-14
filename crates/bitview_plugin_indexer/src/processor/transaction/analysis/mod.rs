@@ -58,6 +58,8 @@ impl BlockProcessor<'_> {
 
             let mut sigops = sigops::Accumulator::new(track_executed_legacy);
             let mut flags = TxFeatureFlags::default();
+            #[cfg(feature = "litecoin")]
+            flags.insert(TxFeatureFlags::HOGEX * u32::from(tx.tx.is_hog_ex));
             let mut output_scanner = output::Scanner::default();
             let mut policy = policy::Accumulator::new(self.height);
 

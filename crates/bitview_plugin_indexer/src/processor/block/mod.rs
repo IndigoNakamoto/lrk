@@ -1,3 +1,6 @@
+#[cfg(feature = "litecoin")]
+mod mweb;
+
 use bitcoin::{VarInt, Weight, block::Header};
 use bitview_primitives::BlockHashPrefix;
 use brk_error::{Error, Result};

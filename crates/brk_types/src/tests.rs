@@ -40,6 +40,10 @@ fn address_output_types() {
         "p2a",
         "empty_script",
         "unknown_script",
+        #[cfg(feature = "litecoin")]
+        "mweb_peg_pool",
+        #[cfg(feature = "litecoin")]
+        "mweb_peg_in",
     ];
     assert_eq!(names.len(), OutputType::COUNT);
     for name in names {
@@ -50,5 +54,22 @@ fn address_output_types() {
         if let Ok(address_type) = parsed {
             assert_eq!(serde_json::to_string(&address_type).unwrap(), json);
         }
+    }
+}
+
+#[cfg(feature = "litecoin")]
+#[test]
+fn mweb_scripts_classify() {
+    let program = |version: u8| {
+        let mut bytes = vec![version, 0x20];
+        bytes.extend([7u8; 32]);
+        bitcoin::ScriptBuf::from_bytes(bytes)
+    };
+    assert_eq!(OutputType::from(&program(0x58)), OutputType::MWEBPegPool);
+    assert_eq!(OutputType::from(&program(0x59)), OutputType::MWEBPegIn);
+    assert_eq!(OutputType::from(&program(0x5a)), OutputType::UnknownScript);
+    for output_type in [OutputType::MWEBPegPool, OutputType::MWEBPegIn] {
+        assert!(output_type.is_mweb() && !output_type.is_addr());
+        assert_eq!(output_type.storage_type(), OutputType::UnknownScript);
     }
 }

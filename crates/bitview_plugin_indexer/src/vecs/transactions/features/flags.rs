@@ -44,6 +44,8 @@ impl TxFeatureFlags {
             OutputType::OpReturn => Self::OP_RETURN,
             OutputType::EmptyScript => Self::EMPTY,
             OutputType::UnknownScript => Self::UNKNOWN,
+            #[cfg(feature = "litecoin")]
+            OutputType::MWEBPegPool | OutputType::MWEBPegIn => Self::MWEB,
         };
     }
 

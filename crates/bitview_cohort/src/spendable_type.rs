@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use super::{CohortId, CohortName};
 
 impl SpendableTypeId {
-    /// `None` for OP_RETURN, the one unspendable type.
+    /// `None` for OP_RETURN, the one unspendable type, and for MWEB's protocol outputs, which
+    /// belong to no holder.
     #[inline]
     pub const fn from_output_type(value: OutputType) -> Option<Self> {
         match value {
@@ -22,6 +23,8 @@ impl SpendableTypeId {
             OutputType::EmptyScript => Some(Self::EmptyScript),
             OutputType::UnknownScript => Some(Self::UnknownScript),
             OutputType::OpReturn => None,
+            #[cfg(feature = "litecoin")]
+            OutputType::MWEBPegPool | OutputType::MWEBPegIn => None,
         }
     }
 

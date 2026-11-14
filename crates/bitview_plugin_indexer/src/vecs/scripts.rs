@@ -81,7 +81,7 @@ impl ScriptsVecs {
         type_index: TypeIndex,
         readers: &ScriptReaders,
     ) -> Option<SigOps32> {
-        match output_type {
+        match output_type.storage_type() {
             OutputType::P2PK65 | OutputType::P2PK33 | OutputType::P2PKH => Some(SigOps32::new(4)),
             OutputType::P2MS => self
                 .p2ms

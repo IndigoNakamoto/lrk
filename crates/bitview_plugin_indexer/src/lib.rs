@@ -590,6 +590,8 @@ impl Indexer {
 
             let txs = processor.compute_txids()?;
             processor.push_block_size_and_weight(&txs);
+            #[cfg(feature = "litecoin")]
+            processor.push_mweb();
 
             let BlockBuffers {
                 inputs,

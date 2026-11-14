@@ -149,7 +149,7 @@ pub fn finalize_outputs(
                         .debug_checked_push(op_return_output_index, op_return.post_op_return_bytes);
                     lengths.op_return_output_index.copy_then_increment()
                 }
-                ProcessedOutputData::None | ProcessedOutputData::Script { .. } => match output_type
+                ProcessedOutputData::None | ProcessedOutputData::Script { .. } => match output_type.storage_type()
                 {
                     OutputType::P2MS => {
                         let index = lengths.p2ms_output_index;

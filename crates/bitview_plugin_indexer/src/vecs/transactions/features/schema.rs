@@ -1,5 +1,6 @@
-macro_rules! with_transaction_features {
-    ($macro:ident) => {
+/// The transaction features, followed by `$extra` (more `features` entries).
+macro_rules! transaction_features_with {
+    ($macro:ident; $($extra:tt)*) => {
         $macro! {
             features {
                 /// Transactions that create or, outside coinbase, spend at least one P2PK-shaped output with a 33- or
@@ -102,11 +103,37 @@ macro_rules! with_transaction_features {
                 /// `OP_RETURN` payload.
                 #[traversable(lead = "EPOBC transactions: colored coins, an early way of issuing assets on Bitcoin.")]
                 epobc: is_epobc, EPOBC = 23;
+                $($extra)*
             }
             flags {
                 #[traversable(hidden)]
                 is_unconditionally_nonstandard: UNCONDITIONALLY_NONSTANDARD = 20;
             }
+        }
+    };
+}
+
+#[cfg(not(feature = "litecoin"))]
+macro_rules! with_transaction_features {
+    ($macro:ident) => {
+        transaction_features_with!($macro;);
+    };
+}
+
+#[cfg(feature = "litecoin")]
+macro_rules! with_transaction_features {
+    ($macro:ident) => {
+        transaction_features_with! {
+            $macro;
+            /// The block's HogEx (integrating transaction): its last transaction from MWEB
+            /// activation on, which moves the MWEB pool's HogAddr forward, sweeps the block's
+            /// peg-ins in and pays its peg-outs. Built by the miner, not by a user.
+            #[traversable(lead = "HogEx transactions: the one per block that moves coins in and out of MWEB.")]
+            hogex: is_hogex, HOGEX = 24;
+            /// Transactions that create or, outside coinbase, spend an MWEB protocol output: a
+            /// peg-in (witness v9) or the HogAddr (witness v8). Peg-in transactions and the HogEx.
+            #[traversable(lead = "Transactions moving coins into or out of MWEB.")]
+            mweb: has_mweb, MWEB = 25;
         }
     };
 }

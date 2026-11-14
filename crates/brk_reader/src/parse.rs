@@ -219,7 +219,25 @@ mod mweb {
                     .map(|o| o.value.to_sat() as i64)
                     .sum();
                 assert_eq!(pegin, v9, "{height}");
+
+                let output_type = |o: &bitcoin::TxOut| brk_types::OutputType::from(&o.script_pubkey);
+                assert_eq!(output_type(&hogex.output[0]), brk_types::OutputType::MWEBPegPool);
+                let peg_ins: i64 = block
+                    .txdata
+                    .iter()
+                    .flat_map(|tx| &tx.output)
+                    .filter(|o| output_type(o) == brk_types::OutputType::MWEBPegIn)
+                    .map(|o| o.value.to_sat() as i64)
+                    .sum();
+                assert_eq!(peg_ins, v9, "{height}");
             }
+            let json = fs::read_to_string(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/3213000.json"),
+            )
+            .unwrap();
+            let expected: serde_json::Value = serde_json::from_str(&json).unwrap();
+            let hogaddr = read(3_213_000).txdata.last().unwrap().output[0].value.to_sat();
+            assert_eq!(hogaddr, expected["mweb_amount"].as_u64().unwrap());
         }
 
         #[test]

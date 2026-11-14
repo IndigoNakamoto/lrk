@@ -3,7 +3,12 @@ use brk_types::{Height, Sats, TxIndex, Version};
 
 // One schema version for every data source: bump it when stored data changes or a source is
 // added.
+#[cfg(not(feature = "litecoin"))]
 pub const VERSION: Version = Version::new(45);
+/// Upstream's version plus a Litecoin offset (MWEB output types, features and vecs), so a store
+/// written by either build never passes as the other's. Bump the offset for Litecoin-only changes.
+#[cfg(feature = "litecoin")]
+pub const VERSION: Version = Version::new(45 + 1_000);
 
 /// The newest blocks the first resume after a start reads back at their stored positions, about a
 /// day of them: back from a crash, Core writes what it fetched since its last block-index write
