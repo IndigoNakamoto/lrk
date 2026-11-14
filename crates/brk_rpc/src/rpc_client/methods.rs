@@ -149,7 +149,11 @@ impl Client {
         let live_txids = TxidArrayParser::parse(txids_raw.get())?;
         let template: GetBlockTemplate = from_str(template_raw.get())?;
         let tip_hash = Self::parse_block_hash(&template.previous_block_hash, "previousblockhash")?;
-        let block_template = ClientInner::build_gbt(template.transactions)?;
+        #[cfg_attr(not(feature = "litecoin"), allow(unused_mut))]
+        let mut transactions = template.transactions;
+        #[cfg(feature = "litecoin")]
+        Self::drop_hogex(&mut transactions);
+        let block_template = ClientInner::build_gbt(transactions)?;
         let info: GetMempoolInfo = from_str(info_raw.get())?;
         let min_fee = Self::build_min_fee(info.mempool_min_fee)?;
 
@@ -161,6 +165,24 @@ impl Client {
             },
             block_template,
         ))
+    }
+
+    /// Litecoin Core ends the template with the next block's HogEx, which pays the MWEB pool
+    /// to its HogAddr (`vout[0]`) and is never in the mempool, so the pool would never see
+    /// every template transaction and never publish.
+    #[cfg(feature = "litecoin")]
+    fn drop_hogex(transactions: &mut Vec<super::responses::BlockTemplateTransaction>) {
+        let is_hogex = transactions.last().is_some_and(|last| {
+            encode::deserialize_hex::<Transaction>(&last.data).is_ok_and(|tx| {
+                tx.output.first().is_some_and(|out| {
+                    brk_types::OutputType::from(&out.script_pubkey)
+                        == brk_types::OutputType::MWEBPegPool
+                })
+            })
+        });
+        if is_hogex {
+            transactions.pop();
+        }
     }
 
     /// `getmempoolentry` for every txid of `entries_only` and `full`, plus `getrawtransaction`
@@ -284,5 +306,37 @@ impl Client {
         s.parse::<BitcoinBlockHash>()
             .map(BlockHash::from)
             .map_err(|e| Error::Parse(format!("{label}: {e}")))
+    }
+}
+
+#[cfg(all(test, feature = "litecoin"))]
+mod tests {
+    use super::{super::responses::BlockTemplateTransaction, Client};
+
+    // From Litecoin Core 0.21.5.5's template at height 3,213,207.
+    const HOGEX: &str = "02000000000801ec03508869e7cc4322f7b46ce8031609512171453e7519842e5fce5ebc89586a0000000000ffffffff01dee826ae903100002258201f49c72f50b48be8fa1fc78f630b243e5d5166bf2bfaa7cba78abcba42dd96a50000000000";
+    const SPEND: &str = "01000000000101bfb9c8f98c8523fca0101ef7bccc82c3e807554ec66d0038235f36db33a9ad590000000000ffffffff02bf815d1c000000001600140d683eb9c8978fe4bde39875f8153bb7e0fa8d3510d79205000000001976a914fa25634e5e5c09a3d56213c69580df6bbbd8bea988ac02483045022100ac517b3d78ad4a5dc07c474ef1ce490030d94259c4977da49f1bbcf45efa97e402204c756cfe19ab7101cfce1501d33dd1e630270c113cedea28bb10b87b16ee59a5012102c8eb0662f010de7769c9";
+
+    fn tx(data: &str) -> BlockTemplateTransaction {
+        BlockTemplateTransaction {
+            data: data.to_owned(),
+            txid: String::new(),
+            hash: String::new(),
+            depends: vec![],
+            fee: 0,
+            sigops: 0,
+            weight: 1,
+        }
+    }
+
+    #[test]
+    fn drops_only_a_trailing_hogex() {
+        let mut template = vec![tx(SPEND), tx(HOGEX)];
+        Client::drop_hogex(&mut template);
+        assert_eq!(template.len(), 1);
+        assert_eq!(template[0].data, SPEND);
+
+        Client::drop_hogex(&mut template);
+        assert_eq!(template.len(), 1);
     }
 }
