@@ -8,7 +8,7 @@ pub const VERSION: Version = Version::new(45);
 /// Upstream's version plus a Litecoin offset (MWEB output types, features and vecs), so a store
 /// written by either build never passes as the other's. Bump the offset for Litecoin-only changes.
 #[cfg(feature = "litecoin")]
-pub const VERSION: Version = Version::new(45 + 1_001);
+pub const VERSION: Version = Version::new(45 + 1_002);
 
 /// The newest blocks the first resume after a start reads back at their stored positions, about a
 /// day of them: back from a crash, Core writes what it fetched since its last block-index write

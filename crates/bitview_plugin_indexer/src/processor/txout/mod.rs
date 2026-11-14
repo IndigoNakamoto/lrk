@@ -36,9 +36,23 @@ impl<'a> BlockProcessor<'a> {
     ) -> Result<()> {
         outputs.clear();
         // Start address lookups without a temporary pointer list or another parallel barrier.
-        outputs.extend(txs.iter().flat_map(|ct| &ct.tx.output).map(|txout| {
+        let txouts = txs.iter().flat_map(|ct| {
+            ct.tx
+                .output
+                .iter()
+                .enumerate()
+                .map(move |(vout, txout)| (ct, vout, txout))
+        });
+        outputs.extend(txouts.map(|(_ct, _vout, txout)| {
             let script = &txout.script_pubkey;
-            let output_type = OutputType::from(script);
+            #[cfg_attr(not(feature = "litecoin"), allow(unused_mut))]
+            let mut output_type = OutputType::from(script);
+            // Only the HogEx's first output is the HogAddr; consensus gives the same script
+            // anywhere else no meaning, so it is a transparent output like any other.
+            #[cfg(feature = "litecoin")]
+            if output_type == OutputType::MWEBPegPool && !(_ct.tx.is_hog_ex && _vout == 0) {
+                output_type = OutputType::UnknownScript;
+            }
             // Core leaves larger scripts out of its UTXO set as unspendable; none exist,
             // which keeps the UTXO set's totals equal to Core's.
             debug_assert!(
