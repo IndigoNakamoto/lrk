@@ -12,6 +12,9 @@ keywords = ["bitcoin", "analytics", "blockchain", "data", "self-hosted"]
 [package.metadata.release]
 pre-release-hook = ["cargo", "run", "-p", "bitview_devtools", "--bin", "bitview-bindgen"]
 
+[features]
+litecoin = ["bitview/litecoin", "bitview_default/litecoin"]
+
 [dependencies]
 bitview = { workspace = true, features = ["full-api"] }
 bitview_default = { workspace = true }

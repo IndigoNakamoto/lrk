@@ -20,7 +20,12 @@ struct DuplicateCoinbase {
     overwritten_tx_index: TxIndex,
 }
 
+/// Litecoin enforced BIP30 from genesis: no duplicate coinbases.
+#[cfg(feature = "litecoin")]
+const DUPLICATE_COINBASES: [DuplicateCoinbase; 0] = [];
+
 /// The two duplicate coinbases, both in 2010.
+#[cfg(not(feature = "litecoin"))]
 const DUPLICATE_COINBASES: [DuplicateCoinbase; 2] = [
     // txid d5d27987d2a3dfc724e359870c6644b40e497bdc0589a033220fe15429d88599
     DuplicateCoinbase {

@@ -8,6 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+litecoin = ["bitview/litecoin", "bitview_bindgen/litecoin", "bitview_catalog/litecoin", "bitview_default/litecoin", "bitview_plugin/litecoin", "bitview_query/litecoin", "bitview_server/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_rpc/litecoin"]
+
 [dependencies]
 aide = { workspace = true }
 axum = { workspace = true }

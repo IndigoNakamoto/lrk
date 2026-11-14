@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["bitview_primitives/litecoin", "bitview_traversable?/litecoin", "brk_types/litecoin"]
 default = []
 storage = ["dep:bitview_traversable", "dep:rayon", "brk_types/storage", "bitview_primitives/storage"]
 

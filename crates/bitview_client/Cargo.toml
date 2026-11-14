@@ -9,6 +9,9 @@ repository.workspace = true
 keywords = ["bitcoin", "blockchain", "analytics", "on-chain"]
 categories = ["api-bindings", "cryptography::cryptocurrencies"]
 
+[features]
+litecoin = ["bitview_catalog/litecoin", "bitview_cohort/litecoin", "bitview_primitives/litecoin", "bitview_types/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 bitview_cohort = { workspace = true }
 bitview_primitives = { workspace = true }

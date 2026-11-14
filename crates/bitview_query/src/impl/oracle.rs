@@ -25,6 +25,9 @@ impl Query {
     /// block's outputs as its filter judged them. After [`START_HEIGHT_FAST`] (before, the slow
     /// regime's shape profile learns from each pick). Also whether `height` is settled.
     pub fn oracle_block(&self, height: usize) -> Result<(OracleBlock, bool)> {
+        if cfg!(feature = "litecoin") {
+            return Err(litecoin_has_no_oracle());
+        }
         if height <= START_HEIGHT_FAST {
             return Err(Error::OutOfRange(
                 format!("the oracle's blocks: after height {START_HEIGHT_FAST}").into(),
@@ -54,6 +57,9 @@ impl Query {
     /// in buckets of [`PAYMENT_STEP`] bins over the block's search window. The chunk at the tip
     /// holds the blocks so far. Also whether the chunk is complete and settled.
     pub fn oracle_payments_chunk(&self, start: usize) -> Result<(Arc<OraclePayments>, bool)> {
+        if cfg!(feature = "litecoin") {
+            return Err(litecoin_has_no_oracle());
+        }
         if !start.is_multiple_of(ORACLE_PAYMENTS_CHUNK) {
             let first = START_HEIGHT_FAST / ORACLE_PAYMENTS_CHUNK * ORACLE_PAYMENTS_CHUNK
                 + ORACLE_PAYMENTS_CHUNK;
@@ -163,6 +169,9 @@ impl Query {
     /// mempool publication at this tip, the tip block's own. One snapshot. After
     /// [`START_HEIGHT_FAST`], as [`Self::oracle_block`].
     pub fn live_block(&self) -> Result<OracleBlock> {
+        if cfg!(feature = "litecoin") {
+            return Err(litecoin_has_no_oracle());
+        }
         let live = self.live_oracle()?;
         let (oracle, height, prev) = match live.blended_from {
             Some(prev) => (live.oracle, live.next, prev),
@@ -193,8 +202,20 @@ impl Query {
         ))
     }
 
+    #[cfg(not(feature = "litecoin"))]
     pub fn live_price(&self) -> Result<Dollars> {
         Ok(self.live_oracle()?.oracle.price_dollars())
+    }
+
+    /// The tip block's exchange price: Litecoin has no mempool-blended oracle.
+    #[cfg(feature = "litecoin")]
+    pub fn live_price(&self) -> Result<Dollars> {
+        let height = self.pin_safe_lengths()?.lengths().height.to_usize();
+        height
+            .checked_sub(1)
+            .and_then(|last| self.plugins().price.spot.cents.height.collect_one_at(last))
+            .map(Dollars::from)
+            .ok_or_else(|| Error::NotFound("prices not yet computed".to_owned()))
     }
 
     /// The live tip oracle: the committed base, with the published pool's mempool outputs
@@ -384,4 +405,11 @@ impl<T> OracleChunks<T> {
         self.chunks
             .insert(start, ((!settled).then_some(revision), self.uses, chunk));
     }
+}
+
+fn litecoin_has_no_oracle() -> Error {
+    Error::NotFound(
+        "the on-chain oracle reads Bitcoin payments; Litecoin prices come from exchange closes"
+            .to_owned(),
+    )
 }

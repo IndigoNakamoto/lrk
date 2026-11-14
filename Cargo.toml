@@ -24,6 +24,12 @@ panic = "abort"
 strip = true
 overflow-checks = false
 
+# Litecoin builds (`--profile release-ltc --features litecoin`): MWEB / HogEx accounting edge cases
+# must not abort the process, so compute panics are caught and logged instead.
+[profile.release-ltc]
+inherits = "release"
+panic = "unwind"
+
 [profile.bloaty]
 debug = true
 lto = false
@@ -38,7 +44,7 @@ debug = true
 arc-swap = "1.9.3"
 aide = { version = "0.16.0-alpha.4", features = ["axum-json", "axum-query"] }
 axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio", "tracing"] }
-bitcoin = { version = "0.32.102", features = ["serde"] }
+bitcoin = { version = "0.13.0", package = "brk_chain", path = "crates/brk_chain" }
 bitview = { version = "0.13.0", path = "crates/bitview", default-features = false }
 bitview_bindgen = { version = "0.13.0", path = "crates/bitview_bindgen" }
 bitview_catalog = { version = "0.13.0", path = "crates/bitview_catalog" }

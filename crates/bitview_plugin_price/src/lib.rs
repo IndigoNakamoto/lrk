@@ -1,6 +1,8 @@
 mod compute;
 mod dependencies;
 mod endpoint;
+#[cfg(feature = "litecoin")]
+mod exchange;
 mod has;
 mod import;
 mod ohlc;
@@ -66,5 +68,6 @@ pub struct Vecs<M: StorageMode = Rw> {
     pub oracle_bin: M::Stored<PcoVec<Height, Float64>>,
     /// The oracle after the last computed height (the length it continues at): the next update
     /// resumes it instead of rebuilding it from the stored bin and its warmup blocks.
+    #[cfg_attr(feature = "litecoin", allow(dead_code))]
     oracle: M::WriteOnly<Option<(usize, Oracle)>>,
 }

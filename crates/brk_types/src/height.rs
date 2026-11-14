@@ -23,7 +23,10 @@ use std::fs;
 use vecdb::{Bytes, Pco, PrintableIndex, Stamp, VecIndex};
 
 pub const BLOCKS_PER_DIFF_EPOCH: u32 = 2016;
+#[cfg(not(feature = "litecoin"))]
 pub const BLOCKS_PER_HALVING: u32 = 210_000;
+#[cfg(feature = "litecoin")]
+pub const BLOCKS_PER_HALVING: u32 = 840_000;
 
 /// A block height: how many blocks came before it.
 #[derive(

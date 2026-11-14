@@ -7,6 +7,9 @@ license.workspace = true
 homepage = "https://bitview.dev"
 repository.workspace = true
 
+[features]
+litecoin = ["bitview_compute/litecoin", "bitview_plugin/litecoin", "bitview_plugin_indexer/litecoin", "bitview_plugin_mappings/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "bitview_vecs/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_types/litecoin", "dep:ureq", "dep:serde_json"]
+
 [dependencies]
 bitview_compute = { workspace = true }
 bitview_primitives = { workspace = true, features = ["storage"] }
@@ -24,3 +27,5 @@ rangeindex = { workspace = true }
 rayon = { workspace = true }
 tracing = { workspace = true }
 vecdb = { workspace = true }
+serde_json = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }

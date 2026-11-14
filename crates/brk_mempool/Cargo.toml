@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = ["bitcoin/litecoin", "brk_cpfp/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_rpc/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 arc-swap = { workspace = true }
 bitcoin = { workspace = true }

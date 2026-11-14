@@ -14,7 +14,11 @@ use vecdb::Version;
 #[cfg(feature = "storage")]
 pub const POOL_ATTRIBUTION_VERSION: Version = Version::new(3);
 
+#[cfg(not(feature = "litecoin"))]
 const JSON_DATA: &str = include_str!("../pools-v2.json");
+/// Shares upstream's ids for pools that mine both chains; Litecoin-only pools use slots 172-190.
+#[cfg(feature = "litecoin")]
+const JSON_DATA: &str = include_str!("../pools-ltc-v2.json");
 const TESTNET_IDS: &[u16] = &[145, 146, 149, 150, 156, 163];
 
 #[derive(Deserialize)]
@@ -86,7 +90,7 @@ pub fn pools() -> &'static Pools {
     static POOLS: OnceLock<Pools> = OnceLock::new();
     POOLS.get_or_init(|| {
         let entries: Vec<JsonPoolEntry> =
-            from_str(JSON_DATA).expect("Failed to parse pools-v2.json");
+            from_str(JSON_DATA).expect("Failed to parse the pools JSON");
 
         let max_id = entries.iter().map(|entry| entry.id).max().unwrap_or(0);
         debug_assert!(
@@ -146,4 +150,22 @@ pub fn pools() -> &'static Pools {
 
         Pools { pools, by_addr }
     })
+}
+
+#[cfg(all(test, feature = "litecoin"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn litecoin_pools_resolve() {
+        let pools = pools();
+        assert_eq!(pools.get(PoolSlug::Litecoinpoolorg).name, "Litecoinpool.org");
+        assert_eq!(pools.get(PoolSlug::Zergpool).name, "zergpool");
+        let f2pool: AddressBytes = "LajyQBeZaBA1NkZDeY8YT5RYYVRkXMvb2T".parse().unwrap();
+        assert_eq!(pools.find_from_addr(&f2pool).unwrap().slug, PoolSlug::F2Pool);
+        let ltcpool: AddressBytes = "LTCPodmy8cJB4uSaZEirLRqY5yhYLwvwwr".parse().unwrap();
+        assert_eq!(pools.find_from_addr(&ltcpool).unwrap().slug, PoolSlug::Litecoinpoolorg);
+        let addrs = pools.iter().flat_map(|p| p.addrs.iter()).count();
+        assert_eq!(pools.by_addr.len(), addrs, "every payout address must parse");
+    }
 }

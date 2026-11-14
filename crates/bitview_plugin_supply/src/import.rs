@@ -50,7 +50,8 @@ impl Vecs {
                 PartsPerMillionSigned64::from(if supply.is_zero() {
                     f64::NAN
                 } else {
-                    height.subsidy().as_u128() as f64 * 52_560.0 / supply.as_u128() as f64
+                    height.subsidy().as_u128() as f64 * brk_types::TARGET_BLOCKS_PER_YEAR as f64
+                        / supply.as_u128() as f64
                 })
             },
         );

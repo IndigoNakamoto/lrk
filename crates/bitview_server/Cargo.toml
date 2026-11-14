@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["bitcoin/litecoin", "bitview_catalog/litecoin", "bitview_primitives/litecoin", "bitview_query/litecoin", "bitview_types/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_rpc/litecoin", "brk_types/litecoin"]
 default = ["full-api"]
 full-api = ["chain", "series", "urpd", "bitview_query/full-api"]
 chain = ["price", "bitview_query/chain"]

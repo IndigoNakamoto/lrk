@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = ["bitview/litecoin", "bitview_default/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 brk_alloc = { workspace = true }
 vecdb = { workspace = true }

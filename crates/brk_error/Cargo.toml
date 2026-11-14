@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["bitcoin?/litecoin"]
 bitcoin = ["dep:bitcoin"]
 corepc = ["dep:corepc-jsonrpc"]
 fjall = ["dep:fjall"]

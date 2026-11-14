@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["brk_types/litecoin"]
 schemars = ["brk_types/schemars"]
 
 [dependencies]

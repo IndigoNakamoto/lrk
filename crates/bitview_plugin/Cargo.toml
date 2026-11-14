@@ -9,6 +9,7 @@ repository.workspace = true
 readme = "README.md"
 
 [features]
+litecoin = ["bitview_traversable/litecoin", "brk_error/litecoin"]
 derive = ["bitview_plugin_derive"]
 
 [dependencies]

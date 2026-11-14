@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["bitcoin", "analytics", "blockchain", "data", "self-hosted"]
 
 [features]
+litecoin = ["bitview_plugin/litecoin", "bitview_query/litecoin", "bitview_server/litecoin", "brk_error/litecoin", "brk_mempool?/litecoin", "brk_reader/litecoin", "brk_rpc/litecoin"]
 default = []
 full-api = ["chain", "series", "urpd", "bitview_server/full-api"]
 chain = ["price", "bitview_server/chain"]

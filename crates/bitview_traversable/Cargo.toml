@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["bitview_catalog/litecoin", "bitview_primitives/litecoin"]
 derive = ["bitview_traversable_derive"]
 pco = ["vecdb/pco"]
 zerocopy = ["vecdb/zerocopy"]

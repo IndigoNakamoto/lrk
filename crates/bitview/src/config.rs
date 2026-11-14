@@ -322,7 +322,7 @@ impl Config {
         println!(
             "    --rpcport {}          RPC port {}",
             "<PORT>".bright_black(),
-            "[8332]".bright_black()
+            format!("[{}]", brk_rpc::DEFAULT_RPC_PORT).bright_black()
         );
         println!(
             "    --rpccookiefile {}    RPC cookie file; relative paths resolve inside <bitcoindir> {}",

@@ -8,6 +8,9 @@ homepage = "https://bitview.dev"
 repository.workspace = true
 readme = "README.md"
 
+[features]
+litecoin = ["bitview_distribution/litecoin", "bitview_plugin/litecoin", "bitview_plugin_addresses/litecoin", "bitview_plugin_age/litecoin", "bitview_plugin_bedrock/litecoin", "bitview_plugin_blocks/litecoin", "bitview_plugin_coinflow/litecoin", "bitview_plugin_cointime/litecoin", "bitview_plugin_entry/litecoin", "bitview_plugin_holders/litecoin", "bitview_plugin_indexer/litecoin", "bitview_plugin_inputs/litecoin", "bitview_plugin_mappings/litecoin", "bitview_plugin_market/litecoin", "bitview_plugin_mining/litecoin", "bitview_plugin_op_return/litecoin", "bitview_plugin_outputs/litecoin", "bitview_plugin_pools/litecoin", "bitview_plugin_price/litecoin", "bitview_plugin_profitability/litecoin", "bitview_plugin_rarity_meter/litecoin", "bitview_plugin_supply/litecoin", "bitview_plugin_transactions/litecoin", "bitview_plugin_utxo_set/litecoin", "bitview_plugin_utxos/litecoin", "bitview_traversable/litecoin", "bitview_urpd/litecoin", "bitview_vecs/litecoin", "brk_error/litecoin", "brk_reader/litecoin"]
+
 [dependencies]
 bitview_vecs = { workspace = true }
 bitview_distribution = { workspace = true }

@@ -163,7 +163,14 @@ where
         info!("Chain tip changed; updating...");
 
         let start = Instant::now();
+        #[cfg(not(feature = "litecoin"))]
         update(&mut plugins, update_context)?;
+        #[cfg(feature = "litecoin")]
+        if let Err(error) = update(&mut plugins, update_context) {
+            tracing::error!("update failed, serving the last published state: {error}");
+            sleep(Duration::from_secs(30));
+            continue;
+        }
         let (height, hash) = query
             .sync(|q| q.tip_block())
             .expect("an update publishes at least genesis");

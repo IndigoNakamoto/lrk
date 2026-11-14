@@ -23,6 +23,8 @@ mod cpfp;
 mod dollars;
 mod feerate;
 mod height;
+#[cfg(feature = "litecoin")]
+pub mod litecoin;
 mod hex;
 mod hints;
 mod histogram;

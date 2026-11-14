@@ -30,7 +30,7 @@ impl ConnectArgs {
 
     fn url(&self) -> String {
         let host = self.rpcconnect.as_deref().unwrap_or("localhost");
-        let port = self.rpcport.unwrap_or(8332);
+        let port = self.rpcport.unwrap_or(DEFAULT_RPC_PORT);
         // An IPv6 address (`::1`) needs brackets before the port.
         if host.parse::<Ipv6Addr>().is_ok() {
             format!("http://[{host}]:{port}")
@@ -72,13 +72,21 @@ impl ConnectArgs {
     }
 }
 
+#[cfg(not(feature = "litecoin"))]
+pub const DEFAULT_RPC_PORT: u16 = 8332;
+#[cfg(feature = "litecoin")]
+pub const DEFAULT_RPC_PORT: u16 = 9332;
+
+#[cfg(not(feature = "litecoin"))]
+const DATADIR: (&str, &str) = ("Bitcoin", ".bitcoin");
+#[cfg(feature = "litecoin")]
+const DATADIR: (&str, &str) = ("Litecoin", ".litecoin");
+
 fn default_bitcoin_dir() -> PathBuf {
     let home = PathBuf::from(env::var("HOME").unwrap());
     if env::consts::OS == "macos" {
-        home.join("Library")
-            .join("Application Support")
-            .join("Bitcoin")
+        home.join("Library").join("Application Support").join(DATADIR.0)
     } else {
-        home.join(".bitcoin")
+        home.join(DATADIR.1)
     }
 }

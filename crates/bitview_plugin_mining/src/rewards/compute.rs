@@ -15,8 +15,17 @@ fn claimed_subsidy(_: Height, coinbase: Sats, fees: Sats) -> Sats {
 }
 
 /// Consensus caps the coinbase at the scheduled subsidy plus fees.
+#[cfg(not(feature = "litecoin"))]
 fn unclaimed_rewards(height: Height, coinbase: Sats, fees: Sats) -> Sats {
     height.subsidy() + fees - coinbase
+}
+
+/// Clamped: an unresolved prevout or MWEB accounting edge must read as zero, not wrap.
+#[cfg(feature = "litecoin")]
+fn unclaimed_rewards(height: Height, coinbase: Sats, fees: Sats) -> Sats {
+    (height.subsidy() + fees)
+        .checked_sub(coinbase)
+        .unwrap_or(Sats::ZERO)
 }
 
 impl Vecs {

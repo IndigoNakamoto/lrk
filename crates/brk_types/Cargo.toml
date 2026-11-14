@@ -9,6 +9,7 @@ repository.workspace = true
 
 [features]
 default = []
+litecoin = ["bitcoin/litecoin", "brk_error/litecoin"]
 schemars = ["dep:schemars", "dep:serde_json", "vecdb?/schemars"]
 storage = ["dep:vecdb", "brk_error/vecdb"]
 

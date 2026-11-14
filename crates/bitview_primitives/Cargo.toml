@@ -9,6 +9,7 @@ repository.workspace = true
 
 [features]
 default = []
+litecoin = ["bitcoin/litecoin", "brk_error/litecoin", "brk_types/litecoin"]
 storage = ["dep:rayon", "dep:vecdb", "brk_types/storage"]
 
 [dependencies]

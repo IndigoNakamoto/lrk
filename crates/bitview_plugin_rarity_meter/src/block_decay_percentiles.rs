@@ -1,8 +1,8 @@
 use bitview_compute::FenwickTree;
 use bitview_primitives::PriceRatio;
 
-pub const START_HEIGHT: usize = 210_000;
-const HALF_LIFE_BLOCKS: usize = 210_000;
+pub const START_HEIGHT: usize = brk_types::BLOCKS_PER_HALVING as usize;
+const HALF_LIFE_BLOCKS: usize = brk_types::BLOCKS_PER_HALVING as usize;
 const BUCKET_WIDTH: f64 = 0.001;
 const MAX_RATIO: f64 = 43.0;
 const TREE_SIZE: usize = (MAX_RATIO / BUCKET_WIDTH) as usize + 1;

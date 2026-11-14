@@ -7,6 +7,9 @@ license.workspace = true
 homepage = "https://bitview.dev"
 repository.workspace = true
 
+[features]
+litecoin = ["bitview_compute/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 arc-swap = { workspace = true }
 bitview_primitives = { workspace = true, features = ["storage"] }

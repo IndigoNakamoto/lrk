@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = ["bitcoin/litecoin", "bitview_cohort/litecoin", "bitview_primitives/litecoin", "brk_oracle/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 bitcoin = { workspace = true }
 bitview_cohort = { workspace = true }

@@ -4,7 +4,7 @@ use brk_types::{Height, Version};
 use vecdb::{ReadableVec, VecValue};
 
 // One nominal year of block observations. The represented block is excluded.
-const MINIMUM_BLOCKS: usize = 365 * 144;
+const MINIMUM_BLOCKS: usize = brk_types::TARGET_BLOCKS_PER_YEAR as usize;
 const PERCENTILES: [f64; 5] = [0.95, 0.98, 0.99, 0.995, 0.999];
 
 pub struct Calibration {

@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
+litecoin = ["bitcoin/litecoin", "brk_error/litecoin", "brk_types/litecoin"]
 async = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 
 [dependencies]

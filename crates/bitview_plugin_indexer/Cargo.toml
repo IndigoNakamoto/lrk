@@ -8,6 +8,9 @@ homepage = "https://bitview.dev"
 repository.workspace = true
 readme = "README.md"
 
+[features]
+litecoin = ["bitcoin/litecoin", "bitview_plugin/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_store/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 arc-swap = { workspace = true }
 bitcoin = { workspace = true }

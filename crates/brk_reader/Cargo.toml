@@ -9,6 +9,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+litecoin = ["bitcoin/litecoin", "brk_error/litecoin", "brk_rpc/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 arc-swap = { workspace = true }
 bitcoin = { workspace = true }
@@ -21,3 +24,7 @@ libc = { workspace = true }
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+litecoin = "0.32.8-rc.1"
+serde_json = { workspace = true }

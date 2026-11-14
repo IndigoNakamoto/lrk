@@ -149,9 +149,17 @@ impl SaturatingAdd for Sats {
 }
 
 impl SubAssign for Sats {
+    #[cfg(not(feature = "litecoin"))]
     fn sub_assign(&mut self, rhs: Self) {
         debug_assert!(self.0 >= rhs.0, "Sats underflow: {self} - {rhs}");
         self.0 -= rhs.0;
+    }
+
+    /// MWEB pegs and HogEx break the closed transparent ledger, so an underflow clamps to zero
+    /// instead of wrapping into a balance near `u64::MAX`.
+    #[cfg(feature = "litecoin")]
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 = self.0.saturating_sub(rhs.0);
     }
 }
 

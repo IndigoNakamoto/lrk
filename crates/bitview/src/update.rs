@@ -41,7 +41,23 @@ where
     // swaps in this one; a failed compute leaves it. What the commit published from memory is
     // written before the next update.
     let start = Instant::now();
+    #[cfg(not(feature = "litecoin"))]
     let (output, complete) = compute(plugins, context)?;
+    // Built with `panic = "unwind"` (profile `release-ltc`): an MWEB accounting edge that panics
+    // in one plugin fails this update instead of the process, and the last publication stays up.
+    #[cfg(feature = "litecoin")]
+    let (output, complete) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        compute(plugins, context)
+    }))
+    .unwrap_or_else(|payload| {
+        let message = payload
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_default();
+        tracing::error!("compute panicked: {message}");
+        Err(brk_error::Error::Internal("compute panicked"))
+    })?;
     let _lock = context.exit().lock();
     plugins.commit(complete)?;
     info!("Update published in {:.2?}", start.elapsed());

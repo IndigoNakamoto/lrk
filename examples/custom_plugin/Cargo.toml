@@ -5,6 +5,9 @@ edition = "2024"
 license = "MIT"
 publish = false
 
+[features]
+litecoin = ["bitview/litecoin", "bitview_default/litecoin", "bitview_plugin/litecoin", "bitview_plugin_indexer/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_types/litecoin"]
+
 [dependencies]
 bitview = { version = "0.13.0", path = "../../crates/bitview", default-features = false, features = ["full-api"] }
 bitview_default = { version = "0.13.0", path = "../../crates/bitview_default" }

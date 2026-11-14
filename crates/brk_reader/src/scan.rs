@@ -4,7 +4,10 @@ use brk_types::BlkPosition;
 
 use crate::{XORBytes, XORIndex, xor_bytes::XOR_LEN};
 
+#[cfg(not(feature = "litecoin"))]
 const MAGIC_BYTES: [u8; 4] = [0xF9, 0xBE, 0xB4, 0xD9];
+#[cfg(feature = "litecoin")]
+const MAGIC_BYTES: [u8; 4] = [0xFB, 0xC0, 0xB6, 0xDB];
 
 /// Returns the position immediately after the matched magic, or
 /// `None` if no match. Advances `xor_i` by the bytes consumed either
@@ -78,7 +81,12 @@ const HEAD_LEN: usize = 8;
 /// The longest run of unwritten bytes taken for a hole rather than the file's end: one frame of
 /// the largest block (4,000,000 bytes serialized), all Core reserves for a block it then fails to
 /// write.
+#[cfg(not(feature = "litecoin"))]
 const MAX_HOLE: usize = HEAD_LEN + 4_000_000;
+/// Litecoin blocks add an MWEB extension block (range proofs dominate) on top of the 4 MB
+/// transparent block, so a frame can run well past Bitcoin's cap.
+#[cfg(feature = "litecoin")]
+const MAX_HOLE: usize = HEAD_LEN + 16_000_000;
 
 /// Each block's payload offset and length in a blk file, hopping from frame to frame from
 /// `start`, a frame boundary (the file's start or a known frame's end): a scan from an arbitrary

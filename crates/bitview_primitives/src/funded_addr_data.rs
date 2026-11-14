@@ -128,8 +128,16 @@ pub struct FundedAddressData {
 }
 
 impl FundedAddressData {
+    #[cfg(not(feature = "litecoin"))]
     pub fn balance(&self) -> Sats {
         (u64::from(self.received) - u64::from(self.sent)).into()
+    }
+
+    #[cfg(feature = "litecoin")]
+    pub fn balance(&self) -> Sats {
+        u64::from(self.received)
+            .saturating_sub(u64::from(self.sent))
+            .into()
     }
 
     pub fn realized_price(&self) -> Cents {
@@ -147,7 +155,11 @@ impl FundedAddressData {
             self.spent_txo_count <= self.funded_txo_count,
             "spent more outputs than funded: {self:?}"
         );
-        self.funded_txo_count - self.spent_txo_count
+        if cfg!(feature = "litecoin") {
+            self.funded_txo_count.saturating_sub(self.spent_txo_count)
+        } else {
+            self.funded_txo_count - self.spent_txo_count
+        }
     }
 
     /// Whether this address currently holds at least one UTXO.

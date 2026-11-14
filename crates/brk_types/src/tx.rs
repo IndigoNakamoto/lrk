@@ -177,6 +177,10 @@ impl From<&Transaction> for BitcoinTransaction {
             lock_time: tx.lock_time.into(),
             input: tx.input.iter().map(BitcoinTxIn::from).collect(),
             output: tx.output.iter().map(BitcoinTxOut::from).collect(),
+            #[cfg(feature = "litecoin")]
+            mw_tx: None,
+            #[cfg(feature = "litecoin")]
+            is_hog_ex: false,
         }
     }
 }

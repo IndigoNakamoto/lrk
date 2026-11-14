@@ -17,6 +17,9 @@ pub struct ReadBlock {
     bytes: Vec<u8>,
     /// Each transaction's byte offset within `bytes`.
     tx_offsets: Vec<u32>,
+    /// The block signalled an MWEB extension block that failed to decode; `mweb_block` is `None`.
+    #[cfg(feature = "litecoin")]
+    mweb_decode_failed: bool,
 }
 
 impl ReadBlock {
@@ -36,7 +39,20 @@ impl ReadBlock {
             position,
             bytes,
             tx_offsets,
+            #[cfg(feature = "litecoin")]
+            mweb_decode_failed: false,
         }
+    }
+
+    #[cfg(feature = "litecoin")]
+    pub fn with_mweb_decode_failed(mut self, failed: bool) -> Self {
+        self.mweb_decode_failed = failed;
+        self
+    }
+
+    #[cfg(feature = "litecoin")]
+    pub fn mweb_decode_failed(&self) -> bool {
+        self.mweb_decode_failed
     }
 
     pub fn height(&self) -> Height {
@@ -61,6 +77,12 @@ impl ReadBlock {
         let raw = self.tx_bytes(index);
         let total_size = raw.len() as u32;
         let is_segwit = raw[4] == 0x00;
+        // MWEB txs (and HogEx) set flag bit 0x08 and carry MWEB data between the witness and the
+        // locktime, so the segwit layout `hash_raw_tx` assumes would hash the wrong preimage.
+        #[cfg(feature = "litecoin")]
+        if is_segwit && raw[5] & 0x08 != 0 {
+            return (tx.compute_txid(), tx.base_size() as u32, total_size);
+        }
         let base_size = if is_segwit {
             tx.base_size() as u32
         } else {

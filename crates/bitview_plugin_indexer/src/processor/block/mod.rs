@@ -39,7 +39,10 @@ impl BlockProcessor<'_> {
         self.vecs
             .blocks
             .difficulty
-            .debug_checked_push(height, self.block.header.difficulty_float().into());
+            .debug_checked_push(
+                height,
+                brk_types::explorer_difficulty(self.block.header.difficulty_float()).into(),
+            );
         self.vecs
             .blocks
             .timestamp

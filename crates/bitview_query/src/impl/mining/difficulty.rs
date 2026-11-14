@@ -7,8 +7,7 @@ use vecdb::ReadableVec;
 
 use crate::{OptionData, Query, Result};
 
-/// Target block time in seconds (10 minutes)
-const TARGET_BLOCK_TIME: u64 = 600;
+const TARGET_BLOCK_TIME: u64 = brk_types::TARGET_BLOCK_SECONDS;
 /// The early-epoch projection window, in blocks (mempool.space's quarter epoch).
 const QUARTER_EPOCH: u32 = 503;
 

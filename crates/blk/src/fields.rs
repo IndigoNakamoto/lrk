@@ -29,7 +29,7 @@ pub const BLOCK: Fields<fn(&Ctx) -> Value> = &[
     ("bits", |c| {
         json!(format!("{:08x}", c.header.bits.to_consensus()))
     }),
-    ("difficulty", |c| json!(c.header.difficulty_float())),
+    ("difficulty", |c| json!(brk_types::explorer_difficulty(c.header.difficulty_float()))),
     ("prev", |c| json!(c.header.prev_blockhash.to_string())),
     ("txs", |c| json!(c.txdata.len())),
     ("n_inputs", |c| {

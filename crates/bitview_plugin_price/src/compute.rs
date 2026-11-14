@@ -4,17 +4,55 @@ use bitview_plugin_indexer::Indexer;
 use bitview_primitives::Float64;
 use brk_error::{OptionData, Result};
 use brk_exit::Exit;
+use brk_oracle::cents_to_bin;
+#[cfg(not(feature = "litecoin"))]
 use brk_oracle::{
-    Config, Oracle, START_HEIGHT_FAST, START_HEIGHT_SLOW, bin_to_cents, cents_to_bin,
-    pre_oracle_prices_from,
+    Config, Oracle, START_HEIGHT_FAST, START_HEIGHT_SLOW, bin_to_cents, pre_oracle_prices_from,
 };
+#[cfg(not(feature = "litecoin"))]
 use brk_types::Height;
+#[cfg(not(feature = "litecoin"))]
 use tracing::info;
 use vecdb::{AnyStoredVec, AnyVec, ReadableVec, VecIndex, WritableVec};
 
-use crate::{Dependencies, Vecs, feed_blocks_for_warmup, feed_blocks_with};
+use crate::{Dependencies, Vecs};
+#[cfg(not(feature = "litecoin"))]
+use crate::{feed_blocks_for_warmup, feed_blocks_with};
 
 impl Vecs {
+    #[cfg(feature = "litecoin")]
+    fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
+        use bitview_primitives::Date;
+        use brk_types::Version;
+
+        let starting_height = indexer.compute_start().height;
+        let timestamps = &indexer.vecs().blocks.timestamp;
+        let committed = prepare_computed(
+            [
+                &mut self.spot.cents.height as &mut dyn AnyStoredVec,
+                &mut self.oracle_bin,
+            ],
+            timestamps.version() + Version::new(crate::exchange::VERSION),
+            starting_height.to_usize(),
+            exit,
+        )?;
+        let total_heights = timestamps.len();
+        if committed >= total_heights {
+            return Ok(());
+        }
+        let timestamps = timestamps.collect_range_at(committed, total_heights);
+        let mut closes = crate::exchange::closes();
+        closes.ensure(Date::from(*timestamps.last().data()?))?;
+        for timestamp in timestamps {
+            let cents = closes.price_at(Date::from(timestamp));
+            self.spot.cents.height.push(cents);
+            self.oracle_bin
+                .push(Float64::from(cents_to_bin(f64::from(cents))));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "litecoin"))]
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         let starting_height = indexer.compute_start().height;
 
