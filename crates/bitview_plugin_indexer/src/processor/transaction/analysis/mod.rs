@@ -55,6 +55,12 @@ impl BlockProcessor<'_> {
             let tx_inputs = tx.inputs(txins);
             let tx_outputs = tx.outputs(txouts);
             let is_coinbase = tx.is_coinbase(block_first_tx_index);
+            // Relay policy doesn't apply to the coinbase, nor to Litecoin's HogEx, which only
+            // miners build (it spends MWEB's witness v8/v9 programs without witnesses).
+            #[cfg(feature = "litecoin")]
+            let policy_exempt = is_coinbase || tx.tx.is_hog_ex;
+            #[cfg(not(feature = "litecoin"))]
+            let policy_exempt = is_coinbase;
 
             let mut sigops = sigops::Accumulator::new(track_executed_legacy);
             let mut flags = TxFeatureFlags::default();
@@ -78,20 +84,22 @@ impl BlockProcessor<'_> {
                     let (output_type, legacy_sigop_cost) = resolved_output_facts(source, txouts);
                     let facts = input::analyze(input, output_type, &mut flags);
                     sigops.scan_input(output_type, legacy_sigop_cost, &facts);
-                    policy.scan_input(input, output_type, &facts);
+                    if likely(!policy_exempt) {
+                        policy.scan_input(input, output_type, &facts);
+                    }
                 }
             }
 
             for (txout, output) in tx.tx.output.iter().zip(tx_outputs) {
                 output_scanner.scan(txout, output, &mut flags);
                 sigops.scan_output(output);
-                if likely(!is_coinbase) {
+                if likely(!policy_exempt) {
                     policy.scan_output(txout, output);
                 }
             }
 
             let sigops = sigops.finish();
-            if likely(!is_coinbase) {
+            if likely(!policy_exempt) {
                 policy.finish(tx, sigops, &mut flags);
             }
 

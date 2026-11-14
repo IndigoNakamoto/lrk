@@ -20,11 +20,17 @@ impl Vecs {
         let db = STORAGE.open_database(context, 10_000_000)?;
         let version = STORAGE.schema_version();
 
+        #[cfg(feature = "litecoin")]
+        let transparent_count_cumulative = super::transparent::import(&db, version)?;
+        #[cfg(feature = "litecoin")]
+        let count_source = &transparent_count_cumulative;
+        #[cfg(not(feature = "litecoin"))]
+        let count_source = &mappings.transaction_count_source();
         let count = PerBlockFullFromCumulative::import(
             &db,
             "tx_count",
             version,
-            &mappings.transaction_count_source(),
+            count_source,
             mappings,
             window_starts,
         )?;
@@ -66,6 +72,8 @@ impl Vecs {
         let this = Self {
             db,
             count,
+            #[cfg(feature = "litecoin")]
+            transparent_count_cumulative,
             features,
             vsize,
             fees,

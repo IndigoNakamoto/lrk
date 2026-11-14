@@ -10,6 +10,10 @@ use crate::distribution::{Stats, counted, weighted};
 pub struct Block {
     first_tx: usize,
     pub input_begin: usize,
+    /// Whether the block's last transaction is a HogEx (Litecoin MWEB): its fee, the MWEB
+    /// kernels', counts toward the block's, but it isn't a transfer nor a fee-market
+    /// transaction, so volume, distributions and clusters leave it out.
+    pub hogex: bool,
     pub input_values: Vec<Sats>,
     pub output_values: Vec<Sats>,
     pub transfer_volume: Sats,
@@ -32,6 +36,7 @@ pub struct Block {
 impl Block {
     pub fn reset(&mut self, first_tx: usize) {
         self.first_tx = first_tx;
+        self.hogex = false;
         self.input_values.clear();
         self.output_values.clear();
         self.transfer_volume = Sats::ZERO;
@@ -54,21 +59,27 @@ impl Block {
 
         self.fees.reserve(n);
         self.fee_rates.reserve(n);
+        // Transactions the statistics cover: all but a trailing HogEx.
+        let counted_txs = n - usize::from(self.hogex);
         self.fees.push(Sats::ZERO);
         self.fee_rates
             .push(FeeRate::from((Sats::ZERO, self.vsizes[0])));
-        for ((&input, &output), &vsize) in self.input_values[1..]
+        for (index, ((&input, &output), &vsize)) in self.input_values[1..]
             .iter()
             .zip(&self.output_values[1..])
             .zip(&self.vsizes[1..])
+            .enumerate()
         {
             let fee = input - output;
-            self.transfer_volume += input;
+            if index + 1 < counted_txs {
+                self.transfer_volume += input;
+            }
             self.total_fee += fee;
             self.fees.push(fee);
             self.fee_rates.push(FeeRate::from((fee, vsize)));
         }
         components.compute(
+            counted_txs,
             &self.txin_starts,
             &self.outpoints,
             self.input_begin,
@@ -80,18 +91,18 @@ impl Block {
         );
 
         self.sorted_fees.clear();
-        self.sorted_fees.extend_from_slice(&self.fees[1..]);
+        self.sorted_fees.extend_from_slice(&self.fees[1..counted_txs]);
         self.fee_stats = counted(&mut self.sorted_fees);
         self.weighted_rates.clear();
         self.weighted_rates.extend(
-            self.effective_fee_rates[1..]
+            self.effective_fee_rates[1..counted_txs]
                 .iter()
                 .copied()
-                .zip(self.vsizes[1..].iter().copied()),
+                .zip(self.vsizes[1..counted_txs].iter().copied()),
         );
         self.rate_stats = weighted(&mut self.weighted_rates);
         // Last use of the block-order vsizes: sorted in place.
-        self.vsize_stats = counted(&mut self.vsizes);
+        self.vsize_stats = counted(&mut self.vsizes[..counted_txs]);
     }
 }
 
@@ -108,8 +119,10 @@ pub struct Components {
 impl Components {
     /// Computes chunk rates for each same-block dependency component.
     #[allow(clippy::too_many_arguments)]
+    /// `clustered`: the leading transactions eligible for clusters; the rest keep their raw rate.
     fn compute(
         &mut self,
+        clustered: usize,
         txin_starts: &[TxInIndex],
         outpoints: &[OutPoint],
         outpoint_base: usize,
@@ -132,7 +145,7 @@ impl Components {
         self.roots.extend(0..n);
         self.members.clear();
 
-        for child in 0..n {
+        for child in 0..clustered {
             let mut parents: SmallVec<[usize; 2]> =
                 Self::same_block_parents(child, txin_starts, outpoints, outpoint_base, first_tx, n)
                     .collect();
@@ -245,5 +258,52 @@ impl Components {
             let parent = outpoint.tx_index().to_usize();
             (parent >= first_tx && parent < first_tx + tx_count).then(|| parent - first_tx)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use brk_types::{TxIndex, Vout};
+
+    use super::*;
+
+    /// Coinbase, a payment, a peg-in and the HogEx sweeping that peg-in, from transaction 100.
+    fn block(hogex: bool) -> Block {
+        let outpoint = |tx: usize| OutPoint::new(TxIndex::from(tx), Vout::from(0u32));
+        let mut block = Block::default();
+        block.reset(100);
+        block.hogex = hogex;
+        block.input_values = vec![Sats::MAX];
+        block
+            .input_values
+            .extend([1_000u64, 500, 9_495].map(Sats::from));
+        block.output_values = [50u64, 990, 495, 9_395].map(Sats::from).to_vec();
+        block.vsizes = [120u32, 200, 100, 300].map(VSize::from).to_vec();
+        block.txin_starts = [0usize, 1, 2, 3].map(TxInIndex::from).to_vec();
+        block.outpoints = [0, 5, 6, 102, 50].map(outpoint).to_vec();
+        block.compute(&mut Components::default());
+        block
+    }
+
+    #[test]
+    fn hogex_counts_toward_fees_only() {
+        let block = block(true);
+        assert_eq!(block.total_fee, Sats::from(115u64));
+        assert_eq!(block.transfer_volume, Sats::from(1_500u64));
+        assert_eq!(block.fees.len(), 4);
+        assert_eq!(block.fee_stats[0], Sats::from(5u64));
+        assert_eq!(block.fee_stats[1], Sats::from(10u64));
+        assert_eq!(block.vsize_stats[1], VSize::from(200u32));
+        // The peg-in keeps its own rate: the HogEx sweeping it is no CPFP child.
+        assert_eq!(block.effective_fee_rates[2], block.fee_rates[2]);
+    }
+
+    #[test]
+    fn without_hogex_every_transaction_counts() {
+        let block = block(false);
+        assert_eq!(block.total_fee, Sats::from(115u64));
+        assert_eq!(block.transfer_volume, Sats::from(10_995u64));
+        assert_eq!(block.vsize_stats[1], VSize::from(300u32));
+        assert_ne!(block.effective_fee_rates[2], block.fee_rates[2]);
     }
 }

@@ -19,6 +19,10 @@ impl ComputePlugin for Vecs {
             outputs,
             mining,
             price,
+            #[cfg(feature = "litecoin")]
+            holders,
+            #[cfg(feature = "litecoin")]
+            mweb,
         } = dependencies;
 
         self.burned.compute_from_pair(
@@ -38,6 +42,15 @@ impl ComputePlugin for Vecs {
                 genesis + op_return + unclaimed + overwritten
             },
             context.exit(),
-        )
+        )?;
+        #[cfg(feature = "litecoin")]
+        self.mweb.compute(
+            indexer.compute_start().height,
+            holders,
+            mweb,
+            &self.burned,
+            context.exit(),
+        )?;
+        Ok(())
     }
 }

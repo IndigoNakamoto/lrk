@@ -15,6 +15,8 @@ mod cohort_context;
 mod cohort_id;
 mod cohort_name;
 mod halving_epoch;
+#[cfg(feature = "litecoin")]
+mod mweb_type;
 mod profitability_range;
 mod spendable_type;
 mod term;
@@ -33,6 +35,8 @@ pub use cohort_context::*;
 pub use cohort_id::CohortId;
 pub use cohort_name::*;
 pub use halving_epoch::*;
+#[cfg(feature = "litecoin")]
+pub use mweb_type::MwebType;
 pub use profitability_range::*;
 pub use spendable_type::*;
 pub use term::Term;

@@ -79,6 +79,9 @@ impl Vecs {
             mappings,
         );
 
+        #[cfg(feature = "litecoin")]
+        let mweb = crate::mweb::Vecs::import(&db, version, mappings)?;
+
         let this = Self {
             db,
             circulating,
@@ -87,6 +90,8 @@ impl Vecs {
             velocity,
             market_cap,
             market_cap_delta,
+            #[cfg(feature = "litecoin")]
+            mweb,
         };
         STORAGE.finalize_database(&this.db)?;
         Ok(this)

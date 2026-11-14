@@ -1,6 +1,7 @@
 use crate::{block::spend_delta::SpendDelta, state::UTXOStates};
 use bitview_cohort::{AmountRange, SpendableType};
 use brk_types::{Cents, OutputType, Sats};
+use vecdb::unlikely;
 
 #[derive(Default)]
 pub struct DetailedSpends {
@@ -9,8 +10,12 @@ pub struct DetailedSpends {
 }
 impl DetailedSpends {
     pub fn add(&mut self, value: Sats, ty: OutputType, previous: Cents, current: Cents) {
-        // Inputs never spend an OP_RETURN output: it never enters the UTXO set.
+        // Inputs never spend an OP_RETURN output: it never enters the UTXO set. MWEB's protocol
+        // outputs never entered it either (see `ReceivedOutputs::add`).
         debug_assert!(!ty.is_unspendable());
+        if unlikely(ty.is_mweb()) {
+            return;
+        }
         let delta = SpendDelta::new(value, previous, current);
         *self.by_type.get_mut(ty) += delta;
         *self.by_amount.get_mut(value) += delta;

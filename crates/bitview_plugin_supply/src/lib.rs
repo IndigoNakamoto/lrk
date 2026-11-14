@@ -1,6 +1,8 @@
 mod compute;
 mod dependencies;
 mod import;
+#[cfg(feature = "litecoin")]
+mod mweb;
 mod velocity;
 
 pub use dependencies::Dependencies;
@@ -25,7 +27,8 @@ pub struct Vecs<M: StorageMode = Rw> {
     db: Database,
 
     /// Total value of all unspent transaction outputs in the UTXO set; its USD
-    /// value is the market cap.
+    /// value is the market cap. On Litecoin it is the transparent supply: MWEB's
+    /// protocol outputs are left out, its coins counted in `total_supply`.
     #[traversable(lead = "Circulating supply: all the bitcoin in existence, unspent.")]
     circulating: LazyPerBlock<Bitcoin, Bitcoin>,
     /// Value made provably unspendable: the genesis subsidy, `OP_RETURN` output
@@ -48,4 +51,7 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(wrap = "market_cap", rename = "delta")]
     #[traversable(lead = "Market cap change: how much the market cap changed.")]
     market_cap_delta: LazyRollingDeltasFiatFromHeight<Cents, CentsSigned, PartsPerMillionSigned64>,
+    #[cfg(feature = "litecoin")]
+    #[traversable(flatten)]
+    mweb: mweb::Vecs<M>,
 }

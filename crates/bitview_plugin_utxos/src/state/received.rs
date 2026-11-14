@@ -11,7 +11,9 @@ pub struct ReceivedOutputs {
 
 impl ReceivedOutputs {
     pub fn add(&mut self, value: Sats, ty: OutputType) {
-        if unlikely(ty.is_unspendable()) {
+        // MWEB's protocol outputs hold MWEB's coins, not transparent holders': the distribution
+        // is transparent-only (see the MWEB plugin).
+        if unlikely(ty.is_unspendable() || ty.is_mweb()) {
             return;
         }
         let supply = SupplyState {

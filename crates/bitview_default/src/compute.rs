@@ -196,8 +196,13 @@ impl DefaultPlugins {
             )?;
             let outputs = self.outputs.as_ref();
 
-            // Supply reads Outputs, Mining and Price: it runs beside the history chain.
+            // Supply reads Outputs, Mining and Price: it runs beside the history chain. On
+            // Litecoin it also reads Holders and MWEB for the total supply, so it runs after
+            // Holders instead.
             let supply = &mut *self.supply;
+            #[cfg(feature = "litecoin")]
+            let supply = (supply, mining);
+            #[cfg(not(feature = "litecoin"))]
             let supply = scope.spawn(move || -> Result<_> {
                 let (mining, transactions, mining_tail) = mining.join().unwrap()?;
                 timed_compute(
@@ -312,7 +317,26 @@ impl DefaultPlugins {
                     )
                 });
 
+                #[cfg(not(feature = "litecoin"))]
                 let (supply, transactions, mining_tail) = supply.join().unwrap()?;
+                #[cfg(feature = "litecoin")]
+                let (supply, transactions, mining_tail) = {
+                    let (supply, mining) = supply;
+                    let (mining, transactions, mining_tail) = mining.join().unwrap()?;
+                    timed_compute(
+                        &mut *supply,
+                        SupplyDependencies {
+                            indexer,
+                            outputs,
+                            mining,
+                            price,
+                            holders,
+                            mweb: &self.mweb,
+                        },
+                        context,
+                    )?;
+                    (&*supply, transactions, mining_tail)
+                };
                 timed_compute(
                     &mut *self.cointime,
                     CointimeDependencies {

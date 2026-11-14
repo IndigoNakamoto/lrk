@@ -28,6 +28,8 @@ impl ComputePlugin for Vecs {
             nonstandard,
             versions,
             transfer_volume,
+            #[cfg(feature = "litecoin")]
+            transparent_count_cumulative,
             ..
         } = self;
         let exit = context.exit();
@@ -40,7 +42,16 @@ impl ComputePlugin for Vecs {
                 let ((count, features), (versions, patterns)) = join(
                     || {
                         join(
-                            || count.compute(start, &mappings.lookback.window_starts(), exit),
+                            || {
+                                #[cfg(feature = "litecoin")]
+                                super::transparent::compute(
+                                    transparent_count_cumulative,
+                                    indexer,
+                                    mappings,
+                                    exit,
+                                )?;
+                                count.compute(start, &mappings.lookback.window_starts(), exit)
+                            },
                             || features.compute(indexer, exit),
                         )
                     },

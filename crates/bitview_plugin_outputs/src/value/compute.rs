@@ -60,6 +60,9 @@ pub(crate) fn compute_sats(
                 let value = values.next().expect("aligned output value");
                 if output_type == OutputType::OpReturn {
                     cumulative += value;
+                } else if output_type.is_mweb() {
+                    // The HogAddr and peg-ins hold MWEB's coins, counted by the MWEB plugin:
+                    // neither burned nor part of the transparent UTXO supply.
                 } else {
                     supply.value += value;
                     supply.utxo_count += 1;

@@ -55,6 +55,25 @@ used to abort the process.
 - Ordinary tx count / volume / size / fee-rate skip HogEx. Its fee stays in
   block fees (it is real MWEB fee revenue).
 
+Where each decision is enforced (re-check these on every upstream merge):
+
+- UTXO history journals: `bitview_plugin_outputs/src/value/compute.rs`
+  (creations skip `is_mweb()`, never counted as burned) and
+  `bitview_plugin_inputs/src/spends.rs` (spends of them skipped). Age, holders,
+  cointime, coinflow, profitability, entry and the UTXO set all read these.
+- Per-block UTXO cohorts: `bitview_plugin_utxos/src/state/received.rs` and
+  `block/detailed_spends.rs` (`SpendableType::get_mut` panics on MWEB types).
+- Addresses: `OutputType::is_addr` is false for MWEB.
+- Per-type output/input counts: `OutputTypeId::MwebPegPool` / `MwebPegIn` and
+  `ByType::mweb` in `bitview_cohort` (series `mweb_peg_pool_*`, `mweb_peg_in_*`).
+- Transactions: `bitview_plugin_transactions/src/transparent.rs` (tx count),
+  `fees/compute/block.rs` (`Block::hogex`: volume, distributions, CPFP
+  clusters). Relay policy exempts HogEx in the indexer's
+  `processor/transaction/analysis/mod.rs`.
+- Supply: `bitview_plugin_supply/src/mweb.rs` (`total_supply`,
+  `supply_invariant_mismatch = total - (scheduled subsidy - burned)`). Under
+  `litecoin`, supply computes after holders in `bitview_default/src/compute.rs`.
+
 ## Runtime (do not invent new paths)
 
 - Old live data: `BRK_DATA_DIR=/Volumes/LTC/brk` (never wipe). Bitview data

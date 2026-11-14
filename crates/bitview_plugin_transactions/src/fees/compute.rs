@@ -104,6 +104,8 @@ impl Vecs {
             + tx_counts.version()
             + txs.weight.version()
             + outpoints.version();
+        #[cfg(feature = "litecoin")]
+        let version = version + txs.features.hogex.block.version();
         let target = txs.first_txin_index.len();
         let max_height = txs.first_tx_index.len();
         let (heights, start_tx) = {
@@ -129,6 +131,12 @@ impl Vecs {
 
         // Bounded: an update of a few blocks reads only their counts and boundaries.
         let mut tx_count = tx_counts.bounded_cursor_at(start_height, max_height);
+        #[cfg(feature = "litecoin")]
+        let mut hogex_count = txs
+            .features
+            .hogex
+            .block
+            .bounded_cursor_at(start_height, max_height);
         let mut next_block_input = inputs
             .first_txin_index
             .bounded_cursor_at(start_height, max_height + 1);
@@ -163,6 +171,10 @@ impl Vecs {
                 }
                 let block = &mut blocks[batch_len];
                 block.reset(first_tx);
+                #[cfg(feature = "litecoin")]
+                {
+                    block.hogex = u16::from(hogex_count.next().unwrap()) > 0;
+                }
 
                 block.vsizes.reserve(n);
                 weights.for_each(n, |weight| block.vsizes.push(weight.into()));

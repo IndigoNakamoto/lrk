@@ -12,6 +12,8 @@ mod inscription;
 mod patterns;
 mod policy;
 mod resume;
+#[cfg(feature = "litecoin")]
+mod transparent;
 mod versions;
 mod vsize;
 
@@ -21,6 +23,12 @@ pub use has::HasTransactions;
 
 use bitview_plugin::{Plugin, PluginId, PluginStorage};
 use bitview_primitives::Count16;
+#[cfg(feature = "litecoin")]
+use bitview_primitives::Count;
+#[cfg(feature = "litecoin")]
+use bitview_vecs::CachedSeries;
+#[cfg(feature = "litecoin")]
+use brk_types::Height;
 use bitview_traversable::Traversable;
 use bitview_vecs::{
     LazyPerSecondWindows, PerBlockFullFromCumulative, ValuePerBlockCumulativeRolling,
@@ -44,9 +52,13 @@ pub struct Vecs<M: StorageMode = Rw> {
     #[traversable(skip)]
     db: Database,
 
-    /// Number of transactions, including the coinbase transaction.
+    /// Number of transactions, including the coinbase transaction. On Litecoin it leaves out
+    /// each block's HogEx, MWEB's settlement transaction.
     #[traversable(lead = "Transactions: how many were confirmed.")]
     pub count: PerBlockFullFromCumulative<Count16, M>,
+    #[cfg(feature = "litecoin")]
+    #[traversable(hidden)]
+    transparent_count_cumulative: CachedSeries<Height, Count, M>,
     features: FeaturesVecs<M>,
     /// Transaction virtual size in vbytes: BIP-141 weight divided by four, rounded up. The
     /// statistics count each of the block's transactions equally, coinbase included, at
@@ -72,7 +84,8 @@ pub struct Vecs<M: StorageMode = Rw> {
     versions: VersionsVecs<M>,
     /// Sum of the input values of non-coinbase transactions. This equals their
     /// total output value plus transaction fees and is not adjusted to estimate
-    /// economic payment volume.
+    /// economic payment volume. On Litecoin it leaves out the HogEx, whose inputs are the MWEB
+    /// pool and its peg-ins rather than a transfer.
     #[traversable(lead = "Transfer volume: the bitcoin transactions moved, change included.")]
     pub transfer_volume: ValuePerBlockCumulativeRolling<M>,
     /// Transaction rate, including coinbase transactions.

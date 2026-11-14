@@ -47,16 +47,23 @@ pub(crate) fn compute(
     let output_heights = mappings.output_heights.load_full();
     let mut values = vecs.inputs.value.range_cursor_at(begin, finish);
     let mut origins = txout_indexes.range_cursor_at(begin, finish);
+    let mut output_types = vecs.inputs.output_type.range_cursor_at(begin, finish);
     let mut hashes = vecs.blocks.blockhash.bounded_cursor_at(start, end);
     let mut spent: FxHashMap<u32, Amount> = FxHashMap::default();
     for (offset, pair) in boundaries.windows(2).enumerate() {
         // The first input belongs to the coinbase and has no previous output.
         values.advance(1);
         origins.advance(1);
+        output_types.advance(1);
         spent.clear();
         for _ in pair[0].to_usize() + 1..pair[1].to_usize() {
             let value = values.next().unwrap();
-            let origin = output_heights.get(origins.next().unwrap()).ok_or_else(|| {
+            let origin = origins.next().unwrap();
+            // MWEB's protocol outputs never entered the UTXO history (see the outputs plugin).
+            if output_types.next().unwrap().is_mweb() {
+                continue;
+            }
+            let origin = output_heights.get(origin).ok_or_else(|| {
                 Error::NotFound("missing creation height for spent output".into())
             })?;
             let amount = spent.entry(u32::from(origin)).or_default();
@@ -87,6 +94,7 @@ fn prepare(spends: &mut Spends, indexer: &Indexer, from: Height) -> Result<()> {
     let version = STORAGE.schema_version()
         + vecs.inputs.value.version()
         + vecs.inputs.txout_index.version()
+        + vecs.inputs.output_type.version()
         + vecs.inputs.first_txin_index.version()
         + vecs.outputs.first_txout_index.version();
     spends.validate_version(u32::from(version).into())?;

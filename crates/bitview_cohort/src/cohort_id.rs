@@ -14,6 +14,10 @@ pub enum CohortId {
     Entry(EntryPrice),
     Type(SpendableTypeId),
     OpReturn,
+    #[cfg(feature = "litecoin")]
+    MwebPegPool,
+    #[cfg(feature = "litecoin")]
+    MwebPegIn,
 }
 
 impl CohortId {
@@ -28,6 +32,10 @@ impl CohortId {
             Self::Entry(entry) => entry.select(&ENTRY_NAMES).id,
             Self::Type(kind) => kind.select(&SPENDABLE_TYPE_NAMES).id,
             Self::OpReturn => OP_RETURN,
+            #[cfg(feature = "litecoin")]
+            Self::MwebPegPool => crate::mweb_type::MWEB_PEG_POOL,
+            #[cfg(feature = "litecoin")]
+            Self::MwebPegIn => crate::mweb_type::MWEB_PEG_IN,
         }
     }
 }
