@@ -37,6 +37,27 @@ pub struct SharedSeries {
     pub also: Vec<(String, bool)>,
 }
 
+/// Plugins built from the UTXO set's history, which on Litecoin leaves out MWEB's protocol
+/// outputs: their series cover the transparent chain only.
+#[cfg(feature = "litecoin")]
+const TRANSPARENT_PLUGINS: &[&str] = &[
+    "utxo_set",
+    "age",
+    "utxos",
+    "addresses",
+    "holders",
+    "entry",
+    "profitability",
+    "cointime",
+    "coinflow",
+    "bedrock",
+    "rarity_meter",
+];
+
+#[cfg(feature = "litecoin")]
+const TRANSPARENT_SCOPE: &str = "Scope: transparent. Litecoin's transparent chain only: the coins \
+inside MWEB (`mweb_supply`) are not in it; `total_supply` counts both.";
+
 pub struct Vecs<'a> {
     by_series: FxHashMap<&'a str, Series<'a>>,
     shared: Vec<SharedSeries>,
@@ -78,6 +99,15 @@ impl<'a> Vecs<'a> {
             plugin.for_each_visible(&mut |vec| builder.push(vec, db));
             let mut plugin_descriptions = BTreeMap::new();
             plugin.collect_descriptions(&mut plugin_descriptions);
+            #[cfg(feature = "litecoin")]
+            if TRANSPARENT_PLUGINS.contains(&db) {
+                plugin.for_each_visible(&mut |vec| {
+                    plugin_descriptions
+                        .entry(vec.name())
+                        .or_default()
+                        .push(bitview_traversable::Fragment::Detail(TRANSPARENT_SCOPE));
+                });
+            }
             descriptions.push((db, plugin_descriptions));
         });
 

@@ -10,9 +10,15 @@ pub(crate) const MWEB_PEG_IN: &str = "mweb_peg_in";
 #[cfg_attr(feature = "storage", derive(Traversable))]
 pub struct MwebType<T> {
     /// Uses the MWEB pool's HogAddr (witness v8): output 0 of each block's HogEx.
-    #[cfg_attr(feature = "storage", traversable(lead = "The MWEB pool's HogAddr output, one per block."))]
+    #[cfg_attr(
+        feature = "storage",
+        traversable(lead = "The MWEB pool's HogAddr output, one per block.")
+    )]
     pub mweb_peg_pool: T,
     /// Uses peg-in outputs (witness v9), which their block's HogEx sweeps into MWEB.
-    #[cfg_attr(feature = "storage", traversable(lead = "Peg-in outputs: coins entering MWEB."))]
+    #[cfg_attr(
+        feature = "storage",
+        traversable(lead = "Peg-in outputs: coins entering MWEB.")
+    )]
     pub mweb_peg_in: T,
 }

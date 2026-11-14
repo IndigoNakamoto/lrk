@@ -382,6 +382,11 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @typedef {number} Count
  */
 /**
+ * A number of things that fits 32 bits, such as outputs per block.
+ *
+ * @typedef {number} Count32
+ */
+/**
  * A mean number of things.
  *
  * @typedef {number} CountFract
@@ -987,7 +992,7 @@ before it (live, the mempool's as the next block's), each block's counts weighte
 /**
  * An output's script type (P2PKH, P2WPKH, P2SH, P2TR…).
  *
- * @typedef {("p2pk65"|"p2pk33"|"p2pkh"|"p2ms"|"p2sh"|"op_return"|"p2wpkh"|"p2wsh"|"p2tr"|"p2a"|"empty_script"|"unknown_script")} OutputType
+ * @typedef {(("p2pk65"|"p2pk33"|"p2pkh"|"p2ms"|"p2sh"|"op_return"|"p2wpkh"|"p2wsh"|"p2tr"|"p2a"|"empty_script"|"unknown_script")|("mweb_peg_pool")|("mweb_peg_in"))} OutputType
  */
 /**
  * Output type names used by Esplora and mempool.space.
@@ -1164,7 +1169,7 @@ as a decimal string
 /**
  * A mining pool's identifier, as written in URLs.
  *
- * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners"|"dmnd")} PoolSlug
+ * @typedef {("unknown"|"blockfills"|"ultimuspool"|"terrapool"|"luxor"|"1thash"|"btccom"|"bitfarms"|"huobipool"|"wayicn"|"canoepool"|"btctop"|"bitcoincom"|"175btc"|"gbminers"|"axbt"|"asicminer"|"bitminter"|"bitcoinrussia"|"btcserv"|"simplecoinus"|"btcguild"|"eligius"|"ozcoin"|"eclipsemc"|"maxbtc"|"triplemining"|"coinlab"|"50btc"|"ghashio"|"stminingcorp"|"bitparking"|"mmpool"|"polmine"|"kncminer"|"bitalo"|"f2pool"|"hhtt"|"megabigpower"|"mtred"|"nmcbit"|"yourbtcnet"|"givemecoins"|"braiinspool"|"antpool"|"multicoinco"|"bcpoolio"|"cointerra"|"kanopool"|"solock"|"ckpool"|"nicehash"|"bitclub"|"bitcoinaffiliatenetwork"|"btcc"|"bwpool"|"exxbw"|"bitsolo"|"bitfury"|"21inc"|"digitalbtc"|"8baochi"|"mybtccoinpool"|"tbdice"|"hashpool"|"nexious"|"bravomining"|"hotpool"|"okexpool"|"bcmonster"|"1hash"|"bixin"|"tatmaspool"|"viabtc"|"connectbtc"|"batpool"|"waterhole"|"dcexploration"|"dcex"|"btpool"|"58coin"|"bitcoinindia"|"shawnp0wers"|"phashio"|"rigpool"|"haozhuzhu"|"7pool"|"miningkings"|"hashbx"|"dpool"|"rawpool"|"haominer"|"helix"|"bitcoinukraine"|"poolin"|"secretsuperstar"|"tigerpoolnet"|"sigmapoolcom"|"okpooltop"|"hummerpool"|"tangpool"|"bytepool"|"spiderpool"|"novablock"|"miningcity"|"binancepool"|"minerium"|"lubiancom"|"okkong"|"aaopool"|"emcdpool"|"foundryusa"|"sbicrypto"|"arkpool"|"purebtccom"|"marapool"|"kucoinpool"|"entrustcharitypool"|"okminer"|"titan"|"pegapool"|"btcnuggets"|"cloudhashing"|"digitalxmintsy"|"telco214"|"btcpoolparty"|"multipool"|"transactioncoinmining"|"btcdig"|"trickysbtcpool"|"btcmp"|"eobot"|"unomp"|"patels"|"gogreenlight"|"bitcoinindiapool"|"ekanembtc"|"canoe"|"tiger"|"1m1x"|"zulupool"|"secpool"|"ocean"|"whitepool"|"wiz"|"wk057"|"futurebitapollosolo"|"carbonnegative"|"portlandhodl"|"phoenix"|"neopool"|"maxipool"|"bitfufupool"|"gdpool"|"miningdutch"|"publicpool"|"miningsquared"|"innopolistech"|"btclab"|"parasite"|"redrockpool"|"est3lar"|"braiinssolo"|"solopoolcom"|"noderunners"|"dmnd"|"kupool"|"litecoinpoolorg"|"hash700"|"lsoftwaredmcc"|"hashspace"|"dogegogocom"|"longpool"|"kryptex"|"dxpool"|"k1pool"|"molepool"|"solopoolorg"|"prohashing"|"hashhut"|"happychina"|"himpool"|"p2pspbxyz"|"hyperdonkey"|"zergpool")} PoolSlug
  */
 /**
  * @typedef {Object} PoolSlugAndHeightParam
@@ -3930,349 +3935,6 @@ const _PerTxDistribution = _s({
 
 /**
  * @typedef {{
- *   btc: SeriesPattern1<?Bitcoin>,
- *   usd: SeriesPattern1<?Dollars>,
- * }} Value
- */
-const _Value = _s({
-  btc: [_i1, '*'],
-  usd: [_i1, '*_usd'],
-});
-
-/**
- * @typedef {{
- *   p95ToP98: Value,
- *   p98ToP99: Value,
- *   p99ToP99_5: Value,
- *   p99_5ToP99_9: Value,
- *   belowP99_9: Value,
- * }} EntrySupply
- */
-const _EntrySupply = _s({
-  p95ToP98: [_Value, '*_p95_to_p98'],
-  p98ToP99: [_Value, '*_p98_to_p99'],
-  p99ToP99_5: [_Value, '*_p99_to_p99_5'],
-  p99_5ToP99_9: [_Value, '*_p99_5_to_p99_9'],
-  belowP99_9: [_Value, '*_below_p99_9'],
-});
-
-/**
- * @typedef {{
- *   supplyInLossShareThreshold: Percentiles<?Percent>,
- *   floor: Percentiles<?Dollars>,
- *   costBasisAboveP95Floor: Levels,
- *   entrySupply: EntrySupply,
- *   entryCapital: EntryCapital,
- * }} Mode
- */
-const _Mode = _s({
-  supplyInLossShareThreshold: [_Percentiles, '*_supply_in_loss_share_threshold'],
-  floor: [_Percentiles, '*_floor'],
-  costBasisAboveP95Floor: [_Levels, '*_cost_basis_above_p95_floor'],
-  entrySupply: [_EntrySupply, '*_entry_supply'],
-  entryCapital: [_EntryCapital, '*_entry_capital'],
-});
-
-/**
- * @typedef {{
- *   awake: Mode,
- *   mobile: Mode,
- *   unweighted: Mode,
- * }} Bedrock
- */
-const _Bedrock = _s({
-  awake: [_Mode, '*_awake'],
-  mobile: [_Mode, '*_mobile'],
-  unweighted: [_Mode, '*_unweighted'],
-});
-
-/**
- * @typedef {{
- *   vaulted: Value,
- *   hodledOrLost: Value,
- *   active: Value,
- * }} CointimeSupply
- */
-const _CointimeSupply = _s({
-  vaulted: [_Value, 'vaulted_*'],
-  hodledOrLost: [_Value, 'hodled_or_lost_*'],
-  active: [_Value, 'active_*'],
-});
-
-/**
- * @typedef {{
- *   total: Value,
- *   inLoss: InLoss,
- * }} MobileSupply
- */
-const _MobileSupply = _s({
-  total: [_Value, '*'],
-  inLoss: [_InLoss, '*_in_loss_share'],
-});
-
-/**
- * @typedef {{
- *   supply: MobileSupply,
- *   capital: MobileCapital,
- *   costBasis: CostBasis,
- * }} Awake
- */
-const _Awake = _s({
-  supply: [_MobileSupply, '*_supply'],
-  capital: [_MobileCapital, '*'],
-  costBasis: [_CostBasis, '*'],
-});
-
-/**
- * @typedef {{
- *   supply: Value,
- * }} Side
- */
-const _Side = _s({
-  supply: [_Value, '*'],
-});
-
-/**
- * @typedef {{
- *   mobile: Awake,
- *   immobile: Side,
- * }} CoinflowCohort
- */
-const _CoinflowCohort = _s({
-  mobile: [_Awake, '*_mobile'],
-  immobile: [_Side, '*_immobile_supply'],
-});
-
-/**
- * @typedef {{
- *   spendingRate: SeriesPattern1<?PerDay>,
- *   spendingExposure: SeriesPattern1<?Float>,
- *   mobility: SeriesPattern1<?Ratio>,
- *   mobile: Side,
- *   immobile: Side,
- * }} CoinflowRange
- */
-const _CoinflowRange = _s({
-  spendingRate: [_i1, '*_spending_rate'],
-  spendingExposure: [_i1, '*_spending_exposure'],
-  mobility: [_i1, '*_mobility'],
-  mobile: [_Side, '*_mobile_supply'],
-  immobile: [_Side, '*_immobile_supply'],
-});
-
-/**
- * @typedef {{
- *   awake: Awake,
- *   dormant: Side,
- * }} CointimeCohort
- */
-const _CointimeCohort = _s({
-  awake: [_Awake, '*_awake'],
-  dormant: [_Side, '*_dormant_supply'],
-});
-
-/**
- * @template A
- * @typedef {{
- *   all: A,
- *   sth: A,
- *   lth: A,
- *   under4m: A,
- *   under6m: A,
- *   over4m: A,
- *   over6m: A,
- * }} AgeAggregate
- */
-/** @type {_Make} */
-const _AgeAggregate = (c, b, f0) => _n(c, b, {
-  all: [f0, ''],
-  sth: [f0, 'sth'],
-  lth: [f0, 'lth'],
-  under4m: [f0, '*_under_4m'],
-  under6m: [f0, '*_under_6m'],
-  over4m: [f0, '*_over_4m'],
-  over6m: [f0, '*_over_6m'],
-});
-
-/**
- * @typedef {{
- *   total: Value,
- *   share: SeriesPattern1<?Percent>,
- * }} BandSupply
- */
-const _BandSupply = _s({
-  total: [_Value, '*'],
-  share: [_i1, '*_share'],
-});
-
-/**
- * @typedef {{
- *   supply: BandSupply,
- *   capital: BandCapital,
- * }} Band
- */
-const _Band = _s({
-  supply: [_BandSupply, '*_supply'],
-  capital: [_BandCapital, '*'],
-});
-
-/**
- * @typedef {{
- *   profitOver1000Percent: Band,
- *   profit500To1000Percent: Band,
- *   profit300To500Percent: Band,
- *   profit200To300Percent: Band,
- *   profit100To200Percent: Band,
- *   profit90To100Percent: Band,
- *   profit80To90Percent: Band,
- *   profit70To80Percent: Band,
- *   profit60To70Percent: Band,
- *   profit50To60Percent: Band,
- *   profit40To50Percent: Band,
- *   profit30To40Percent: Band,
- *   profit20To30Percent: Band,
- *   profit10To20Percent: Band,
- *   profit0To10Percent: Band,
- *   loss0To10Percent: Band,
- *   loss10To20Percent: Band,
- *   loss20To30Percent: Band,
- *   loss30To40Percent: Band,
- *   loss40To50Percent: Band,
- *   loss50To60Percent: Band,
- *   loss60To70Percent: Band,
- *   loss70To80Percent: Band,
- *   loss80To90Percent: Band,
- *   loss90To100Percent: Band,
- * }} ProfitabilityRange
- */
-const _ProfitabilityRange = _s({
-  profitOver1000Percent: [_Band, '*_profit_over_1000_percent'],
-  profit500To1000Percent: [_Band, '*_profit_500_to_1000_percent'],
-  profit300To500Percent: [_Band, '*_profit_300_to_500_percent'],
-  profit200To300Percent: [_Band, '*_profit_200_to_300_percent'],
-  profit100To200Percent: [_Band, '*_profit_100_to_200_percent'],
-  profit90To100Percent: [_Band, '*_profit_90_to_100_percent'],
-  profit80To90Percent: [_Band, '*_profit_80_to_90_percent'],
-  profit70To80Percent: [_Band, '*_profit_70_to_80_percent'],
-  profit60To70Percent: [_Band, '*_profit_60_to_70_percent'],
-  profit50To60Percent: [_Band, '*_profit_50_to_60_percent'],
-  profit40To50Percent: [_Band, '*_profit_40_to_50_percent'],
-  profit30To40Percent: [_Band, '*_profit_30_to_40_percent'],
-  profit20To30Percent: [_Band, '*_profit_20_to_30_percent'],
-  profit10To20Percent: [_Band, '*_profit_10_to_20_percent'],
-  profit0To10Percent: [_Band, '*_profit_0_to_10_percent'],
-  loss0To10Percent: [_Band, '*_loss_0_to_10_percent'],
-  loss10To20Percent: [_Band, '*_loss_10_to_20_percent'],
-  loss20To30Percent: [_Band, '*_loss_20_to_30_percent'],
-  loss30To40Percent: [_Band, '*_loss_30_to_40_percent'],
-  loss40To50Percent: [_Band, '*_loss_40_to_50_percent'],
-  loss50To60Percent: [_Band, '*_loss_50_to_60_percent'],
-  loss60To70Percent: [_Band, '*_loss_60_to_70_percent'],
-  loss70To80Percent: [_Band, '*_loss_70_to_80_percent'],
-  loss80To90Percent: [_Band, '*_loss_80_to_90_percent'],
-  loss90To100Percent: [_Band, '*_loss_90_to_100_percent'],
-});
-
-/**
- * @typedef {{
- *   all: ProfitabilityRange,
- *   sth: ProfitabilityRange,
- *   lth: ProfitabilityRange,
- * }} Profitability
- */
-const _Profitability = _s({
-  all: [_ProfitabilityRange, ''],
-  sth: [_ProfitabilityRange, '*'],
-  lth: [_ProfitabilityRange, 'lth'],
-});
-
-/**
- * @typedef {{
- *   _24h: Value,
- *   _1w: Value,
- *   _1m: Value,
- *   _1y: Value,
- * }} OpReturnWindows
- */
-const _OpReturnWindows = _s({
-  _24h: [_Value, '*_24h'],
-  _1w: [_Value, '*_1w'],
-  _1m: [_Value, '*_1m'],
-  _1y: [_Value, '*_1y'],
-});
-
-/**
- * @typedef {{
- *   avg: OpReturnWindows,
- * }} PoolFees
- */
-const _PoolFees = _s({
-  avg: [_OpReturnWindows, '*'],
-});
-
-/**
- * @typedef {{
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- * }} Coinbase
- */
-const _Coinbase = _s({
-  cumulative: [_Value, '*_cumulative'],
-  sum: [_OpReturnWindows, '*_sum'],
-});
-
-/**
- * @typedef {{
- *   btc: SeriesPattern18<?Bitcoin>,
- *   usd: SeriesPattern18<?Dollars>,
- * }} OpReturnValue
- */
-const _OpReturnValue = _s({
-  btc: [_i18, '*'],
-  usd: [_i18, '*_usd'],
-});
-
-/**
- * @typedef {{
- *   block: OpReturnValue,
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- * }} ValueFlow
- */
-const _ValueFlow = _s({
-  block: [_OpReturnValue, '*'],
-  cumulative: [_Value, '*_cumulative'],
-  sum: [_OpReturnWindows, '*_sum'],
-});
-
-/**
- * @typedef {{
- *   transferVolume: ValueFlow,
- * }} Activity
- */
-const _Activity = _s({
-  transferVolume: [_ValueFlow, '*'],
-});
-
-/**
- * @typedef {{
- *   block: OpReturnValue,
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- *   inProfit: ValueFlow,
- *   inLoss: ValueFlow,
- * }} HoldersValueFlow
- */
-const _HoldersValueFlow = _s({
-  block: [_OpReturnValue, '*'],
-  cumulative: [_Value, '*_cumulative'],
-  sum: [_OpReturnWindows, '*_sum'],
-  inProfit: [_ValueFlow, '*_in_profit'],
-  inLoss: [_ValueFlow, '*_in_loss'],
-});
-
-/**
- * @typedef {{
  *   cumulative: SeriesPattern1<?Percent>,
  *   _24h: SeriesPattern1<?Percent>,
  *   _1w: SeriesPattern1<?Percent>,
@@ -4286,97 +3948,6 @@ const _Share = _s({
   _1w: [_i1, '*_1w'],
   _1m: [_i1, '*_1m'],
   _1y: [_i1, '*_1y'],
-});
-
-/**
- * @typedef {{
- *   block: OpReturnValue,
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- *   avg: OpReturnWindows,
- *   min: OpReturnWindows,
- *   max: OpReturnWindows,
- *   p10: OpReturnWindows,
- *   p25: OpReturnWindows,
- *   median: OpReturnWindows,
- *   p75: OpReturnWindows,
- *   p90: OpReturnWindows,
- *   share: Share,
- * }} ValueFlowStats
- */
-const _ValueFlowStats = _s({
-  block: [_OpReturnValue, '*'],
-  cumulative: [_Value, '*_cumulative'],
-  sum: [_OpReturnWindows, '*_sum'],
-  avg: [_OpReturnWindows, '*_avg'],
-  min: [_OpReturnWindows, '*_min'],
-  max: [_OpReturnWindows, '*_max'],
-  p10: [_OpReturnWindows, '*_p10'],
-  p25: [_OpReturnWindows, '*_p25'],
-  median: [_OpReturnWindows, '*_median'],
-  p75: [_OpReturnWindows, '*_p75'],
-  p90: [_OpReturnWindows, '*_p90'],
-  share: [_Share, 'fee_share'],
-});
-
-/**
- * @typedef {{
- *   block: OpReturnValue,
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- *   share: Share,
- * }} MiningValueFlow
- */
-const _MiningValueFlow = _s({
-  block: [_OpReturnValue, '*'],
-  cumulative: [_Value, '*_cumulative'],
-  sum: [_OpReturnWindows, '*_sum'],
-  share: [_Share, '*_share'],
-});
-
-/**
- * @typedef {{
- *   coinbase: ValueFlow,
- *   subsidy: MiningValueFlow,
- *   fees: ValueFlowStats,
- *   unclaimed: ValueFlow,
- * }} Rewards
- */
-const _Rewards = _s({
-  coinbase: [_ValueFlow, '*'],
-  subsidy: [_MiningValueFlow, 'subsidy'],
-  fees: [_ValueFlowStats, 'fees'],
-  unclaimed: [_ValueFlow, 'unclaimed_rewards'],
-});
-
-/**
- * @typedef {{
- *   rewards: Rewards,
- *   hashrate: Rate,
- *   hashPrice: HashPriceValue<?HashPrice>,
- *   hashValue: HashPriceValue<?HashValue>,
- * }} Mining
- */
-const _Mining = _s({
-  rewards: [_Rewards, 'coinbase'],
-  hashrate: [_Rate, 'hashrate'],
-  hashPrice: [_HashPriceValue, '*_price'],
-  hashValue: [_HashPriceValue, '*_value'],
-});
-
-/**
- * @typedef {{
- *   block: OpReturnValue,
- *   cumulative: Value,
- *   sum: OpReturnWindows,
- *   chainShare: Share,
- * }} FeesSeries
- */
-const _FeesSeries = _s({
-  block: [_OpReturnValue, '*_fees'],
-  cumulative: [_Value, '*_fees_cumulative'],
-  sum: [_OpReturnWindows, '*_fees_sum'],
-  chainShare: [_Share, '*_fee_chain_share'],
 });
 
 /**
@@ -4471,23 +4042,6 @@ const _SharedCapital = _s({
 
 /**
  * @typedef {{
- *   total: Value,
- *   inProfit: PredicateSupply,
- *   inLoss: PredicateSupply,
- *   delta: Delta<?Bitcoin>,
- *   share: SeriesPattern1<?Percent>,
- * }} SharedSupply
- */
-const _SharedSupply = _s({
-  total: [_Value, '*'],
-  inProfit: [_PredicateSupply, '*_in_profit'],
-  inLoss: [_PredicateSupply, '*_in_loss'],
-  delta: [_Delta, '*_delta'],
-  share: [_i1, '*_share'],
-});
-
-/**
- * @typedef {{
  *   total: SeriesPattern1<?Dollars>,
  *   realizedCap: SeriesPattern1<?Dollars>,
  *   inProfit: Part,
@@ -4534,36 +4088,6 @@ const _CapitalViews = _s({
 });
 
 /**
- * @typedef {{
- *   total: Value,
- *   delta: Delta<?Bitcoin>,
- *   share: SeriesPattern1<?Percent>,
- * }} CohortSupply
- */
-const _CohortSupply = _s({
-  total: [_Value, '*'],
-  delta: [_Delta, '*_delta'],
-  share: [_i1, '*_share'],
-});
-
-/**
- * @typedef {{
- *   total: Value,
- *   delta: Delta<?Bitcoin>,
- *   share: SeriesPattern1<?Percent>,
- *   inProfit: Value,
- *   inLoss: Value,
- * }} CreationSupply
- */
-const _CreationSupply = _s({
-  total: [_Value, '*'],
-  delta: [_Delta, '*_delta'],
-  share: [_i1, '*_share'],
-  inProfit: [_Value, '*_in_profit'],
-  inLoss: [_Value, '*_in_loss'],
-});
-
-/**
  * @template A, B
  * @typedef {{
  *   value: SeriesPattern1<A>,
@@ -4573,23 +4097,6 @@ const _CreationSupply = _s({
 const _WithDelta = _s({
   value: [_i1, '*'],
   delta: [_Delta, '*_delta'],
-});
-
-/**
- * @typedef {{
- *   circulating: SeriesPattern1<?Bitcoin>,
- *   burned: ValueFlow,
- *   inflationRate: SeriesPattern1<?Percent>,
- *   velocity: Velocity,
- *   marketCap: WithDelta<?Dollars, ?Dollars>,
- * }} Supply
- */
-const _Supply = _s({
-  circulating: [_i1, '*'],
-  burned: [_ValueFlow, 'burned'],
-  inflationRate: [_i1, 'inflation_rate'],
-  velocity: [_Velocity, 'velocity'],
-  marketCap: [_WithDelta, 'market_cap'],
 });
 
 /**
@@ -4633,25 +4140,6 @@ const _CreationCapital = _s({
 
 /**
  * @typedef {{
- *   total: Value,
- *   delta: Delta<?Bitcoin>,
- *   share: SeriesPattern1<?Percent>,
- *   inProfit: Value,
- *   inLoss: Value,
- *   agedOut: ValueFlow,
- * }} AgeCreationSupply
- */
-const _AgeCreationSupply = _s({
-  total: [_Value, '*_supply'],
-  delta: [_Delta, '*_supply_delta'],
-  share: [_i1, '*_supply_share'],
-  inProfit: [_Value, '*_supply_in_profit'],
-  inLoss: [_Value, '*_supply_in_loss'],
-  agedOut: [_ValueFlow, '*_aged_out_supply'],
-});
-
-/**
- * @typedef {{
  *   block: SeriesPattern18<Bytes>,
  *   cumulative: SeriesPattern1<Bytes>,
  *   sum: Windows<Bytes>,
@@ -4663,25 +4151,6 @@ const _DataBytesSeries = _s({
   cumulative: [_i1, '*_bytes_cumulative'],
   sum: [_Windows, '*_bytes_sum'],
   chainShare: [_Share, '*_chain_share'],
-});
-
-/**
- * @typedef {{
- *   flag: SeriesPattern19<Boolean>,
- *   block: SeriesPattern18<Count>,
- *   cumulative: SeriesPattern1<Count>,
- *   sum: Windows<Count>,
- *   share: Share,
- *   fees: FeesSeries,
- * }} Inscription
- */
-const _Inscription = _s({
-  flag: [_i19, 'has_*'],
-  block: [_i18, '*_tx_count'],
-  cumulative: [_i1, '*_tx_count_cumulative'],
-  sum: [_Windows, '*_tx_count_sum'],
-  share: [_Share, '*_tx_share'],
-  fees: [_FeesSeries, '*'],
 });
 
 /**
@@ -4903,25 +4372,6 @@ const _CointimeValue = _s({
 
 /**
  * @typedef {{
- *   coindaysCreated: Flow<?CoinDays>,
- *   coindaysConsumed: Flow<?CoinDays>,
- *   wakefulness: SeriesPattern1<?Ratio>,
- *   awakeToDormant: SeriesPattern1<?Multiple>,
- *   awake: Side,
- *   dormant: Side,
- * }} CointimeRange
- */
-const _CointimeRange = _s({
-  coindaysCreated: [_Flow, '*_coindays_created'],
-  coindaysConsumed: [_Flow, '*_coindays_consumed'],
-  wakefulness: [_i1, '*_wakefulness'],
-  awakeToDormant: [_i1, '*_awake_to_dormant'],
-  awake: [_Side, '*_awake_supply'],
-  dormant: [_Side, '*_dormant_supply'],
-});
-
-/**
- * @typedef {{
  *   coinblocksCreated: Flow<?CoinBlocks>,
  *   coinblocksDestroyed: Flow<?CoinBlocks>,
  *   coinblocksStored: Flow<?CoinBlocks>,
@@ -5014,19 +4464,6 @@ const _AdjustedRealized = _s({
 
 /**
  * @typedef {{
- *   transferVolume: HoldersValueFlow,
- *   coindaysDestroyed: Flow<?CoinDays>,
- *   dormancy: Windows<?Days>,
- * }} HoldersActivity
- */
-const _HoldersActivity = _s({
-  transferVolume: [_HoldersValueFlow, '*_transfer_volume'],
-  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
-  dormancy: [_Windows, '*_dormancy'],
-});
-
-/**
- * @typedef {{
  *   profit: Flow<?Dollars>,
  *   loss: Flow<?Dollars>,
  * }} Realized
@@ -5034,36 +4471,6 @@ const _HoldersActivity = _s({
 const _Realized = _s({
   profit: [_Flow, '*_profit'],
   loss: [_Flow, '*_loss'],
-});
-
-/**
- * @typedef {{
- *   funded: WithDelta<Count, CountSigned>,
- *   supply: CohortSupply,
- *   capital: CapitalViews,
- *   utxos: BalanceUtxos,
- *   activity: Activity,
- *   realized: Realized,
- * }} Balance
- */
-const _Balance = _s({
-  funded: [_WithDelta, '*_address_count'],
-  supply: [_CohortSupply, '*_supply'],
-  capital: [_CapitalViews, '*'],
-  utxos: [_BalanceUtxos, '*_utxo_count'],
-  activity: [_Activity, '*_transfer_volume'],
-  realized: [_Realized, '*_realized'],
-});
-
-/**
- * @typedef {{
- *   transferVolume: ValueFlow,
- *   coindaysDestroyed: Flow<?CoinDays>,
- * }} CreationActivity
- */
-const _CreationActivity = _s({
-  transferVolume: [_ValueFlow, '*_transfer_volume'],
-  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
 });
 
 /**
@@ -5083,19 +4490,6 @@ const _CreationRealized = _s({
 
 /**
  * @typedef {{
- *   transferVolume: HoldersValueFlow,
- *   coindaysDestroyed: Flow<?CoinDays>,
- *   coindaysCreated: Flow<?CoinDays>,
- * }} AgeCreationActivity
- */
-const _AgeCreationActivity = _s({
-  transferVolume: [_HoldersValueFlow, '*_transfer_volume'],
-  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
-  coindaysCreated: [_Flow, '*_coindays_created'],
-});
-
-/**
- * @typedef {{
  *   count: WithDelta<Count, CountSigned>,
  *   spentCount: Flow<Count>,
  * }} CohortUtxos
@@ -5107,23 +4501,1015 @@ const _CohortUtxos = _s({
 
 /**
  * @typedef {{
- *   supply: HoldersSupply,
- *   capital: Capital,
  *   utxos: CohortUtxos,
- *   activity: HoldersActivity,
- *   realized: AdjustedRealized,
- *   unrealized: Unrealized,
- *   costBasis: HoldersCostBasis,
- * }} Metrics
+ * }} Zero
  */
-const _Metrics = _s({
-  supply: [_HoldersSupply, '*'],
-  capital: [_Capital, 'capital'],
-  utxos: [_CohortUtxos, ''],
-  activity: [_HoldersActivity, ''],
-  realized: [_AdjustedRealized, ''],
-  unrealized: [_Unrealized, ''],
-  costBasis: [_HoldersCostBasis, ''],
+const _Zero = _s({
+  utxos: [_CohortUtxos, '*'],
+});
+
+/**
+ * @typedef {{
+ *   count: Flow<Count>,
+ *   share: Share,
+ *   txCount: Flow<Count>,
+ *   txShare: Share,
+ * }} OutputTypeSeries
+ */
+const _OutputTypeSeries = _s({
+  count: [_Flow, '*_count'],
+  share: [_Share, '*_share'],
+  txCount: [_Flow, '*_tx_count'],
+  txShare: [_Share, '*_tx_share'],
+});
+
+/**
+ * @typedef {{
+ *   p2pk: OutputTypeSeries,
+ *   p2pkh: OutputTypeSeries,
+ *   p2ms: OutputTypeSeries,
+ *   p2sh: OutputTypeSeries,
+ *   p2wpkh: OutputTypeSeries,
+ *   p2wsh: OutputTypeSeries,
+ *   p2tr: OutputTypeSeries,
+ *   p2a: OutputTypeSeries,
+ *   emptyScript: OutputTypeSeries,
+ *   unknownScript: OutputTypeSeries,
+ *   opReturn: OutputTypeSeries,
+ *   mwebPegPool: OutputTypeSeries,
+ *   mwebPegIn: OutputTypeSeries,
+ * }} ByType
+ */
+const _ByType = _s({
+  p2pk: [_OutputTypeSeries, 'p2pk_*'],
+  p2pkh: [_OutputTypeSeries, 'p2pkh_*'],
+  p2ms: [_OutputTypeSeries, 'p2ms_*'],
+  p2sh: [_OutputTypeSeries, 'p2sh_*'],
+  p2wpkh: [_OutputTypeSeries, 'p2wpkh_*'],
+  p2wsh: [_OutputTypeSeries, 'p2wsh_*'],
+  p2tr: [_OutputTypeSeries, 'p2tr_*'],
+  p2a: [_OutputTypeSeries, 'p2a_*'],
+  emptyScript: [_OutputTypeSeries, 'empty_script_*'],
+  unknownScript: [_OutputTypeSeries, 'unknown_script_*'],
+  opReturn: [_OutputTypeSeries, 'op_return_*'],
+  mwebPegPool: [_OutputTypeSeries, 'mweb_peg_pool_*'],
+  mwebPegIn: [_OutputTypeSeries, 'mweb_peg_in_*'],
+});
+
+/**
+ * @typedef {{
+ *   p2pk: OutputTypeSeries,
+ *   p2pkh: OutputTypeSeries,
+ *   p2ms: OutputTypeSeries,
+ *   p2sh: OutputTypeSeries,
+ *   p2wpkh: OutputTypeSeries,
+ *   p2wsh: OutputTypeSeries,
+ *   p2tr: OutputTypeSeries,
+ *   p2a: OutputTypeSeries,
+ *   emptyScript: OutputTypeSeries,
+ *   unknownScript: OutputTypeSeries,
+ * }} SpendableType
+ */
+const _SpendableType = _s({
+  p2pk: [_OutputTypeSeries, 'p2pk_*'],
+  p2pkh: [_OutputTypeSeries, 'p2pkh_*'],
+  p2ms: [_OutputTypeSeries, 'p2ms_*'],
+  p2sh: [_OutputTypeSeries, 'p2sh_*'],
+  p2wpkh: [_OutputTypeSeries, 'p2wpkh_*'],
+  p2wsh: [_OutputTypeSeries, 'p2wsh_*'],
+  p2tr: [_OutputTypeSeries, 'p2tr_*'],
+  p2a: [_OutputTypeSeries, 'p2a_*'],
+  emptyScript: [_OutputTypeSeries, 'empty_script_*'],
+  unknownScript: [_OutputTypeSeries, 'unknown_script_*'],
+});
+
+/**
+ * @template A, B
+ * @typedef {{
+ *   block: SeriesPattern18<A>,
+ *   cumulative: SeriesPattern1<A>,
+ *   sum: Windows<A>,
+ *   avg: Windows<B>,
+ *   min: Windows<A>,
+ *   max: Windows<A>,
+ *   p10: Windows<A>,
+ *   p25: Windows<A>,
+ *   median: Windows<A>,
+ *   p75: Windows<A>,
+ *   p90: Windows<A>,
+ * }} FlowStats
+ */
+const _FlowStats = _s({
+  block: [_i18, '*'],
+  cumulative: [_i1, '*_cumulative'],
+  sum: [_Windows, '*_sum'],
+  avg: [_Windows, '*_avg'],
+  min: [_Windows, '*_min'],
+  max: [_Windows, '*_max'],
+  p10: [_Windows, '*_p10'],
+  p25: [_Windows, '*_p25'],
+  median: [_Windows, '*_median'],
+  p75: [_Windows, '*_p75'],
+  p90: [_Windows, '*_p90'],
+});
+
+/**
+ * @typedef {{
+ *   count: FlowStats<Count, ?CountFract>,
+ *   perSecond: Windows<?PerSecond>,
+ *   types: SpendableType,
+ * }} Inputs
+ */
+const _Inputs = _s({
+  count: [_FlowStats, '*_count'],
+  perSecond: [_Windows, 'inputs_per_second'],
+  types: [_SpendableType, '*'],
+});
+
+/**
+ * @template A, B
+ * @typedef {{
+ *   block: SeriesPattern18<A>,
+ *   avg: Windows<B>,
+ * }} Averaged
+ */
+const _Averaged = _s({
+  block: [_i18, '*'],
+  avg: [_Windows, '*_avg'],
+});
+
+/**
+ * @template A
+ * @typedef {{
+ *   count: A,
+ *   share: Share,
+ * }} EventCount
+ */
+/** @type {_Make} */
+const _EventCount = (c, b, f0) => _n(c, b, {
+  count: [f0, '*_count'],
+  share: [_Share, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   outputs: EventCount<Flow<Count>>,
+ *   inputs: EventCount<Flow<Count>>,
+ *   active: EventCount<Averaged<Count, ?CountFract>>,
+ * }} ReuseEvents
+ */
+const _ReuseEvents = _s({
+  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_respent_address'],
+  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_respent_address'],
+  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_respent_address'],
+});
+
+/**
+ * @typedef {{
+ *   count: RespentCount,
+ *   supply: PredicateSupply,
+ *   events: ReuseEvents,
+ * }} Respent
+ */
+const _Respent = _s({
+  count: [_RespentCount, '*'],
+  supply: [_PredicateSupply, '*_respent_address_supply'],
+  events: [_ReuseEvents, '*'],
+});
+
+/**
+ * @typedef {{
+ *   outputs: EventCount<Flow<Count>>,
+ *   inputs: EventCount<Flow<Count>>,
+ *   active: EventCount<Averaged<Count, ?CountFract>>,
+ * }} AddressesReuseEvents
+ */
+const _AddressesReuseEvents = _s({
+  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_reused_address'],
+  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_reused_address'],
+  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_reused_address'],
+});
+
+/**
+ * @typedef {{
+ *   count: ReusedCount,
+ *   supply: PredicateSupply,
+ *   events: AddressesReuseEvents,
+ * }} Reused
+ */
+const _Reused = _s({
+  count: [_ReusedCount, '*'],
+  supply: [_PredicateSupply, '*_reused_address_supply'],
+  events: [_AddressesReuseEvents, '*'],
+});
+
+/**
+ * @typedef {{
+ *   reactivated: Averaged<Count, ?CountFract>,
+ *   sending: Averaged<Count, ?CountFract>,
+ *   receiving: Averaged<Count, ?CountFract>,
+ *   bidirectional: Averaged<Count, ?CountFract>,
+ *   active: Averaged<Count, ?CountFract>,
+ * }} AddressesActivity
+ */
+const _AddressesActivity = _s({
+  reactivated: [_Averaged, '*_reactivated_address_count'],
+  sending: [_Averaged, '*_sending_address_count'],
+  receiving: [_Averaged, '*_receiving_address_count'],
+  bidirectional: [_Averaged, '*_bidirectional_address_count'],
+  active: [_Averaged, '*_active_address_count'],
+});
+
+/**
+ * @typedef {{
+ *   cumulative: SeriesPattern1<Count>,
+ *   sum: Windows<Count>,
+ * }} CumulativeFlow
+ */
+const _CumulativeFlow = _s({
+  cumulative: [_i1, '*_cumulative'],
+  sum: [_Windows, '*_sum'],
+});
+
+/**
+ * @typedef {{
+ *   count: CumulativeFlow,
+ *   interval: Averaged<Seconds, ?SecondsFract>,
+ *   size: FlowStats<Bytes, ?BytesFract>,
+ *   weight: FlowStats<Weight, ?WeightFract>,
+ *   sigopCost: Flow<SigOps>,
+ *   fullness: Fullness,
+ *   difficulty: BlocksDifficulty,
+ *   halving: Halving,
+ * }} Blocks
+ */
+const _Blocks = _s({
+  count: [_CumulativeFlow, '*_count'],
+  interval: [_Averaged, '*_interval'],
+  size: [_FlowStats, '*_size'],
+  weight: [_FlowStats, '*_weight'],
+  sigopCost: [_Flow, '*_sigop_cost'],
+  fullness: [_Fullness, '*_fullness'],
+  difficulty: [_BlocksDifficulty, 'difficulty'],
+  halving: [_Halving, 'halving'],
+});
+
+/**
+ * @typedef {{
+ *   btc: SeriesPattern1<?Bitcoin>,
+ *   usd: SeriesPattern1<?Dollars>,
+ * }} Value
+ */
+const _Value = _s({
+  btc: [_i1, '*'],
+  usd: [_i1, '*_usd'],
+});
+
+/**
+ * @typedef {{
+ *   p95ToP98: Value,
+ *   p98ToP99: Value,
+ *   p99ToP99_5: Value,
+ *   p99_5ToP99_9: Value,
+ *   belowP99_9: Value,
+ * }} EntrySupply
+ */
+const _EntrySupply = _s({
+  p95ToP98: [_Value, '*_p95_to_p98'],
+  p98ToP99: [_Value, '*_p98_to_p99'],
+  p99ToP99_5: [_Value, '*_p99_to_p99_5'],
+  p99_5ToP99_9: [_Value, '*_p99_5_to_p99_9'],
+  belowP99_9: [_Value, '*_below_p99_9'],
+});
+
+/**
+ * @typedef {{
+ *   supplyInLossShareThreshold: Percentiles<?Percent>,
+ *   floor: Percentiles<?Dollars>,
+ *   costBasisAboveP95Floor: Levels,
+ *   entrySupply: EntrySupply,
+ *   entryCapital: EntryCapital,
+ * }} Mode
+ */
+const _Mode = _s({
+  supplyInLossShareThreshold: [_Percentiles, '*_supply_in_loss_share_threshold'],
+  floor: [_Percentiles, '*_floor'],
+  costBasisAboveP95Floor: [_Levels, '*_cost_basis_above_p95_floor'],
+  entrySupply: [_EntrySupply, '*_entry_supply'],
+  entryCapital: [_EntryCapital, '*_entry_capital'],
+});
+
+/**
+ * @typedef {{
+ *   awake: Mode,
+ *   mobile: Mode,
+ *   unweighted: Mode,
+ * }} Bedrock
+ */
+const _Bedrock = _s({
+  awake: [_Mode, '*_awake'],
+  mobile: [_Mode, '*_mobile'],
+  unweighted: [_Mode, '*_unweighted'],
+});
+
+/**
+ * @typedef {{
+ *   vaulted: Value,
+ *   hodledOrLost: Value,
+ *   active: Value,
+ * }} CointimeSupply
+ */
+const _CointimeSupply = _s({
+  vaulted: [_Value, 'vaulted_*'],
+  hodledOrLost: [_Value, 'hodled_or_lost_*'],
+  active: [_Value, 'active_*'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   inLoss: InLoss,
+ * }} MobileSupply
+ */
+const _MobileSupply = _s({
+  total: [_Value, '*'],
+  inLoss: [_InLoss, '*_in_loss_share'],
+});
+
+/**
+ * @typedef {{
+ *   supply: MobileSupply,
+ *   capital: MobileCapital,
+ *   costBasis: CostBasis,
+ * }} Awake
+ */
+const _Awake = _s({
+  supply: [_MobileSupply, '*_supply'],
+  capital: [_MobileCapital, '*'],
+  costBasis: [_CostBasis, '*'],
+});
+
+/**
+ * @typedef {{
+ *   supply: Value,
+ * }} Side
+ */
+const _Side = _s({
+  supply: [_Value, '*'],
+});
+
+/**
+ * @typedef {{
+ *   mobile: Awake,
+ *   immobile: Side,
+ * }} CoinflowCohort
+ */
+const _CoinflowCohort = _s({
+  mobile: [_Awake, '*_mobile'],
+  immobile: [_Side, '*_immobile_supply'],
+});
+
+/**
+ * @typedef {{
+ *   spendingRate: SeriesPattern1<?PerDay>,
+ *   spendingExposure: SeriesPattern1<?Float>,
+ *   mobility: SeriesPattern1<?Ratio>,
+ *   mobile: Side,
+ *   immobile: Side,
+ * }} CoinflowRange
+ */
+const _CoinflowRange = _s({
+  spendingRate: [_i1, '*_spending_rate'],
+  spendingExposure: [_i1, '*_spending_exposure'],
+  mobility: [_i1, '*_mobility'],
+  mobile: [_Side, '*_mobile_supply'],
+  immobile: [_Side, '*_immobile_supply'],
+});
+
+/**
+ * @typedef {{
+ *   awake: Awake,
+ *   dormant: Side,
+ * }} CointimeCohort
+ */
+const _CointimeCohort = _s({
+  awake: [_Awake, '*_awake'],
+  dormant: [_Side, '*_dormant_supply'],
+});
+
+/**
+ * @template A
+ * @typedef {{
+ *   all: A,
+ *   sth: A,
+ *   lth: A,
+ *   under4m: A,
+ *   under6m: A,
+ *   over4m: A,
+ *   over6m: A,
+ * }} AgeAggregate
+ */
+/** @type {_Make} */
+const _AgeAggregate = (c, b, f0) => _n(c, b, {
+  all: [f0, ''],
+  sth: [f0, 'sth'],
+  lth: [f0, 'lth'],
+  under4m: [f0, '*_under_4m'],
+  under6m: [f0, '*_under_6m'],
+  over4m: [f0, '*_over_4m'],
+  over6m: [f0, '*_over_6m'],
+});
+
+/**
+ * @typedef {{
+ *   coindaysCreated: Flow<?CoinDays>,
+ *   coindaysConsumed: Flow<?CoinDays>,
+ *   wakefulness: SeriesPattern1<?Ratio>,
+ *   awakeToDormant: SeriesPattern1<?Multiple>,
+ *   awake: Side,
+ *   dormant: Side,
+ * }} CointimeRange
+ */
+const _CointimeRange = _s({
+  coindaysCreated: [_Flow, '*_coindays_created'],
+  coindaysConsumed: [_Flow, '*_coindays_consumed'],
+  wakefulness: [_i1, '*_wakefulness'],
+  awakeToDormant: [_i1, '*_awake_to_dormant'],
+  awake: [_Side, '*_awake_supply'],
+  dormant: [_Side, '*_dormant_supply'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   share: SeriesPattern1<?Percent>,
+ * }} BandSupply
+ */
+const _BandSupply = _s({
+  total: [_Value, '*'],
+  share: [_i1, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   supply: BandSupply,
+ *   capital: BandCapital,
+ * }} Band
+ */
+const _Band = _s({
+  supply: [_BandSupply, '*_supply'],
+  capital: [_BandCapital, '*'],
+});
+
+/**
+ * @typedef {{
+ *   profitOver1000Percent: Band,
+ *   profit500To1000Percent: Band,
+ *   profit300To500Percent: Band,
+ *   profit200To300Percent: Band,
+ *   profit100To200Percent: Band,
+ *   profit90To100Percent: Band,
+ *   profit80To90Percent: Band,
+ *   profit70To80Percent: Band,
+ *   profit60To70Percent: Band,
+ *   profit50To60Percent: Band,
+ *   profit40To50Percent: Band,
+ *   profit30To40Percent: Band,
+ *   profit20To30Percent: Band,
+ *   profit10To20Percent: Band,
+ *   profit0To10Percent: Band,
+ *   loss0To10Percent: Band,
+ *   loss10To20Percent: Band,
+ *   loss20To30Percent: Band,
+ *   loss30To40Percent: Band,
+ *   loss40To50Percent: Band,
+ *   loss50To60Percent: Band,
+ *   loss60To70Percent: Band,
+ *   loss70To80Percent: Band,
+ *   loss80To90Percent: Band,
+ *   loss90To100Percent: Band,
+ * }} ProfitabilityRange
+ */
+const _ProfitabilityRange = _s({
+  profitOver1000Percent: [_Band, '*_profit_over_1000_percent'],
+  profit500To1000Percent: [_Band, '*_profit_500_to_1000_percent'],
+  profit300To500Percent: [_Band, '*_profit_300_to_500_percent'],
+  profit200To300Percent: [_Band, '*_profit_200_to_300_percent'],
+  profit100To200Percent: [_Band, '*_profit_100_to_200_percent'],
+  profit90To100Percent: [_Band, '*_profit_90_to_100_percent'],
+  profit80To90Percent: [_Band, '*_profit_80_to_90_percent'],
+  profit70To80Percent: [_Band, '*_profit_70_to_80_percent'],
+  profit60To70Percent: [_Band, '*_profit_60_to_70_percent'],
+  profit50To60Percent: [_Band, '*_profit_50_to_60_percent'],
+  profit40To50Percent: [_Band, '*_profit_40_to_50_percent'],
+  profit30To40Percent: [_Band, '*_profit_30_to_40_percent'],
+  profit20To30Percent: [_Band, '*_profit_20_to_30_percent'],
+  profit10To20Percent: [_Band, '*_profit_10_to_20_percent'],
+  profit0To10Percent: [_Band, '*_profit_0_to_10_percent'],
+  loss0To10Percent: [_Band, '*_loss_0_to_10_percent'],
+  loss10To20Percent: [_Band, '*_loss_10_to_20_percent'],
+  loss20To30Percent: [_Band, '*_loss_20_to_30_percent'],
+  loss30To40Percent: [_Band, '*_loss_30_to_40_percent'],
+  loss40To50Percent: [_Band, '*_loss_40_to_50_percent'],
+  loss50To60Percent: [_Band, '*_loss_50_to_60_percent'],
+  loss60To70Percent: [_Band, '*_loss_60_to_70_percent'],
+  loss70To80Percent: [_Band, '*_loss_70_to_80_percent'],
+  loss80To90Percent: [_Band, '*_loss_80_to_90_percent'],
+  loss90To100Percent: [_Band, '*_loss_90_to_100_percent'],
+});
+
+/**
+ * @typedef {{
+ *   all: ProfitabilityRange,
+ *   sth: ProfitabilityRange,
+ *   lth: ProfitabilityRange,
+ * }} Profitability
+ */
+const _Profitability = _s({
+  all: [_ProfitabilityRange, ''],
+  sth: [_ProfitabilityRange, '*'],
+  lth: [_ProfitabilityRange, 'lth'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   inProfit: PredicateSupply,
+ *   inLoss: PredicateSupply,
+ *   delta: Delta<?Bitcoin>,
+ *   share: SeriesPattern1<?Percent>,
+ * }} SharedSupply
+ */
+const _SharedSupply = _s({
+  total: [_Value, '*'],
+  inProfit: [_PredicateSupply, '*_in_profit'],
+  inLoss: [_PredicateSupply, '*_in_loss'],
+  delta: [_Delta, '*_delta'],
+  share: [_i1, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   funded: WithDelta<Count, CountSigned>,
+ *   empty: SeriesPattern1<Count>,
+ *   total: SeriesPattern1<Count>,
+ *   new: NewAddressCount,
+ *   activity: AddressesActivity,
+ *   avgBalance: Value,
+ *   reused: Reused,
+ *   respent: Respent,
+ *   exposed: Exposed,
+ * }} AddressSeries
+ */
+const _AddressSeries = _s({
+  funded: [_WithDelta, '*_funded_address_count'],
+  empty: [_i1, '*_empty_address_count'],
+  total: [_i1, '*_total_address_count'],
+  new: [_NewAddressCount, '*_new_address_count'],
+  activity: [_AddressesActivity, '*'],
+  avgBalance: [_Value, '*_address_balance_avg'],
+  reused: [_Reused, '*'],
+  respent: [_Respent, '*'],
+  exposed: [_Exposed, '*'],
+});
+
+/**
+ * @typedef {{
+ *   p2pk: AddressSeries,
+ *   p2pkh: AddressSeries,
+ *   p2sh: AddressSeries,
+ *   p2wpkh: AddressSeries,
+ *   p2wsh: AddressSeries,
+ *   p2tr: AddressSeries,
+ * }} AddressType
+ */
+const _AddressType = _s({
+  p2pk: [_AddressSeries, '*'],
+  p2pkh: [_AddressSeries, 'p2pkh'],
+  p2sh: [_AddressSeries, 'p2sh'],
+  p2wpkh: [_AddressSeries, 'p2wpkh'],
+  p2wsh: [_AddressSeries, 'p2wsh'],
+  p2tr: [_AddressSeries, 'p2tr'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   delta: Delta<?Bitcoin>,
+ *   share: SeriesPattern1<?Percent>,
+ * }} CohortSupply
+ */
+const _CohortSupply = _s({
+  total: [_Value, '*'],
+  delta: [_Delta, '*_delta'],
+  share: [_i1, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   delta: Delta<?Bitcoin>,
+ *   share: SeriesPattern1<?Percent>,
+ *   inProfit: Value,
+ *   inLoss: Value,
+ * }} CreationSupply
+ */
+const _CreationSupply = _s({
+  total: [_Value, '*'],
+  delta: [_Delta, '*_delta'],
+  share: [_i1, '*_share'],
+  inProfit: [_Value, '*_in_profit'],
+  inLoss: [_Value, '*_in_loss'],
+});
+
+/**
+ * @typedef {{
+ *   _24h: Value,
+ *   _1w: Value,
+ *   _1m: Value,
+ *   _1y: Value,
+ * }} MwebWindows
+ */
+const _MwebWindows = _s({
+  _24h: [_Value, '*_24h'],
+  _1w: [_Value, '*_1w'],
+  _1m: [_Value, '*_1m'],
+  _1y: [_Value, '*_1y'],
+});
+
+/**
+ * @typedef {{
+ *   avg: MwebWindows,
+ * }} PoolFees
+ */
+const _PoolFees = _s({
+  avg: [_MwebWindows, '*'],
+});
+
+/**
+ * @typedef {{
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ * }} Coinbase
+ */
+const _Coinbase = _s({
+  cumulative: [_Value, '*_cumulative'],
+  sum: [_MwebWindows, '*_sum'],
+});
+
+/**
+ * @typedef {{
+ *   blockCount: CumulativeFlow,
+ *   blockShare: Share,
+ *   coinbase: Coinbase,
+ *   fees: PoolFees,
+ *   hashrate: Windows<?Hashrate>,
+ * }} Pool
+ */
+const _Pool = _s({
+  blockCount: [_CumulativeFlow, '*_block_count'],
+  blockShare: [_Share, '*_block_share'],
+  coinbase: [_Coinbase, '*_coinbase'],
+  fees: [_PoolFees, '*_fees_avg'],
+  hashrate: [_Windows, '*_hashrate'],
+});
+
+/**
+ * @typedef {{
+ *   blockPool: SeriesPattern18<PoolSlug>,
+ *   unknown: Pool,
+ *   luxor: Pool,
+ *   btccom: Pool,
+ *   f2pool: Pool,
+ *   antpool: Pool,
+ *   nicehash: Pool,
+ *   viabtc: Pool,
+ *   poolin: Pool,
+ *   sigmapoolcom: Pool,
+ *   spiderpool: Pool,
+ *   binancepool: Pool,
+ *   emcdpool: Pool,
+ *   sbicrypto: Pool,
+ *   zulupool: Pool,
+ *   miningdutch: Pool,
+ *   kupool: Pool,
+ *   litecoinpoolorg: Pool,
+ *   hash700: Pool,
+ *   lsoftwaredmcc: Pool,
+ *   hashspace: Pool,
+ *   dogegogocom: Pool,
+ *   longpool: Pool,
+ *   kryptex: Pool,
+ *   dxpool: Pool,
+ *   k1pool: Pool,
+ *   molepool: Pool,
+ *   solopoolorg: Pool,
+ *   prohashing: Pool,
+ *   hashhut: Pool,
+ *   happychina: Pool,
+ *   himpool: Pool,
+ *   p2pspbxyz: Pool,
+ *   hyperdonkey: Pool,
+ *   zergpool: Pool,
+ * }} Pools
+ */
+const _Pools = _s({
+  blockPool: [_i18, 'block_*'],
+  unknown: [_Pool, '*_unknown'],
+  luxor: [_Pool, '*_luxor'],
+  btccom: [_Pool, '*_btccom'],
+  f2pool: [_Pool, '*_f2pool'],
+  antpool: [_Pool, '*_antpool'],
+  nicehash: [_Pool, '*_nicehash'],
+  viabtc: [_Pool, '*_viabtc'],
+  poolin: [_Pool, '*_poolin'],
+  sigmapoolcom: [_Pool, '*_sigmapoolcom'],
+  spiderpool: [_Pool, '*_spiderpool'],
+  binancepool: [_Pool, '*_binancepool'],
+  emcdpool: [_Pool, '*_emcdpool'],
+  sbicrypto: [_Pool, '*_sbicrypto'],
+  zulupool: [_Pool, '*_zulupool'],
+  miningdutch: [_Pool, '*_miningdutch'],
+  kupool: [_Pool, '*_kupool'],
+  litecoinpoolorg: [_Pool, '*_litecoinpoolorg'],
+  hash700: [_Pool, '*_hash700'],
+  lsoftwaredmcc: [_Pool, '*_lsoftwaredmcc'],
+  hashspace: [_Pool, '*_hashspace'],
+  dogegogocom: [_Pool, '*_dogegogocom'],
+  longpool: [_Pool, '*_longpool'],
+  kryptex: [_Pool, '*_kryptex'],
+  dxpool: [_Pool, '*_dxpool'],
+  k1pool: [_Pool, '*_k1pool'],
+  molepool: [_Pool, '*_molepool'],
+  solopoolorg: [_Pool, '*_solopoolorg'],
+  prohashing: [_Pool, '*_prohashing'],
+  hashhut: [_Pool, '*_hashhut'],
+  happychina: [_Pool, '*_happychina'],
+  himpool: [_Pool, '*_himpool'],
+  p2pspbxyz: [_Pool, '*_p2pspbxyz'],
+  hyperdonkey: [_Pool, '*_hyperdonkey'],
+  zergpool: [_Pool, '*_zergpool'],
+});
+
+/**
+ * @typedef {{
+ *   btc: SeriesPattern18<?Bitcoin>,
+ *   usd: SeriesPattern18<?Dollars>,
+ * }} MwebValue
+ */
+const _MwebValue = _s({
+  btc: [_i18, '*'],
+  usd: [_i18, '*_usd'],
+});
+
+/**
+ * @typedef {{
+ *   block: MwebValue,
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ *   avg: MwebWindows,
+ *   min: MwebWindows,
+ *   max: MwebWindows,
+ *   p10: MwebWindows,
+ *   p25: MwebWindows,
+ *   median: MwebWindows,
+ *   p75: MwebWindows,
+ *   p90: MwebWindows,
+ *   share: Share,
+ * }} ValueFlowStats
+ */
+const _ValueFlowStats = _s({
+  block: [_MwebValue, '*'],
+  cumulative: [_Value, '*_cumulative'],
+  sum: [_MwebWindows, '*_sum'],
+  avg: [_MwebWindows, '*_avg'],
+  min: [_MwebWindows, '*_min'],
+  max: [_MwebWindows, '*_max'],
+  p10: [_MwebWindows, '*_p10'],
+  p25: [_MwebWindows, '*_p25'],
+  median: [_MwebWindows, '*_median'],
+  p75: [_MwebWindows, '*_p75'],
+  p90: [_MwebWindows, '*_p90'],
+  share: [_Share, 'fee_share'],
+});
+
+/**
+ * @typedef {{
+ *   block: MwebValue,
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ *   share: Share,
+ * }} MiningValueFlow
+ */
+const _MiningValueFlow = _s({
+  block: [_MwebValue, '*'],
+  cumulative: [_Value, '*_cumulative'],
+  sum: [_MwebWindows, '*_sum'],
+  share: [_Share, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   block: MwebValue,
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ *   chainShare: Share,
+ * }} FeesSeries
+ */
+const _FeesSeries = _s({
+  block: [_MwebValue, '*_fees'],
+  cumulative: [_Value, '*_fees_cumulative'],
+  sum: [_MwebWindows, '*_fees_sum'],
+  chainShare: [_Share, '*_fee_chain_share'],
+});
+
+/**
+ * @typedef {{
+ *   outputCount: Flow<Count>,
+ *   dataBytes: DataBytesSeries,
+ *   txCount: Flow<Count>,
+ *   txShare: Share,
+ *   txVsize: Flow<VSize>,
+ *   fees: FeesSeries,
+ * }} Bucket
+ */
+const _Bucket = _s({
+  outputCount: [_Flow, '*_output_count'],
+  dataBytes: [_DataBytesSeries, '*_data'],
+  txCount: [_Flow, '*_tx_count'],
+  txShare: [_Share, '*_tx_share'],
+  txVsize: [_Flow, '*_tx_vsize'],
+  fees: [_FeesSeries, '*'],
+});
+
+/**
+ * @typedef {{
+ *   preV30Standard: Bucket,
+ *   preV30Nonstandard: Bucket,
+ *   oversized: Bucket,
+ *   multiple: Bucket,
+ * }} Policy
+ */
+const _Policy = _s({
+  preV30Standard: [_Bucket, '*_pre_v30_standard'],
+  preV30Nonstandard: [_Bucket, '*_pre_v30_nonstandard'],
+  oversized: [_Bucket, '*_oversized'],
+  multiple: [_Bucket, '*_multiple'],
+});
+
+/**
+ * @typedef {{
+ *   runes: Bucket,
+ *   witnessCommitment: Bucket,
+ *   veriblock: Bucket,
+ *   omni: Bucket,
+ *   stacks: Bucket,
+ *   blockstack: Bucket,
+ *   colu: Bucket,
+ *   openAssets: Bucket,
+ *   komodo: Bucket,
+ *   coinspark: Bucket,
+ *   poet: Bucket,
+ *   docproof: Bucket,
+ *   factom: Bucket,
+ *   eternityWall: Bucket,
+ *   memo: Bucket,
+ *   bitproof: Bucket,
+ *   ascribe: Bucket,
+ *   stampery: Bucket,
+ *   bareHash: Bucket,
+ *   text: Bucket,
+ *   empty: Bucket,
+ *   unknown: Bucket,
+ * }} ByKind
+ */
+const _ByKind = _s({
+  runes: [_Bucket, '*_runes'],
+  witnessCommitment: [_Bucket, '*_witness_commitment'],
+  veriblock: [_Bucket, '*_veriblock'],
+  omni: [_Bucket, '*_omni'],
+  stacks: [_Bucket, '*_stacks'],
+  blockstack: [_Bucket, '*_blockstack'],
+  colu: [_Bucket, '*_colu'],
+  openAssets: [_Bucket, '*_open_assets'],
+  komodo: [_Bucket, '*_komodo'],
+  coinspark: [_Bucket, '*_coinspark'],
+  poet: [_Bucket, '*_poet'],
+  docproof: [_Bucket, '*_docproof'],
+  factom: [_Bucket, '*_factom'],
+  eternityWall: [_Bucket, '*_eternity_wall'],
+  memo: [_Bucket, '*_memo'],
+  bitproof: [_Bucket, '*_bitproof'],
+  ascribe: [_Bucket, '*_ascribe'],
+  stampery: [_Bucket, '*_stampery'],
+  bareHash: [_Bucket, '*_bare_hash'],
+  text: [_Bucket, '*_text'],
+  empty: [_Bucket, '*_empty'],
+  unknown: [_Bucket, '*_unknown'],
+});
+
+/**
+ * @typedef {{
+ *   flag: SeriesPattern19<Boolean>,
+ *   outputCount: Flow<Count>,
+ *   dataBytes: DataBytesSeries,
+ *   txCount: Flow<Count>,
+ *   txShare: Share,
+ *   txVsize: Flow<VSize>,
+ *   fees: FeesSeries,
+ *   protocols: ByKind,
+ *   policies: Policy,
+ * }} OpReturn
+ */
+const _OpReturn = _s({
+  flag: [_i19, 'has_*'],
+  outputCount: [_Flow, '*_output_count'],
+  dataBytes: [_DataBytesSeries, '*_data'],
+  txCount: [_Flow, '*_tx_count'],
+  txShare: [_Share, '*_tx_share'],
+  txVsize: [_Flow, '*_tx_vsize'],
+  fees: [_FeesSeries, '*'],
+  protocols: [_ByKind, '*'],
+  policies: [_Policy, '*'],
+});
+
+/**
+ * @typedef {{
+ *   flag: SeriesPattern19<Boolean>,
+ *   block: SeriesPattern18<Count>,
+ *   cumulative: SeriesPattern1<Count>,
+ *   sum: Windows<Count>,
+ *   share: Share,
+ *   fees: FeesSeries,
+ * }} Inscription
+ */
+const _Inscription = _s({
+  flag: [_i19, 'has_*'],
+  block: [_i18, '*_tx_count'],
+  cumulative: [_i1, '*_tx_count_cumulative'],
+  sum: [_Windows, '*_tx_count_sum'],
+  share: [_Share, '*_tx_share'],
+  fees: [_FeesSeries, '*'],
+});
+
+/**
+ * @typedef {{
+ *   block: MwebValue,
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ * }} ValueFlow
+ */
+const _ValueFlow = _s({
+  block: [_MwebValue, '*'],
+  cumulative: [_Value, '*_cumulative'],
+  sum: [_MwebWindows, '*_sum'],
+});
+
+/**
+ * @typedef {{
+ *   circulating: SeriesPattern1<?Bitcoin>,
+ *   burned: ValueFlow,
+ *   inflationRate: SeriesPattern1<?Percent>,
+ *   velocity: Velocity,
+ *   marketCap: WithDelta<?Dollars, ?Dollars>,
+ *   totalSupply: SeriesPattern1<?Bitcoin>,
+ * }} Supply
+ */
+const _Supply = _s({
+  circulating: [_i1, 'circulating_*'],
+  burned: [_ValueFlow, 'burned'],
+  inflationRate: [_i1, 'inflation_rate'],
+  velocity: [_Velocity, 'velocity'],
+  marketCap: [_WithDelta, 'market_cap'],
+  totalSupply: [_i1, 'total_*'],
+});
+
+/**
+ * @typedef {{
+ *   transferVolume: ValueFlow,
+ * }} Activity
+ */
+const _Activity = _s({
+  transferVolume: [_ValueFlow, '*'],
+});
+
+/**
+ * @typedef {{
+ *   funded: WithDelta<Count, CountSigned>,
+ *   supply: CohortSupply,
+ *   capital: CapitalViews,
+ *   utxos: BalanceUtxos,
+ *   activity: Activity,
+ *   realized: Realized,
+ * }} Balance
+ */
+const _Balance = _s({
+  funded: [_WithDelta, '*_address_count'],
+  supply: [_CohortSupply, '*_supply'],
+  capital: [_CapitalViews, '*'],
+  utxos: [_BalanceUtxos, '*_utxo_count'],
+  activity: [_Activity, '*_transfer_volume'],
+  realized: [_Realized, '*_realized'],
 });
 
 /**
@@ -5173,15 +5559,6 @@ const _UtxosSpendableType = _s({
 });
 
 /**
- * @typedef {{
- *   utxos: CohortUtxos,
- * }} Zero
- */
-const _Zero = _s({
-  utxos: [_CohortUtxos, '*'],
-});
-
-/**
  * @template A, B
  * @typedef {{
  *   _0Sats: A,
@@ -5222,6 +5599,39 @@ const _AmountRange = (c, b, f0, f1) => _n(c, b, {
 
 /**
  * @typedef {{
+ *   funded: WithDelta<Count, CountSigned>,
+ *   empty: SeriesPattern1<Count>,
+ *   total: SeriesPattern1<Count>,
+ *   new: NewAddressCount,
+ *   activity: AddressesActivity,
+ *   avgBalance: Value,
+ *   reused: Reused,
+ *   respent: Respent,
+ *   exposed: Exposed,
+ *   supply: CohortSupply,
+ *   capital: CapitalViews,
+ *   types: AddressType,
+ *   balances: AmountRange<ZeroBalance, Balance>,
+ * }} Addresses
+ */
+const _Addresses = _s({
+  funded: [_WithDelta, 'funded_*_count'],
+  empty: [_i1, 'empty_*_count'],
+  total: [_i1, 'total_*_count'],
+  new: [_NewAddressCount, 'new_*_count'],
+  activity: [_AddressesActivity, ''],
+  avgBalance: [_Value, '*_balance_avg'],
+  reused: [_Reused, ''],
+  respent: [_Respent, ''],
+  exposed: [_Exposed, ''],
+  supply: [_CohortSupply, '*_supply'],
+  capital: [_CapitalViews, '*'],
+  types: [_AddressType, 'p2pk'],
+  balances: [(c, b) => _AmountRange(c, b, _ZeroBalance, _Balance), 'balance'],
+});
+
+/**
+ * @typedef {{
  *   amounts: AmountRange<Zero, Cohort>,
  *   types: UtxosSpendableType,
  * }} Utxos
@@ -5229,6 +5639,68 @@ const _AmountRange = (c, b, f0, f1) => _n(c, b, {
 const _Utxos = _s({
   amounts: [(c, b) => _AmountRange(c, b, _Zero, _Cohort), '*'],
   types: [_UtxosSpendableType, 'script'],
+});
+
+/**
+ * @typedef {{
+ *   transferVolume: ValueFlow,
+ *   coindaysDestroyed: Flow<?CoinDays>,
+ * }} CreationActivity
+ */
+const _CreationActivity = _s({
+  transferVolume: [_ValueFlow, '*_transfer_volume'],
+  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
+});
+
+/**
+ * @typedef {{
+ *   block: MwebValue,
+ *   cumulative: Value,
+ *   sum: MwebWindows,
+ *   inProfit: ValueFlow,
+ *   inLoss: ValueFlow,
+ * }} HoldersValueFlow
+ */
+const _HoldersValueFlow = _s({
+  block: [_MwebValue, '*'],
+  cumulative: [_Value, '*_cumulative'],
+  sum: [_MwebWindows, '*_sum'],
+  inProfit: [_ValueFlow, '*_in_profit'],
+  inLoss: [_ValueFlow, '*_in_loss'],
+});
+
+/**
+ * @typedef {{
+ *   transferVolume: HoldersValueFlow,
+ *   coindaysDestroyed: Flow<?CoinDays>,
+ *   dormancy: Windows<?Days>,
+ * }} HoldersActivity
+ */
+const _HoldersActivity = _s({
+  transferVolume: [_HoldersValueFlow, '*_transfer_volume'],
+  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
+  dormancy: [_Windows, '*_dormancy'],
+});
+
+/**
+ * @typedef {{
+ *   supply: HoldersSupply,
+ *   capital: Capital,
+ *   utxos: CohortUtxos,
+ *   activity: HoldersActivity,
+ *   realized: AdjustedRealized,
+ *   unrealized: Unrealized,
+ *   costBasis: HoldersCostBasis,
+ * }} Metrics
+ */
+const _Metrics = _s({
+  supply: [_HoldersSupply, '*'],
+  capital: [_Capital, 'capital'],
+  utxos: [_CohortUtxos, ''],
+  activity: [_HoldersActivity, ''],
+  realized: [_AdjustedRealized, ''],
+  unrealized: [_Unrealized, ''],
+  costBasis: [_HoldersCostBasis, ''],
 });
 
 /**
@@ -5348,6 +5820,38 @@ const _ByHalvingEpoch = _s({
   _3: [(c, b) => _CreationCohort(c, b, _CreationSupply, _CreationCapital, _CreationActivity, _CreationRealized, _CreationUnrealized, _CohortCostBasis), '*_3'],
   _4: [(c, b) => _CreationCohort(c, b, _CreationSupply, _CreationCapital, _CreationActivity, _CreationRealized, _CreationUnrealized, _CohortCostBasis), '*_4'],
   _5: [(c, b) => _CreationCohort(c, b, _CreationSupply, _CreationCapital, _CreationActivity, _CreationRealized, _CreationUnrealized, _CohortCostBasis), '*_5'],
+});
+
+/**
+ * @typedef {{
+ *   transferVolume: HoldersValueFlow,
+ *   coindaysDestroyed: Flow<?CoinDays>,
+ *   coindaysCreated: Flow<?CoinDays>,
+ * }} AgeCreationActivity
+ */
+const _AgeCreationActivity = _s({
+  transferVolume: [_HoldersValueFlow, '*_transfer_volume'],
+  coindaysDestroyed: [_Flow, '*_coindays_destroyed'],
+  coindaysCreated: [_Flow, '*_coindays_created'],
+});
+
+/**
+ * @typedef {{
+ *   total: Value,
+ *   delta: Delta<?Bitcoin>,
+ *   share: SeriesPattern1<?Percent>,
+ *   inProfit: Value,
+ *   inLoss: Value,
+ *   agedOut: ValueFlow,
+ * }} AgeCreationSupply
+ */
+const _AgeCreationSupply = _s({
+  total: [_Value, '*_supply'],
+  delta: [_Delta, '*_supply_delta'],
+  share: [_i1, '*_supply_share'],
+  inProfit: [_Value, '*_supply_in_profit'],
+  inLoss: [_Value, '*_supply_in_loss'],
+  agedOut: [_ValueFlow, '*_aged_out_supply'],
 });
 
 /**
@@ -5477,213 +5981,32 @@ const _Age = _s({
 
 /**
  * @typedef {{
- *   outputCount: Flow<Count>,
- *   dataBytes: DataBytesSeries,
- *   txCount: Flow<Count>,
- *   txShare: Share,
- *   txVsize: Flow<VSize>,
- *   fees: FeesSeries,
- * }} Bucket
+ *   coinbase: ValueFlow,
+ *   subsidy: MiningValueFlow,
+ *   fees: ValueFlowStats,
+ *   unclaimed: ValueFlow,
+ * }} Rewards
  */
-const _Bucket = _s({
-  outputCount: [_Flow, '*_output_count'],
-  dataBytes: [_DataBytesSeries, '*_data'],
-  txCount: [_Flow, '*_tx_count'],
-  txShare: [_Share, '*_tx_share'],
-  txVsize: [_Flow, '*_tx_vsize'],
-  fees: [_FeesSeries, '*'],
+const _Rewards = _s({
+  coinbase: [_ValueFlow, '*'],
+  subsidy: [_MiningValueFlow, 'subsidy'],
+  fees: [_ValueFlowStats, 'fees'],
+  unclaimed: [_ValueFlow, 'unclaimed_rewards'],
 });
 
 /**
  * @typedef {{
- *   preV30Standard: Bucket,
- *   preV30Nonstandard: Bucket,
- *   oversized: Bucket,
- *   multiple: Bucket,
- * }} Policy
+ *   rewards: Rewards,
+ *   hashrate: Rate,
+ *   hashPrice: HashPriceValue<?HashPrice>,
+ *   hashValue: HashPriceValue<?HashValue>,
+ * }} Mining
  */
-const _Policy = _s({
-  preV30Standard: [_Bucket, '*_pre_v30_standard'],
-  preV30Nonstandard: [_Bucket, '*_pre_v30_nonstandard'],
-  oversized: [_Bucket, '*_oversized'],
-  multiple: [_Bucket, '*_multiple'],
-});
-
-/**
- * @typedef {{
- *   runes: Bucket,
- *   witnessCommitment: Bucket,
- *   veriblock: Bucket,
- *   omni: Bucket,
- *   stacks: Bucket,
- *   blockstack: Bucket,
- *   colu: Bucket,
- *   openAssets: Bucket,
- *   komodo: Bucket,
- *   coinspark: Bucket,
- *   poet: Bucket,
- *   docproof: Bucket,
- *   factom: Bucket,
- *   eternityWall: Bucket,
- *   memo: Bucket,
- *   bitproof: Bucket,
- *   ascribe: Bucket,
- *   stampery: Bucket,
- *   bareHash: Bucket,
- *   text: Bucket,
- *   empty: Bucket,
- *   unknown: Bucket,
- * }} ByKind
- */
-const _ByKind = _s({
-  runes: [_Bucket, '*_runes'],
-  witnessCommitment: [_Bucket, '*_witness_commitment'],
-  veriblock: [_Bucket, '*_veriblock'],
-  omni: [_Bucket, '*_omni'],
-  stacks: [_Bucket, '*_stacks'],
-  blockstack: [_Bucket, '*_blockstack'],
-  colu: [_Bucket, '*_colu'],
-  openAssets: [_Bucket, '*_open_assets'],
-  komodo: [_Bucket, '*_komodo'],
-  coinspark: [_Bucket, '*_coinspark'],
-  poet: [_Bucket, '*_poet'],
-  docproof: [_Bucket, '*_docproof'],
-  factom: [_Bucket, '*_factom'],
-  eternityWall: [_Bucket, '*_eternity_wall'],
-  memo: [_Bucket, '*_memo'],
-  bitproof: [_Bucket, '*_bitproof'],
-  ascribe: [_Bucket, '*_ascribe'],
-  stampery: [_Bucket, '*_stampery'],
-  bareHash: [_Bucket, '*_bare_hash'],
-  text: [_Bucket, '*_text'],
-  empty: [_Bucket, '*_empty'],
-  unknown: [_Bucket, '*_unknown'],
-});
-
-/**
- * @typedef {{
- *   flag: SeriesPattern19<Boolean>,
- *   outputCount: Flow<Count>,
- *   dataBytes: DataBytesSeries,
- *   txCount: Flow<Count>,
- *   txShare: Share,
- *   txVsize: Flow<VSize>,
- *   fees: FeesSeries,
- *   protocols: ByKind,
- *   policies: Policy,
- * }} OpReturn
- */
-const _OpReturn = _s({
-  flag: [_i19, 'has_*'],
-  outputCount: [_Flow, '*_output_count'],
-  dataBytes: [_DataBytesSeries, '*_data'],
-  txCount: [_Flow, '*_tx_count'],
-  txShare: [_Share, '*_tx_share'],
-  txVsize: [_Flow, '*_tx_vsize'],
-  fees: [_FeesSeries, '*'],
-  protocols: [_ByKind, '*'],
-  policies: [_Policy, '*'],
-});
-
-/**
- * @typedef {{
- *   count: Flow<Count>,
- *   share: Share,
- *   txCount: Flow<Count>,
- *   txShare: Share,
- * }} OutputTypeSeries
- */
-const _OutputTypeSeries = _s({
-  count: [_Flow, '*_count'],
-  share: [_Share, '*_share'],
-  txCount: [_Flow, '*_tx_count'],
-  txShare: [_Share, '*_tx_share'],
-});
-
-/**
- * @typedef {{
- *   p2pk: OutputTypeSeries,
- *   p2pkh: OutputTypeSeries,
- *   p2ms: OutputTypeSeries,
- *   p2sh: OutputTypeSeries,
- *   p2wpkh: OutputTypeSeries,
- *   p2wsh: OutputTypeSeries,
- *   p2tr: OutputTypeSeries,
- *   p2a: OutputTypeSeries,
- *   emptyScript: OutputTypeSeries,
- *   unknownScript: OutputTypeSeries,
- *   opReturn: OutputTypeSeries,
- * }} ByType
- */
-const _ByType = _s({
-  p2pk: [_OutputTypeSeries, 'p2pk_*'],
-  p2pkh: [_OutputTypeSeries, 'p2pkh_*'],
-  p2ms: [_OutputTypeSeries, 'p2ms_*'],
-  p2sh: [_OutputTypeSeries, 'p2sh_*'],
-  p2wpkh: [_OutputTypeSeries, 'p2wpkh_*'],
-  p2wsh: [_OutputTypeSeries, 'p2wsh_*'],
-  p2tr: [_OutputTypeSeries, 'p2tr_*'],
-  p2a: [_OutputTypeSeries, 'p2a_*'],
-  emptyScript: [_OutputTypeSeries, 'empty_script_*'],
-  unknownScript: [_OutputTypeSeries, 'unknown_script_*'],
-  opReturn: [_OutputTypeSeries, 'op_return_*'],
-});
-
-/**
- * @typedef {{
- *   p2pk: OutputTypeSeries,
- *   p2pkh: OutputTypeSeries,
- *   p2ms: OutputTypeSeries,
- *   p2sh: OutputTypeSeries,
- *   p2wpkh: OutputTypeSeries,
- *   p2wsh: OutputTypeSeries,
- *   p2tr: OutputTypeSeries,
- *   p2a: OutputTypeSeries,
- *   emptyScript: OutputTypeSeries,
- *   unknownScript: OutputTypeSeries,
- * }} SpendableType
- */
-const _SpendableType = _s({
-  p2pk: [_OutputTypeSeries, 'p2pk_*'],
-  p2pkh: [_OutputTypeSeries, 'p2pkh_*'],
-  p2ms: [_OutputTypeSeries, 'p2ms_*'],
-  p2sh: [_OutputTypeSeries, 'p2sh_*'],
-  p2wpkh: [_OutputTypeSeries, 'p2wpkh_*'],
-  p2wsh: [_OutputTypeSeries, 'p2wsh_*'],
-  p2tr: [_OutputTypeSeries, 'p2tr_*'],
-  p2a: [_OutputTypeSeries, 'p2a_*'],
-  emptyScript: [_OutputTypeSeries, 'empty_script_*'],
-  unknownScript: [_OutputTypeSeries, 'unknown_script_*'],
-});
-
-/**
- * @template A, B
- * @typedef {{
- *   block: SeriesPattern18<A>,
- *   cumulative: SeriesPattern1<A>,
- *   sum: Windows<A>,
- *   avg: Windows<B>,
- *   min: Windows<A>,
- *   max: Windows<A>,
- *   p10: Windows<A>,
- *   p25: Windows<A>,
- *   median: Windows<A>,
- *   p75: Windows<A>,
- *   p90: Windows<A>,
- * }} FlowStats
- */
-const _FlowStats = _s({
-  block: [_i18, '*'],
-  cumulative: [_i1, '*_cumulative'],
-  sum: [_Windows, '*_sum'],
-  avg: [_Windows, '*_avg'],
-  min: [_Windows, '*_min'],
-  max: [_Windows, '*_max'],
-  p10: [_Windows, '*_p10'],
-  p25: [_Windows, '*_p25'],
-  median: [_Windows, '*_median'],
-  p75: [_Windows, '*_p75'],
-  p90: [_Windows, '*_p90'],
+const _Mining = _s({
+  rewards: [_Rewards, 'coinbase'],
+  hashrate: [_Rate, 'hashrate'],
+  hashPrice: [_HashPriceValue, '*_price'],
+  hashValue: [_HashPriceValue, '*_value'],
 });
 
 /**
@@ -5707,578 +6030,25 @@ const _Outputs = _s({
 
 /**
  * @typedef {{
- *   count: FlowStats<Count, ?CountFract>,
- *   perSecond: Windows<?PerSecond>,
- *   types: SpendableType,
- * }} Inputs
+ *   mwebSupply: SeriesPattern1<?Bitcoin>,
+ *   pegIn: ValueFlow,
+ *   pegOut: ValueFlow,
+ *   fee: ValueFlow,
+ *   netFlow: SeriesPattern1<SatsSigned>,
+ *   peginCount: SeriesPattern1<Count32>,
+ *   pegoutCount: SeriesPattern1<Count32>,
+ *   active: SeriesPattern1<Boolean>,
+ * }} Mweb
  */
-const _Inputs = _s({
-  count: [_FlowStats, '*_count'],
-  perSecond: [_Windows, 'inputs_per_second'],
-  types: [_SpendableType, '*'],
-});
-
-/**
- * @template A, B
- * @typedef {{
- *   block: SeriesPattern18<A>,
- *   avg: Windows<B>,
- * }} Averaged
- */
-const _Averaged = _s({
-  block: [_i18, '*'],
-  avg: [_Windows, '*_avg'],
-});
-
-/**
- * @template A
- * @typedef {{
- *   count: A,
- *   share: Share,
- * }} EventCount
- */
-/** @type {_Make} */
-const _EventCount = (c, b, f0) => _n(c, b, {
-  count: [f0, '*_count'],
-  share: [_Share, '*_share'],
-});
-
-/**
- * @typedef {{
- *   outputs: EventCount<Flow<Count>>,
- *   inputs: EventCount<Flow<Count>>,
- *   active: EventCount<Averaged<Count, ?CountFract>>,
- * }} ReuseEvents
- */
-const _ReuseEvents = _s({
-  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_respent_address'],
-  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_respent_address'],
-  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_respent_address'],
-});
-
-/**
- * @typedef {{
- *   count: RespentCount,
- *   supply: PredicateSupply,
- *   events: ReuseEvents,
- * }} Respent
- */
-const _Respent = _s({
-  count: [_RespentCount, '*'],
-  supply: [_PredicateSupply, '*_respent_address_supply'],
-  events: [_ReuseEvents, '*'],
-});
-
-/**
- * @typedef {{
- *   outputs: EventCount<Flow<Count>>,
- *   inputs: EventCount<Flow<Count>>,
- *   active: EventCount<Averaged<Count, ?CountFract>>,
- * }} AddressesReuseEvents
- */
-const _AddressesReuseEvents = _s({
-  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_reused_address'],
-  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_reused_address'],
-  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_reused_address'],
-});
-
-/**
- * @typedef {{
- *   count: ReusedCount,
- *   supply: PredicateSupply,
- *   events: AddressesReuseEvents,
- * }} Reused
- */
-const _Reused = _s({
-  count: [_ReusedCount, '*'],
-  supply: [_PredicateSupply, '*_reused_address_supply'],
-  events: [_AddressesReuseEvents, '*'],
-});
-
-/**
- * @typedef {{
- *   reactivated: Averaged<Count, ?CountFract>,
- *   sending: Averaged<Count, ?CountFract>,
- *   receiving: Averaged<Count, ?CountFract>,
- *   bidirectional: Averaged<Count, ?CountFract>,
- *   active: Averaged<Count, ?CountFract>,
- * }} AddressesActivity
- */
-const _AddressesActivity = _s({
-  reactivated: [_Averaged, '*_reactivated_address_count'],
-  sending: [_Averaged, '*_sending_address_count'],
-  receiving: [_Averaged, '*_receiving_address_count'],
-  bidirectional: [_Averaged, '*_bidirectional_address_count'],
-  active: [_Averaged, '*_active_address_count'],
-});
-
-/**
- * @typedef {{
- *   funded: WithDelta<Count, CountSigned>,
- *   empty: SeriesPattern1<Count>,
- *   total: SeriesPattern1<Count>,
- *   new: NewAddressCount,
- *   activity: AddressesActivity,
- *   avgBalance: Value,
- *   reused: Reused,
- *   respent: Respent,
- *   exposed: Exposed,
- * }} AddressSeries
- */
-const _AddressSeries = _s({
-  funded: [_WithDelta, '*_funded_address_count'],
-  empty: [_i1, '*_empty_address_count'],
-  total: [_i1, '*_total_address_count'],
-  new: [_NewAddressCount, '*_new_address_count'],
-  activity: [_AddressesActivity, '*'],
-  avgBalance: [_Value, '*_address_balance_avg'],
-  reused: [_Reused, '*'],
-  respent: [_Respent, '*'],
-  exposed: [_Exposed, '*'],
-});
-
-/**
- * @typedef {{
- *   p2pk: AddressSeries,
- *   p2pkh: AddressSeries,
- *   p2sh: AddressSeries,
- *   p2wpkh: AddressSeries,
- *   p2wsh: AddressSeries,
- *   p2tr: AddressSeries,
- * }} AddressType
- */
-const _AddressType = _s({
-  p2pk: [_AddressSeries, '*'],
-  p2pkh: [_AddressSeries, 'p2pkh'],
-  p2sh: [_AddressSeries, 'p2sh'],
-  p2wpkh: [_AddressSeries, 'p2wpkh'],
-  p2wsh: [_AddressSeries, 'p2wsh'],
-  p2tr: [_AddressSeries, 'p2tr'],
-});
-
-/**
- * @typedef {{
- *   funded: WithDelta<Count, CountSigned>,
- *   empty: SeriesPattern1<Count>,
- *   total: SeriesPattern1<Count>,
- *   new: NewAddressCount,
- *   activity: AddressesActivity,
- *   avgBalance: Value,
- *   reused: Reused,
- *   respent: Respent,
- *   exposed: Exposed,
- *   supply: CohortSupply,
- *   capital: CapitalViews,
- *   types: AddressType,
- *   balances: AmountRange<ZeroBalance, Balance>,
- * }} Addresses
- */
-const _Addresses = _s({
-  funded: [_WithDelta, 'funded_*_count'],
-  empty: [_i1, 'empty_*_count'],
-  total: [_i1, 'total_*_count'],
-  new: [_NewAddressCount, 'new_*_count'],
-  activity: [_AddressesActivity, ''],
-  avgBalance: [_Value, '*_balance_avg'],
-  reused: [_Reused, ''],
-  respent: [_Respent, ''],
-  exposed: [_Exposed, ''],
-  supply: [_CohortSupply, '*_supply'],
-  capital: [_CapitalViews, '*'],
-  types: [_AddressType, 'p2pk'],
-  balances: [(c, b) => _AmountRange(c, b, _ZeroBalance, _Balance), 'balance'],
-});
-
-/**
- * @typedef {{
- *   cumulative: SeriesPattern1<Count>,
- *   sum: Windows<Count>,
- * }} CumulativeFlow
- */
-const _CumulativeFlow = _s({
-  cumulative: [_i1, '*_cumulative'],
-  sum: [_Windows, '*_sum'],
-});
-
-/**
- * @typedef {{
- *   blockCount: CumulativeFlow,
- *   blockShare: Share,
- *   coinbase: Coinbase,
- *   fees: PoolFees,
- *   hashrate: Windows<?Hashrate>,
- * }} Pool
- */
-const _Pool = _s({
-  blockCount: [_CumulativeFlow, '*_block_count'],
-  blockShare: [_Share, '*_block_share'],
-  coinbase: [_Coinbase, '*_coinbase'],
-  fees: [_PoolFees, '*_fees_avg'],
-  hashrate: [_Windows, '*_hashrate'],
-});
-
-/**
- * @typedef {{
- *   blockPool: SeriesPattern18<PoolSlug>,
- *   unknown: Pool,
- *   blockfills: Pool,
- *   ultimuspool: Pool,
- *   terrapool: Pool,
- *   luxor: Pool,
- *   _1thash: Pool,
- *   btccom: Pool,
- *   bitfarms: Pool,
- *   huobipool: Pool,
- *   wayicn: Pool,
- *   canoepool: Pool,
- *   btctop: Pool,
- *   bitcoincom: Pool,
- *   _175btc: Pool,
- *   gbminers: Pool,
- *   axbt: Pool,
- *   asicminer: Pool,
- *   bitminter: Pool,
- *   bitcoinrussia: Pool,
- *   btcserv: Pool,
- *   simplecoinus: Pool,
- *   btcguild: Pool,
- *   eligius: Pool,
- *   ozcoin: Pool,
- *   eclipsemc: Pool,
- *   maxbtc: Pool,
- *   triplemining: Pool,
- *   coinlab: Pool,
- *   _50btc: Pool,
- *   ghashio: Pool,
- *   stminingcorp: Pool,
- *   bitparking: Pool,
- *   mmpool: Pool,
- *   polmine: Pool,
- *   kncminer: Pool,
- *   bitalo: Pool,
- *   f2pool: Pool,
- *   hhtt: Pool,
- *   megabigpower: Pool,
- *   mtred: Pool,
- *   nmcbit: Pool,
- *   yourbtcnet: Pool,
- *   givemecoins: Pool,
- *   braiinspool: Pool,
- *   antpool: Pool,
- *   multicoinco: Pool,
- *   bcpoolio: Pool,
- *   cointerra: Pool,
- *   kanopool: Pool,
- *   solock: Pool,
- *   ckpool: Pool,
- *   nicehash: Pool,
- *   bitclub: Pool,
- *   bitcoinaffiliatenetwork: Pool,
- *   btcc: Pool,
- *   bwpool: Pool,
- *   exxbw: Pool,
- *   bitsolo: Pool,
- *   bitfury: Pool,
- *   _21inc: Pool,
- *   digitalbtc: Pool,
- *   _8baochi: Pool,
- *   mybtccoinpool: Pool,
- *   tbdice: Pool,
- *   hashpool: Pool,
- *   nexious: Pool,
- *   bravomining: Pool,
- *   hotpool: Pool,
- *   okexpool: Pool,
- *   bcmonster: Pool,
- *   _1hash: Pool,
- *   bixin: Pool,
- *   tatmaspool: Pool,
- *   viabtc: Pool,
- *   connectbtc: Pool,
- *   batpool: Pool,
- *   waterhole: Pool,
- *   dcexploration: Pool,
- *   dcex: Pool,
- *   btpool: Pool,
- *   _58coin: Pool,
- *   bitcoinindia: Pool,
- *   shawnp0wers: Pool,
- *   phashio: Pool,
- *   rigpool: Pool,
- *   haozhuzhu: Pool,
- *   _7pool: Pool,
- *   miningkings: Pool,
- *   hashbx: Pool,
- *   dpool: Pool,
- *   rawpool: Pool,
- *   haominer: Pool,
- *   helix: Pool,
- *   bitcoinukraine: Pool,
- *   poolin: Pool,
- *   secretsuperstar: Pool,
- *   tigerpoolnet: Pool,
- *   sigmapoolcom: Pool,
- *   okpooltop: Pool,
- *   hummerpool: Pool,
- *   tangpool: Pool,
- *   bytepool: Pool,
- *   spiderpool: Pool,
- *   novablock: Pool,
- *   miningcity: Pool,
- *   binancepool: Pool,
- *   minerium: Pool,
- *   lubiancom: Pool,
- *   okkong: Pool,
- *   aaopool: Pool,
- *   emcdpool: Pool,
- *   foundryusa: Pool,
- *   sbicrypto: Pool,
- *   arkpool: Pool,
- *   purebtccom: Pool,
- *   marapool: Pool,
- *   kucoinpool: Pool,
- *   entrustcharitypool: Pool,
- *   okminer: Pool,
- *   titan: Pool,
- *   pegapool: Pool,
- *   btcnuggets: Pool,
- *   cloudhashing: Pool,
- *   digitalxmintsy: Pool,
- *   telco214: Pool,
- *   btcpoolparty: Pool,
- *   multipool: Pool,
- *   transactioncoinmining: Pool,
- *   btcdig: Pool,
- *   trickysbtcpool: Pool,
- *   btcmp: Pool,
- *   eobot: Pool,
- *   unomp: Pool,
- *   patels: Pool,
- *   gogreenlight: Pool,
- *   bitcoinindiapool: Pool,
- *   ekanembtc: Pool,
- *   canoe: Pool,
- *   tiger: Pool,
- *   _1m1x: Pool,
- *   zulupool: Pool,
- *   secpool: Pool,
- *   ocean: Pool,
- *   whitepool: Pool,
- *   wiz: Pool,
- *   wk057: Pool,
- *   futurebitapollosolo: Pool,
- *   carbonnegative: Pool,
- *   portlandhodl: Pool,
- *   phoenix: Pool,
- *   neopool: Pool,
- *   maxipool: Pool,
- *   bitfufupool: Pool,
- *   gdpool: Pool,
- *   miningdutch: Pool,
- *   publicpool: Pool,
- *   miningsquared: Pool,
- *   innopolistech: Pool,
- *   btclab: Pool,
- *   parasite: Pool,
- *   redrockpool: Pool,
- *   est3lar: Pool,
- *   braiinssolo: Pool,
- *   solopoolcom: Pool,
- *   noderunners: Pool,
- *   dmnd: Pool,
- * }} Pools
- */
-const _Pools = _s({
-  blockPool: [_i18, 'block_*'],
-  unknown: [_Pool, '*_unknown'],
-  blockfills: [_Pool, '*_blockfills'],
-  ultimuspool: [_Pool, '*_ultimuspool'],
-  terrapool: [_Pool, '*_terrapool'],
-  luxor: [_Pool, '*_luxor'],
-  _1thash: [_Pool, '*_1thash'],
-  btccom: [_Pool, '*_btccom'],
-  bitfarms: [_Pool, '*_bitfarms'],
-  huobipool: [_Pool, '*_huobipool'],
-  wayicn: [_Pool, '*_wayicn'],
-  canoepool: [_Pool, '*_canoepool'],
-  btctop: [_Pool, '*_btctop'],
-  bitcoincom: [_Pool, '*_bitcoincom'],
-  _175btc: [_Pool, '*_175btc'],
-  gbminers: [_Pool, '*_gbminers'],
-  axbt: [_Pool, '*_axbt'],
-  asicminer: [_Pool, '*_asicminer'],
-  bitminter: [_Pool, '*_bitminter'],
-  bitcoinrussia: [_Pool, '*_bitcoinrussia'],
-  btcserv: [_Pool, '*_btcserv'],
-  simplecoinus: [_Pool, '*_simplecoinus'],
-  btcguild: [_Pool, '*_btcguild'],
-  eligius: [_Pool, '*_eligius'],
-  ozcoin: [_Pool, '*_ozcoin'],
-  eclipsemc: [_Pool, '*_eclipsemc'],
-  maxbtc: [_Pool, '*_maxbtc'],
-  triplemining: [_Pool, '*_triplemining'],
-  coinlab: [_Pool, '*_coinlab'],
-  _50btc: [_Pool, '*_50btc'],
-  ghashio: [_Pool, '*_ghashio'],
-  stminingcorp: [_Pool, '*_stminingcorp'],
-  bitparking: [_Pool, '*_bitparking'],
-  mmpool: [_Pool, '*_mmpool'],
-  polmine: [_Pool, '*_polmine'],
-  kncminer: [_Pool, '*_kncminer'],
-  bitalo: [_Pool, '*_bitalo'],
-  f2pool: [_Pool, '*_f2pool'],
-  hhtt: [_Pool, '*_hhtt'],
-  megabigpower: [_Pool, '*_megabigpower'],
-  mtred: [_Pool, '*_mtred'],
-  nmcbit: [_Pool, '*_nmcbit'],
-  yourbtcnet: [_Pool, '*_yourbtcnet'],
-  givemecoins: [_Pool, '*_givemecoins'],
-  braiinspool: [_Pool, '*_braiinspool'],
-  antpool: [_Pool, '*_antpool'],
-  multicoinco: [_Pool, '*_multicoinco'],
-  bcpoolio: [_Pool, '*_bcpoolio'],
-  cointerra: [_Pool, '*_cointerra'],
-  kanopool: [_Pool, '*_kanopool'],
-  solock: [_Pool, '*_solock'],
-  ckpool: [_Pool, '*_ckpool'],
-  nicehash: [_Pool, '*_nicehash'],
-  bitclub: [_Pool, '*_bitclub'],
-  bitcoinaffiliatenetwork: [_Pool, '*_bitcoinaffiliatenetwork'],
-  btcc: [_Pool, '*_btcc'],
-  bwpool: [_Pool, '*_bwpool'],
-  exxbw: [_Pool, '*_exxbw'],
-  bitsolo: [_Pool, '*_bitsolo'],
-  bitfury: [_Pool, '*_bitfury'],
-  _21inc: [_Pool, '*_21inc'],
-  digitalbtc: [_Pool, '*_digitalbtc'],
-  _8baochi: [_Pool, '*_8baochi'],
-  mybtccoinpool: [_Pool, '*_mybtccoinpool'],
-  tbdice: [_Pool, '*_tbdice'],
-  hashpool: [_Pool, '*_hashpool'],
-  nexious: [_Pool, '*_nexious'],
-  bravomining: [_Pool, '*_bravomining'],
-  hotpool: [_Pool, '*_hotpool'],
-  okexpool: [_Pool, '*_okexpool'],
-  bcmonster: [_Pool, '*_bcmonster'],
-  _1hash: [_Pool, '*_1hash'],
-  bixin: [_Pool, '*_bixin'],
-  tatmaspool: [_Pool, '*_tatmaspool'],
-  viabtc: [_Pool, '*_viabtc'],
-  connectbtc: [_Pool, '*_connectbtc'],
-  batpool: [_Pool, '*_batpool'],
-  waterhole: [_Pool, '*_waterhole'],
-  dcexploration: [_Pool, '*_dcexploration'],
-  dcex: [_Pool, '*_dcex'],
-  btpool: [_Pool, '*_btpool'],
-  _58coin: [_Pool, '*_58coin'],
-  bitcoinindia: [_Pool, '*_bitcoinindia'],
-  shawnp0wers: [_Pool, '*_shawnp0wers'],
-  phashio: [_Pool, '*_phashio'],
-  rigpool: [_Pool, '*_rigpool'],
-  haozhuzhu: [_Pool, '*_haozhuzhu'],
-  _7pool: [_Pool, '*_7pool'],
-  miningkings: [_Pool, '*_miningkings'],
-  hashbx: [_Pool, '*_hashbx'],
-  dpool: [_Pool, '*_dpool'],
-  rawpool: [_Pool, '*_rawpool'],
-  haominer: [_Pool, '*_haominer'],
-  helix: [_Pool, '*_helix'],
-  bitcoinukraine: [_Pool, '*_bitcoinukraine'],
-  poolin: [_Pool, '*_poolin'],
-  secretsuperstar: [_Pool, '*_secretsuperstar'],
-  tigerpoolnet: [_Pool, '*_tigerpoolnet'],
-  sigmapoolcom: [_Pool, '*_sigmapoolcom'],
-  okpooltop: [_Pool, '*_okpooltop'],
-  hummerpool: [_Pool, '*_hummerpool'],
-  tangpool: [_Pool, '*_tangpool'],
-  bytepool: [_Pool, '*_bytepool'],
-  spiderpool: [_Pool, '*_spiderpool'],
-  novablock: [_Pool, '*_novablock'],
-  miningcity: [_Pool, '*_miningcity'],
-  binancepool: [_Pool, '*_binancepool'],
-  minerium: [_Pool, '*_minerium'],
-  lubiancom: [_Pool, '*_lubiancom'],
-  okkong: [_Pool, '*_okkong'],
-  aaopool: [_Pool, '*_aaopool'],
-  emcdpool: [_Pool, '*_emcdpool'],
-  foundryusa: [_Pool, '*_foundryusa'],
-  sbicrypto: [_Pool, '*_sbicrypto'],
-  arkpool: [_Pool, '*_arkpool'],
-  purebtccom: [_Pool, '*_purebtccom'],
-  marapool: [_Pool, '*_marapool'],
-  kucoinpool: [_Pool, '*_kucoinpool'],
-  entrustcharitypool: [_Pool, '*_entrustcharitypool'],
-  okminer: [_Pool, '*_okminer'],
-  titan: [_Pool, '*_titan'],
-  pegapool: [_Pool, '*_pegapool'],
-  btcnuggets: [_Pool, '*_btcnuggets'],
-  cloudhashing: [_Pool, '*_cloudhashing'],
-  digitalxmintsy: [_Pool, '*_digitalxmintsy'],
-  telco214: [_Pool, '*_telco214'],
-  btcpoolparty: [_Pool, '*_btcpoolparty'],
-  multipool: [_Pool, '*_multipool'],
-  transactioncoinmining: [_Pool, '*_transactioncoinmining'],
-  btcdig: [_Pool, '*_btcdig'],
-  trickysbtcpool: [_Pool, '*_trickysbtcpool'],
-  btcmp: [_Pool, '*_btcmp'],
-  eobot: [_Pool, '*_eobot'],
-  unomp: [_Pool, '*_unomp'],
-  patels: [_Pool, '*_patels'],
-  gogreenlight: [_Pool, '*_gogreenlight'],
-  bitcoinindiapool: [_Pool, '*_bitcoinindiapool'],
-  ekanembtc: [_Pool, '*_ekanembtc'],
-  canoe: [_Pool, '*_canoe'],
-  tiger: [_Pool, '*_tiger'],
-  _1m1x: [_Pool, '*_1m1x'],
-  zulupool: [_Pool, '*_zulupool'],
-  secpool: [_Pool, '*_secpool'],
-  ocean: [_Pool, '*_ocean'],
-  whitepool: [_Pool, '*_whitepool'],
-  wiz: [_Pool, '*_wiz'],
-  wk057: [_Pool, '*_wk057'],
-  futurebitapollosolo: [_Pool, '*_futurebitapollosolo'],
-  carbonnegative: [_Pool, '*_carbonnegative'],
-  portlandhodl: [_Pool, '*_portlandhodl'],
-  phoenix: [_Pool, '*_phoenix'],
-  neopool: [_Pool, '*_neopool'],
-  maxipool: [_Pool, '*_maxipool'],
-  bitfufupool: [_Pool, '*_bitfufupool'],
-  gdpool: [_Pool, '*_gdpool'],
-  miningdutch: [_Pool, '*_miningdutch'],
-  publicpool: [_Pool, '*_publicpool'],
-  miningsquared: [_Pool, '*_miningsquared'],
-  innopolistech: [_Pool, '*_innopolistech'],
-  btclab: [_Pool, '*_btclab'],
-  parasite: [_Pool, '*_parasite'],
-  redrockpool: [_Pool, '*_redrockpool'],
-  est3lar: [_Pool, '*_est3lar'],
-  braiinssolo: [_Pool, '*_braiinssolo'],
-  solopoolcom: [_Pool, '*_solopoolcom'],
-  noderunners: [_Pool, '*_noderunners'],
-  dmnd: [_Pool, '*_dmnd'],
-});
-
-/**
- * @typedef {{
- *   count: CumulativeFlow,
- *   interval: Averaged<Seconds, ?SecondsFract>,
- *   size: FlowStats<Bytes, ?BytesFract>,
- *   weight: FlowStats<Weight, ?WeightFract>,
- *   sigopCost: Flow<SigOps>,
- *   fullness: Fullness,
- *   difficulty: BlocksDifficulty,
- *   halving: Halving,
- * }} Blocks
- */
-const _Blocks = _s({
-  count: [_CumulativeFlow, '*_count'],
-  interval: [_Averaged, '*_interval'],
-  size: [_FlowStats, '*_size'],
-  weight: [_FlowStats, '*_weight'],
-  sigopCost: [_Flow, '*_sigop_cost'],
-  fullness: [_Fullness, '*_fullness'],
-  difficulty: [_BlocksDifficulty, 'difficulty'],
-  halving: [_Halving, 'halving'],
+const _Mweb = _s({
+  mwebSupply: [_i1, '*_supply'],
+  pegIn: [_ValueFlow, '*_peg_in'],
+  pegOut: [_ValueFlow, '*_peg_out'],
+  fee: [_ValueFlow, '*_fee'],
+  netFlow: [_i1, '*_net_flow'],
+  peginCount: [_i1, '*_pegin_count'],
+  pegoutCount: [_i1, '*_pegout_count'],
+  active: [_i1, '*_active'],
 });
 
 /**
@@ -6673,6 +6443,33 @@ const _MappingsP2pk65 = _s({
 
 /**
  * @typedef {{
+ *   kernelCount: SeriesPattern18<Count32>,
+ *   inputCount: SeriesPattern18<Count32>,
+ *   outputCount: SeriesPattern18<Count32>,
+ *   outputMmrSize: SeriesPattern18<Count>,
+ *   kernelMmrSize: SeriesPattern18<Count>,
+ *   kernelFee: SeriesPattern18<Sats>,
+ *   kernelPegin: SeriesPattern18<Sats>,
+ *   kernelPegout: SeriesPattern18<Sats>,
+ *   peginKernelCount: SeriesPattern18<Count32>,
+ *   pegoutKernelCount: SeriesPattern18<Count32>,
+ * }} IndexerMweb
+ */
+const _IndexerMweb = _s({
+  kernelCount: [_i18, '*_kernel_count'],
+  inputCount: [_i18, '*_input_count'],
+  outputCount: [_i18, '*_output_count'],
+  outputMmrSize: [_i18, '*_output_mmr_size'],
+  kernelMmrSize: [_i18, '*_kernel_mmr_size'],
+  kernelFee: [_i18, '*_kernel_fee'],
+  kernelPegin: [_i18, '*_kernel_pegin'],
+  kernelPegout: [_i18, '*_kernel_pegout'],
+  peginKernelCount: [_i18, '*_pegin_kernel_count'],
+  pegoutKernelCount: [_i18, '*_pegout_kernel_count'],
+});
+
+/**
+ * @typedef {{
  *   firstIndex: SeriesPattern18<OpReturnOutputIndex>,
  *   txIndex: SeriesPattern25<TxIndex>,
  *   protocol: SeriesPattern25<OpReturnKind>,
@@ -7036,6 +6833,8 @@ const _Feature = _s({
  *   rbfSignaling: IndexerFeature,
  *   dustOutput: Feature,
  *   epobc: IndexerFeature,
+ *   hogex: IndexerFeature,
+ *   mweb: Feature,
  *   oneInput: CountSeries,
  *   oneOutput: CountSeries,
  * }} TransactionFeatures
@@ -7064,6 +6863,8 @@ const _TransactionFeatures = _s({
   rbfSignaling: [_IndexerFeature, 'rbf_signaling'],
   dustOutput: [_Feature, 'dust_output'],
   epobc: [_IndexerFeature, 'epobc'],
+  hogex: [_IndexerFeature, 'hogex'],
+  mweb: [_Feature, 'mweb'],
   oneInput: [_CountSeries, 'one_input_tx_count'],
   oneOutput: [_CountSeries, 'one_output_tx_count'],
 });
@@ -7131,6 +6932,7 @@ const _IndexerBlocks = _s({
  *   addresses: Addrs<IndexerP2pk65, IndexerP2pk33, IndexerP2pkh, IndexerP2sh, IndexerP2wpkh, IndexerP2wsh, IndexerP2tr, IndexerP2a>,
  *   scripts: Scripts,
  *   opReturn: IndexerOpReturn,
+ *   mweb: IndexerMweb,
  * }} Indexer
  */
 const _Indexer = _s({
@@ -7141,6 +6943,7 @@ const _Indexer = _s({
   addresses: [(c, b) => _Addrs(c, b, _IndexerP2pk65, _IndexerP2pk33, _IndexerP2pkh, _IndexerP2sh, _IndexerP2wpkh, _IndexerP2wsh, _IndexerP2tr, _IndexerP2a), ''],
   scripts: [_Scripts, 'script'],
   opReturn: [_IndexerOpReturn, 'op_return'],
+  mweb: [_IndexerMweb, 'mweb'],
 });
 
 /**
@@ -7148,6 +6951,7 @@ const _Indexer = _s({
  *   indexer: Indexer,
  *   mappings: Mappings,
  *   price: Price,
+ *   mweb: Mweb,
  *   blocks: Blocks,
  *   inputs: Inputs,
  *   outputs: Outputs,
@@ -7174,6 +6978,7 @@ const _SeriesTree = _s({
   indexer: [_Indexer, 'tx'],
   mappings: [_Mappings, 'date'],
   price: [_Price, 'price'],
+  mweb: [_Mweb, 'mweb'],
   blocks: [_Blocks, 'block'],
   inputs: [_Inputs, 'input'],
   outputs: [_Outputs, 'output'],
@@ -7189,7 +6994,7 @@ const _SeriesTree = _s({
   holders: [_Holders, 'age'],
   entry: [_Entry, 'entry'],
   profitability: [_Profitability, 'sth'],
-  supply: [_Supply, 'circulating_supply'],
+  supply: [_Supply, 'supply'],
   cointime: [_Cointime, 'age'],
   coinflow: [_Coinflow, 'age'],
   bedrock: [_Bedrock, 'bedrock'],
@@ -7238,171 +7043,39 @@ class BitviewClient extends BitviewClientBase {
   ]);
 
   POOL_SLUG_TO_NAME = /** @type {const} */ ({
-    "175btc": "175btc",
-    "1hash": "1Hash",
-    "1m1x": "1M1X",
-    "1thash": "1THash",
-    "21inc": "21 Inc.",
-    "50btc": "50BTC",
-    "58coin": "58COIN",
-    "7pool": "7pool",
-    "8baochi": "8baochi",
-    "aaopool": "AAO Pool",
     "antpool": "AntPool",
-    "arkpool": "ArkPool",
-    "asicminer": "ASICMiner",
-    "axbt": "A-XBT",
-    "batpool": "BATPOOL",
-    "bcmonster": "BCMonster",
-    "bcpoolio": "bcpool.io",
     "binancepool": "Binance Pool",
-    "bitalo": "Bitalo",
-    "bitclub": "BitClub",
-    "bitcoinaffiliatenetwork": "Bitcoin Affiliate Network",
-    "bitcoincom": "Bitcoin.com",
-    "bitcoinindia": "Bitcoin India",
-    "bitcoinindiapool": "BitcoinIndia",
-    "bitcoinrussia": "BitcoinRussia",
-    "bitcoinukraine": "Bitcoin-Ukraine",
-    "bitfarms": "Bitfarms",
-    "bitfufupool": "BitFuFuPool",
-    "bitfury": "BitFury",
-    "bitminter": "BitMinter",
-    "bitparking": "Bitparking",
-    "bitsolo": "Bitsolo",
-    "bixin": "Bixin",
-    "blockfills": "BlockFills",
-    "braiinspool": "Braiins Pool",
-    "braiinssolo": "Braiins Solo",
-    "bravomining": "Bravo Mining",
-    "btcc": "BTCC",
     "btccom": "BTC.com",
-    "btcdig": "BTCDig",
-    "btcguild": "BTC Guild",
-    "btclab": "BTCLab",
-    "btcmp": "BTCMP",
-    "btcnuggets": "BTC Nuggets",
-    "btcpoolparty": "BTC Pool Party",
-    "btcserv": "BTCServ",
-    "btctop": "BTC.TOP",
-    "btpool": "BTPOOL",
-    "bwpool": "BWPool",
-    "bytepool": "BytePool",
-    "canoe": "CANOE",
-    "canoepool": "CanoePool",
-    "carbonnegative": "Carbon Negative",
-    "ckpool": "CKPool",
-    "cloudhashing": "CloudHashing",
-    "coinlab": "CoinLab",
-    "cointerra": "Cointerra",
-    "connectbtc": "ConnectBTC",
-    "dcex": "DCEX",
-    "dcexploration": "DCExploration",
-    "digitalbtc": "digitalBTC",
-    "digitalxmintsy": "digitalX Mintsy",
-    "dmnd": "DMND",
-    "dpool": "DPOOL",
-    "eclipsemc": "EclipseMC",
-    "ekanembtc": "EkanemBTC",
-    "eligius": "Eligius",
+    "dogegogocom": "dogegogo.com",
+    "dxpool": "DxPool",
     "emcdpool": "EMCDPool",
-    "entrustcharitypool": "Entrust Charity Pool",
-    "eobot": "Eobot",
-    "est3lar": "Est3lar",
-    "exxbw": "EXX&BW",
     "f2pool": "F2Pool",
-    "foundryusa": "Foundry USA",
-    "futurebitapollosolo": "FutureBit Apollo Solo",
-    "gbminers": "GBMiners",
-    "gdpool": "GDPool",
-    "ghashio": "GHash.IO",
-    "givemecoins": "Give Me Coins",
-    "gogreenlight": "GoGreenLight",
-    "haominer": "haominer",
-    "haozhuzhu": "HAOZHUZHU",
-    "hashbx": "HashBX",
-    "hashpool": "HASHPOOL",
-    "helix": "Helix",
-    "hhtt": "HHTT",
-    "hotpool": "HotPool",
-    "hummerpool": "Hummerpool",
-    "huobipool": "Huobi.pool",
-    "innopolistech": "Innopolis Tech",
-    "kanopool": "KanoPool",
-    "kncminer": "KnCMiner",
-    "kucoinpool": "KuCoinPool",
-    "lubiancom": "Lubian.com",
-    "luxor": "Luxor",
-    "marapool": "MARA Pool",
-    "maxbtc": "MaxBTC",
-    "maxipool": "MaxiPool",
-    "megabigpower": "MegaBigPower",
-    "minerium": "Minerium",
-    "miningcity": "MiningCity",
-    "miningdutch": "Mining-Dutch",
-    "miningkings": "MiningKings",
-    "miningsquared": "Mining Squared",
-    "mmpool": "mmpool",
-    "mtred": "Mt Red",
-    "multicoinco": "MultiCoin.co",
-    "multipool": "Multipool",
-    "mybtccoinpool": "myBTCcoin Pool",
-    "neopool": "Neopool",
-    "nexious": "Nexious",
+    "happychina": "happychina",
+    "hash700": "Hash700",
+    "hashhut": "hash-hut",
+    "hashspace": "Hash Space",
+    "himpool": "HimPool",
+    "hyperdonkey": "HyperDonkey",
+    "k1pool": "K1Pool",
+    "kryptex": "Kryptex",
+    "kupool": "Kupool",
+    "litecoinpoolorg": "Litecoinpool.org",
+    "longpool": "LongPool",
+    "lsoftwaredmcc": "LSoftware DMCC",
+    "luxor": "Luxor Labs",
+    "miningdutch": "Mining Dutch",
+    "molepool": "molepool",
     "nicehash": "NiceHash",
-    "nmcbit": "NMCbit",
-    "noderunners": "Noderunners",
-    "novablock": "NovaBlock",
-    "ocean": "OCEAN",
-    "okexpool": "OKExPool",
-    "okkong": "OKKONG",
-    "okminer": "OKMINER",
-    "okpooltop": "okpool.top",
-    "ozcoin": "OzCoin",
-    "parasite": "Parasite",
-    "patels": "Patels",
-    "pegapool": "PEGA Pool",
-    "phashio": "PHash.IO",
-    "phoenix": "Phoenix",
-    "polmine": "Polmine",
+    "p2pspbxyz": "p2p-spb.xyz",
     "poolin": "Poolin",
-    "portlandhodl": "Portland.HODL",
-    "publicpool": "Public Pool",
-    "purebtccom": "PureBTC.COM",
-    "rawpool": "Rawpool",
-    "redrockpool": "RedRock Pool",
-    "rigpool": "RigPool",
+    "prohashing": "Prohashing",
     "sbicrypto": "SBI Crypto",
-    "secpool": "SECPOOL",
-    "secretsuperstar": "SecretSuperstar",
-    "shawnp0wers": "shawnp0wers",
     "sigmapoolcom": "Sigmapool.com",
-    "simplecoinus": "simplecoin.us",
-    "solock": "Solo CK",
-    "solopoolcom": "SoloPool.com",
-    "spiderpool": "SpiderPool",
-    "stminingcorp": "ST Mining Corp",
-    "tangpool": "Tangpool",
-    "tatmaspool": "TATMAS Pool",
-    "tbdice": "TBDice",
-    "telco214": "Telco 214",
-    "terrapool": "Terra Pool",
-    "tiger": "tiger",
-    "tigerpoolnet": "tigerpool.net",
-    "titan": "Titan",
-    "transactioncoinmining": "transactioncoinmining",
-    "trickysbtcpool": "Tricky's BTC Pool",
-    "triplemining": "TripleMining",
-    "ultimuspool": "ULTIMUSPOOL",
+    "solopoolorg": "solopool.org",
+    "spiderpool": "Spiderpool",
     "unknown": "Unknown",
-    "unomp": "UNOMP",
     "viabtc": "ViaBTC",
-    "waterhole": "Waterhole",
-    "wayicn": "WAYI.CN",
-    "whitepool": "WhitePool",
-    "wiz": "wiz",
-    "wk057": "wk057",
-    "yourbtcnet": "Yourbtc.net",
+    "zergpool": "zergpool",
     "zulupool": "Zulupool"
   });
 

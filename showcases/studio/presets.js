@@ -693,11 +693,21 @@ export function studioPresets(client, facts) {
       ]),
     ], { icon: "scale" }),
     section("Supply", [
-      chart("Circulating", "Circulating supply", [series(sup.circulating, "Supply", { color: "orange" }), series(sup.marketCap.value, "Market cap", { color: "green", pane: 2 })], { log: [2] }),
+      // (Litecoin: circulating is the transparent UTXO set's; the coins inside MWEB beside it, and both together.)
+      sup.totalSupply && t.mweb
+        ? chart("Circulating", "Circulating, MWEB and total supply", [series(sup.circulating, "Circulating", { color: "orange" }), series(t.mweb.mwebSupply, "MWEB", { color: "violet" }), series(sup.totalSupply, "Total", { color: "gray" }), series(sup.marketCap.value, "Market cap", { color: "green", pane: 2 })], { log: [2] })
+        : chart("Circulating", "Circulating supply", [series(sup.circulating, "Supply", { color: "orange" }), series(sup.marketCap.value, "Market cap", { color: "green", pane: 2 })], { log: [2] }),
       chart("Inflation", "Inflation rate", [series(sup.inflationRate, "Inflation rate", { color: "orange" }), series(ct.adjusted.inflationRate, "Cointime-adjusted", { color: "violet" })], { log: [1] }),
       ...flow(sup.burned, "Burned", "Bitcoin burned"),
       chart("Velocity", "Velocity", [series(sup.velocity.btc, "In bitcoin", { color: "orange" }), series(sup.velocity.usd, "In dollars", { color: "green" }), series(ct.adjusted.velocity.btc, "Cointime-adjusted, in bitcoin", { color: "violet", hidden: true }), series(ct.adjusted.velocity.usd, "Cointime-adjusted, in dollars", { color: "sky", hidden: true })]),
     ], { icon: "coins" }),
+    // (Litecoin's MWEB extension block, seen through its HogEx: only on a tree that has it.)
+    ...(t.mweb ? [section("MWEB", [
+      chart("Supply", "Coins inside MWEB", [series(t.mweb.mwebSupply, "MWEB supply", { color: "violet" }), ...(sup.totalSupply ? [{ formula: `${t.mweb.mwebSupply.name} / ${sup.totalSupply.name} * 100`, label: "Share of total supply", format: "percent", pane: 2, color: "violet" }] : [])]),
+      ...flow(t.mweb.pegIn, "Peg-ins", "Coins pegged into MWEB"),
+      ...flow(t.mweb.pegOut, "Peg-outs", "Coins pegged out of MWEB"),
+      ...flow(t.mweb.fee, "Fees", "Fees paid by MWEB transactions"),
+    ], { icon: "coins", workings: true })] : []),
     section("Holders", [
       ...holderSets(entries(t.holders), (members, by) => family(members, holderName, { by, urpd: (key) => URPD_HOLDERS[key], profile: by === "holder group" })),
       // (The discount and premium coins: all coins split by the price they came in at, at or below or above the

@@ -19,7 +19,8 @@ impl Vecs {
 
         let supply_sats = PerBlock::import(&db, "mweb_supply_sats", v, mappings)?;
         let supply = LazyPerBlock::from_resolutions::<Convert>("mweb_supply", v, &supply_sats);
-        let flow = |name| ValuePerBlockCumulativeRolling::import(&db, name, v, mappings, window_starts);
+        let flow =
+            |name| ValuePerBlockCumulativeRolling::import(&db, name, v, mappings, window_starts);
 
         let this = Self {
             peg_in: flow("mweb_peg_in")?,

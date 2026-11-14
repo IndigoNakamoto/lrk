@@ -239,6 +239,9 @@ impl SeriesValue for CoinbaseTag {
 impl SeriesValue for Count {
     type Nullable = Option<Count>;
 }
+impl SeriesValue for Count32 {
+    type Nullable = Option<Count32>;
+}
 impl SeriesValue for CountSigned {
     type Nullable = Option<CountSigned>;
 }
@@ -361,6 +364,9 @@ impl SeriesValue for RawLockTime {
 }
 impl SeriesValue for Sats {
     type Nullable = Option<Sats>;
+}
+impl SeriesValue for SatsSigned {
+    type Nullable = Option<SatsSigned>;
 }
 impl SeriesValue for Seconds {
     type Nullable = Option<Seconds>;
@@ -902,186 +908,12 @@ pub mod tree {
         p75: SeriesPattern1<A> = "*_p75",
         p90: SeriesPattern1<A> = "*_p90",
     } }
-    shape! { Value at "series().addresses.avg_balance" {
-        btc: SeriesPattern1<Option<Bitcoin>> = "*",
-        usd: SeriesPattern1<Option<Dollars>> = "*_usd",
-    } }
-    shape! { EntrySupply at "series().bedrock.awake.entry_supply" {
-        p95_to_p98: Value = "*_p95_to_p98",
-        p98_to_p99: Value = "*_p98_to_p99",
-        p99_to_p99_5: Value = "*_p99_to_p99_5",
-        p99_5_to_p99_9: Value = "*_p99_5_to_p99_9",
-        below_p99_9: Value = "*_below_p99_9",
-    } }
-    shape! { Mode at "series().bedrock.awake" {
-        supply_in_loss_share_threshold: Percentiles<Option<Percent>> = "*_supply_in_loss_share_threshold",
-        floor: Percentiles<Option<Dollars>> = "*_floor",
-        cost_basis_above_p95_floor: Levels = "*_cost_basis_above_p95_floor",
-        entry_supply: EntrySupply = "*_entry_supply",
-        entry_capital: EntryCapital = "*_entry_capital",
-    } }
-    shape! { Bedrock at "series().bedrock" {
-        awake: Mode = "*_awake",
-        mobile: Mode = "*_mobile",
-        unweighted: Mode = "*_unweighted",
-    } }
-    shape! { CointimeSupply at "series().cointime.supply" {
-        vaulted: Value = "vaulted_*",
-        hodled_or_lost: Value = "hodled_or_lost_*",
-        active: Value = "active_*",
-    } }
-    shape! { MobileSupply at "series().coinflow.cohorts.all.mobile.supply" {
-        total: Value = "*",
-        in_loss: InLoss = "*_in_loss_share",
-    } }
-    shape! { Awake at "series().coinflow.cohorts.all.mobile" {
-        supply: MobileSupply = "*_supply",
-        capital: MobileCapital = "*",
-        cost_basis: CostBasis = "*",
-    } }
-    shape! { Side at "series().coinflow.age_ranges._10y_to_12y.immobile" {
-        supply: Value = "*",
-    } }
-    shape! { CoinflowCohort at "series().coinflow.cohorts.all" {
-        mobile: Awake = "*_mobile",
-        immobile: Side = "*_immobile_supply",
-    } }
-    shape! { CoinflowRange at "series().coinflow.age_ranges._10y_to_12y" {
-        spending_rate: SeriesPattern1<Option<PerDay>> = "*_spending_rate",
-        spending_exposure: SeriesPattern1<Option<Float>> = "*_spending_exposure",
-        mobility: SeriesPattern1<Option<Ratio>> = "*_mobility",
-        mobile: Side = "*_mobile_supply",
-        immobile: Side = "*_immobile_supply",
-    } }
-    shape! { CointimeCohort at "series().cointime.cohorts.all" {
-        awake: Awake = "*_awake",
-        dormant: Side = "*_dormant_supply",
-    } }
-    shape! { AgeAggregate<A> at "series().coinflow.cohorts" {
-        all: A = "",
-        sth: A = "sth",
-        lth: A = "lth",
-        under_4m: A = "*_under_4m",
-        under_6m: A = "*_under_6m",
-        over_4m: A = "*_over_4m",
-        over_6m: A = "*_over_6m",
-    } }
-    shape! { BandSupply at "series().profitability.all.loss_0_to_10_percent.supply" {
-        total: Value = "*",
-        share: SeriesPattern1<Option<Percent>> = "*_share",
-    } }
-    shape! { Band at "series().profitability.all.loss_0_to_10_percent" {
-        supply: BandSupply = "*_supply",
-        capital: BandCapital = "*",
-    } }
-    shape! { ProfitabilityRange at "series().profitability.all" {
-        profit_over_1000_percent: Band = "*_profit_over_1000_percent",
-        profit_500_to_1000_percent: Band = "*_profit_500_to_1000_percent",
-        profit_300_to_500_percent: Band = "*_profit_300_to_500_percent",
-        profit_200_to_300_percent: Band = "*_profit_200_to_300_percent",
-        profit_100_to_200_percent: Band = "*_profit_100_to_200_percent",
-        profit_90_to_100_percent: Band = "*_profit_90_to_100_percent",
-        profit_80_to_90_percent: Band = "*_profit_80_to_90_percent",
-        profit_70_to_80_percent: Band = "*_profit_70_to_80_percent",
-        profit_60_to_70_percent: Band = "*_profit_60_to_70_percent",
-        profit_50_to_60_percent: Band = "*_profit_50_to_60_percent",
-        profit_40_to_50_percent: Band = "*_profit_40_to_50_percent",
-        profit_30_to_40_percent: Band = "*_profit_30_to_40_percent",
-        profit_20_to_30_percent: Band = "*_profit_20_to_30_percent",
-        profit_10_to_20_percent: Band = "*_profit_10_to_20_percent",
-        profit_0_to_10_percent: Band = "*_profit_0_to_10_percent",
-        loss_0_to_10_percent: Band = "*_loss_0_to_10_percent",
-        loss_10_to_20_percent: Band = "*_loss_10_to_20_percent",
-        loss_20_to_30_percent: Band = "*_loss_20_to_30_percent",
-        loss_30_to_40_percent: Band = "*_loss_30_to_40_percent",
-        loss_40_to_50_percent: Band = "*_loss_40_to_50_percent",
-        loss_50_to_60_percent: Band = "*_loss_50_to_60_percent",
-        loss_60_to_70_percent: Band = "*_loss_60_to_70_percent",
-        loss_70_to_80_percent: Band = "*_loss_70_to_80_percent",
-        loss_80_to_90_percent: Band = "*_loss_80_to_90_percent",
-        loss_90_to_100_percent: Band = "*_loss_90_to_100_percent",
-    } }
-    shape! { Profitability at "series().profitability" {
-        all: ProfitabilityRange = "",
-        sth: ProfitabilityRange = "*",
-        lth: ProfitabilityRange = "lth",
-    } }
-    shape! { OpReturnWindows at "series().op_return.fees.sum" {
-        _24h: Value = "*_24h",
-        _1w: Value = "*_1w",
-        _1m: Value = "*_1m",
-        _1y: Value = "*_1y",
-    } }
-    shape! { PoolFees at "series().pools._175btc.fees" {
-        avg: OpReturnWindows = "*",
-    } }
-    shape! { Coinbase at "series().pools._175btc.coinbase" {
-        cumulative: Value = "*_cumulative",
-        sum: OpReturnWindows = "*_sum",
-    } }
-    shape! { OpReturnValue at "series().op_return.fees.block" {
-        btc: SeriesPattern18<Option<Bitcoin>> = "*",
-        usd: SeriesPattern18<Option<Dollars>> = "*_usd",
-    } }
-    shape! { ValueFlow at "series().outputs.op_return_value" {
-        block: OpReturnValue = "*",
-        cumulative: Value = "*_cumulative",
-        sum: OpReturnWindows = "*_sum",
-    } }
-    shape! { Activity at "series().addresses.balances._100_to_1k_btc.activity" {
-        transfer_volume: ValueFlow = "*",
-    } }
-    shape! { HoldersValueFlow at "series().holders.all.activity.transfer_volume" {
-        block: OpReturnValue = "*",
-        cumulative: Value = "*_cumulative",
-        sum: OpReturnWindows = "*_sum",
-        in_profit: ValueFlow = "*_in_profit",
-        in_loss: ValueFlow = "*_in_loss",
-    } }
     shape! { Share at "series().op_return.tx_share" {
         cumulative: SeriesPattern1<Option<Percent>> = "*_cumulative",
         _24h: SeriesPattern1<Option<Percent>> = "*_24h",
         _1w: SeriesPattern1<Option<Percent>> = "*_1w",
         _1m: SeriesPattern1<Option<Percent>> = "*_1m",
         _1y: SeriesPattern1<Option<Percent>> = "*_1y",
-    } }
-    shape! { ValueFlowStats at "series().mining.rewards.fees" {
-        block: OpReturnValue = "*",
-        cumulative: Value = "*_cumulative",
-        sum: OpReturnWindows = "*_sum",
-        avg: OpReturnWindows = "*_avg",
-        min: OpReturnWindows = "*_min",
-        max: OpReturnWindows = "*_max",
-        p10: OpReturnWindows = "*_p10",
-        p25: OpReturnWindows = "*_p25",
-        median: OpReturnWindows = "*_median",
-        p75: OpReturnWindows = "*_p75",
-        p90: OpReturnWindows = "*_p90",
-        share: Share = "fee_share",
-    } }
-    shape! { MiningValueFlow at "series().mining.rewards.subsidy" {
-        block: OpReturnValue = "*",
-        cumulative: Value = "*_cumulative",
-        sum: OpReturnWindows = "*_sum",
-        share: Share = "*_share",
-    } }
-    shape! { Rewards at "series().mining.rewards" {
-        coinbase: ValueFlow = "*",
-        subsidy: MiningValueFlow = "subsidy",
-        fees: ValueFlowStats = "fees",
-        unclaimed: ValueFlow = "unclaimed_rewards",
-    } }
-    shape! { Mining at "series().mining" {
-        rewards: Rewards = "coinbase",
-        hashrate: Rate = "hashrate",
-        hash_price: HashPriceValue<Option<HashPrice>> = "*_price",
-        hash_value: HashPriceValue<Option<HashValue>> = "*_value",
-    } }
-    shape! { FeesSeries at "series().op_return.fees" {
-        block: OpReturnValue = "*_fees",
-        cumulative: Value = "*_fees_cumulative",
-        sum: OpReturnWindows = "*_fees_sum",
-        chain_share: Share = "*_fee_chain_share",
     } }
     shape! { Halving at "series().blocks.halving" {
         epoch: SeriesPattern1<HalvingEpoch> = "*_epoch",
@@ -1118,13 +950,6 @@ pub mod tree {
         delta: Delta<Option<Dollars>> = "*_capital_delta",
         share: SeriesPattern1<Option<Percent>> = "*_capital_share",
     } }
-    shape! { SharedSupply at "series().holders.lth.supply" {
-        total: Value = "*",
-        in_profit: PredicateSupply = "*_in_profit",
-        in_loss: PredicateSupply = "*_in_loss",
-        delta: Delta<Option<Bitcoin>> = "*_delta",
-        share: SeriesPattern1<Option<Percent>> = "*_share",
-    } }
     shape! { Capital at "series().holders.all.capital" {
         total: SeriesPattern1<Option<Dollars>> = "*",
         realized_cap: SeriesPattern1<Option<Dollars>> = "realized_cap",
@@ -1144,28 +969,9 @@ pub mod tree {
         delta: Delta<Option<Dollars>> = "*_capital_delta",
         share: SeriesPattern1<Option<Percent>> = "*_capital_share",
     } }
-    shape! { CohortSupply at "series().addresses.supply" {
-        total: Value = "*",
-        delta: Delta<Option<Bitcoin>> = "*_delta",
-        share: SeriesPattern1<Option<Percent>> = "*_share",
-    } }
-    shape! { CreationSupply at "series().entry.discount.supply" {
-        total: Value = "*",
-        delta: Delta<Option<Bitcoin>> = "*_delta",
-        share: SeriesPattern1<Option<Percent>> = "*_share",
-        in_profit: Value = "*_in_profit",
-        in_loss: Value = "*_in_loss",
-    } }
     shape! { WithDelta<A, B> at "series().addresses.funded" {
         value: SeriesPattern1<A> = "*",
         delta: Delta<B> = "*_delta",
-    } }
-    shape! { Supply at "series().supply" {
-        circulating: SeriesPattern1<Option<Bitcoin>> = "*",
-        burned: ValueFlow = "burned",
-        inflation_rate: SeriesPattern1<Option<Percent>> = "inflation_rate",
-        velocity: Velocity = "velocity",
-        market_cap: WithDelta<Option<Dollars>, Option<Dollars>> = "market_cap",
     } }
     shape! { BalanceUtxos at "series().addresses.balances._0_sats.utxos" {
         count: WithDelta<Count, CountSigned> = "*",
@@ -1182,27 +988,11 @@ pub mod tree {
         in_profit: SeriesPattern1<Option<Dollars>> = "*_capital_in_profit",
         in_loss: SeriesPattern1<Option<Dollars>> = "*_capital_in_loss",
     } }
-    shape! { AgeCreationSupply at "series().age.ranges._10y_to_12y.supply" {
-        total: Value = "*_supply",
-        delta: Delta<Option<Bitcoin>> = "*_supply_delta",
-        share: SeriesPattern1<Option<Percent>> = "*_supply_share",
-        in_profit: Value = "*_supply_in_profit",
-        in_loss: Value = "*_supply_in_loss",
-        aged_out: ValueFlow = "*_aged_out_supply",
-    } }
     shape! { DataBytesSeries at "series().op_return.data_bytes" {
         block: SeriesPattern18<Bytes> = "*_bytes",
         cumulative: SeriesPattern1<Bytes> = "*_bytes_cumulative",
         sum: Windows<Bytes> = "*_bytes_sum",
         chain_share: Share = "*_chain_share",
-    } }
-    shape! { Inscription at "series().transactions.inscription" {
-        flag: SeriesPattern19<Boolean> = "has_*",
-        block: SeriesPattern18<Count> = "*_tx_count",
-        cumulative: SeriesPattern1<Count> = "*_tx_count_cumulative",
-        sum: Windows<Count> = "*_tx_count_sum",
-        share: Share = "*_tx_share",
-        fees: FeesSeries = "*",
     } }
     shape! { TransactionsFlagged at "series().transactions.nonstandard" {
         flag: SeriesPattern19<Boolean> = "is_*",
@@ -1294,14 +1084,6 @@ pub mod tree {
         created: Flow<Option<DollarBlocks>> = "*_created",
         stored: Flow<Option<DollarBlocks>> = "*_stored",
     } }
-    shape! { CointimeRange at "series().cointime.age_ranges._10y_to_12y" {
-        coindays_created: Flow<Option<CoinDays>> = "*_coindays_created",
-        coindays_consumed: Flow<Option<CoinDays>> = "*_coindays_consumed",
-        wakefulness: SeriesPattern1<Option<Ratio>> = "*_wakefulness",
-        awake_to_dormant: SeriesPattern1<Option<Multiple>> = "*_awake_to_dormant",
-        awake: Side = "*_awake_supply",
-        dormant: Side = "*_dormant_supply",
-    } }
     shape! { CointimeActivity at "series().cointime.activity" {
         coinblocks_created: Flow<Option<CoinBlocks>> = "*_created",
         coinblocks_destroyed: Flow<Option<CoinBlocks>> = "*_destroyed",
@@ -1342,14 +1124,432 @@ pub mod tree {
         sell_side_risk_ratio: Windows<Option<Ratio>> = "*_sell_side_risk_ratio",
         adjusted_sopr: AdjustedSopr = "*_adjusted",
     } }
-    shape! { HoldersActivity at "series().holders.all.activity" {
-        transfer_volume: HoldersValueFlow = "*_transfer_volume",
-        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
-        dormancy: Windows<Option<Days>> = "*_dormancy",
-    } }
     shape! { Realized at "series().addresses.balances._100_to_1k_btc.realized" {
         profit: Flow<Option<Dollars>> = "*_profit",
         loss: Flow<Option<Dollars>> = "*_loss",
+    } }
+    shape! { CreationRealized at "series().entry.discount.realized" {
+        profit: Flow<Option<Dollars>> = "*_realized_profit",
+        loss: Flow<Option<Dollars>> = "*_realized_loss",
+        net_pnl: Flow<Option<Dollars>> = "*_net_realized_pnl",
+        value_destroyed: Flow<Option<Dollars>> = "*_value_destroyed",
+    } }
+    shape! { CohortUtxos at "series().entry.discount.utxos" {
+        count: WithDelta<Count, CountSigned> = "*_utxo_count",
+        spent_count: Flow<Count> = "*_spent_utxo_count",
+    } }
+    shape! { Zero at "series().utxos.amounts._0_sats" {
+        utxos: CohortUtxos = "*",
+    } }
+    shape! { OutputTypeSeries at "series().inputs.types.empty_script" {
+        count: Flow<Count> = "*_count",
+        share: Share = "*_share",
+        tx_count: Flow<Count> = "*_tx_count",
+        tx_share: Share = "*_tx_share",
+    } }
+    shape! { ByType at "series().outputs.types" {
+        p2pk: OutputTypeSeries = "p2pk_*",
+        p2pkh: OutputTypeSeries = "p2pkh_*",
+        p2ms: OutputTypeSeries = "p2ms_*",
+        p2sh: OutputTypeSeries = "p2sh_*",
+        p2wpkh: OutputTypeSeries = "p2wpkh_*",
+        p2wsh: OutputTypeSeries = "p2wsh_*",
+        p2tr: OutputTypeSeries = "p2tr_*",
+        p2a: OutputTypeSeries = "p2a_*",
+        empty_script: OutputTypeSeries = "empty_script_*",
+        unknown_script: OutputTypeSeries = "unknown_script_*",
+        op_return: OutputTypeSeries = "op_return_*",
+        mweb_peg_pool: OutputTypeSeries = "mweb_peg_pool_*",
+        mweb_peg_in: OutputTypeSeries = "mweb_peg_in_*",
+    } }
+    shape! { SpendableType at "series().inputs.types" {
+        p2pk: OutputTypeSeries = "p2pk_*",
+        p2pkh: OutputTypeSeries = "p2pkh_*",
+        p2ms: OutputTypeSeries = "p2ms_*",
+        p2sh: OutputTypeSeries = "p2sh_*",
+        p2wpkh: OutputTypeSeries = "p2wpkh_*",
+        p2wsh: OutputTypeSeries = "p2wsh_*",
+        p2tr: OutputTypeSeries = "p2tr_*",
+        p2a: OutputTypeSeries = "p2a_*",
+        empty_script: OutputTypeSeries = "empty_script_*",
+        unknown_script: OutputTypeSeries = "unknown_script_*",
+    } }
+    shape! { FlowStats<A, B> at "series().blocks.size" {
+        block: SeriesPattern18<A> = "*",
+        cumulative: SeriesPattern1<A> = "*_cumulative",
+        sum: Windows<A> = "*_sum",
+        avg: Windows<B> = "*_avg",
+        min: Windows<A> = "*_min",
+        max: Windows<A> = "*_max",
+        p10: Windows<A> = "*_p10",
+        p25: Windows<A> = "*_p25",
+        median: Windows<A> = "*_median",
+        p75: Windows<A> = "*_p75",
+        p90: Windows<A> = "*_p90",
+    } }
+    shape! { Inputs at "series().inputs" {
+        count: FlowStats<Count, Option<CountFract>> = "*_count",
+        per_second: Windows<Option<PerSecond>> = "inputs_per_second",
+        types: SpendableType = "*",
+    } }
+    shape! { Averaged<A, B> at "series().blocks.interval" {
+        block: SeriesPattern18<A> = "*",
+        avg: Windows<B> = "*_avg",
+    } }
+    shape! { EventCount<A> at "series().addresses.respent.events.active" {
+        count: A = "*_count",
+        share: Share = "*_share",
+    } }
+    shape! { ReuseEvents at "series().addresses.respent.events" {
+        outputs: EventCount<Flow<Count>> = "*_output_to_respent_address",
+        inputs: EventCount<Flow<Count>> = "*_input_from_respent_address",
+        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_respent_address",
+    } }
+    shape! { Respent at "series().addresses.respent" {
+        count: RespentCount = "*",
+        supply: PredicateSupply = "*_respent_address_supply",
+        events: ReuseEvents = "*",
+    } }
+    shape! { AddressesReuseEvents at "series().addresses.reused.events" {
+        outputs: EventCount<Flow<Count>> = "*_output_to_reused_address",
+        inputs: EventCount<Flow<Count>> = "*_input_from_reused_address",
+        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_reused_address",
+    } }
+    shape! { Reused at "series().addresses.reused" {
+        count: ReusedCount = "*",
+        supply: PredicateSupply = "*_reused_address_supply",
+        events: AddressesReuseEvents = "*",
+    } }
+    shape! { AddressesActivity at "series().addresses.activity" {
+        reactivated: Averaged<Count, Option<CountFract>> = "*_reactivated_address_count",
+        sending: Averaged<Count, Option<CountFract>> = "*_sending_address_count",
+        receiving: Averaged<Count, Option<CountFract>> = "*_receiving_address_count",
+        bidirectional: Averaged<Count, Option<CountFract>> = "*_bidirectional_address_count",
+        active: Averaged<Count, Option<CountFract>> = "*_active_address_count",
+    } }
+    shape! { CumulativeFlow at "series().blocks.count" {
+        cumulative: SeriesPattern1<Count> = "*_cumulative",
+        sum: Windows<Count> = "*_sum",
+    } }
+    shape! { Blocks at "series().blocks" {
+        count: CumulativeFlow = "*_count",
+        interval: Averaged<Seconds, Option<SecondsFract>> = "*_interval",
+        size: FlowStats<Bytes, Option<BytesFract>> = "*_size",
+        weight: FlowStats<Weight, Option<WeightFract>> = "*_weight",
+        sigop_cost: Flow<SigOps> = "*_sigop_cost",
+        fullness: Fullness = "*_fullness",
+        difficulty: BlocksDifficulty = "difficulty",
+        halving: Halving = "halving",
+    } }
+    shape! { Value at "series().addresses.avg_balance" {
+        btc: SeriesPattern1<Option<Bitcoin>> = "*",
+        usd: SeriesPattern1<Option<Dollars>> = "*_usd",
+    } }
+    shape! { EntrySupply at "series().bedrock.awake.entry_supply" {
+        p95_to_p98: Value = "*_p95_to_p98",
+        p98_to_p99: Value = "*_p98_to_p99",
+        p99_to_p99_5: Value = "*_p99_to_p99_5",
+        p99_5_to_p99_9: Value = "*_p99_5_to_p99_9",
+        below_p99_9: Value = "*_below_p99_9",
+    } }
+    shape! { Mode at "series().bedrock.awake" {
+        supply_in_loss_share_threshold: Percentiles<Option<Percent>> = "*_supply_in_loss_share_threshold",
+        floor: Percentiles<Option<Dollars>> = "*_floor",
+        cost_basis_above_p95_floor: Levels = "*_cost_basis_above_p95_floor",
+        entry_supply: EntrySupply = "*_entry_supply",
+        entry_capital: EntryCapital = "*_entry_capital",
+    } }
+    shape! { Bedrock at "series().bedrock" {
+        awake: Mode = "*_awake",
+        mobile: Mode = "*_mobile",
+        unweighted: Mode = "*_unweighted",
+    } }
+    shape! { CointimeSupply at "series().cointime.supply" {
+        vaulted: Value = "vaulted_*",
+        hodled_or_lost: Value = "hodled_or_lost_*",
+        active: Value = "active_*",
+    } }
+    shape! { MobileSupply at "series().coinflow.cohorts.all.mobile.supply" {
+        total: Value = "*",
+        in_loss: InLoss = "*_in_loss_share",
+    } }
+    shape! { Awake at "series().coinflow.cohorts.all.mobile" {
+        supply: MobileSupply = "*_supply",
+        capital: MobileCapital = "*",
+        cost_basis: CostBasis = "*",
+    } }
+    shape! { Side at "series().coinflow.age_ranges._10y_to_12y.immobile" {
+        supply: Value = "*",
+    } }
+    shape! { CoinflowCohort at "series().coinflow.cohorts.all" {
+        mobile: Awake = "*_mobile",
+        immobile: Side = "*_immobile_supply",
+    } }
+    shape! { CoinflowRange at "series().coinflow.age_ranges._10y_to_12y" {
+        spending_rate: SeriesPattern1<Option<PerDay>> = "*_spending_rate",
+        spending_exposure: SeriesPattern1<Option<Float>> = "*_spending_exposure",
+        mobility: SeriesPattern1<Option<Ratio>> = "*_mobility",
+        mobile: Side = "*_mobile_supply",
+        immobile: Side = "*_immobile_supply",
+    } }
+    shape! { CointimeCohort at "series().cointime.cohorts.all" {
+        awake: Awake = "*_awake",
+        dormant: Side = "*_dormant_supply",
+    } }
+    shape! { AgeAggregate<A> at "series().coinflow.cohorts" {
+        all: A = "",
+        sth: A = "sth",
+        lth: A = "lth",
+        under_4m: A = "*_under_4m",
+        under_6m: A = "*_under_6m",
+        over_4m: A = "*_over_4m",
+        over_6m: A = "*_over_6m",
+    } }
+    shape! { CointimeRange at "series().cointime.age_ranges._10y_to_12y" {
+        coindays_created: Flow<Option<CoinDays>> = "*_coindays_created",
+        coindays_consumed: Flow<Option<CoinDays>> = "*_coindays_consumed",
+        wakefulness: SeriesPattern1<Option<Ratio>> = "*_wakefulness",
+        awake_to_dormant: SeriesPattern1<Option<Multiple>> = "*_awake_to_dormant",
+        awake: Side = "*_awake_supply",
+        dormant: Side = "*_dormant_supply",
+    } }
+    shape! { BandSupply at "series().profitability.all.loss_0_to_10_percent.supply" {
+        total: Value = "*",
+        share: SeriesPattern1<Option<Percent>> = "*_share",
+    } }
+    shape! { Band at "series().profitability.all.loss_0_to_10_percent" {
+        supply: BandSupply = "*_supply",
+        capital: BandCapital = "*",
+    } }
+    shape! { ProfitabilityRange at "series().profitability.all" {
+        profit_over_1000_percent: Band = "*_profit_over_1000_percent",
+        profit_500_to_1000_percent: Band = "*_profit_500_to_1000_percent",
+        profit_300_to_500_percent: Band = "*_profit_300_to_500_percent",
+        profit_200_to_300_percent: Band = "*_profit_200_to_300_percent",
+        profit_100_to_200_percent: Band = "*_profit_100_to_200_percent",
+        profit_90_to_100_percent: Band = "*_profit_90_to_100_percent",
+        profit_80_to_90_percent: Band = "*_profit_80_to_90_percent",
+        profit_70_to_80_percent: Band = "*_profit_70_to_80_percent",
+        profit_60_to_70_percent: Band = "*_profit_60_to_70_percent",
+        profit_50_to_60_percent: Band = "*_profit_50_to_60_percent",
+        profit_40_to_50_percent: Band = "*_profit_40_to_50_percent",
+        profit_30_to_40_percent: Band = "*_profit_30_to_40_percent",
+        profit_20_to_30_percent: Band = "*_profit_20_to_30_percent",
+        profit_10_to_20_percent: Band = "*_profit_10_to_20_percent",
+        profit_0_to_10_percent: Band = "*_profit_0_to_10_percent",
+        loss_0_to_10_percent: Band = "*_loss_0_to_10_percent",
+        loss_10_to_20_percent: Band = "*_loss_10_to_20_percent",
+        loss_20_to_30_percent: Band = "*_loss_20_to_30_percent",
+        loss_30_to_40_percent: Band = "*_loss_30_to_40_percent",
+        loss_40_to_50_percent: Band = "*_loss_40_to_50_percent",
+        loss_50_to_60_percent: Band = "*_loss_50_to_60_percent",
+        loss_60_to_70_percent: Band = "*_loss_60_to_70_percent",
+        loss_70_to_80_percent: Band = "*_loss_70_to_80_percent",
+        loss_80_to_90_percent: Band = "*_loss_80_to_90_percent",
+        loss_90_to_100_percent: Band = "*_loss_90_to_100_percent",
+    } }
+    shape! { Profitability at "series().profitability" {
+        all: ProfitabilityRange = "",
+        sth: ProfitabilityRange = "*",
+        lth: ProfitabilityRange = "lth",
+    } }
+    shape! { SharedSupply at "series().holders.lth.supply" {
+        total: Value = "*",
+        in_profit: PredicateSupply = "*_in_profit",
+        in_loss: PredicateSupply = "*_in_loss",
+        delta: Delta<Option<Bitcoin>> = "*_delta",
+        share: SeriesPattern1<Option<Percent>> = "*_share",
+    } }
+    shape! { AddressSeries at "series().addresses.types.p2pk" {
+        funded: WithDelta<Count, CountSigned> = "*_funded_address_count",
+        empty: SeriesPattern1<Count> = "*_empty_address_count",
+        total: SeriesPattern1<Count> = "*_total_address_count",
+        new: NewAddressCount = "*_new_address_count",
+        activity: AddressesActivity = "*",
+        avg_balance: Value = "*_address_balance_avg",
+        reused: Reused = "*",
+        respent: Respent = "*",
+        exposed: Exposed = "*",
+    } }
+    shape! { AddressType at "series().addresses.types" {
+        p2pk: AddressSeries = "*",
+        p2pkh: AddressSeries = "p2pkh",
+        p2sh: AddressSeries = "p2sh",
+        p2wpkh: AddressSeries = "p2wpkh",
+        p2wsh: AddressSeries = "p2wsh",
+        p2tr: AddressSeries = "p2tr",
+    } }
+    shape! { CohortSupply at "series().addresses.supply" {
+        total: Value = "*",
+        delta: Delta<Option<Bitcoin>> = "*_delta",
+        share: SeriesPattern1<Option<Percent>> = "*_share",
+    } }
+    shape! { CreationSupply at "series().entry.discount.supply" {
+        total: Value = "*",
+        delta: Delta<Option<Bitcoin>> = "*_delta",
+        share: SeriesPattern1<Option<Percent>> = "*_share",
+        in_profit: Value = "*_in_profit",
+        in_loss: Value = "*_in_loss",
+    } }
+    shape! { MwebWindows at "series().mweb.fee.sum" {
+        _24h: Value = "*_24h",
+        _1w: Value = "*_1w",
+        _1m: Value = "*_1m",
+        _1y: Value = "*_1y",
+    } }
+    shape! { PoolFees at "series().pools.antpool.fees" {
+        avg: MwebWindows = "*",
+    } }
+    shape! { Coinbase at "series().pools.antpool.coinbase" {
+        cumulative: Value = "*_cumulative",
+        sum: MwebWindows = "*_sum",
+    } }
+    shape! { Pool at "series().pools.antpool" {
+        block_count: CumulativeFlow = "*_block_count",
+        block_share: Share = "*_block_share",
+        coinbase: Coinbase = "*_coinbase",
+        fees: PoolFees = "*_fees_avg",
+        hashrate: Windows<Option<Hashrate>> = "*_hashrate",
+    } }
+    shape! { Pools at "series().pools" {
+        block_pool: SeriesPattern18<PoolSlug> = "block_*",
+        unknown: Pool = "*_unknown",
+        luxor: Pool = "*_luxor",
+        btccom: Pool = "*_btccom",
+        f2pool: Pool = "*_f2pool",
+        antpool: Pool = "*_antpool",
+        nicehash: Pool = "*_nicehash",
+        viabtc: Pool = "*_viabtc",
+        poolin: Pool = "*_poolin",
+        sigmapoolcom: Pool = "*_sigmapoolcom",
+        spiderpool: Pool = "*_spiderpool",
+        binancepool: Pool = "*_binancepool",
+        emcdpool: Pool = "*_emcdpool",
+        sbicrypto: Pool = "*_sbicrypto",
+        zulupool: Pool = "*_zulupool",
+        miningdutch: Pool = "*_miningdutch",
+        kupool: Pool = "*_kupool",
+        litecoinpoolorg: Pool = "*_litecoinpoolorg",
+        hash700: Pool = "*_hash700",
+        lsoftwaredmcc: Pool = "*_lsoftwaredmcc",
+        hashspace: Pool = "*_hashspace",
+        dogegogocom: Pool = "*_dogegogocom",
+        longpool: Pool = "*_longpool",
+        kryptex: Pool = "*_kryptex",
+        dxpool: Pool = "*_dxpool",
+        k1pool: Pool = "*_k1pool",
+        molepool: Pool = "*_molepool",
+        solopoolorg: Pool = "*_solopoolorg",
+        prohashing: Pool = "*_prohashing",
+        hashhut: Pool = "*_hashhut",
+        happychina: Pool = "*_happychina",
+        himpool: Pool = "*_himpool",
+        p2pspbxyz: Pool = "*_p2pspbxyz",
+        hyperdonkey: Pool = "*_hyperdonkey",
+        zergpool: Pool = "*_zergpool",
+    } }
+    shape! { MwebValue at "series().mweb.fee.block" {
+        btc: SeriesPattern18<Option<Bitcoin>> = "*",
+        usd: SeriesPattern18<Option<Dollars>> = "*_usd",
+    } }
+    shape! { ValueFlowStats at "series().mining.rewards.fees" {
+        block: MwebValue = "*",
+        cumulative: Value = "*_cumulative",
+        sum: MwebWindows = "*_sum",
+        avg: MwebWindows = "*_avg",
+        min: MwebWindows = "*_min",
+        max: MwebWindows = "*_max",
+        p10: MwebWindows = "*_p10",
+        p25: MwebWindows = "*_p25",
+        median: MwebWindows = "*_median",
+        p75: MwebWindows = "*_p75",
+        p90: MwebWindows = "*_p90",
+        share: Share = "fee_share",
+    } }
+    shape! { MiningValueFlow at "series().mining.rewards.subsidy" {
+        block: MwebValue = "*",
+        cumulative: Value = "*_cumulative",
+        sum: MwebWindows = "*_sum",
+        share: Share = "*_share",
+    } }
+    shape! { FeesSeries at "series().op_return.fees" {
+        block: MwebValue = "*_fees",
+        cumulative: Value = "*_fees_cumulative",
+        sum: MwebWindows = "*_fees_sum",
+        chain_share: Share = "*_fee_chain_share",
+    } }
+    shape! { Bucket at "series().op_return.policies.multiple" {
+        output_count: Flow<Count> = "*_output_count",
+        data_bytes: DataBytesSeries = "*_data",
+        tx_count: Flow<Count> = "*_tx_count",
+        tx_share: Share = "*_tx_share",
+        tx_vsize: Flow<VSize> = "*_tx_vsize",
+        fees: FeesSeries = "*",
+    } }
+    shape! { Policy at "series().op_return.policies" {
+        pre_v30_standard: Bucket = "*_pre_v30_standard",
+        pre_v30_nonstandard: Bucket = "*_pre_v30_nonstandard",
+        oversized: Bucket = "*_oversized",
+        multiple: Bucket = "*_multiple",
+    } }
+    shape! { ByKind at "series().op_return.protocols" {
+        runes: Bucket = "*_runes",
+        witness_commitment: Bucket = "*_witness_commitment",
+        veriblock: Bucket = "*_veriblock",
+        omni: Bucket = "*_omni",
+        stacks: Bucket = "*_stacks",
+        blockstack: Bucket = "*_blockstack",
+        colu: Bucket = "*_colu",
+        open_assets: Bucket = "*_open_assets",
+        komodo: Bucket = "*_komodo",
+        coinspark: Bucket = "*_coinspark",
+        poet: Bucket = "*_poet",
+        docproof: Bucket = "*_docproof",
+        factom: Bucket = "*_factom",
+        eternity_wall: Bucket = "*_eternity_wall",
+        memo: Bucket = "*_memo",
+        bitproof: Bucket = "*_bitproof",
+        ascribe: Bucket = "*_ascribe",
+        stampery: Bucket = "*_stampery",
+        bare_hash: Bucket = "*_bare_hash",
+        text: Bucket = "*_text",
+        empty: Bucket = "*_empty",
+        unknown: Bucket = "*_unknown",
+    } }
+    shape! { OpReturn at "series().op_return" {
+        flag: SeriesPattern19<Boolean> = "has_*",
+        output_count: Flow<Count> = "*_output_count",
+        data_bytes: DataBytesSeries = "*_data",
+        tx_count: Flow<Count> = "*_tx_count",
+        tx_share: Share = "*_tx_share",
+        tx_vsize: Flow<VSize> = "*_tx_vsize",
+        fees: FeesSeries = "*",
+        protocols: ByKind = "*",
+        policies: Policy = "*",
+    } }
+    shape! { Inscription at "series().transactions.inscription" {
+        flag: SeriesPattern19<Boolean> = "has_*",
+        block: SeriesPattern18<Count> = "*_tx_count",
+        cumulative: SeriesPattern1<Count> = "*_tx_count_cumulative",
+        sum: Windows<Count> = "*_tx_count_sum",
+        share: Share = "*_tx_share",
+        fees: FeesSeries = "*",
+    } }
+    shape! { ValueFlow at "series().mweb.fee" {
+        block: MwebValue = "*",
+        cumulative: Value = "*_cumulative",
+        sum: MwebWindows = "*_sum",
+    } }
+    shape! { Supply at "series().supply" {
+        circulating: SeriesPattern1<Option<Bitcoin>> = "circulating_*",
+        burned: ValueFlow = "burned",
+        inflation_rate: SeriesPattern1<Option<Percent>> = "inflation_rate",
+        velocity: Velocity = "velocity",
+        market_cap: WithDelta<Option<Dollars>, Option<Dollars>> = "market_cap",
+        total_supply: SeriesPattern1<Option<Bitcoin>> = "total_*",
+    } }
+    shape! { Activity at "series().addresses.balances._100_to_1k_btc.activity" {
+        transfer_volume: ValueFlow = "*",
     } }
     shape! { Balance at "series().addresses.balances._100_to_1k_btc" {
         funded: WithDelta<Count, CountSigned> = "*_address_count",
@@ -1358,34 +1558,6 @@ pub mod tree {
         utxos: BalanceUtxos = "*_utxo_count",
         activity: Activity = "*_transfer_volume",
         realized: Realized = "*_realized",
-    } }
-    shape! { CreationActivity at "series().entry.discount.activity" {
-        transfer_volume: ValueFlow = "*_transfer_volume",
-        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
-    } }
-    shape! { CreationRealized at "series().entry.discount.realized" {
-        profit: Flow<Option<Dollars>> = "*_realized_profit",
-        loss: Flow<Option<Dollars>> = "*_realized_loss",
-        net_pnl: Flow<Option<Dollars>> = "*_net_realized_pnl",
-        value_destroyed: Flow<Option<Dollars>> = "*_value_destroyed",
-    } }
-    shape! { AgeCreationActivity at "series().age.ranges._10y_to_12y.activity" {
-        transfer_volume: HoldersValueFlow = "*_transfer_volume",
-        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
-        coindays_created: Flow<Option<CoinDays>> = "*_coindays_created",
-    } }
-    shape! { CohortUtxos at "series().entry.discount.utxos" {
-        count: WithDelta<Count, CountSigned> = "*_utxo_count",
-        spent_count: Flow<Count> = "*_spent_utxo_count",
-    } }
-    shape! { Metrics at "series().holders.all" {
-        supply: HoldersSupply = "*",
-        capital: Capital = "capital",
-        utxos: CohortUtxos = "",
-        activity: HoldersActivity = "",
-        realized: AdjustedRealized = "",
-        unrealized: Unrealized = "",
-        cost_basis: HoldersCostBasis = "",
     } }
     shape! { Cohort at "series().utxos.amounts._100_to_1k_btc" {
         supply: CohortSupply = "*_supply",
@@ -1407,9 +1579,6 @@ pub mod tree {
         empty_script: Cohort = "empty_*",
         unknown_script: Cohort = "unknown_*",
     } }
-    shape! { Zero at "series().utxos.amounts._0_sats" {
-        utxos: CohortUtxos = "*",
-    } }
     shape! { AmountRange<A, B> at "series().addresses.balances" {
         _0_sats: A = "*_0_sats",
         _1_to_10_sats: B = "*_1_to_10_sats",
@@ -1427,9 +1596,49 @@ pub mod tree {
         _10k_to_100k_btc: B = "*_10k_to_100k_btc",
         over_100k_btc: B = "*_over_100k_btc",
     } }
+    shape! { Addresses at "series().addresses" {
+        funded: WithDelta<Count, CountSigned> = "funded_*_count",
+        empty: SeriesPattern1<Count> = "empty_*_count",
+        total: SeriesPattern1<Count> = "total_*_count",
+        new: NewAddressCount = "new_*_count",
+        activity: AddressesActivity = "",
+        avg_balance: Value = "*_balance_avg",
+        reused: Reused = "",
+        respent: Respent = "",
+        exposed: Exposed = "",
+        supply: CohortSupply = "*_supply",
+        capital: CapitalViews = "*",
+        types: AddressType = "p2pk",
+        balances: AmountRange<ZeroBalance, Balance> = "balance",
+    } }
     shape! { Utxos at "series().utxos" {
         amounts: AmountRange<Zero, Cohort> = "*",
         types: UtxosSpendableType = "script",
+    } }
+    shape! { CreationActivity at "series().entry.discount.activity" {
+        transfer_volume: ValueFlow = "*_transfer_volume",
+        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
+    } }
+    shape! { HoldersValueFlow at "series().holders.all.activity.transfer_volume" {
+        block: MwebValue = "*",
+        cumulative: Value = "*_cumulative",
+        sum: MwebWindows = "*_sum",
+        in_profit: ValueFlow = "*_in_profit",
+        in_loss: ValueFlow = "*_in_loss",
+    } }
+    shape! { HoldersActivity at "series().holders.all.activity" {
+        transfer_volume: HoldersValueFlow = "*_transfer_volume",
+        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
+        dormancy: Windows<Option<Days>> = "*_dormancy",
+    } }
+    shape! { Metrics at "series().holders.all" {
+        supply: HoldersSupply = "*",
+        capital: Capital = "capital",
+        utxos: CohortUtxos = "",
+        activity: HoldersActivity = "",
+        realized: AdjustedRealized = "",
+        unrealized: Unrealized = "",
+        cost_basis: HoldersCostBasis = "",
     } }
     shape! { CreationCohort<A, B, C, D, E, F> at "series().entry.discount" {
         supply: A = "*_supply",
@@ -1481,6 +1690,19 @@ pub mod tree {
         _3: CreationCohort<CreationSupply, CreationCapital, CreationActivity, CreationRealized, CreationUnrealized, CohortCostBasis> = "*_3",
         _4: CreationCohort<CreationSupply, CreationCapital, CreationActivity, CreationRealized, CreationUnrealized, CohortCostBasis> = "*_4",
         _5: CreationCohort<CreationSupply, CreationCapital, CreationActivity, CreationRealized, CreationUnrealized, CohortCostBasis> = "*_5",
+    } }
+    shape! { AgeCreationActivity at "series().age.ranges._10y_to_12y.activity" {
+        transfer_volume: HoldersValueFlow = "*_transfer_volume",
+        coindays_destroyed: Flow<Option<CoinDays>> = "*_coindays_destroyed",
+        coindays_created: Flow<Option<CoinDays>> = "*_coindays_created",
+    } }
+    shape! { AgeCreationSupply at "series().age.ranges._10y_to_12y.supply" {
+        total: Value = "*_supply",
+        delta: Delta<Option<Bitcoin>> = "*_supply_delta",
+        share: SeriesPattern1<Option<Percent>> = "*_supply_share",
+        in_profit: Value = "*_supply_in_profit",
+        in_loss: Value = "*_supply_in_loss",
+        aged_out: ValueFlow = "*_aged_out_supply",
     } }
     shape! { Range at "series().age.ranges._10y_to_12y" {
         supply: AgeCreationSupply = "*",
@@ -1536,98 +1758,17 @@ pub mod tree {
         halving_epochs: ByHalvingEpoch = "halving_epoch",
         vintages: Vintage = "vintage",
     } }
-    shape! { Bucket at "series().op_return.policies.multiple" {
-        output_count: Flow<Count> = "*_output_count",
-        data_bytes: DataBytesSeries = "*_data",
-        tx_count: Flow<Count> = "*_tx_count",
-        tx_share: Share = "*_tx_share",
-        tx_vsize: Flow<VSize> = "*_tx_vsize",
-        fees: FeesSeries = "*",
+    shape! { Rewards at "series().mining.rewards" {
+        coinbase: ValueFlow = "*",
+        subsidy: MiningValueFlow = "subsidy",
+        fees: ValueFlowStats = "fees",
+        unclaimed: ValueFlow = "unclaimed_rewards",
     } }
-    shape! { Policy at "series().op_return.policies" {
-        pre_v30_standard: Bucket = "*_pre_v30_standard",
-        pre_v30_nonstandard: Bucket = "*_pre_v30_nonstandard",
-        oversized: Bucket = "*_oversized",
-        multiple: Bucket = "*_multiple",
-    } }
-    shape! { ByKind at "series().op_return.protocols" {
-        runes: Bucket = "*_runes",
-        witness_commitment: Bucket = "*_witness_commitment",
-        veriblock: Bucket = "*_veriblock",
-        omni: Bucket = "*_omni",
-        stacks: Bucket = "*_stacks",
-        blockstack: Bucket = "*_blockstack",
-        colu: Bucket = "*_colu",
-        open_assets: Bucket = "*_open_assets",
-        komodo: Bucket = "*_komodo",
-        coinspark: Bucket = "*_coinspark",
-        poet: Bucket = "*_poet",
-        docproof: Bucket = "*_docproof",
-        factom: Bucket = "*_factom",
-        eternity_wall: Bucket = "*_eternity_wall",
-        memo: Bucket = "*_memo",
-        bitproof: Bucket = "*_bitproof",
-        ascribe: Bucket = "*_ascribe",
-        stampery: Bucket = "*_stampery",
-        bare_hash: Bucket = "*_bare_hash",
-        text: Bucket = "*_text",
-        empty: Bucket = "*_empty",
-        unknown: Bucket = "*_unknown",
-    } }
-    shape! { OpReturn at "series().op_return" {
-        flag: SeriesPattern19<Boolean> = "has_*",
-        output_count: Flow<Count> = "*_output_count",
-        data_bytes: DataBytesSeries = "*_data",
-        tx_count: Flow<Count> = "*_tx_count",
-        tx_share: Share = "*_tx_share",
-        tx_vsize: Flow<VSize> = "*_tx_vsize",
-        fees: FeesSeries = "*",
-        protocols: ByKind = "*",
-        policies: Policy = "*",
-    } }
-    shape! { OutputTypeSeries at "series().inputs.types.empty_script" {
-        count: Flow<Count> = "*_count",
-        share: Share = "*_share",
-        tx_count: Flow<Count> = "*_tx_count",
-        tx_share: Share = "*_tx_share",
-    } }
-    shape! { ByType at "series().outputs.types" {
-        p2pk: OutputTypeSeries = "p2pk_*",
-        p2pkh: OutputTypeSeries = "p2pkh_*",
-        p2ms: OutputTypeSeries = "p2ms_*",
-        p2sh: OutputTypeSeries = "p2sh_*",
-        p2wpkh: OutputTypeSeries = "p2wpkh_*",
-        p2wsh: OutputTypeSeries = "p2wsh_*",
-        p2tr: OutputTypeSeries = "p2tr_*",
-        p2a: OutputTypeSeries = "p2a_*",
-        empty_script: OutputTypeSeries = "empty_script_*",
-        unknown_script: OutputTypeSeries = "unknown_script_*",
-        op_return: OutputTypeSeries = "op_return_*",
-    } }
-    shape! { SpendableType at "series().inputs.types" {
-        p2pk: OutputTypeSeries = "p2pk_*",
-        p2pkh: OutputTypeSeries = "p2pkh_*",
-        p2ms: OutputTypeSeries = "p2ms_*",
-        p2sh: OutputTypeSeries = "p2sh_*",
-        p2wpkh: OutputTypeSeries = "p2wpkh_*",
-        p2wsh: OutputTypeSeries = "p2wsh_*",
-        p2tr: OutputTypeSeries = "p2tr_*",
-        p2a: OutputTypeSeries = "p2a_*",
-        empty_script: OutputTypeSeries = "empty_script_*",
-        unknown_script: OutputTypeSeries = "unknown_script_*",
-    } }
-    shape! { FlowStats<A, B> at "series().blocks.size" {
-        block: SeriesPattern18<A> = "*",
-        cumulative: SeriesPattern1<A> = "*_cumulative",
-        sum: Windows<A> = "*_sum",
-        avg: Windows<B> = "*_avg",
-        min: Windows<A> = "*_min",
-        max: Windows<A> = "*_max",
-        p10: Windows<A> = "*_p10",
-        p25: Windows<A> = "*_p25",
-        median: Windows<A> = "*_median",
-        p75: Windows<A> = "*_p75",
-        p90: Windows<A> = "*_p90",
+    shape! { Mining at "series().mining" {
+        rewards: Rewards = "coinbase",
+        hashrate: Rate = "hashrate",
+        hash_price: HashPriceValue<Option<HashPrice>> = "*_price",
+        hash_value: HashPriceValue<Option<HashValue>> = "*_value",
     } }
     shape! { Outputs at "series().outputs" {
         spending_txin_index: SeriesPattern23<TxInIndex> = "spending_txin_index",
@@ -1637,269 +1778,15 @@ pub mod tree {
         types: ByType = "*",
         op_return_value: ValueFlow = "op_return_value",
     } }
-    shape! { Inputs at "series().inputs" {
-        count: FlowStats<Count, Option<CountFract>> = "*_count",
-        per_second: Windows<Option<PerSecond>> = "inputs_per_second",
-        types: SpendableType = "*",
-    } }
-    shape! { Averaged<A, B> at "series().blocks.interval" {
-        block: SeriesPattern18<A> = "*",
-        avg: Windows<B> = "*_avg",
-    } }
-    shape! { EventCount<A> at "series().addresses.respent.events.active" {
-        count: A = "*_count",
-        share: Share = "*_share",
-    } }
-    shape! { ReuseEvents at "series().addresses.respent.events" {
-        outputs: EventCount<Flow<Count>> = "*_output_to_respent_address",
-        inputs: EventCount<Flow<Count>> = "*_input_from_respent_address",
-        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_respent_address",
-    } }
-    shape! { Respent at "series().addresses.respent" {
-        count: RespentCount = "*",
-        supply: PredicateSupply = "*_respent_address_supply",
-        events: ReuseEvents = "*",
-    } }
-    shape! { AddressesReuseEvents at "series().addresses.reused.events" {
-        outputs: EventCount<Flow<Count>> = "*_output_to_reused_address",
-        inputs: EventCount<Flow<Count>> = "*_input_from_reused_address",
-        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_reused_address",
-    } }
-    shape! { Reused at "series().addresses.reused" {
-        count: ReusedCount = "*",
-        supply: PredicateSupply = "*_reused_address_supply",
-        events: AddressesReuseEvents = "*",
-    } }
-    shape! { AddressesActivity at "series().addresses.activity" {
-        reactivated: Averaged<Count, Option<CountFract>> = "*_reactivated_address_count",
-        sending: Averaged<Count, Option<CountFract>> = "*_sending_address_count",
-        receiving: Averaged<Count, Option<CountFract>> = "*_receiving_address_count",
-        bidirectional: Averaged<Count, Option<CountFract>> = "*_bidirectional_address_count",
-        active: Averaged<Count, Option<CountFract>> = "*_active_address_count",
-    } }
-    shape! { AddressSeries at "series().addresses.types.p2pk" {
-        funded: WithDelta<Count, CountSigned> = "*_funded_address_count",
-        empty: SeriesPattern1<Count> = "*_empty_address_count",
-        total: SeriesPattern1<Count> = "*_total_address_count",
-        new: NewAddressCount = "*_new_address_count",
-        activity: AddressesActivity = "*",
-        avg_balance: Value = "*_address_balance_avg",
-        reused: Reused = "*",
-        respent: Respent = "*",
-        exposed: Exposed = "*",
-    } }
-    shape! { AddressType at "series().addresses.types" {
-        p2pk: AddressSeries = "*",
-        p2pkh: AddressSeries = "p2pkh",
-        p2sh: AddressSeries = "p2sh",
-        p2wpkh: AddressSeries = "p2wpkh",
-        p2wsh: AddressSeries = "p2wsh",
-        p2tr: AddressSeries = "p2tr",
-    } }
-    shape! { Addresses at "series().addresses" {
-        funded: WithDelta<Count, CountSigned> = "funded_*_count",
-        empty: SeriesPattern1<Count> = "empty_*_count",
-        total: SeriesPattern1<Count> = "total_*_count",
-        new: NewAddressCount = "new_*_count",
-        activity: AddressesActivity = "",
-        avg_balance: Value = "*_balance_avg",
-        reused: Reused = "",
-        respent: Respent = "",
-        exposed: Exposed = "",
-        supply: CohortSupply = "*_supply",
-        capital: CapitalViews = "*",
-        types: AddressType = "p2pk",
-        balances: AmountRange<ZeroBalance, Balance> = "balance",
-    } }
-    shape! { CumulativeFlow at "series().blocks.count" {
-        cumulative: SeriesPattern1<Count> = "*_cumulative",
-        sum: Windows<Count> = "*_sum",
-    } }
-    shape! { Pool at "series().pools._175btc" {
-        block_count: CumulativeFlow = "*_block_count",
-        block_share: Share = "*_block_share",
-        coinbase: Coinbase = "*_coinbase",
-        fees: PoolFees = "*_fees_avg",
-        hashrate: Windows<Option<Hashrate>> = "*_hashrate",
-    } }
-    shape! { Pools at "series().pools" {
-        block_pool: SeriesPattern18<PoolSlug> = "block_*",
-        unknown: Pool = "*_unknown",
-        blockfills: Pool = "*_blockfills",
-        ultimuspool: Pool = "*_ultimuspool",
-        terrapool: Pool = "*_terrapool",
-        luxor: Pool = "*_luxor",
-        _1thash: Pool = "*_1thash",
-        btccom: Pool = "*_btccom",
-        bitfarms: Pool = "*_bitfarms",
-        huobipool: Pool = "*_huobipool",
-        wayicn: Pool = "*_wayicn",
-        canoepool: Pool = "*_canoepool",
-        btctop: Pool = "*_btctop",
-        bitcoincom: Pool = "*_bitcoincom",
-        _175btc: Pool = "*_175btc",
-        gbminers: Pool = "*_gbminers",
-        axbt: Pool = "*_axbt",
-        asicminer: Pool = "*_asicminer",
-        bitminter: Pool = "*_bitminter",
-        bitcoinrussia: Pool = "*_bitcoinrussia",
-        btcserv: Pool = "*_btcserv",
-        simplecoinus: Pool = "*_simplecoinus",
-        btcguild: Pool = "*_btcguild",
-        eligius: Pool = "*_eligius",
-        ozcoin: Pool = "*_ozcoin",
-        eclipsemc: Pool = "*_eclipsemc",
-        maxbtc: Pool = "*_maxbtc",
-        triplemining: Pool = "*_triplemining",
-        coinlab: Pool = "*_coinlab",
-        _50btc: Pool = "*_50btc",
-        ghashio: Pool = "*_ghashio",
-        stminingcorp: Pool = "*_stminingcorp",
-        bitparking: Pool = "*_bitparking",
-        mmpool: Pool = "*_mmpool",
-        polmine: Pool = "*_polmine",
-        kncminer: Pool = "*_kncminer",
-        bitalo: Pool = "*_bitalo",
-        f2pool: Pool = "*_f2pool",
-        hhtt: Pool = "*_hhtt",
-        megabigpower: Pool = "*_megabigpower",
-        mtred: Pool = "*_mtred",
-        nmcbit: Pool = "*_nmcbit",
-        yourbtcnet: Pool = "*_yourbtcnet",
-        givemecoins: Pool = "*_givemecoins",
-        braiinspool: Pool = "*_braiinspool",
-        antpool: Pool = "*_antpool",
-        multicoinco: Pool = "*_multicoinco",
-        bcpoolio: Pool = "*_bcpoolio",
-        cointerra: Pool = "*_cointerra",
-        kanopool: Pool = "*_kanopool",
-        solock: Pool = "*_solock",
-        ckpool: Pool = "*_ckpool",
-        nicehash: Pool = "*_nicehash",
-        bitclub: Pool = "*_bitclub",
-        bitcoinaffiliatenetwork: Pool = "*_bitcoinaffiliatenetwork",
-        btcc: Pool = "*_btcc",
-        bwpool: Pool = "*_bwpool",
-        exxbw: Pool = "*_exxbw",
-        bitsolo: Pool = "*_bitsolo",
-        bitfury: Pool = "*_bitfury",
-        _21inc: Pool = "*_21inc",
-        digitalbtc: Pool = "*_digitalbtc",
-        _8baochi: Pool = "*_8baochi",
-        mybtccoinpool: Pool = "*_mybtccoinpool",
-        tbdice: Pool = "*_tbdice",
-        hashpool: Pool = "*_hashpool",
-        nexious: Pool = "*_nexious",
-        bravomining: Pool = "*_bravomining",
-        hotpool: Pool = "*_hotpool",
-        okexpool: Pool = "*_okexpool",
-        bcmonster: Pool = "*_bcmonster",
-        _1hash: Pool = "*_1hash",
-        bixin: Pool = "*_bixin",
-        tatmaspool: Pool = "*_tatmaspool",
-        viabtc: Pool = "*_viabtc",
-        connectbtc: Pool = "*_connectbtc",
-        batpool: Pool = "*_batpool",
-        waterhole: Pool = "*_waterhole",
-        dcexploration: Pool = "*_dcexploration",
-        dcex: Pool = "*_dcex",
-        btpool: Pool = "*_btpool",
-        _58coin: Pool = "*_58coin",
-        bitcoinindia: Pool = "*_bitcoinindia",
-        shawnp0wers: Pool = "*_shawnp0wers",
-        phashio: Pool = "*_phashio",
-        rigpool: Pool = "*_rigpool",
-        haozhuzhu: Pool = "*_haozhuzhu",
-        _7pool: Pool = "*_7pool",
-        miningkings: Pool = "*_miningkings",
-        hashbx: Pool = "*_hashbx",
-        dpool: Pool = "*_dpool",
-        rawpool: Pool = "*_rawpool",
-        haominer: Pool = "*_haominer",
-        helix: Pool = "*_helix",
-        bitcoinukraine: Pool = "*_bitcoinukraine",
-        poolin: Pool = "*_poolin",
-        secretsuperstar: Pool = "*_secretsuperstar",
-        tigerpoolnet: Pool = "*_tigerpoolnet",
-        sigmapoolcom: Pool = "*_sigmapoolcom",
-        okpooltop: Pool = "*_okpooltop",
-        hummerpool: Pool = "*_hummerpool",
-        tangpool: Pool = "*_tangpool",
-        bytepool: Pool = "*_bytepool",
-        spiderpool: Pool = "*_spiderpool",
-        novablock: Pool = "*_novablock",
-        miningcity: Pool = "*_miningcity",
-        binancepool: Pool = "*_binancepool",
-        minerium: Pool = "*_minerium",
-        lubiancom: Pool = "*_lubiancom",
-        okkong: Pool = "*_okkong",
-        aaopool: Pool = "*_aaopool",
-        emcdpool: Pool = "*_emcdpool",
-        foundryusa: Pool = "*_foundryusa",
-        sbicrypto: Pool = "*_sbicrypto",
-        arkpool: Pool = "*_arkpool",
-        purebtccom: Pool = "*_purebtccom",
-        marapool: Pool = "*_marapool",
-        kucoinpool: Pool = "*_kucoinpool",
-        entrustcharitypool: Pool = "*_entrustcharitypool",
-        okminer: Pool = "*_okminer",
-        titan: Pool = "*_titan",
-        pegapool: Pool = "*_pegapool",
-        btcnuggets: Pool = "*_btcnuggets",
-        cloudhashing: Pool = "*_cloudhashing",
-        digitalxmintsy: Pool = "*_digitalxmintsy",
-        telco214: Pool = "*_telco214",
-        btcpoolparty: Pool = "*_btcpoolparty",
-        multipool: Pool = "*_multipool",
-        transactioncoinmining: Pool = "*_transactioncoinmining",
-        btcdig: Pool = "*_btcdig",
-        trickysbtcpool: Pool = "*_trickysbtcpool",
-        btcmp: Pool = "*_btcmp",
-        eobot: Pool = "*_eobot",
-        unomp: Pool = "*_unomp",
-        patels: Pool = "*_patels",
-        gogreenlight: Pool = "*_gogreenlight",
-        bitcoinindiapool: Pool = "*_bitcoinindiapool",
-        ekanembtc: Pool = "*_ekanembtc",
-        canoe: Pool = "*_canoe",
-        tiger: Pool = "*_tiger",
-        _1m1x: Pool = "*_1m1x",
-        zulupool: Pool = "*_zulupool",
-        secpool: Pool = "*_secpool",
-        ocean: Pool = "*_ocean",
-        whitepool: Pool = "*_whitepool",
-        wiz: Pool = "*_wiz",
-        wk057: Pool = "*_wk057",
-        futurebitapollosolo: Pool = "*_futurebitapollosolo",
-        carbonnegative: Pool = "*_carbonnegative",
-        portlandhodl: Pool = "*_portlandhodl",
-        phoenix: Pool = "*_phoenix",
-        neopool: Pool = "*_neopool",
-        maxipool: Pool = "*_maxipool",
-        bitfufupool: Pool = "*_bitfufupool",
-        gdpool: Pool = "*_gdpool",
-        miningdutch: Pool = "*_miningdutch",
-        publicpool: Pool = "*_publicpool",
-        miningsquared: Pool = "*_miningsquared",
-        innopolistech: Pool = "*_innopolistech",
-        btclab: Pool = "*_btclab",
-        parasite: Pool = "*_parasite",
-        redrockpool: Pool = "*_redrockpool",
-        est3lar: Pool = "*_est3lar",
-        braiinssolo: Pool = "*_braiinssolo",
-        solopoolcom: Pool = "*_solopoolcom",
-        noderunners: Pool = "*_noderunners",
-        dmnd: Pool = "*_dmnd",
-    } }
-    shape! { Blocks at "series().blocks" {
-        count: CumulativeFlow = "*_count",
-        interval: Averaged<Seconds, Option<SecondsFract>> = "*_interval",
-        size: FlowStats<Bytes, Option<BytesFract>> = "*_size",
-        weight: FlowStats<Weight, Option<WeightFract>> = "*_weight",
-        sigop_cost: Flow<SigOps> = "*_sigop_cost",
-        fullness: Fullness = "*_fullness",
-        difficulty: BlocksDifficulty = "difficulty",
-        halving: Halving = "halving",
+    shape! { Mweb at "series().mweb" {
+        mweb_supply: SeriesPattern1<Option<Bitcoin>> = "*_supply",
+        peg_in: ValueFlow = "*_peg_in",
+        peg_out: ValueFlow = "*_peg_out",
+        fee: ValueFlow = "*_fee",
+        net_flow: SeriesPattern1<SatsSigned> = "*_net_flow",
+        pegin_count: SeriesPattern1<Count32> = "*_pegin_count",
+        pegout_count: SeriesPattern1<Count32> = "*_pegout_count",
+        active: SeriesPattern1<Boolean> = "*_active",
     } }
     shape! { Price at "series().price" {
         open: SeriesPattern2<Option<Dollars>> = "*_open",
@@ -2044,6 +1931,18 @@ pub mod tree {
     shape! { MappingsP2pk65 at "series().mappings.addresses.p2pk65" {
         identity: SeriesPattern29<P2PK65AddressIndex> = "*_index",
         address: SeriesPattern29<Address> = "*",
+    } }
+    shape! { IndexerMweb at "series().indexer.mweb" {
+        kernel_count: SeriesPattern18<Count32> = "*_kernel_count",
+        input_count: SeriesPattern18<Count32> = "*_input_count",
+        output_count: SeriesPattern18<Count32> = "*_output_count",
+        output_mmr_size: SeriesPattern18<Count> = "*_output_mmr_size",
+        kernel_mmr_size: SeriesPattern18<Count> = "*_kernel_mmr_size",
+        kernel_fee: SeriesPattern18<Sats> = "*_kernel_fee",
+        kernel_pegin: SeriesPattern18<Sats> = "*_kernel_pegin",
+        kernel_pegout: SeriesPattern18<Sats> = "*_kernel_pegout",
+        pegin_kernel_count: SeriesPattern18<Count32> = "*_pegin_kernel_count",
+        pegout_kernel_count: SeriesPattern18<Count32> = "*_pegout_kernel_count",
     } }
     shape! { IndexerOpReturn at "series().indexer.op_return" {
         first_index: SeriesPattern18<OpReturnOutputIndex> = "first_*_output_index",
@@ -2204,6 +2103,8 @@ pub mod tree {
         rbf_signaling: IndexerFeature = "rbf_signaling",
         dust_output: Feature = "dust_output",
         epobc: IndexerFeature = "epobc",
+        hogex: IndexerFeature = "hogex",
+        mweb: Feature = "mweb",
         one_input: CountSeries = "one_input_tx_count",
         one_output: CountSeries = "one_output_tx_count",
     } }
@@ -2239,11 +2140,13 @@ pub mod tree {
         addresses: Addrs<IndexerP2pk65, IndexerP2pk33, IndexerP2pkh, IndexerP2sh, IndexerP2wpkh, IndexerP2wsh, IndexerP2tr, IndexerP2a> = "",
         scripts: Scripts = "script",
         op_return: IndexerOpReturn = "op_return",
+        mweb: IndexerMweb = "mweb",
     } }
     shape! { SeriesTree at "series()" {
         indexer: Indexer = "tx",
         mappings: Mappings = "date",
         price: Price = "price",
+        mweb: Mweb = "mweb",
         blocks: Blocks = "block",
         inputs: Inputs = "input",
         outputs: Outputs = "output",
@@ -2259,7 +2162,7 @@ pub mod tree {
         holders: Holders = "age",
         entry: Entry = "entry",
         profitability: Profitability = "sth",
-        supply: Supply = "circulating_supply",
+        supply: Supply = "supply",
         cointime: Cointime = "age",
         coinflow: Coinflow = "age",
         bedrock: Bedrock = "bedrock",

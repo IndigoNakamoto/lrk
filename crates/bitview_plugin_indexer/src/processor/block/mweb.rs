@@ -41,9 +41,12 @@ impl BlockProcessor<'_> {
         }
 
         let v = &mut self.vecs.mweb;
-        v.kernel_count.debug_checked_push(h, Count32::from(counts[0]));
-        v.input_count.debug_checked_push(h, Count32::from(counts[1]));
-        v.output_count.debug_checked_push(h, Count32::from(counts[2]));
+        v.kernel_count
+            .debug_checked_push(h, Count32::from(counts[0]));
+        v.input_count
+            .debug_checked_push(h, Count32::from(counts[1]));
+        v.output_count
+            .debug_checked_push(h, Count32::from(counts[2]));
         v.output_mmr_size.debug_checked_push(h, Count::from(mmr[0]));
         v.kernel_mmr_size.debug_checked_push(h, Count::from(mmr[1]));
         v.kernel_fee.debug_checked_push(h, fee);

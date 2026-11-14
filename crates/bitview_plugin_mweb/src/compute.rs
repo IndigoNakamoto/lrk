@@ -1,10 +1,10 @@
 use bitview_compute::{prepare_computed, write_locked};
 use bitview_plugin::{ComputePlugin, UpdateContext, compute_items};
 use bitview_plugin_indexer::Indexer;
+use bitview_primitives::TxOutIndex;
 use bitview_primitives::{Boolean, Count32};
 use brk_error::{OptionData, Result};
 use brk_exit::Exit;
-use bitview_primitives::TxOutIndex;
 use brk_types::{
     CheckedSub, Height, OutputType, Sats, SatsSigned, TxIndex, Version,
     litecoin::MWEB_ACTIVATION_HEIGHT,
@@ -108,7 +108,11 @@ impl Vecs {
         let total_txins = v.inputs.output_type.len();
         let total_txouts = v.outputs.value.len();
         let next = |vec: &dyn Fn(usize) -> Option<usize>, h: usize, total: usize| {
-            if h + 1 < end { vec(h + 1).unwrap_or(total) } else { total }
+            if h + 1 < end {
+                vec(h + 1).unwrap_or(total)
+            } else {
+                total
+            }
         };
 
         let mut supply = match start.checked_sub(1) {
@@ -121,21 +125,38 @@ impl Vecs {
             let hogex = (h >= MWEB_ACTIVATION_HEIGHT.to_usize())
                 .then(|| -> Option<HogEx> {
                     let tx_end = next(
-                        &|i| v.transactions.first_tx_index.collect_one_at(i).map(usize::from),
+                        &|i| {
+                            v.transactions
+                                .first_tx_index
+                                .collect_one_at(i)
+                                .map(usize::from)
+                        },
                         h,
                         total_txs,
                     );
                     let last = TxIndex::from(tx_end.checked_sub(1)?);
-                    let txin_start = usize::from(v.transactions.first_txin_index.collect_one_at(last.to_usize())?);
+                    let txin_start = usize::from(
+                        v.transactions
+                            .first_txin_index
+                            .collect_one_at(last.to_usize())?,
+                    );
                     let txin_end = next(
                         &|i| v.inputs.first_txin_index.collect_one_at(i).map(usize::from),
                         h,
                         total_txins,
                     );
-                    let txout_start: TxOutIndex =
-                        v.transactions.first_txout_index.collect_one_at(last.to_usize())?.into();
+                    let txout_start: TxOutIndex = v
+                        .transactions
+                        .first_txout_index
+                        .collect_one_at(last.to_usize())?
+                        .into();
                     let txout_end = next(
-                        &|i| v.outputs.first_txout_index.collect_one_at(i).map(usize::from),
+                        &|i| {
+                            v.outputs
+                                .first_txout_index
+                                .collect_one_at(i)
+                                .map(usize::from)
+                        },
                         h,
                         total_txouts,
                     );
@@ -154,7 +175,11 @@ impl Vecs {
                             .value
                             .collect_range_at(txout_start, txout_end)
                             .into_iter()
-                            .zip(v.outputs.output_type.collect_range_at(txout_start, txout_end)),
+                            .zip(
+                                v.outputs
+                                    .output_type
+                                    .collect_range_at(txout_start, txout_end),
+                            ),
                     );
                     HogEx::read(&inputs, &outputs)
                 })
@@ -169,7 +194,8 @@ impl Vecs {
                         - signed(v.mweb.kernel_pegout.collect_one_at(h).data()?)
                         - signed(v.mweb.kernel_fee.collect_one_at(h).data()?);
                     let mismatch = signed(supply) - signed(previous) - kernels;
-                    let link = signed(hogex.previous_supply.unwrap_or(Sats::ZERO)) - signed(previous);
+                    let link =
+                        signed(hogex.previous_supply.unwrap_or(Sats::ZERO)) - signed(previous);
                     self.peg_in.push_sats(hogex.peg_in);
                     self.peg_out.push_sats(hogex.peg_out);
                     self.fee.push_sats(hogex.fee);
@@ -179,7 +205,9 @@ impl Vecs {
                     self.pegin_count.height.push(Count32::from(hogex.peg_ins));
                     self.pegout_count.height.push(Count32::from(hogex.peg_outs));
                     self.active.height.push(Boolean::from(true));
-                    self.accounting_mismatch.height.push(SatsSigned::from(mismatch));
+                    self.accounting_mismatch
+                        .height
+                        .push(SatsSigned::from(mismatch));
                     self.link_mismatch.height.push(SatsSigned::from(link));
                 }
                 None => {
@@ -236,9 +264,16 @@ mod tests {
 
     #[test]
     fn activation_hogex_has_no_previous_pool() {
-        let hogex = HogEx::read(&[(sats(500), PEGIN), (sats(300), PEGIN)], &[(sats(790), POOL)]).unwrap();
+        let hogex = HogEx::read(
+            &[(sats(500), PEGIN), (sats(300), PEGIN)],
+            &[(sats(790), POOL)],
+        )
+        .unwrap();
         assert_eq!(hogex.previous_supply, None);
-        assert_eq!((hogex.peg_in, hogex.peg_ins, hogex.fee), (sats(800), 2, sats(10)));
+        assert_eq!(
+            (hogex.peg_in, hogex.peg_ins, hogex.fee),
+            (sats(800), 2, sats(10))
+        );
     }
 
     #[test]
@@ -261,7 +296,10 @@ mod tests {
 
     #[test]
     fn not_a_hogex_without_the_pool_output() {
-        assert_eq!(HogEx::read(&[(sats(1), PEGIN)], &[(sats(1), OutputType::P2WPKH)]), None);
+        assert_eq!(
+            HogEx::read(&[(sats(1), PEGIN)], &[(sats(1), OutputType::P2WPKH)]),
+            None
+        );
         assert_eq!(HogEx::read(&[], &[]), None);
     }
 }
