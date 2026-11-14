@@ -8,11 +8,26 @@ use super::{super::ComputedTx, input, sigops::ComputedSigOps};
 use crate::{TxFeatureFlags, processor::txout::ProcessedOutput};
 
 // Deterministic policy snapshots, not consensus activation heights.
+#[cfg(not(feature = "litecoin"))]
 const LAST_V2_POLICY_HEIGHT: u32 = 863_500;
 /// First height under the v29 policy snapshot, which relays one ephemeral dust output in a
 /// zero-fee transaction.
+#[cfg(not(feature = "litecoin"))]
 pub const FIRST_V29_POLICY_HEIGHT: u32 = 892_500;
+#[cfg(not(feature = "litecoin"))]
 const FIRST_V30_POLICY_HEIGHT: u32 = 921_000;
+// Litecoin Core 0.21 predates every snapshot above, so its policy never leaves the first one.
+#[cfg(feature = "litecoin")]
+const LAST_V2_POLICY_HEIGHT: u32 = u32::MAX;
+#[cfg(feature = "litecoin")]
+pub const FIRST_V29_POLICY_HEIGHT: u32 = u32::MAX;
+#[cfg(feature = "litecoin")]
+const FIRST_V30_POLICY_HEIGHT: u32 = u32::MAX;
+/// Core's thresholds below are at its 3 sat/vB `-dustrelayfee`; Litecoin Core's is 30.
+#[cfg(not(feature = "litecoin"))]
+const DUST_RELAY_FEE_SCALE: u64 = 1;
+#[cfg(feature = "litecoin")]
+const DUST_RELAY_FEE_SCALE: u64 = 10;
 // Core's value; rust-bitcoin 0.32's constant is 82 bytes.
 const MIN_STANDARD_TX_NONWITNESS_SIZE: u32 = 65;
 const MAX_EXECUTED_LEGACY_SIGOP_COST: u32 = 10_000;
@@ -154,9 +169,7 @@ pub fn is_dust(value: Amount, output_type: OutputType, script: &Script) -> bool 
         OutputType::P2PK65 => 672,
         OutputType::P2PK33 => 576,
         OutputType::P2PKH => 546,
-        OutputType::P2MS | OutputType::UnknownScript => {
-            return value < script.minimal_non_dust();
-        }
+        OutputType::P2MS | OutputType::UnknownScript => script.minimal_non_dust().to_sat(),
         OutputType::P2SH => 540,
         OutputType::OpReturn => return false,
         OutputType::P2WPKH => 294,
@@ -167,7 +180,7 @@ pub fn is_dust(value: Amount, output_type: OutputType, script: &Script) -> bool 
         OutputType::MWEBPegPool | OutputType::MWEBPegIn => return false,
     };
 
-    value.to_sat() < threshold
+    value.to_sat() < threshold * DUST_RELAY_FEE_SCALE
 }
 
 pub fn has_nonstandard_witness(output_type: OutputType, facts: &input::Facts<'_>) -> bool {
@@ -228,4 +241,33 @@ pub fn is_standard_unknown_witness(script: &Script) -> bool {
     script
         .witness_version()
         .is_some_and(|version| version != WitnessVersion::V0)
+}
+
+#[cfg(test)]
+mod tests {
+    use bitcoin::{PubkeyHash, ScriptBuf, hashes::Hash};
+
+    use super::*;
+
+    #[test]
+    fn p2pkh_dust_threshold_follows_the_dust_relay_fee() {
+        let script = ScriptBuf::new_p2pkh(&PubkeyHash::all_zeros());
+        let threshold = 546 * DUST_RELAY_FEE_SCALE;
+        assert!(is_dust(Amount::from_sat(threshold - 1), OutputType::P2PKH, &script));
+        assert!(!is_dust(Amount::from_sat(threshold), OutputType::P2PKH, &script));
+        assert_eq!(
+            script.minimal_non_dust().to_sat() * DUST_RELAY_FEE_SCALE,
+            threshold
+        );
+    }
+
+    #[cfg(feature = "litecoin")]
+    #[test]
+    fn litecoin_stays_on_the_first_policy_snapshot() {
+        assert_eq!(DUST_RELAY_FEE_SCALE, 10);
+        assert!(has_nonstandard_version(3, 3_000_000));
+        assert!(has_unconditionally_nonstandard_dust(3_000_000, 1));
+        assert!(op_return_is_nonstandard(3_000_000, 2, 20));
+        assert!(!tracks_executed_legacy_sigops(Height::new(3_000_000)));
+    }
 }

@@ -156,7 +156,14 @@ impl Query {
     }
 
     /// Whether the coinbase follows BIP54: its lock time is the height minus one and its input's
-    /// sequence isn't final. Null before the first block that did (mempool.space's cutoff).
+    /// sequence isn't final. Null before the first block that did (mempool.space's cutoff), and
+    /// always null on Litecoin, which has no BIP54.
+    #[cfg(feature = "litecoin")]
+    fn bip54_coinbase(_: Height, _: Timestamp, _: u32, _: u32) -> Option<bool> {
+        None
+    }
+
+    #[cfg(not(feature = "litecoin"))]
     fn bip54_coinbase(
         height: Height,
         timestamp: Timestamp,

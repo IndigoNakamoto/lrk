@@ -20,19 +20,24 @@ pub const HALVING_EPOCH_NAMES: ByHalvingEpoch<CohortName> = ByHalvingEpoch {
 #[cfg_attr(feature = "storage", derive(Traversable))]
 pub struct ByHalvingEpoch<T> {
     /// Uses UTXOs created during subsidy-halving epoch 0.
-    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved before the first halving (2009 to November 2012)."))]
+    #[cfg_attr(all(feature = "storage", not(feature = "litecoin")), traversable(lead = "Coins last moved before the first halving (2009 to November 2012)."))]
+    #[cfg_attr(all(feature = "storage", feature = "litecoin"), traversable(lead = "Coins last moved before the first halving (October 2011 to August 2015)."))]
     _0: T,
     /// Uses UTXOs created during subsidy-halving epoch 1.
-    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved between the first and second halvings (November 2012 to July 2016)."))]
+    #[cfg_attr(all(feature = "storage", not(feature = "litecoin")), traversable(lead = "Coins last moved between the first and second halvings (November 2012 to July 2016)."))]
+    #[cfg_attr(all(feature = "storage", feature = "litecoin"), traversable(lead = "Coins last moved between the first and second halvings (August 2015 to August 2019)."))]
     _1: T,
     /// Uses UTXOs created during subsidy-halving epoch 2.
-    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved between the second and third halvings (July 2016 to May 2020)."))]
+    #[cfg_attr(all(feature = "storage", not(feature = "litecoin")), traversable(lead = "Coins last moved between the second and third halvings (July 2016 to May 2020)."))]
+    #[cfg_attr(all(feature = "storage", feature = "litecoin"), traversable(lead = "Coins last moved between the second and third halvings (August 2019 to August 2023)."))]
     _2: T,
     /// Uses UTXOs created during subsidy-halving epoch 3.
-    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved between the third and fourth halvings (May 2020 to April 2024)."))]
+    #[cfg_attr(all(feature = "storage", not(feature = "litecoin")), traversable(lead = "Coins last moved between the third and fourth halvings (May 2020 to April 2024)."))]
+    #[cfg_attr(all(feature = "storage", feature = "litecoin"), traversable(lead = "Coins last moved between the third and fourth halvings (from August 2023)."))]
     _3: T,
     /// Uses UTXOs created during subsidy-halving epoch 4.
-    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved between the fourth and fifth halvings (from April 2024)."))]
+    #[cfg_attr(all(feature = "storage", not(feature = "litecoin")), traversable(lead = "Coins last moved between the fourth and fifth halvings (from April 2024)."))]
+    #[cfg_attr(all(feature = "storage", feature = "litecoin"), traversable(lead = "Coins last moved between the fourth and fifth halvings."))]
     _4: T,
     /// Uses UTXOs created during subsidy-halving epoch 5.
     #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved between the fifth and sixth halvings."))]

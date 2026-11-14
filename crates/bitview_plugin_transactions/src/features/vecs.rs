@@ -27,7 +27,9 @@ pub struct Vecs<M: StorageMode = Rw> {
     /// P2PK65, 576 for P2PK33, 546 for P2PKH, 540 for P2SH, 294 for P2WPKH, 330 for P2WSH or P2TR, 240 for P2A, and
     /// 471 for an empty script. P2MS and unknown scripts use their computed minimal non-dust value; OP_RETURN is
     /// excluded.
-    #[traversable(lead = "Transactions with dust: outputs below Bitcoin Core's dust threshold.")]
+    #[cfg_attr(feature = "litecoin", doc = "Litecoin: ten times each threshold, from Litecoin Core's 30 litoshi/vB dust relay fee.")]
+    #[cfg_attr(not(feature = "litecoin"), traversable(lead = "Transactions with dust: outputs below Bitcoin Core's dust threshold."))]
+    #[cfg_attr(feature = "litecoin", traversable(lead = "Transactions with dust: outputs below Litecoin Core's dust threshold."))]
     pub dust_output: Flagged<FlagView, Windowed<M>>,
     /// Version-1 transactions tagged as EPOBC colored-coin transfers or issuances: the first
     /// input's sequence number is below 4,096 (bits 12 to 31 zero) and its low six bits are 51
