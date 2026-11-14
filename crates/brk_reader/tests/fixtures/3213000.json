@@ -1,0 +1,15 @@
+{
+ "height": 3213000,
+ "hash": "0a2e222984bc47285ff7e16f01a3b7bbd516cba48d55c565cf358d6bfb5a3023",
+ "mweb_active": true,
+ "tx_count": 581,
+ "subsidy": 625000000,
+ "total_fee": 2290998,
+ "coinbase_value": 627290998,
+ "mweb_amount": 54471285207347,
+ "prev_mweb_amount": 54470184006156,
+ "num_kernels": 13,
+ "num_txos": 391774,
+ "hogex_fee": 36030,
+ "prev_hogex_txid": "f92323af0612c9c3fa9e8d14fd303ada1ce57ea4eb46e7854ee49852c92bbb18"
+}

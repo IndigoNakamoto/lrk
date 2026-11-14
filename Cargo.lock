@@ -798,9 +798,11 @@ dependencies = [
  "brk_types",
  "crossbeam",
  "derive_more",
+ "litecoin",
  "parking_lot",
  "rlimit",
  "rustc-hash",
+ "serde_json",
  "tracing",
 ]
 
