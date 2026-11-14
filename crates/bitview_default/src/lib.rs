@@ -14,6 +14,8 @@ use bitview_plugin_inputs::Vecs as Inputs;
 use bitview_plugin_mappings::Vecs as Mappings;
 use bitview_plugin_market::Vecs as Market;
 use bitview_plugin_mining::Vecs as Mining;
+#[cfg(feature = "litecoin")]
+use bitview_plugin_mweb::Vecs as Mweb;
 use bitview_plugin_op_return::Vecs as OpReturn;
 use bitview_plugin_outputs::Vecs as Outputs;
 use bitview_plugin_pools::Vecs as Pools;
@@ -40,6 +42,9 @@ pub struct DefaultPlugins<M: StorageMode = Rw> {
     mappings: Box<Mappings<M>>,
     #[plugin_set(has = bitview_plugin_price::HasPrice<M>)]
     price: Box<Price<M>>,
+    #[cfg(feature = "litecoin")]
+    #[plugin_set(has = bitview_plugin_mweb::HasMweb<M>)]
+    mweb: Box<Mweb<M>>,
     #[plugin_set(has = bitview_plugin_blocks::HasBlocks<M>)]
     blocks: Box<Blocks<M>>,
     #[plugin_set(has = bitview_plugin_inputs::HasInputs<M>)]

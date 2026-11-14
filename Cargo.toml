@@ -68,6 +68,7 @@ bitview_plugin_inputs = { version = "0.13.0", path = "crates/bitview_plugin_inpu
 bitview_plugin_mappings = { version = "0.13.0", path = "crates/bitview_plugin_mappings" }
 bitview_plugin_market = { version = "0.13.0", path = "crates/bitview_plugin_market" }
 bitview_plugin_mining = { version = "0.13.0", path = "crates/bitview_plugin_mining" }
+bitview_plugin_mweb = { version = "0.13.0", path = "crates/bitview_plugin_mweb" }
 bitview_plugin_op_return = { version = "0.13.0", path = "crates/bitview_plugin_op_return" }
 bitview_plugin_outputs = { version = "0.13.0", path = "crates/bitview_plugin_outputs" }
 bitview_plugin_pools = { version = "0.13.0", path = "crates/bitview_plugin_pools" }

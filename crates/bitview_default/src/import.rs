@@ -15,6 +15,8 @@ use bitview_plugin_inputs::{ID as INPUTS_ID, Vecs as Inputs};
 use bitview_plugin_mappings::{ID as MAPPINGS_ID, Vecs as Mappings};
 use bitview_plugin_market::{ID as MARKET_ID, Vecs as Market};
 use bitview_plugin_mining::{ID as MINING_ID, Vecs as Mining};
+#[cfg(feature = "litecoin")]
+use bitview_plugin_mweb::{ID as MWEB_ID, Vecs as Mweb};
 use bitview_plugin_op_return::{ID as OP_RETURN_ID, Vecs as OpReturn};
 use bitview_plugin_outputs::{ID as OUTPUTS_ID, Vecs as Outputs};
 use bitview_plugin_pools::{ID as POOLS_ID, Vecs as Pools};
@@ -48,6 +50,9 @@ impl DefaultPlugins {
         let blocks = timed_import(BLOCKS_ID, || Blocks::import(context, &indexer, &mappings))?;
 
         let window_starts = mappings.lookback.window_starts();
+
+        #[cfg(feature = "litecoin")]
+        let mweb = timed_import(MWEB_ID, || Mweb::import(context, &mappings, &window_starts))?;
 
         let (inputs, outputs, mining, transactions, pools, op_return) =
             thread::scope(|scope| -> Result<_> {
@@ -271,6 +276,8 @@ impl DefaultPlugins {
             mappings,
             inputs,
             price,
+            #[cfg(feature = "litecoin")]
+            mweb,
             outputs,
             utxo_set,
             op_return,

@@ -13,6 +13,8 @@ use bitview_plugin_inputs::Dependencies as InputsDependencies;
 use bitview_plugin_mappings::Dependencies as MappingsDependencies;
 use bitview_plugin_market::Dependencies as MarketDependencies;
 use bitview_plugin_mining::Dependencies as MiningDependencies;
+#[cfg(feature = "litecoin")]
+use bitview_plugin_mweb::Dependencies as MwebDependencies;
 use bitview_plugin_op_return::Dependencies as OpReturnDependencies;
 use bitview_plugin_outputs::Dependencies as OutputsDependencies;
 use bitview_plugin_pools::Dependencies as PoolsDependencies;
@@ -80,6 +82,8 @@ impl DefaultPlugins {
         price?;
         let mappings = self.mappings.as_ref();
         let price = self.price.as_ref();
+        #[cfg(feature = "litecoin")]
+        timed_compute(&mut *self.mweb, MwebDependencies { indexer, price }, context)?;
 
         thread::scope(|scope| -> Result<()> {
             // Only the UTXO set reads inputs' spends.

@@ -404,6 +404,7 @@ dependencies = [
  "bitview_plugin_mappings",
  "bitview_plugin_market",
  "bitview_plugin_mining",
+ "bitview_plugin_mweb",
  "bitview_plugin_op_return",
  "bitview_plugin_outputs",
  "bitview_plugin_pools",
@@ -805,6 +806,24 @@ dependencies = [
  "brk_types",
  "rayon",
  "schemars",
+ "vecdb",
+]
+
+[[package]]
+name = "bitview_plugin_mweb"
+version = "0.13.0"
+dependencies = [
+ "bitview_compute",
+ "bitview_plugin",
+ "bitview_plugin_indexer",
+ "bitview_plugin_mappings",
+ "bitview_plugin_price",
+ "bitview_primitives",
+ "bitview_traversable",
+ "bitview_vecs",
+ "brk_error",
+ "brk_exit",
+ "brk_types",
  "vecdb",
 ]
 
