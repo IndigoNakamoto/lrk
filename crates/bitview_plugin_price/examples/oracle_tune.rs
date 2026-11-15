@@ -1,5 +1,7 @@
 //! Runs the oracle over `oracle_extract`'s bins under each config given and reports its distance
-//! from the exchange price (`price_height.f64`, dollars per height) in height buckets.
+//! from the exchange price (`price_height.f64`, dollars per height) in height buckets. With
+//! `oracle_truth`'s `band_height.f64` and `oracle_extract`'s `timestamp.u32` beside them, it also
+//! reports the distance from each block's exchange range (0 inside it), overall and by year.
 //!
 //! `cargo run --example oracle_tune --features litecoin -- <dir> <start> <spec>...`, each spec
 //! `alpha,window,below,above,shape[,guard[,relock]]`: `guard` (0 off) reseeds at the exchange
@@ -7,7 +9,12 @@
 //! blocks, move the oracle onto an alias of it that the last two days' payments fit better
 //! (`template_log.f64`; knobs `MARGIN` and `AGREE`).
 
-use std::{collections::VecDeque, convert::Infallible, env, fs, path::PathBuf};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    convert::Infallible,
+    env, fs,
+    path::PathBuf,
+};
 
 use brk_oracle::{Config, HistogramRaw, Oracle, bin_to_cents, cents_to_bin};
 use rayon::prelude::*;
@@ -123,6 +130,14 @@ fn main() {
         .unwrap()
         .then(|| read(dir.join("template_log.f64"), f64::from_le_bytes))
         .unwrap_or_default();
+    let bands = (fs::exists(dir.join("band_height.f64")).unwrap()
+        && fs::exists(dir.join("timestamp.u32")).unwrap())
+    .then(|| {
+        (
+            read(dir.join("band_height.f64"), f64::from_le_bytes),
+            read(dir.join("timestamp.u32"), u32::from_le_bytes),
+        )
+    });
     let masked: Vec<bool> = (0..2400).map(|b| MASK.contains(&(b % 200))).collect();
     let end = (offsets.len() - 1).min(prices.len());
     let block = |h: usize| &bins[offsets[h] as usize..offsets[h + 1] as usize];
@@ -147,6 +162,8 @@ fn main() {
             let mut searches: VecDeque<Option<f64>> = VecDeque::new();
             let (mut reseeds, mut relocks) = (0, 0);
             let mut errors: Vec<Vec<f64>> = vec![Vec::new(); end / BUCKET + 1];
+            let mut band_errors: BTreeMap<i32, Vec<f64>> = BTreeMap::new();
+            let mut uncovered = 0usize;
             let mut path = Vec::with_capacity((end - start) * 8);
             let reseed = |oracle: &mut Oracle, recent: &VecDeque<HistogramRaw>, bin: f64| {
                 let Ok(o) = Oracle::from_checkpoint(bin, config, |o| {
@@ -208,9 +225,20 @@ fn main() {
                     bin = anchor;
                 }
                 path.extend_from_slice(&bin.to_le_bytes());
+                let price = f64::from(bin_to_cents(bin)) / 100.0;
                 if prices[h] > 0.0 {
-                    let price = f64::from(bin_to_cents(bin)) / 100.0;
                     errors[h / BUCKET].push((price / prices[h]).ln().abs());
+                }
+                if let Some((bands, timestamps)) = &bands {
+                    let (low, high) = (bands[2 * h], bands[2 * h + 1]);
+                    if low > 0.0 {
+                        band_errors
+                            .entry(year(timestamps[h]))
+                            .or_default()
+                            .push((low / price).ln().max((price / high).ln()).max(0.0));
+                    } else {
+                        uncovered += 1;
+                    }
                 }
             }
             fs::write(dir.join(format!("path_{spec}_{start}.f64")), path).unwrap();
@@ -221,12 +249,58 @@ fn main() {
                 report += &format!("  {:>9}  {}\n", i * BUCKET, stats(e));
             }
             report += &format!("  {:>9}  {}\n", "all", stats(&mut all));
+            if bands.is_some() {
+                let covered: usize = band_errors.values().map(Vec::len).sum();
+                report +=
+                    &format!("  vs exchange range: {covered} blocks covered, {uncovered} not\n");
+                let mut all = Vec::new();
+                for (year, e) in band_errors.iter_mut() {
+                    all.extend_from_slice(e);
+                    report += &format!("  {year:>9}  {}\n", band_stats(e));
+                }
+                report += &format!("  {:>9}  {}\n", "all", band_stats(&mut all));
+            }
             report
         })
         .collect();
     for report in reports {
         println!("{report}");
     }
+}
+
+/// The calendar year (UTC) of a unix time.
+fn year(unix: u32) -> i32 {
+    // Howard Hinnant's days-to-civil, years starting in March.
+    let z = unix as i64 / 86_400 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let month = (5 * doy + 2) / 153;
+    (yoe + era * 400 + i64::from(month >= 10)) as i32
+}
+
+/// Distances from the exchange range, as upstream's report gives them: blocks, median, p95, p99,
+/// p99.9, RMSE and max in percent, and the blocks more than 5%, 10% and 20% off.
+fn band_stats(e: &mut [f64]) -> String {
+    e.sort_by(f64::total_cmp);
+    let pct = |x: f64| (x.exp() - 1.0) * 100.0;
+    let q = |p: f64| pct(e[((e.len() - 1) as f64 * p).round() as usize]);
+    let rmse = pct((e.iter().map(|x| x * x).sum::<f64>() / e.len() as f64).sqrt());
+    let over = |x: f64| e.iter().filter(|&&v| v > (1.0 + x).ln()).count();
+    let (over5, over10, over20) = (over(0.05), over(0.1), over(0.2));
+    format!(
+        "{:>7} blocks  median {:5.2}%  p95 {:5.2}%  p99 {:6.2}%  p99.9 {:6.2}%  rmse {:5.2}%  max {:6.2}%  >5% {over5:>6} ({:4.2}%)  >10% {over10:>6} ({:4.2}%)  >20% {over20:>5}",
+        e.len(),
+        q(0.5),
+        q(0.95),
+        q(0.99),
+        q(0.999),
+        rmse,
+        pct(e[e.len() - 1]),
+        over5 as f64 / e.len() as f64 * 100.0,
+        over10 as f64 / e.len() as f64 * 100.0,
+    )
 }
 
 /// Median, p90 and p99 distance in percent, and the share of blocks more than 10% and 30% off.

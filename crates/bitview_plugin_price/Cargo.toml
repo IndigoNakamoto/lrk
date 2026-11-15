@@ -33,3 +33,7 @@ ureq = { workspace = true, optional = true }
 [dev-dependencies]
 brk_reader = { workspace = true }
 brk_rpc = { workspace = true }
+
+[[example]]
+name = "oracle_truth"
+required-features = ["litecoin"]
