@@ -91,10 +91,11 @@ impl Vecs {
             if relock::is_check(height) {
                 vote = relock.vote(bin);
                 if let Some(to) = relock.record(vote) {
+                    let dollars = |bin: f64| f64::from(bin_to_cents(bin)) / 100.0;
                     info!(
-                        "Oracle relocked at height {height}: ${} to ${}",
-                        bin_to_cents(bin),
-                        bin_to_cents(to)
+                        "Oracle relocked at height {height}: ${:.2} to ${:.2}",
+                        dollars(bin),
+                        dollars(to)
                     );
                     oracle.relock(to);
                     bin = to;
