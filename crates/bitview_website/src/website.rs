@@ -17,7 +17,11 @@ use tracing::{error, info};
 
 use crate::Error;
 
+#[cfg(not(feature = "litecoin"))]
 static EMBEDDED: Dir = include_dir!("$CARGO_MANIFEST_DIR/showcases");
+/// Litview's showcases, written by `build.rs`.
+#[cfg(feature = "litecoin")]
+static EMBEDDED: Dir = include_dir!("$OUT_DIR/showcases");
 
 /// Embedded files' content hashes by path, computed once on first use.
 static EMBEDDED_HASHES: OnceLock<HashMap<&'static Path, String>> = OnceLock::new();

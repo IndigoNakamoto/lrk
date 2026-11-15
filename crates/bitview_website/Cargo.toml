@@ -6,7 +6,11 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-include = ["src/**/*", "showcases/**/*", "Cargo.toml", "README.md"]
+include = ["src/**/*", "showcases/**/*", "litecoin/**/*", "build.rs", "Cargo.toml", "README.md"]
+
+[features]
+default = []
+litecoin = []
 
 [dependencies]
 axum = { workspace = true }

@@ -6,6 +6,7 @@
 
 mod error;
 mod handlers;
+pub mod relabel;
 mod router;
 #[cfg(test)]
 mod tests;

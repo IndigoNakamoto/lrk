@@ -17,10 +17,49 @@ pub struct OpenApiBodies {
 impl OpenApiBodies {
     pub fn new(openapi: &OpenApi) -> Self {
         let json = |bytes: Vec<u8>| PreparedJson::from_bytes(Bytes::from(bytes));
+        #[cfg(feature = "litecoin")]
+        let openapi = &{
+            let mut value = to_value(openapi).unwrap();
+            relabel_text(&mut value);
+            if let Some(contact) = value
+                .pointer_mut("/info/contact")
+                .and_then(|c| c.as_object_mut())
+            {
+                for value in contact.values_mut() {
+                    if let Some(text) = value.as_str() {
+                        *value = bitview_website::relabel::relabel(text).into();
+                    }
+                }
+            }
+            value
+        };
         Self {
             full: json(to_vec(openapi).unwrap()),
             compact: json(compact::compact_json(to_value(openapi).unwrap())),
         }
+    }
+}
+
+/// Litview's names and units in the spec's prose (titles, summaries, descriptions), leaving the
+/// identifiers it documents alone.
+#[cfg(feature = "litecoin")]
+fn relabel_text(value: &mut serde_json::Value) {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map.iter_mut() {
+                match value {
+                    Value::String(text)
+                        if matches!(key.as_str(), "title" | "summary" | "description") =>
+                    {
+                        *text = bitview_website::relabel::relabel(text);
+                    }
+                    _ => relabel_text(value),
+                }
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(relabel_text),
+        _ => {}
     }
 }
 
