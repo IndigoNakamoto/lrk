@@ -3,13 +3,23 @@ use std::ops::Range;
 /// First height the oracle computes on-chain, with the slow cold-start EMA
 /// ([`Config::for_height`]). Below it, prices come from
 /// [`pre_oracle_prices_from`](crate::pre_oracle_prices_from).
+#[cfg(not(feature = "litecoin"))]
 pub const START_HEIGHT_SLOW: usize = 340_000;
 
 /// Height where the oracle switches slow -> fast EMA ([`default`](Config::default)).
 /// The regimes are complementary: slow resists the round-USD half-price drift
 /// that locks fast below here, while fast tracks the 2018-2019 crashes that lock
 /// slow.
+#[cfg(not(feature = "litecoin"))]
 pub const START_HEIGHT_FAST: usize = 508_000;
+
+/// Litecoin's first on-chain height (2022-01-26), straight into the fast EMA: earlier, its
+/// payments' mix in dollars no longer fits the relock's template (see `relock`), and exchange
+/// closes give the prices.
+#[cfg(feature = "litecoin")]
+pub const START_HEIGHT_SLOW: usize = 2_200_000;
+#[cfg(feature = "litecoin")]
+pub const START_HEIGHT_FAST: usize = START_HEIGHT_SLOW;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Config {
@@ -29,18 +39,38 @@ pub struct Config {
 }
 
 impl Default for Config {
+    /// Under `litecoin`, a narrower search (8 bins either way): Litecoin's thinner payments let
+    /// a wider one slide onto a neighboring alias.
     fn default() -> Self {
         Self {
             alpha: 2.0 / 7.0,
             window_size: 12,
-            search_below: 12,
-            search_above: 11,
+            search_below: if cfg!(feature = "litecoin") { 8 } else { 12 },
+            search_above: if cfg!(feature = "litecoin") { 8 } else { 11 },
             shape_weight: 0.0,
         }
     }
 }
 
 impl Config {
+    /// A config of one's own: for tuning the oracle offline on another chain.
+    #[doc(hidden)]
+    pub const fn custom(
+        alpha: f64,
+        window_size: usize,
+        search_below: usize,
+        search_above: usize,
+        shape_weight: f64,
+    ) -> Self {
+        Self {
+            alpha,
+            window_size,
+            search_below,
+            search_above,
+            shape_weight,
+        }
+    }
+
     /// Cold-start config below [`START_HEIGHT_FAST`]: a slow EMA
     /// (span ~19) that resists the round-USD half-price drift the fast default
     /// octave-locks onto in the thin pre-2018 output mix. Window grows to 40 to
