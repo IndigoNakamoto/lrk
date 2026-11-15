@@ -1,0 +1,10 @@
+[package]
+name = "brk_relabel"
+description = "Litview's display text over Bitview's, for the litecoin build"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]

@@ -114,9 +114,9 @@ SecondsFract = float
 Seconds = int
 # A signed model score; undefined (null) where the model has no calibration yet.
 Score = int
-# A signed amount in satoshis.
+# A signed amount in litoshis.
 SatsSigned = int
-# An amount in satoshis (100,000,000 to a bitcoin).
+# An amount in litoshis (100,000,000 to a litecoin).
 Sats = int
 # Consecutive transactions kept from the prior block, `[start, count]`: its positions
 # `start..start + count`, in order.
@@ -170,10 +170,10 @@ Month1 = int
 Minute30 = int
 # Index of a 10-minute period.
 Minute10 = int
-# A merkle tree node: a double-SHA256 hash, hex-encoded in Bitcoin's display byte order.
+# A merkle tree node: a double-SHA256 hash, hex-encoded in Litecoin's display byte order.
 MerkleNode = str
 # A projected mempool block's position, as `/api/v1/fees/mempool-blocks` lists them: 0 is the
-# next block, Bitcoin Core's `getblocktemplate` selection.
+# next block, Litecoin Core's `getblocktemplate` selection.
 MempoolBlockIndex = int
 # Content hash of a projected mempool block, including its statistics and complete
 # transaction bodies. Opaque token, distinct from HTTP ETag formatting: pass back to
@@ -213,7 +213,7 @@ HalvingEpoch = int
 Format = Literal["json", "csv"]
 # A floating-point value without a specific unit.
 Float = float
-# Fee rate stored in milli-sat/vB and exposed as sat/vB.
+# Fee rate stored in milli-lit/vB and exposed as lit/vB.
 FeeRate = float
 # Always empty: prices are quoted in USD only.
 ExchangeRates = dict
@@ -291,14 +291,14 @@ BlockTxIndex = int
 # How far the node validated a fork tip (bitcoind's `getchaintips` statuses other than
 # `active`).
 BlockOrphanStatus = Union[Literal["invalid"], Literal["headers-only"], Literal["valid-headers"], Literal["valid-fork"]]
-# Double-SHA256 block-header hash, serialized in Bitcoin's conventional
+# Double-SHA256 block-header hash, serialized in Litecoin's conventional
 # hexadecimal byte order.
 BlockHash = str
-# An amount in bitcoin, as a decimal number (1 BTC = 100,000,000 satoshis).
+# An amount in litecoin, as a decimal number (1 LTC = 100,000,000 litoshis).
 Bitcoin = float
 # The output type of an address: any output type but `p2ms`, `op_return`, `empty_script` and `unknown_script`.
 AddressOutputType = Literal["p2pk65", "p2pk33", "p2pkh", "p2sh", "p2wpkh", "p2wsh", "p2tr", "p2a"]
-# Bitcoin address, or the hex public key of a P2PK output.
+# Litecoin address, or the hex public key of a P2PK output.
 Address = str
 # One stretch of the new block in a `MempoolBlockDiff`.
 #
@@ -311,7 +311,7 @@ MempoolBlockDiffEntry = Union[RetainedRun, "Transaction"]
 class ValidateAddressParam(TypedDict):
     """
     Attributes:
-        address: Bitcoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130); anything else answers 400, as mempool.space does
+        address: Litecoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130); anything else answers 400, as mempool.space does
     """
     address: str
 
@@ -477,7 +477,7 @@ class MempoolInfo(TypedDict):
     Attributes:
         count: Number of transactions in the mempool
         vsize: Total virtual size of all transactions in the mempool (vbytes)
-        total_fee: Total fees of all transactions in the mempool (satoshis)
+        total_fee: Total fees of all transactions in the mempool (litoshis)
         fee_histogram: Fee histogram as Esplora bins it: `[[fee_rate, vsize], ...]` by descending fee rate, each entry the vsize of the transactions paying from its fee rate up to the previous entry's, a bin closing at the first fee rate change past 50,000 vB
     """
     count: int
@@ -498,11 +498,11 @@ class AddressMempoolStats(TypedDict):
     Address statistics in the mempool (unconfirmed transactions only), in mempool.space's format.
 
     Attributes:
-        balance_delta: Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
+        balance_delta: Net pending (unconfirmed) balance change in litoshis; negative when pending spends exceed receipts
         funded_txo_count: Number of unconfirmed transaction outputs funding this address
-        funded_txo_sum: Total amount in satoshis being received in unconfirmed transactions
+        funded_txo_sum: Total amount in litoshis being received in unconfirmed transactions
         spent_txo_count: Number of unconfirmed transaction inputs spending from this address
-        spent_txo_sum: Total amount in satoshis being spent in unconfirmed transactions
+        spent_txo_sum: Total amount in litoshis being spent in unconfirmed transactions
         tx_count: Number of unconfirmed transactions involving this address
     """
     balance_delta: SatsSigned
@@ -514,14 +514,14 @@ class AddressMempoolStats(TypedDict):
 
 class RecommendedFees(TypedDict):
     """
-    Recommended fee rates in whole sat/vB (`/api/v1/fees/recommended`)
+    Recommended fee rates in whole lit/vB (`/api/v1/fees/recommended`)
 
     Attributes:
         fastestFee: Fee rate for fastest confirmation (next block)
         halfHourFee: Fee rate for confirmation within ~30 minutes (second projected block)
         hourFee: Fee rate for confirmation within ~1 hour (third projected block)
         economyFee: Smoothed, fullness-adjusted third-block fee estimate, bounded by `minimumFee` and twice it; `minimumFee` when no third projected block exists
-        minimumFee: The node's current mempool minimum fee rate, rounded up to a whole sat/vB (at least 1)
+        minimumFee: The node's current mempool minimum fee rate, rounded up to a whole lit/vB (at least 1)
     """
     fastestFee: int
     halfHourFee: int
@@ -628,8 +628,8 @@ class OracleOutputs(TypedDict):
         fan_out: Those of transactions with more outputs than the fan-out cap (250; 100 before height 630,000): batch payouts.
         op_return: Those of transactions carrying an OP_RETURN output: data, not payments.
         taproot: Taproot outputs: mostly protocol traffic.
-        dust: Under 1,000 sats.
-        round_btc: Round amounts in bitcoin (within 0.1% of 1, 2, 3, 5 or 6 times a power of ten sats).
+        dust: Under 1,000 litoshis.
+        round_btc: Round amounts in litecoin (within 0.1% of 1, 2, 3, 5 or 6 times a power of ten sats).
         payments: The rest: the payments it counted.
     """
     coinbase: int
@@ -732,7 +732,7 @@ class SyncStatus(TypedDict):
     Attributes:
         indexed_height: Height of the last indexed block
         computed_height: Height of the last computed block (series)
-        tip_height: Height of the Bitcoin node's chain tip; `/health` reports `indexed_height` instead, without asking the node
+        tip_height: Height of the Litecoin node's chain tip; `/health` reports `indexed_height` instead, without asking the node
         blocks_behind: Number of blocks behind the tip
         last_indexed_at: Human-readable timestamp of the last indexed block (ISO 8601)
         last_indexed_at_unix: Unix timestamp of the last indexed block
@@ -758,8 +758,8 @@ class RewardStats(TypedDict):
     Attributes:
         startBlock: First block in the range
         endBlock: Last block in the range
-        totalReward: Total coinbase rewards (subsidy + fees) in sats
-        totalFee: Total transaction fees in sats
+        totalReward: Total coinbase rewards (subsidy + fees) in litoshis
+        totalFee: Total transaction fees in litoshis
         totalTx: Total transactions, coinbase included
     """
     startBlock: Height
@@ -884,18 +884,18 @@ class BlockFeeRatesEntry(TypedDict):
     """
     One time bucket of blocks. Each `avgFee_*` field is the bucket's mean of its blocks' own
     percentile of their non-coinbase transactions' effective fee rates, weighted by vsize (a block
-    without such transactions counts as 0), rounded to a whole sat/vB.
+    without such transactions counts as 0), rounded to a whole lit/vB.
 
     Attributes:
         avgHeight: Average block height in this bucket
         timestamp: Average block timestamp in this bucket
-        avgFee_0: Mean of the blocks' minimum fee rate (sat/vB)
-        avgFee_10: Mean of the blocks' 10th percentile fee rate (sat/vB)
-        avgFee_25: Mean of the blocks' 25th percentile fee rate (sat/vB)
-        avgFee_50: Mean of the blocks' median fee rate (sat/vB)
-        avgFee_75: Mean of the blocks' 75th percentile fee rate (sat/vB)
-        avgFee_90: Mean of the blocks' 90th percentile fee rate (sat/vB)
-        avgFee_100: Mean of the blocks' maximum fee rate (sat/vB)
+        avgFee_0: Mean of the blocks' minimum fee rate (lit/vB)
+        avgFee_10: Mean of the blocks' 10th percentile fee rate (lit/vB)
+        avgFee_25: Mean of the blocks' 25th percentile fee rate (lit/vB)
+        avgFee_50: Mean of the blocks' median fee rate (lit/vB)
+        avgFee_75: Mean of the blocks' 75th percentile fee rate (lit/vB)
+        avgFee_90: Mean of the blocks' 90th percentile fee rate (lit/vB)
+        avgFee_100: Mean of the blocks' maximum fee rate (lit/vB)
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -915,7 +915,7 @@ class Health(TypedDict):
         uptime_seconds: Uptime in seconds
         indexed_height: Height of the last indexed block
         computed_height: Height of the last computed block (series)
-        tip_height: Height of the Bitcoin node's chain tip; `/health` reports `indexed_height` instead, without asking the node
+        tip_height: Height of the Litecoin node's chain tip; `/health` reports `indexed_height` instead, without asking the node
         blocks_behind: Number of blocks behind the tip
         last_indexed_at: Human-readable timestamp of the last indexed block (ISO 8601)
         last_indexed_at_unix: Unix timestamp of the last indexed block
@@ -1014,14 +1014,14 @@ class RbfResponse(TypedDict, total=False):
 
 class PreciseRecommendedFees(TypedDict):
     """
-    Recommended fee rates in sat/vB, to the thousandth (`/api/v1/fees/precise`)
+    Recommended fee rates in lit/vB, to the thousandth (`/api/v1/fees/precise`)
 
     Attributes:
         fastestFee: Fee rate for fastest confirmation (next block)
         halfHourFee: Fee rate for confirmation within ~30 minutes (second projected block)
         hourFee: Fee rate for confirmation within ~1 hour (third projected block)
         economyFee: Smoothed, fullness-adjusted third-block fee estimate, bounded by `minimumFee` and twice it; `minimumFee` when no third projected block exists
-        minimumFee: The node's current mempool minimum fee rate, rounded up to 0.001 sat/vB (at least 0.001)
+        minimumFee: The node's current mempool minimum fee rate, rounded up to 0.001 lit/vB (at least 0.001)
     """
     fastestFee: FeeRate
     halfHourFee: FeeRate
@@ -1037,9 +1037,9 @@ class MempoolBlock(TypedDict):
         blockSize: Sum of the transactions' serialized sizes in bytes (witness + non-witness), without header or coinbase.
         blockVSize: Sum of the transactions' virtual sizes in vbytes
         nTx: Number of transactions in the projected block
-        totalFees: Total fees in satoshis
-        medianFee: Median fee rate in sat/vB
-        feeRange: Vsize-weighted percentiles of the transactions' CPFP chunk fee rates, in sat/vB: [0, 10, 25, 50, 75, 90, 100] for the first block, [5, 10, 25, 50, 75, 90, 95] for the later projected ones
+        totalFees: Total fees in litoshis
+        medianFee: Median fee rate in lit/vB
+        feeRange: Vsize-weighted percentiles of the transactions' CPFP chunk fee rates, in lit/vB: [0, 10, 25, 50, 75, 90, 100] for the first block, [5, 10, 25, 50, 75, 90, 95] for the later projected ones
     """
     blockSize: int
     blockVSize: float
@@ -1056,13 +1056,13 @@ class BlockFeeRatesPreciseEntry(TypedDict):
     Attributes:
         avgHeight: Average block height in this bucket
         timestamp: Average block timestamp in this bucket
-        avgFee_0: Mean of the blocks' minimum fee rate (sat/vB)
-        avgFee_10: Mean of the blocks' 10th percentile fee rate (sat/vB)
-        avgFee_25: Mean of the blocks' 25th percentile fee rate (sat/vB)
-        avgFee_50: Mean of the blocks' median fee rate (sat/vB)
-        avgFee_75: Mean of the blocks' 75th percentile fee rate (sat/vB)
-        avgFee_90: Mean of the blocks' 90th percentile fee rate (sat/vB)
-        avgFee_100: Mean of the blocks' maximum fee rate (sat/vB)
+        avgFee_0: Mean of the blocks' minimum fee rate (lit/vB)
+        avgFee_10: Mean of the blocks' 10th percentile fee rate (lit/vB)
+        avgFee_25: Mean of the blocks' 25th percentile fee rate (lit/vB)
+        avgFee_50: Mean of the blocks' median fee rate (lit/vB)
+        avgFee_75: Mean of the blocks' 75th percentile fee rate (lit/vB)
+        avgFee_90: Mean of the blocks' 90th percentile fee rate (lit/vB)
+        avgFee_100: Mean of the blocks' maximum fee rate (lit/vB)
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -1101,11 +1101,11 @@ class EmptyCpfp(TypedDict):
 
 class PricePoint(TypedDict):
     """
-    A BTC/USD price at a time: the current price (`/api/v1/prices`) or one historical close
+    A LTC/USD price at a time: the current price (`/api/v1/prices`) or one historical close
 
     Attributes:
         time: Unix timestamp
-        USD: BTC/USD price
+        USD: LTC/USD price
     """
     time: Timestamp
     USD: Dollars
@@ -1126,7 +1126,7 @@ class BlockRewardsEntry(TypedDict):
         avgHeight: Average block height in this bucket
         timestamp: Average block timestamp in this bucket
         avgRewards: Mean coinbase reward (subsidy + fees) per block in this bucket, rounded half up (sats)
-        USD: Mean BTC/USD spot price over the bucket's blocks (the price, not the rewards in USD)
+        USD: Mean LTC/USD spot price over the bucket's blocks (the price, not the rewards in USD)
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -1141,7 +1141,7 @@ class BlockFeesEntry(TypedDict):
         avgHeight: Average block height in this bucket
         timestamp: Average block timestamp in this bucket
         avgFees: Mean fees per block in this bucket, rounded half up (sats)
-        USD: Mean BTC/USD spot price over the bucket's blocks (the price, not the fees in USD)
+        USD: Mean LTC/USD spot price over the bucket's blocks (the price, not the fees in USD)
     """
     avgHeight: Height
     timestamp: Timestamp
@@ -1164,11 +1164,11 @@ class AddressChainStats(_AddressChainStatsRequired, total=False):
     Based on mempool.space's format with type_index extension.
 
     Attributes:
-        balance: Current confirmed balance in satoshis
+        balance: Current confirmed balance in litoshis
         funded_txo_count: Total number of transaction outputs that funded this address
-        funded_txo_sum: Total amount in satoshis received by this address across all funded outputs
+        funded_txo_sum: Total amount in litoshis received by this address across all funded outputs
         spent_txo_count: Total number of transaction outputs spent from this address
-        spent_txo_sum: Total amount in satoshis spent from this address
+        spent_txo_sum: Total amount in litoshis spent from this address
         tx_count: Total number of confirmed transactions involving this address
         type_index: Index of this address within its type on the blockchain, null for an address without confirmed activity
         realized_price: Realized price (average cost basis) in USD
@@ -1180,9 +1180,9 @@ class DiskUsage(TypedDict):
     Attributes:
         brk: Human-readable brk data size (e.g., "48.8 GiB")
         brk_bytes: brk data size in bytes
-        bitcoin: Human-readable Bitcoin blocks directory size
-        bitcoin_bytes: Bitcoin blocks directory size in bytes
-        ratio: Ratio of BRK bytes to Bitcoin bytes; zero when Bitcoin bytes are zero.
+        bitcoin: Human-readable Litecoin blocks directory size
+        bitcoin_bytes: Litecoin blocks directory size in bytes
+        ratio: Ratio of BRK bytes to Litecoin bytes; zero when Litecoin bytes are zero.
     """
     brk: str
     brk_bytes: int
@@ -1265,7 +1265,7 @@ class CpfpInfo(_CpfpInfoRequired, total=False):
 
     Attributes:
         bestDescendant: Best (highest fee rate) descendant, if any.
-        effectiveFeePerVsize: Effective fee rate considering CPFP relationships (sat/vB). This is the seed's chunk feerate after lift-merging, i.e. the rate Core/mempool.space would surface for this tx.
+        effectiveFeePerVsize: Effective fee rate considering CPFP relationships (lit/vB). This is the seed's chunk feerate after lift-merging, i.e. the rate Core/mempool.space would surface for this tx.
         sigops: BIP-141 sigop cost for the seed tx (witness sigops count as 1, legacy and P2SH-redeem sigops count as 4).
         fee: Transaction fee (sats).
         vsize: Virtual size of the seed tx (vbytes).
@@ -1280,7 +1280,7 @@ class ConfirmedCpfp(TypedDict):
     CPFP of a confirmed transaction with relatives in its block: its package there.
 
     Attributes:
-        effectiveFeePerVsize: Feerate of the chunk holding the transaction when its block's relatives are linearized (sat/vB).
+        effectiveFeePerVsize: Feerate of the chunk holding the transaction when its block's relatives are linearized (lit/vB).
         cluster: The transaction's relatives in its block.
     """
     ancestors: List[CpfpEntry]
@@ -1307,7 +1307,7 @@ class Utxo(TypedDict):
     Unspent transaction output
 
     Attributes:
-        value: Output value in satoshis
+        value: Output value in litoshis
     """
     txid: Txid
     vout: Vout
@@ -1331,7 +1331,7 @@ class TxOutspend(_TxOutspendRequired, total=False):
 class OraclePayments(TypedDict):
     """
     144 blocks' payments, each read as each of the oracle's 19 round-dollar amounts ($1 to
-    $10,000) at its exact amount in sats, counted by the price each reading implies in buckets a
+    $10,000) at its exact amount in litoshis, counted by the price each reading implies in buckets a
     tenth of the oracle's bins.
     
     A reading of `sats` as `amount` dollars implies $100 lands at bin
@@ -1353,7 +1353,7 @@ class OracleBlock(TypedDict):
     The oracle at one block: what it counted (`histogram`, `outputs`), where it looked (`first_bin`,
     `scores`) and what it found (`bin`, `price`).
     
-    Bins are the oracle's log scale of amounts in sats, 200 a decade: amount `sats` is in bin
+    Bins are the oracle's log scale of amounts in litoshis, 200 a decade: amount `sats` is in bin
     `round(log10(sats) * 200)`, bin 0 at 1 sat to bin 2399 just under 10^12. Read as where $100
     lands, a bin is a price: `10^(10 - bin / 200)` dollars, higher bins lower prices.
 
@@ -1477,7 +1477,7 @@ class UtxoOrigins(TypedDict):
 
     Attributes:
         count: Number of unspent outputs per creation height.
-        supply: BTC held by the unspent outputs per creation height.
+        supply: LTC held by the unspent outputs per creation height.
     """
     count: List[int]
     supply: List[Bitcoin]
@@ -1494,7 +1494,7 @@ class UtxoSet(TypedDict):
     Attributes:
         date: UTC date of the represented block's monotonic timestamp (the running maximum of block times).
         count: Number of unspent outputs.
-        supply: BTC held by the unspent outputs.
+        supply: LTC held by the unspent outputs.
         origins: Unspent outputs by creation height: entry `i` is what remains of block `i`'s outputs.
     """
     height: Height
@@ -1511,7 +1511,7 @@ class UtxoChanges(TypedDict):
     Attributes:
         height: Creation height of each row.
         count: Number of outputs in each row.
-        supply: BTC held by the outputs in each row.
+        supply: LTC held by the outputs in each row.
     """
     height: List[Height]
     count: List[int]
@@ -1542,7 +1542,7 @@ class UrpdBuckets(TypedDict):
 
     Attributes:
         price: Each bucket's price, in USD: its lower bound when aggregated, and for `raw` the price its coins' creation prices round to (four significant digits of the price in cents).
-        supply: Supply held with a last-move price inside each bucket, in BTC. With a `wakefulness` or `mobility` weight, the weighted supply, floored to whole satoshis at each grid price.
+        supply: Supply held with a last-move price inside each bucket, in LTC. With a `wakefulness` or `mobility` weight, the weighted supply, floored to whole litoshis at each grid price.
         realized_cap: Realized cap contribution in USD: `price * supply` summed over the coins in each bucket, each coin's creation price taken on the price grid (the `raw` bucket price, within 0.05% of the exact price), rounded to the cent: a bucket worth under half a cent shows 0. The buckets therefore need not sum to the cohort's realized cap series.
         unrealized_pnl: Unrealized P&L in USD at the represented block: `close * supply` minus each bucket's grid capital, rounded to the cent once. Can be negative.
     """
@@ -1564,7 +1564,7 @@ class Urpd(TypedDict):
         hash: Hash of block `height`.
         date: UTC date of the represented block's monotonic timestamp.
         close: Price at `height`, in USD. Anchor for `unrealized_pnl`.
-        supply: Sum of `buckets.supply`, in BTC.
+        supply: Sum of `buckets.supply`, in LTC.
     """
     height: Height
     hash: BlockHash
@@ -1614,8 +1614,8 @@ class TxOut(_TxOutRequired, total=False):
         scriptpubkey: Script pubkey (locking script), encoded as hexadecimal.
         scriptpubkey_asm: Script pubkey in assembly format.
         scriptpubkey_type: Esplora/mempool.space script type.
-        scriptpubkey_address: Bitcoin address, omitted for scripts without an address (P2PK included, as Esplora).
-        value: Value of the output in satoshis.
+        scriptpubkey_address: Litecoin address, omitted for scripts without an address (P2PK included, as Esplora).
+        value: Value of the output in litoshis.
     """
     scriptpubkey_address: Address
 
@@ -1667,7 +1667,7 @@ class Transaction(_TransactionRequired, total=False):
         vout: Transaction outputs
         size: Transaction size in bytes
         sigops: BIP-141 signature-operation cost
-        fee: Transaction fee in satoshis
+        fee: Transaction fee in litoshis
     """
     index: Union[TxIndex, None]
 
@@ -1694,7 +1694,7 @@ class MempoolBlockDiff(TypedDict):
 
 class MempoolBlockContent(TypedDict):
     """
-    A projected mempool block with its transactions: block 0 is Bitcoin Core's
+    A projected mempool block with its transactions: block 0 is Litecoin Core's
     `getblocktemplate` selection. Returned by `GET /api/mempool-blocks/{index}`.
 
     Attributes:
@@ -1775,12 +1775,12 @@ class BlockExtras(_BlockExtrasRequired, total=False):
     Extended block data matching mempool.space /api/v1/blocks extras
 
     Attributes:
-        totalFees: Total fees in satoshis
-        medianFee: Median fee rate in sat/vB
+        totalFees: Total fees in litoshis
+        medianFee: Median fee rate in lit/vB
         feeRange: Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
-        reward: Total block reward (subsidy + fees) in satoshis
-        avgFee: Mean fee per non-coinbase transaction in satoshis, rounded down (0 without any)
-        avgFeeRate: Average fee rate in sat/vB
+        reward: Total block reward (subsidy + fees) in litoshis
+        avgFee: Mean fee per non-coinbase transaction in litoshis, rounded down (0 without any)
+        avgFeeRate: Average fee rate in lit/vB
         coinbaseRaw: Raw coinbase transaction scriptsig as hex
         coinbaseAddress: Primary coinbase output address
         coinbaseAddresses: All coinbase output addresses
@@ -1788,14 +1788,14 @@ class BlockExtras(_BlockExtrasRequired, total=False):
         coinbaseSignatureAscii: Coinbase scriptsig with each byte read as the Unicode code point of the same value
         avgTxSize: Non-coinbase transaction bytes over the transaction count (coinbase included), rounded to 2 decimals
         totalInputs: Total number of inputs (excluding coinbase)
-        totalOutputAmt: Total output amount in satoshis, coinbase excluded
-        medianFeeAmt: Median fee amount in satoshis
-        feePercentiles: Fee amount percentiles in satoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
+        totalOutputAmt: Total output amount in litoshis, coinbase excluded
+        medianFeeAmt: Median fee amount in litoshis
+        feePercentiles: Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
         segwitTotalSize: Total size of segwit transactions in bytes
         header: Raw 80-byte block header as hex
         utxoSetChange: UTXO set change as mempool.space and bitcoin-cli report it: total outputs minus total inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
         utxoSetSize: Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
-        totalInputAmt: Total input amount in satoshis
+        totalInputAmt: Total input amount in litoshis
         virtualSize: Virtual size in vbytes: weight / 4, unrounded
         coinbaseBip54: Whether the coinbase follows BIP54 (its lock time is the height minus one and its input's sequence isn't final), from timestamp 1,771,507,776 on; null before
         firstSeen: Timestamp when the block was first seen (always null, not yet supported)
@@ -1872,11 +1872,11 @@ class AddressStats(TypedDict):
     Address information compatible with mempool.space API format.
 
     Attributes:
-        address: Bitcoin address, or the hex public key of a P2PK output
+        address: Litecoin address, or the hex public key of a P2PK output
         address_type: Output script type
         chain_stats: Statistics for confirmed transactions on the blockchain
         mempool_stats: Statistics for unconfirmed transactions in the mempool
-        balance: Total current balance in satoshis, including pending (unconfirmed) mempool changes
+        balance: Total current balance in litoshis, including pending (unconfirmed) mempool changes
     """
     address: Address
     address_type: OutputType
@@ -5416,78 +5416,78 @@ class BitviewClient(BitviewClientBase):
     AMOUNT_RANGE_NAMES = {
       "_0_sats": {
         "id": "0_sats",
-        "short": "0 sats",
-        "long": "0 Sats"
+        "short": "0 litoshis",
+        "long": "0 Litoshis"
       },
       "_1_to_10_sats": {
         "id": "1_to_10_sats",
-        "short": "1-10 sats",
-        "long": "1-10 Sats"
+        "short": "1-10 litoshis",
+        "long": "1-10 Litoshis"
       },
       "_10_to_100_sats": {
         "id": "10_to_100_sats",
-        "short": "10-100 sats",
-        "long": "10-100 Sats"
+        "short": "10-100 litoshis",
+        "long": "10-100 Litoshis"
       },
       "_100_to_1k_sats": {
         "id": "100_to_1k_sats",
-        "short": "100-1k sats",
-        "long": "100-1K Sats"
+        "short": "100-1k litoshis",
+        "long": "100-1K Litoshis"
       },
       "_1k_to_10k_sats": {
         "id": "1k_to_10k_sats",
-        "short": "1k-10k sats",
-        "long": "1K-10K Sats"
+        "short": "1k-10k litoshis",
+        "long": "1K-10K Litoshis"
       },
       "_10k_to_100k_sats": {
         "id": "10k_to_100k_sats",
-        "short": "10k-100k sats",
-        "long": "10K-100K Sats"
+        "short": "10k-100k litoshis",
+        "long": "10K-100K Litoshis"
       },
       "_100k_to_1m_sats": {
         "id": "100k_to_1m_sats",
-        "short": "100k-1M sats",
-        "long": "100K-1M Sats"
+        "short": "100k-1M litoshis",
+        "long": "100K-1M Litoshis"
       },
       "_1m_to_10m_sats": {
         "id": "1m_to_10m_sats",
-        "short": "1M-10M sats",
-        "long": "1M-10M Sats"
+        "short": "1M-10M litoshis",
+        "long": "1M-10M Litoshis"
       },
       "_10m_to_100m_sats": {
         "id": "10m_to_100m_sats",
-        "short": "0.1-1 BTC",
-        "long": "0.1-1 BTC"
+        "short": "0.1-1 LTC",
+        "long": "0.1-1 LTC"
       },
       "_1_to_10_btc": {
         "id": "1_to_10_btc",
-        "short": "1-10 BTC",
-        "long": "1-10 BTC"
+        "short": "1-10 LTC",
+        "long": "1-10 LTC"
       },
       "_10_to_100_btc": {
         "id": "10_to_100_btc",
-        "short": "10-100 BTC",
-        "long": "10-100 BTC"
+        "short": "10-100 LTC",
+        "long": "10-100 LTC"
       },
       "_100_to_1k_btc": {
         "id": "100_to_1k_btc",
-        "short": "100-1k BTC",
-        "long": "100-1K BTC"
+        "short": "100-1k LTC",
+        "long": "100-1K LTC"
       },
       "_1k_to_10k_btc": {
         "id": "1k_to_10k_btc",
-        "short": "1k-10k BTC",
-        "long": "1K-10K BTC"
+        "short": "1k-10k LTC",
+        "long": "1K-10K LTC"
       },
       "_10k_to_100k_btc": {
         "id": "10k_to_100k_btc",
-        "short": "10k-100k BTC",
-        "long": "10K-100K BTC"
+        "short": "10k-100k LTC",
+        "long": "10K-100K LTC"
       },
       "over_100k_btc": {
         "id": "over_100k_btc",
-        "short": "100k+ BTC",
-        "long": "100K+ BTC"
+        "short": "100k+ LTC",
+        "long": "100K+ LTC"
       }
     }
 
@@ -5695,7 +5695,7 @@ class BitviewClient(BitviewClientBase):
     def get_sync_status(self) -> SyncStatus:
         """Sync status.
 
-        Returns a coherent local index snapshot and a separately observed Bitcoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
+        Returns a coherent local index snapshot and a separately observed Litecoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
 
         Endpoint: `GET /api/server/sync`"""
         return self.get_json('/api/server/sync')
@@ -5715,7 +5715,7 @@ class BitviewClient(BitviewClientBase):
     def get_disk_usage(self) -> DiskUsage:
         """Disk usage.
 
-        Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Bitcoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
+        Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Litecoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
 
         Endpoint: `GET /api/server/disk`"""
         return self.get_json('/api/server/disk')
@@ -5877,7 +5877,7 @@ class BitviewClient(BitviewClientBase):
     def get_urpd(self, cohort: UrpdCohort, point: HeightOrDate, agg: Optional[UrpdAggregation] = None, weight: Optional[UrpdWeight] = None) -> Urpd:
         """URPD at block height or date.
 
-        URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is BTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole satoshis) and the bucket values follow it.
+        URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is LTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole litoshis) and the bucket values follow it.
 
         Endpoint: `GET /api/urpd/{cohort}/{point}`"""
         params: List[Tuple[str, Any]] = []
@@ -5898,9 +5898,9 @@ class BitviewClient(BitviewClientBase):
         return self.get_json('/api/v1/difficulty-adjustment')
 
     def get_prices(self) -> PricePoint:
-        """Current BTC price.
+        """Current LTC price.
 
-        Returns bitcoin latest price (on-chain derived, USD only).
+        Returns litecoin latest price (on-chain derived, USD only).
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
 
@@ -5910,7 +5910,7 @@ class BitviewClient(BitviewClientBase):
     def get_historical_price(self, timestamp: Optional[Timestamp] = None, currency: Optional[Currency] = None) -> HistoricalPrice:
         """Historical price.
 
-        Completed four-hour BTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
+        Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
 
@@ -6010,7 +6010,7 @@ class BitviewClient(BitviewClientBase):
     def validate_address(self, address: str) -> AddressValidation:
         """Validate address.
 
-        Validate a Bitcoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
+        Validate a Litecoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-validate)*
 
@@ -6330,7 +6330,7 @@ class BitviewClient(BitviewClientBase):
     def get_block_fee_rates(self, time_period: TimePeriod) -> List[BlockFeeRatesEntry]:
         """Block fee rates.
 
-        Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole sat/vB (`/precise` for 3 decimals).
+        Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole lit/vB (`/precise` for 3 decimals).
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
 
@@ -6340,7 +6340,7 @@ class BitviewClient(BitviewClientBase):
     def get_block_fee_rates_precise(self, time_period: TimePeriod) -> List[BlockFeeRatesPreciseEntry]:
         """Block fee rates (precise).
 
-        Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in sat/vB to 3 decimals.
+        Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in lit/vB to 3 decimals.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
 
@@ -6360,7 +6360,7 @@ class BitviewClient(BitviewClientBase):
     def get_mempool_blocks(self) -> List[MempoolBlock]:
         """Projected mempool blocks.
 
-        Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+        Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
 
@@ -6370,7 +6370,7 @@ class BitviewClient(BitviewClientBase):
     def get_recommended_fees(self) -> RecommendedFees:
         """Recommended fees.
 
-        Recommended fee rates by confirmation target, in whole sat/vB.
+        Recommended fee rates by confirmation target, in whole lit/vB.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees)*
 
@@ -6380,7 +6380,7 @@ class BitviewClient(BitviewClientBase):
     def get_precise_fees(self) -> PreciseRecommendedFees:
         """Recommended fee rates (precise).
 
-        Recommended fee rates by confirmation target, with up to three decimal places and support for sub-sat/vB rates.
+        Recommended fee rates by confirmation target, with up to three decimal places and support for sub-lit/vB rates.
 
         *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees-precise)*
 
@@ -6438,7 +6438,7 @@ class BitviewClient(BitviewClientBase):
     def get_mempool_block(self, index: MempoolBlockIndex) -> MempoolBlockContent:
         """Projected mempool block.
 
-        A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Bitcoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
+        A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Litecoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
 
         Endpoint: `GET /api/mempool-blocks/{index}`"""
         return self.get_json(f'/api/mempool-blocks/{_segment(index)}')
@@ -6590,7 +6590,7 @@ class BitviewClient(BitviewClientBase):
     def get_utxo_set(self, point: HeightOrDate) -> UtxoSet:
         """UTXO set at block height or date.
 
-        The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (BTC) is what remains unspent of block `i`'s outputs.
+        The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (LTC) is what remains unspent of block `i`'s outputs.
 
         Endpoint: `GET /api/utxo-set/{point}`"""
         return self.get_json(f'/api/utxo-set/{_segment(point)}')
@@ -6598,15 +6598,15 @@ class BitviewClient(BitviewClientBase):
     def get_utxo_set_diff(self, point: HeightOrDate) -> UtxoSetDiff:
         """UTXO set changes of a block or date.
 
-        What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (BTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
+        What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (LTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
 
         Endpoint: `GET /api/utxo-set/{point}/diff`"""
         return self.get_json(f'/api/utxo-set/{_segment(point)}/diff')
 
     def get_live_price(self) -> Dollars:
-        """Live BTC/USD price.
+        """Live LTC/USD price.
 
-        Current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
+        Current LTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
 
         Endpoint: `GET /api/oracle/price`"""
         return self.get_json('/api/oracle/price')
@@ -6630,7 +6630,7 @@ class BitviewClient(BitviewClientBase):
     def get_oracle_payments(self, start: Height) -> OraclePayments:
         """The oracle's payments, 144 blocks at a time.
 
-        For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in sats, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
+        For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in litoshis, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
 
         Endpoint: `GET /api/oracle/payments/{start}`"""
         return self.get_json(f'/api/oracle/payments/{_segment(start)}')

@@ -1,4 +1,4 @@
-# Bitview
+# Litview
 
 > Free, open-source Bitcoin analytics API and block explorer. 17030 on-chain time-series and 98 API operations.
 

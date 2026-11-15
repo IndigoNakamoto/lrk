@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
-litecoin = ["bitcoin/litecoin", "bitview_catalog/litecoin", "bitview_primitives/litecoin", "bitview_query/litecoin", "bitview_types/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_rpc/litecoin", "brk_types/litecoin", "bitview_website/litecoin"]
+litecoin = ["bitcoin/litecoin", "bitview_catalog/litecoin", "bitview_primitives/litecoin", "bitview_query/litecoin", "bitview_types/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_rpc/litecoin", "brk_types/litecoin", "bitview_website/litecoin", "dep:brk_relabel"]
 default = ["full-api"]
 full-api = ["chain", "series", "urpd", "bitview_query/full-api"]
 chain = ["price", "bitview_query/chain"]
@@ -32,6 +32,7 @@ bitview_catalog = { workspace = true }
 bitview_http = { workspace = true }
 brk_types = { workspace = true, features = ["storage"] }
 bitview_website = { workspace = true }
+brk_relabel = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["display", "from", "from_str", "into"] }
 jiff = { workspace = true }
 rayon = { workspace = true }

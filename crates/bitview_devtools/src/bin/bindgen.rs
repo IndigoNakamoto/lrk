@@ -112,7 +112,11 @@ fn generate(check: bool, scope: OutputScope) -> Result<()> {
     };
     let output_paths = output_paths(&output_root, scope);
 
-    generate_clients(vecs.catalog(), &to_string(&openapi)?, &output_paths)?;
+    #[cfg(not(feature = "litecoin"))]
+    let spec = to_string(&openapi)?;
+    #[cfg(feature = "litecoin")]
+    let spec = to_string(&bitview_server::openapi_json(&openapi))?;
+    generate_clients(vecs.catalog(), &spec, &output_paths)?;
     if matches!(scope, OutputScope::All) {
         generate_registry_manifest(&output_root)?;
     }

@@ -17,31 +17,42 @@ pub struct OpenApiBodies {
 impl OpenApiBodies {
     pub fn new(openapi: &OpenApi) -> Self {
         let json = |bytes: Vec<u8>| PreparedJson::from_bytes(Bytes::from(bytes));
+        #[cfg(not(feature = "litecoin"))]
+        let full = to_vec(openapi).unwrap();
         #[cfg(feature = "litecoin")]
-        let openapi = &{
-            let mut value = to_value(openapi).unwrap();
-            relabel_text(&mut value);
-            if let Some(contact) = value
-                .pointer_mut("/info/contact")
-                .and_then(|c| c.as_object_mut())
-            {
-                for value in contact.values_mut() {
-                    if let Some(text) = value.as_str() {
-                        *value = bitview_website::relabel::relabel(text).into();
-                    }
-                }
-            }
-            value
-        };
+        let full = to_vec(&openapi_json(openapi)).unwrap();
         Self {
-            full: json(to_vec(openapi).unwrap()),
-            compact: json(compact::compact_json(to_value(openapi).unwrap())),
+            full: json(full),
+            compact: json(compact::compact_json(openapi_json(openapi))),
         }
     }
 }
 
-/// Litview's names and units in the spec's prose (titles, summaries, descriptions), leaving the
-/// identifiers it documents alone.
+/// The spec as served: under litecoin, with Litview's names and units in its prose (titles,
+/// summaries, descriptions and the contact), leaving the identifiers it documents alone.
+pub fn openapi_json(openapi: &OpenApi) -> serde_json::Value {
+    #[cfg_attr(not(feature = "litecoin"), allow(unused_mut))]
+    let mut value = to_value(openapi).unwrap();
+    #[cfg(feature = "litecoin")]
+    relabel(&mut value);
+    value
+}
+
+#[cfg(feature = "litecoin")]
+fn relabel(value: &mut serde_json::Value) {
+    relabel_text(value);
+    if let Some(contact) = value
+        .pointer_mut("/info/contact")
+        .and_then(|c| c.as_object_mut())
+    {
+        for value in contact.values_mut() {
+            if let Some(text) = value.as_str() {
+                *value = brk_relabel::relabel(text).into();
+            }
+        }
+    }
+}
+
 #[cfg(feature = "litecoin")]
 fn relabel_text(value: &mut serde_json::Value) {
     use serde_json::Value;
@@ -52,7 +63,7 @@ fn relabel_text(value: &mut serde_json::Value) {
                     Value::String(text)
                         if matches!(key.as_str(), "title" | "summary" | "description") =>
                     {
-                        *text = bitview_website::relabel::relabel(text);
+                        *text = brk_relabel::relabel(text);
                     }
                     _ => relabel_text(value),
                 }

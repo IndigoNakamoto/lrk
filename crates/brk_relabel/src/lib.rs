@@ -1,6 +1,7 @@
-//! Litview's display text over Bitview's: names, units and the brand color, applied to the
-//! showcases at build time and to the API's descriptions. Identifiers (series names, unit keys,
-//! module paths, pool names) stay as they are, so each rule guards what surrounds its match.
+//! Litview's display text over Bitview's: names, units and the brand color, applied under the
+//! `litecoin` feature to the showcases at build time, the API's descriptions and the clients'
+//! display names. Identifiers (series names, unit keys, module paths, pool names) stay as they
+//! are, so each rule guards what surrounds its match.
 
 /// The Bitview orange, without its closing parenthesis so alpha variants (`/ 0.1)`) match too.
 const BRAND_ORANGE: &str = "oklch(64.34% 0.191 44.41";
@@ -27,6 +28,7 @@ const RULES: &[(&str, &str, Guard)] = &[
     ("satoshis", "litoshis", word),
     ("Sats per dollar", "Litoshis per dollar", word),
     ("sats", "litoshis", amount_unit),
+    ("Sats", "Litoshis", amount_unit),
     ("\" sat\"", "\" lit\"", any),
     ("} sat`", "} lit`", any),
 ];
@@ -123,7 +125,8 @@ fn amount_unit(before: &str, after: &str) -> bool {
         .chars()
         .next_back()
         .is_some_and(|c| c.is_ascii_digit() || matches!(c, '}' | ')' | 'K' | 'M' | 'k'))
-        && !after.trim_start().starts_with(['=', '(', '.'])
+        && !after.trim_start().starts_with(['=', '('])
+        && !after.strip_prefix('.').is_some_and(starts_word)
 }
 
 #[cfg(test)]
@@ -170,6 +173,9 @@ mod tests {
             ("0.01 BTC, 50,000 sats", "0.01 LTC, 50,000 litoshis"),
             ("`${grouped(v)} sats`", "`${grouped(v)} litoshis`"),
             ("<small>sats</small>", "<small>litoshis</small>"),
+            ("1-10 Sats", "1-10 Litoshis"),
+            ("100K+ BTC", "100K+ LTC"),
+            ("1 to 10 sats.", "1 to 10 litoshis."),
             (
                 "const btc = (sats) => sats / 1e8",
                 "const btc = (sats) => sats / 1e8",

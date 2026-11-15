@@ -2,7 +2,7 @@
 // Do not edit manually
 
 /**
- * Bitcoin address, or the hex public key of a P2PK output.
+ * Litecoin address, or the hex public key of a P2PK output.
  *
  * @typedef {string} Address
  */
@@ -17,11 +17,11 @@
  * Based on mempool.space's format with type_index extension.
  *
  * @typedef {Object} AddressChainStats
- * @property {Sats} balance - Current confirmed balance in satoshis
+ * @property {Sats} balance - Current confirmed balance in litoshis
  * @property {number} fundedTxoCount - Total number of transaction outputs that funded this address
- * @property {Sats} fundedTxoSum - Total amount in satoshis received by this address across all funded outputs
+ * @property {Sats} fundedTxoSum - Total amount in litoshis received by this address across all funded outputs
  * @property {number} spentTxoCount - Total number of transaction outputs spent from this address
- * @property {Sats} spentTxoSum - Total amount in satoshis spent from this address
+ * @property {Sats} spentTxoSum - Total amount in litoshis spent from this address
  * @property {number} txCount - Total number of confirmed transactions involving this address
  * @property {(TypeIndex|null)=} typeIndex - Index of this address within its type on the blockchain, null for an address without
 confirmed activity
@@ -50,11 +50,11 @@ address payload bytes.
  * Address statistics in the mempool (unconfirmed transactions only), in mempool.space's format.
  *
  * @typedef {Object} AddressMempoolStats
- * @property {SatsSigned} balanceDelta - Net pending (unconfirmed) balance change in satoshis; negative when pending spends exceed receipts
+ * @property {SatsSigned} balanceDelta - Net pending (unconfirmed) balance change in litoshis; negative when pending spends exceed receipts
  * @property {number} fundedTxoCount - Number of unconfirmed transaction outputs funding this address
- * @property {Sats} fundedTxoSum - Total amount in satoshis being received in unconfirmed transactions
+ * @property {Sats} fundedTxoSum - Total amount in litoshis being received in unconfirmed transactions
  * @property {number} spentTxoCount - Number of unconfirmed transaction inputs spending from this address
- * @property {Sats} spentTxoSum - Total amount in satoshis being spent in unconfirmed transactions
+ * @property {Sats} spentTxoSum - Total amount in litoshis being spent in unconfirmed transactions
  * @property {number} txCount - Number of unconfirmed transactions involving this address
  */
 /**
@@ -76,11 +76,11 @@ address payload bytes.
  * Address information compatible with mempool.space API format.
  *
  * @typedef {Object} AddressStats
- * @property {Address} address - Bitcoin address, or the hex public key of a P2PK output
+ * @property {Address} address - Litecoin address, or the hex public key of a P2PK output
  * @property {OutputType} addressType - Output script type
  * @property {AddressChainStats} chainStats - Statistics for confirmed transactions on the blockchain
  * @property {AddressMempoolStats} mempoolStats - Statistics for unconfirmed transactions in the mempool
- * @property {Sats} balance - Total current balance in satoshis, including pending (unconfirmed) mempool changes
+ * @property {Sats} balance - Total current balance in litoshis, including pending (unconfirmed) mempool changes
  */
 /**
  * A page of an address's transactions, mempool ones first.
@@ -103,7 +103,7 @@ cursor skips the mempool). One that is neither answers 422.
  * @property {?string=} error - Error message for invalid addresses
  */
 /**
- * An amount in bitcoin, as a decimal number (1 BTC = 100,000,000 satoshis).
+ * An amount in litecoin, as a decimal number (1 LTC = 100,000,000 litoshis).
  *
  * @typedef {number} Bitcoin
  */
@@ -115,13 +115,13 @@ cursor skips the mempool). One that is neither answers 422.
  * Extended block data matching mempool.space /api/v1/blocks extras
  *
  * @typedef {Object} BlockExtras
- * @property {Sats} totalFees - Total fees in satoshis
- * @property {FeeRate} medianFee - Median fee rate in sat/vB
+ * @property {Sats} totalFees - Total fees in litoshis
+ * @property {FeeRate} medianFee - Median fee rate in lit/vB
  * @property {FeeRate[]} feeRange - Fee rate range: [min, 10%, 25%, 50%, 75%, 90%, max]
- * @property {Sats} reward - Total block reward (subsidy + fees) in satoshis
+ * @property {Sats} reward - Total block reward (subsidy + fees) in litoshis
  * @property {BlockPool} pool
- * @property {Sats} avgFee - Mean fee per non-coinbase transaction in satoshis, rounded down (0 without any)
- * @property {FeeRate} avgFeeRate - Average fee rate in sat/vB
+ * @property {Sats} avgFee - Mean fee per non-coinbase transaction in litoshis, rounded down (0 without any)
+ * @property {FeeRate} avgFeeRate - Average fee rate in lit/vB
  * @property {Hex} coinbaseRaw - Raw coinbase transaction scriptsig as hex
  * @property {(Address|null)=} coinbaseAddress - Primary coinbase output address
  * @property {Address[]} coinbaseAddresses - All coinbase output addresses
@@ -131,9 +131,9 @@ cursor skips the mempool). One that is neither answers 422.
 2 decimals
  * @property {number} totalInputs - Total number of inputs (excluding coinbase)
  * @property {number} totalOutputs
- * @property {Sats} totalOutputAmt - Total output amount in satoshis, coinbase excluded
- * @property {Sats} medianFeeAmt - Median fee amount in satoshis
- * @property {Sats[]} feePercentiles - Fee amount percentiles in satoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
+ * @property {Sats} totalOutputAmt - Total output amount in litoshis, coinbase excluded
+ * @property {Sats} medianFeeAmt - Median fee amount in litoshis
+ * @property {Sats[]} feePercentiles - Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
  * @property {number} segwitTotalTxs
  * @property {number} segwitTotalSize - Total size of segwit transactions in bytes
  * @property {Weight} segwitTotalWeight
@@ -141,7 +141,7 @@ cursor skips the mempool). One that is neither answers 422.
  * @property {number} utxoSetChange - UTXO set change as mempool.space and bitcoin-cli report it: total outputs minus total
 inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
  * @property {number} utxoSetSize - Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
- * @property {Sats} totalInputAmt - Total input amount in satoshis
+ * @property {Sats} totalInputAmt - Total input amount in litoshis
  * @property {number} virtualSize - Virtual size in vbytes: weight / 4, unrounded
  * @property {?boolean=} coinbaseBip54 - Whether the coinbase follows BIP54 (its lock time is the height minus one and its input's
 sequence isn't final), from timestamp 1,771,507,776 on; null before
@@ -156,18 +156,18 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
 /**
  * One time bucket of blocks. Each `avgFee_*` field is the bucket's mean of its blocks' own
  * percentile of their non-coinbase transactions' effective fee rates, weighted by vsize (a block
- * without such transactions counts as 0), rounded to a whole sat/vB.
+ * without such transactions counts as 0), rounded to a whole lit/vB.
  *
  * @typedef {Object} BlockFeeRatesEntry
  * @property {Height} avgHeight - Average block height in this bucket
  * @property {Timestamp} timestamp - Average block timestamp in this bucket
- * @property {number} avgFee_0 - Mean of the blocks' minimum fee rate (sat/vB)
- * @property {number} avgFee_10 - Mean of the blocks' 10th percentile fee rate (sat/vB)
- * @property {number} avgFee_25 - Mean of the blocks' 25th percentile fee rate (sat/vB)
- * @property {number} avgFee_50 - Mean of the blocks' median fee rate (sat/vB)
- * @property {number} avgFee_75 - Mean of the blocks' 75th percentile fee rate (sat/vB)
- * @property {number} avgFee_90 - Mean of the blocks' 90th percentile fee rate (sat/vB)
- * @property {number} avgFee_100 - Mean of the blocks' maximum fee rate (sat/vB)
+ * @property {number} avgFee_0 - Mean of the blocks' minimum fee rate (lit/vB)
+ * @property {number} avgFee_10 - Mean of the blocks' 10th percentile fee rate (lit/vB)
+ * @property {number} avgFee_25 - Mean of the blocks' 25th percentile fee rate (lit/vB)
+ * @property {number} avgFee_50 - Mean of the blocks' median fee rate (lit/vB)
+ * @property {number} avgFee_75 - Mean of the blocks' 75th percentile fee rate (lit/vB)
+ * @property {number} avgFee_90 - Mean of the blocks' 90th percentile fee rate (lit/vB)
+ * @property {number} avgFee_100 - Mean of the blocks' maximum fee rate (lit/vB)
  */
 /**
  * One time bucket of blocks, as [`BlockFeeRatesEntry`] with each `avgFee_*` field to 3
@@ -176,13 +176,13 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @typedef {Object} BlockFeeRatesPreciseEntry
  * @property {Height} avgHeight - Average block height in this bucket
  * @property {Timestamp} timestamp - Average block timestamp in this bucket
- * @property {FeeRate} avgFee_0 - Mean of the blocks' minimum fee rate (sat/vB)
- * @property {FeeRate} avgFee_10 - Mean of the blocks' 10th percentile fee rate (sat/vB)
- * @property {FeeRate} avgFee_25 - Mean of the blocks' 25th percentile fee rate (sat/vB)
- * @property {FeeRate} avgFee_50 - Mean of the blocks' median fee rate (sat/vB)
- * @property {FeeRate} avgFee_75 - Mean of the blocks' 75th percentile fee rate (sat/vB)
- * @property {FeeRate} avgFee_90 - Mean of the blocks' 90th percentile fee rate (sat/vB)
- * @property {FeeRate} avgFee_100 - Mean of the blocks' maximum fee rate (sat/vB)
+ * @property {FeeRate} avgFee_0 - Mean of the blocks' minimum fee rate (lit/vB)
+ * @property {FeeRate} avgFee_10 - Mean of the blocks' 10th percentile fee rate (lit/vB)
+ * @property {FeeRate} avgFee_25 - Mean of the blocks' 25th percentile fee rate (lit/vB)
+ * @property {FeeRate} avgFee_50 - Mean of the blocks' median fee rate (lit/vB)
+ * @property {FeeRate} avgFee_75 - Mean of the blocks' 75th percentile fee rate (lit/vB)
+ * @property {FeeRate} avgFee_90 - Mean of the blocks' 90th percentile fee rate (lit/vB)
+ * @property {FeeRate} avgFee_100 - Mean of the blocks' maximum fee rate (lit/vB)
  */
 /**
  * One time bucket of blocks.
@@ -191,10 +191,10 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {Height} avgHeight - Average block height in this bucket
  * @property {Timestamp} timestamp - Average block timestamp in this bucket
  * @property {Sats} avgFees - Mean fees per block in this bucket, rounded half up (sats)
- * @property {Dollars} USD - Mean BTC/USD spot price over the bucket's blocks (the price, not the fees in USD)
+ * @property {Dollars} USD - Mean LTC/USD spot price over the bucket's blocks (the price, not the fees in USD)
  */
 /**
- * Double-SHA256 block-header hash, serialized in Bitcoin's conventional
+ * Double-SHA256 block-header hash, serialized in Litecoin's conventional
  * hexadecimal byte order.
  *
  * @typedef {string} BlockHash
@@ -283,7 +283,7 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {Height} avgHeight - Average block height in this bucket
  * @property {Timestamp} timestamp - Average block timestamp in this bucket
  * @property {Sats} avgRewards - Mean coinbase reward (subsidy + fees) per block in this bucket, rounded half up (sats)
- * @property {Dollars} USD - Mean BTC/USD spot price over the bucket's blocks (the price, not the rewards in USD)
+ * @property {Dollars} USD - Mean LTC/USD spot price over the bucket's blocks (the price, not the rewards in USD)
  */
 /**
  * One time bucket of blocks.
@@ -373,7 +373,7 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {CpfpEntry[]} ancestors
  * @property {CpfpEntry[]} descendants
  * @property {FeeRate} effectiveFeePerVsize - Feerate of the chunk holding the transaction when its block's relatives are linearized
-(sat/vB).
+(lit/vB).
  * @property {CpfpCluster} cluster - The transaction's relatives in its block.
  */
 /**
@@ -449,7 +449,7 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {CpfpEntry[]} ancestors
  * @property {(CpfpEntry|null)=} bestDescendant - Best (highest fee rate) descendant, if any.
  * @property {CpfpEntry[]} descendants
- * @property {FeeRate} effectiveFeePerVsize - Effective fee rate considering CPFP relationships (sat/vB).
+ * @property {FeeRate} effectiveFeePerVsize - Effective fee rate considering CPFP relationships (lit/vB).
 This is the seed's chunk feerate after lift-merging, i.e. the
 rate Core/mempool.space would surface for this tx.
  * @property {SigOps} sigops - BIP-141 sigop cost for the seed tx (witness sigops count as 1,
@@ -547,9 +547,9 @@ mainnet, as mempool.space
  * @typedef {Object} DiskUsage
  * @property {string} brk - Human-readable brk data size (e.g., "48.8 GiB")
  * @property {number} brkBytes - brk data size in bytes
- * @property {string} bitcoin - Human-readable Bitcoin blocks directory size
- * @property {number} bitcoinBytes - Bitcoin blocks directory size in bytes
- * @property {number} ratio - Ratio of BRK bytes to Bitcoin bytes; zero when Bitcoin bytes are zero.
+ * @property {string} bitcoin - Human-readable Litecoin blocks directory size
+ * @property {number} bitcoinBytes - Litecoin blocks directory size in bytes
+ * @property {number} ratio - Ratio of BRK bytes to Litecoin bytes; zero when Litecoin bytes are zero.
  */
 /**
  * US dollars multiplied by blocks: coinblocks valued at the spot price.
@@ -605,7 +605,7 @@ mainnet, as mempool.space
  * @typedef {Object} ExchangeRates
  */
 /**
- * Fee rate stored in milli-sat/vB and exposed as sat/vB.
+ * Fee rate stored in milli-lit/vB and exposed as lit/vB.
  *
  * @typedef {number} FeeRate
  */
@@ -657,7 +657,7 @@ mainnet, as mempool.space
  * @property {number} uptimeSeconds - Uptime in seconds
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the Bitcoin node's chain tip; `/health` reports `indexed_height` instead, without
+ * @property {Height} tipHeight - Height of the Litecoin node's chain tip; `/health` reports `indexed_height` instead, without
 asking the node
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
@@ -767,14 +767,14 @@ server restarted.
 or coinbase.
  * @property {number} blockVSize - Sum of the transactions' virtual sizes in vbytes
  * @property {number} nTx - Number of transactions in the projected block
- * @property {Sats} totalFees - Total fees in satoshis
- * @property {FeeRate} medianFee - Median fee rate in sat/vB
- * @property {FeeRate[]} feeRange - Vsize-weighted percentiles of the transactions' CPFP chunk fee rates, in sat/vB:
+ * @property {Sats} totalFees - Total fees in litoshis
+ * @property {FeeRate} medianFee - Median fee rate in lit/vB
+ * @property {FeeRate[]} feeRange - Vsize-weighted percentiles of the transactions' CPFP chunk fee rates, in lit/vB:
 [0, 10, 25, 50, 75, 90, 100] for the first block, [5, 10, 25, 50, 75, 90, 95] for the
 later projected ones
  */
 /**
- * A projected mempool block with its transactions: block 0 is Bitcoin Core's
+ * A projected mempool block with its transactions: block 0 is Litecoin Core's
  * `getblocktemplate` selection. Returned by `GET /api/mempool-blocks/{index}`.
  *
  * @typedef {Object} MempoolBlockContent
@@ -826,7 +826,7 @@ later projected ones
  */
 /**
  * A projected mempool block's position, as `/api/v1/fees/mempool-blocks` lists them: 0 is the
- * next block, Bitcoin Core's `getblocktemplate` selection.
+ * next block, Litecoin Core's `getblocktemplate` selection.
  *
  * @typedef {number} MempoolBlockIndex
  */
@@ -840,7 +840,7 @@ later projected ones
  * @typedef {Object} MempoolInfo
  * @property {number} count - Number of transactions in the mempool
  * @property {VSize} vsize - Total virtual size of all transactions in the mempool (vbytes)
- * @property {Sats} totalFee - Total fees of all transactions in the mempool (satoshis)
+ * @property {Sats} totalFee - Total fees of all transactions in the mempool (litoshis)
  * @property {number[][]} feeHistogram - Fee histogram as Esplora bins it: `[[fee_rate, vsize], ...]` by descending fee rate, each
 entry the vsize of the transactions paying from its fee rate up to the previous entry's,
 a bin closing at the first fee rate change past 50,000 vB
@@ -855,7 +855,7 @@ a bin closing at the first fee rate change past 50,000 vB
  * @property {Sats} value - Total output value (sats)
  */
 /**
- * A merkle tree node: a double-SHA256 hash, hex-encoded in Bitcoin's display byte order.
+ * A merkle tree node: a double-SHA256 hash, hex-encoded in Litecoin's display byte order.
  *
  * @typedef {string} MerkleNode
  */
@@ -917,7 +917,7 @@ a bin closing at the first fee rate change past 50,000 vB
  * The oracle at one block: what it counted (`histogram`, `outputs`), where it looked (`first_bin`,
  * `scores`) and what it found (`bin`, `price`).
  *
- * Bins are the oracle's log scale of amounts in sats, 200 a decade: amount `sats` is in bin
+ * Bins are the oracle's log scale of amounts in litoshis, 200 a decade: amount `sats` is in bin
  * `round(log10(sats) * 200)`, bin 0 at 1 sat to bin 2399 just under 10^12. Read as where $100
  * lands, a bin is a price: `10^(10 - bin / 200)` dollars, higher bins lower prices.
  *
@@ -962,13 +962,13 @@ before it (live, the mempool's as the next block's), each block's counts weighte
 630,000): batch payouts.
  * @property {number} opReturn - Those of transactions carrying an OP_RETURN output: data, not payments.
  * @property {number} taproot - Taproot outputs: mostly protocol traffic.
- * @property {number} dust - Under 1,000 sats.
- * @property {number} roundBtc - Round amounts in bitcoin (within 0.1% of 1, 2, 3, 5 or 6 times a power of ten sats).
+ * @property {number} dust - Under 1,000 litoshis.
+ * @property {number} roundBtc - Round amounts in litecoin (within 0.1% of 1, 2, 3, 5 or 6 times a power of ten sats).
  * @property {number} payments - The rest: the payments it counted.
  */
 /**
  * 144 blocks' payments, each read as each of the oracle's 19 round-dollar amounts ($1 to
- * $10,000) at its exact amount in sats, counted by the price each reading implies in buckets a
+ * $10,000) at its exact amount in litoshis, counted by the price each reading implies in buckets a
  * tenth of the oracle's bins.
  *
  * A reading of `sats` as `amount` dollars implies $100 lands at bin
@@ -1207,7 +1207,7 @@ string at mempool.space, from its own audits (always null: it needs the mempool 
  * @property {number} lastEstimatedHashrate1w - Estimated network hashrate over last 1 week (H/s)
  */
 /**
- * Recommended fee rates in sat/vB, to the thousandth (`/api/v1/fees/precise`)
+ * Recommended fee rates in lit/vB, to the thousandth (`/api/v1/fees/precise`)
  *
  * @typedef {Object} PreciseRecommendedFees
  * @property {FeeRate} fastestFee - Fee rate for fastest confirmation (next block)
@@ -1215,14 +1215,14 @@ string at mempool.space, from its own audits (always null: it needs the mempool 
  * @property {FeeRate} hourFee - Fee rate for confirmation within ~1 hour (third projected block)
  * @property {FeeRate} economyFee - Smoothed, fullness-adjusted third-block fee estimate, bounded by `minimumFee` and twice
 it; `minimumFee` when no third projected block exists
- * @property {FeeRate} minimumFee - The node's current mempool minimum fee rate, rounded up to 0.001 sat/vB (at least 0.001)
+ * @property {FeeRate} minimumFee - The node's current mempool minimum fee rate, rounded up to 0.001 lit/vB (at least 0.001)
  */
 /**
- * A BTC/USD price at a time: the current price (`/api/v1/prices`) or one historical close
+ * A LTC/USD price at a time: the current price (`/api/v1/prices`) or one historical close
  *
  * @typedef {Object} PricePoint
  * @property {Timestamp} time - Unix timestamp
- * @property {Dollars} USD - BTC/USD price
+ * @property {Dollars} USD - LTC/USD price
  */
 /**
  * A positional index, YYYY-MM-DD date, or ISO 8601 timestamp.
@@ -1265,7 +1265,7 @@ it; `minimumFee` when no third projected block exists
 this tx displaced at least one non-signaling predecessor.
  */
 /**
- * Recommended fee rates in whole sat/vB (`/api/v1/fees/recommended`)
+ * Recommended fee rates in whole lit/vB (`/api/v1/fees/recommended`)
  *
  * @typedef {Object} RecommendedFees
  * @property {number} fastestFee - Fee rate for fastest confirmation (next block)
@@ -1273,7 +1273,7 @@ this tx displaced at least one non-signaling predecessor.
  * @property {number} hourFee - Fee rate for confirmation within ~1 hour (third projected block)
  * @property {number} economyFee - Smoothed, fullness-adjusted third-block fee estimate, bounded by `minimumFee` and twice
 it; `minimumFee` when no third projected block exists
- * @property {number} minimumFee - The node's current mempool minimum fee rate, rounded up to a whole sat/vB (at least 1)
+ * @property {number} minimumFee - The node's current mempool minimum fee rate, rounded up to a whole lit/vB (at least 1)
  */
 /**
  * One node in an RBF replacement tree. The node's `tx` replaced each
@@ -1302,17 +1302,17 @@ on serialization otherwise.
  * @typedef {Object} RewardStats
  * @property {Height} startBlock - First block in the range
  * @property {Height} endBlock - Last block in the range
- * @property {string} totalReward - Total coinbase rewards (subsidy + fees) in sats
- * @property {string} totalFee - Total transaction fees in sats
+ * @property {string} totalReward - Total coinbase rewards (subsidy + fees) in litoshis
+ * @property {string} totalFee - Total transaction fees in litoshis
  * @property {string} totalTx - Total transactions, coinbase included
  */
 /**
- * An amount in satoshis (100,000,000 to a bitcoin).
+ * An amount in litoshis (100,000,000 to a litecoin).
  *
  * @typedef {number} Sats
  */
 /**
- * A signed amount in satoshis.
+ * A signed amount in litoshis.
  *
  * @typedef {number} SatsSigned
  */
@@ -1412,7 +1412,7 @@ undefined one (e.g. NaN).
  * @typedef {Object} SyncStatus
  * @property {Height} indexedHeight - Height of the last indexed block
  * @property {Height} computedHeight - Height of the last computed block (series)
- * @property {Height} tipHeight - Height of the Bitcoin node's chain tip; `/health` reports `indexed_height` instead, without
+ * @property {Height} tipHeight - Height of the Litecoin node's chain tip; `/health` reports `indexed_height` instead, without
 asking the node
  * @property {Height} blocksBehind - Number of blocks behind the tip
  * @property {string} lastIndexedAt - Human-readable timestamp of the last indexed block (ISO 8601)
@@ -1449,7 +1449,7 @@ asking the node
  * @property {number} size - Transaction size in bytes
  * @property {Weight} weight
  * @property {SigOps} sigops - BIP-141 signature-operation cost
- * @property {Sats} fee - Transaction fee in satoshis
+ * @property {Sats} fee - Transaction fee in litoshis
  * @property {TxStatus} status
  */
 /** @typedef {({ [key: string]: TreeNode }|SeriesLeafWithSchema)} TreeNode */
@@ -1486,8 +1486,8 @@ asking the node
  * @property {Hex} scriptpubkey - Script pubkey (locking script), encoded as hexadecimal.
  * @property {string} scriptpubkeyAsm - Script pubkey in assembly format.
  * @property {OutputTypeNormalized} scriptpubkeyType - Esplora/mempool.space script type.
- * @property {Address=} scriptpubkeyAddress - Bitcoin address, omitted for scripts without an address (P2PK included, as Esplora).
- * @property {Sats} value - Value of the output in satoshis.
+ * @property {Address=} scriptpubkeyAddress - Litecoin address, omitted for scripts without an address (P2PK included, as Esplora).
+ * @property {Sats} value - Value of the output in litoshis.
  */
 /**
  * Index of a transaction output.
@@ -1567,7 +1567,7 @@ asking the node
  * @property {UrpdWeight} weight
  * @property {UrpdAggregation} aggregation
  * @property {Dollars} close - Price at `height`, in USD. Anchor for `unrealized_pnl`.
- * @property {Bitcoin} supply - Sum of `buckets.supply`, in BTC.
+ * @property {Bitcoin} supply - Sum of `buckets.supply`, in LTC.
  * @property {UrpdBuckets} buckets
  */
 /**
@@ -1583,8 +1583,8 @@ asking the node
  * @typedef {Object} UrpdBuckets
  * @property {Dollars[]} price - Each bucket's price, in USD: its lower bound when aggregated, and for `raw` the price its
 coins' creation prices round to (four significant digits of the price in cents).
- * @property {Bitcoin[]} supply - Supply held with a last-move price inside each bucket, in BTC. With a `wakefulness` or
-`mobility` weight, the weighted supply, floored to whole satoshis at each grid price.
+ * @property {Bitcoin[]} supply - Supply held with a last-move price inside each bucket, in LTC. With a `wakefulness` or
+`mobility` weight, the weighted supply, floored to whole litoshis at each grid price.
  * @property {Dollars[]} realizedCap - Realized cap contribution in USD: `price * supply` summed over the coins in each bucket,
 each coin's creation price taken on the price grid (the `raw` bucket price, within 0.05%
 of the exact price), rounded to the cent: a bucket worth under half a cent shows 0. The
@@ -1628,7 +1628,7 @@ capital, rounded to the cent once. Can be negative.
  * @property {Txid} txid
  * @property {Vout} vout
  * @property {TxStatus} status
- * @property {Sats} value - Output value in satoshis
+ * @property {Sats} value - Output value in litoshis
  */
 /**
  * Columnar counts and supplies by creation height.
@@ -1636,14 +1636,14 @@ capital, rounded to the cent once. Can be negative.
  * @typedef {Object} UtxoChanges
  * @property {Height[]} height - Creation height of each row.
  * @property {number[]} count - Number of outputs in each row.
- * @property {Bitcoin[]} supply - BTC held by the outputs in each row.
+ * @property {Bitcoin[]} supply - LTC held by the outputs in each row.
  */
 /**
  * Columnar unspent amounts indexed by creation height.
  *
  * @typedef {Object} UtxoOrigins
  * @property {number[]} count - Number of unspent outputs per creation height.
- * @property {Bitcoin[]} supply - BTC held by the unspent outputs per creation height.
+ * @property {Bitcoin[]} supply - LTC held by the unspent outputs per creation height.
  */
 /**
  * The UTXO set after a block, grouped by the height of the block that created each output.
@@ -1659,7 +1659,7 @@ capital, rounded to the cent once. Can be negative.
  * @property {Date} date - UTC date of the represented block's monotonic timestamp (the running maximum of block
 times).
  * @property {number} count - Number of unspent outputs.
- * @property {Bitcoin} supply - BTC held by the unspent outputs.
+ * @property {Bitcoin} supply - LTC held by the unspent outputs.
  * @property {UtxoOrigins} origins - Unspent outputs by creation height: entry `i` is what remains of block `i`'s outputs.
  */
 /**
@@ -1683,7 +1683,7 @@ coinbase outputs of blocks 91812 and 91722, which duplicates at 91842 and 91880 
  */
 /**
  * @typedef {Object} ValidateAddressParam
- * @property {string} address - Bitcoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130);
+ * @property {string} address - Litecoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130);
 anything else answers 400, as mempool.space does
  */
 /**
@@ -7410,78 +7410,78 @@ class BitviewClient extends BitviewClientBase {
   AMOUNT_RANGE_NAMES = /** @type {const} */ ({
     "_0Sats": {
       "id": "0_sats",
-      "short": "0 sats",
-      "long": "0 Sats"
+      "short": "0 litoshis",
+      "long": "0 Litoshis"
     },
     "_1To10Sats": {
       "id": "1_to_10_sats",
-      "short": "1-10 sats",
-      "long": "1-10 Sats"
+      "short": "1-10 litoshis",
+      "long": "1-10 Litoshis"
     },
     "_10To100Sats": {
       "id": "10_to_100_sats",
-      "short": "10-100 sats",
-      "long": "10-100 Sats"
+      "short": "10-100 litoshis",
+      "long": "10-100 Litoshis"
     },
     "_100To1kSats": {
       "id": "100_to_1k_sats",
-      "short": "100-1k sats",
-      "long": "100-1K Sats"
+      "short": "100-1k litoshis",
+      "long": "100-1K Litoshis"
     },
     "_1kTo10kSats": {
       "id": "1k_to_10k_sats",
-      "short": "1k-10k sats",
-      "long": "1K-10K Sats"
+      "short": "1k-10k litoshis",
+      "long": "1K-10K Litoshis"
     },
     "_10kTo100kSats": {
       "id": "10k_to_100k_sats",
-      "short": "10k-100k sats",
-      "long": "10K-100K Sats"
+      "short": "10k-100k litoshis",
+      "long": "10K-100K Litoshis"
     },
     "_100kTo1mSats": {
       "id": "100k_to_1m_sats",
-      "short": "100k-1M sats",
-      "long": "100K-1M Sats"
+      "short": "100k-1M litoshis",
+      "long": "100K-1M Litoshis"
     },
     "_1mTo10mSats": {
       "id": "1m_to_10m_sats",
-      "short": "1M-10M sats",
-      "long": "1M-10M Sats"
+      "short": "1M-10M litoshis",
+      "long": "1M-10M Litoshis"
     },
     "_10mTo100mSats": {
       "id": "10m_to_100m_sats",
-      "short": "0.1-1 BTC",
-      "long": "0.1-1 BTC"
+      "short": "0.1-1 LTC",
+      "long": "0.1-1 LTC"
     },
     "_1To10Btc": {
       "id": "1_to_10_btc",
-      "short": "1-10 BTC",
-      "long": "1-10 BTC"
+      "short": "1-10 LTC",
+      "long": "1-10 LTC"
     },
     "_10To100Btc": {
       "id": "10_to_100_btc",
-      "short": "10-100 BTC",
-      "long": "10-100 BTC"
+      "short": "10-100 LTC",
+      "long": "10-100 LTC"
     },
     "_100To1kBtc": {
       "id": "100_to_1k_btc",
-      "short": "100-1k BTC",
-      "long": "100-1K BTC"
+      "short": "100-1k LTC",
+      "long": "100-1K LTC"
     },
     "_1kTo10kBtc": {
       "id": "1k_to_10k_btc",
-      "short": "1k-10k BTC",
-      "long": "1K-10K BTC"
+      "short": "1k-10k LTC",
+      "long": "1K-10K LTC"
     },
     "_10kTo100kBtc": {
       "id": "10k_to_100k_btc",
-      "short": "10k-100k BTC",
-      "long": "10K-100K BTC"
+      "short": "10k-100k LTC",
+      "long": "10K-100K LTC"
     },
     "over100kBtc": {
       "id": "over_100k_btc",
-      "short": "100k+ BTC",
-      "long": "100K+ BTC"
+      "short": "100k+ LTC",
+      "long": "100K+ LTC"
     }
   });
 
@@ -7728,7 +7728,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * Sync status
    *
-   * Returns a coherent local index snapshot and a separately observed Bitcoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
+   * Returns a coherent local index snapshot and a separately observed Litecoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
    *
    * Endpoint: `GET /api/server/sync`
    * @param {{ signal?: AbortSignal, onValue?: (value: SyncStatus) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -7761,7 +7761,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * Disk usage
    *
-   * Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Bitcoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
+   * Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Litecoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
    *
    * Endpoint: `GET /api/server/disk`
    * @param {{ signal?: AbortSignal, onValue?: (value: DiskUsage) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -8046,7 +8046,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * URPD at block height or date
    *
-   * URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is BTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole satoshis) and the bucket values follow it.
+   * URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is LTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole litoshis) and the bucket values follow it.
    *
    * Endpoint: `GET /api/urpd/{cohort}/{point}`
    *
@@ -8083,9 +8083,9 @@ class BitviewClient extends BitviewClientBase {
   }
 
   /**
-   * Current BTC price
+   * Current LTC price
    *
-   * Returns bitcoin latest price (on-chain derived, USD only).
+   * Returns litecoin latest price (on-chain derived, USD only).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
    *
@@ -8101,7 +8101,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * Historical price
    *
-   * Completed four-hour BTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
+   * Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
    *
@@ -8270,13 +8270,13 @@ cursor skips the mempool). One that is neither answers 422.
   /**
    * Validate address
    *
-   * Validate a Bitcoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
+   * Validate a Litecoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-validate)*
    *
    * Endpoint: `GET /api/v1/validate-address/{address}`
    *
-   * @param {string} address - Bitcoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130);
+   * @param {string} address - Litecoin address to validate: 2 to 130 letters and digits (a P2PK public key in hex is 130);
 anything else answers 400, as mempool.space does
    * @param {{ signal?: AbortSignal, onValue?: (value: AddressValidation) => void, cache?: boolean, memCache?: boolean }} [options]
    * @returns {Promise<AddressValidation>}
@@ -8842,7 +8842,7 @@ anything else answers 400, as mempool.space does
   /**
    * Block fee rates
    *
-   * Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole sat/vB (`/precise` for 3 decimals).
+   * Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole lit/vB (`/precise` for 3 decimals).
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
    *
@@ -8860,7 +8860,7 @@ anything else answers 400, as mempool.space does
   /**
    * Block fee rates (precise)
    *
-   * Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in sat/vB to 3 decimals.
+   * Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in lit/vB to 3 decimals.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
    *
@@ -8896,7 +8896,7 @@ anything else answers 400, as mempool.space does
   /**
    * Projected mempool blocks
    *
-   * Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+   * Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
    *
@@ -8912,7 +8912,7 @@ anything else answers 400, as mempool.space does
   /**
    * Recommended fees
    *
-   * Recommended fee rates by confirmation target, in whole sat/vB.
+   * Recommended fee rates by confirmation target, in whole lit/vB.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees)*
    *
@@ -8928,7 +8928,7 @@ anything else answers 400, as mempool.space does
   /**
    * Recommended fee rates (precise)
    *
-   * Recommended fee rates by confirmation target, with up to three decimal places and support for sub-sat/vB rates.
+   * Recommended fee rates by confirmation target, with up to three decimal places and support for sub-lit/vB rates.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees-precise)*
    *
@@ -9022,7 +9022,7 @@ anything else answers 400, as mempool.space does
   /**
    * Projected mempool block
    *
-   * A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Bitcoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
+   * A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Litecoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
    *
    * Endpoint: `GET /api/mempool-blocks/{index}`
    *
@@ -9301,7 +9301,7 @@ anything else answers 400, as mempool.space does
   /**
    * UTXO set at block height or date
    *
-   * The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (BTC) is what remains unspent of block `i`'s outputs.
+   * The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (LTC) is what remains unspent of block `i`'s outputs.
    *
    * Endpoint: `GET /api/utxo-set/{point}`
    *
@@ -9317,7 +9317,7 @@ anything else answers 400, as mempool.space does
   /**
    * UTXO set changes of a block or date
    *
-   * What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (BTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
+   * What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (LTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
    *
    * Endpoint: `GET /api/utxo-set/{point}/diff`
    *
@@ -9331,9 +9331,9 @@ anything else answers 400, as mempool.space does
   }
 
   /**
-   * Live BTC/USD price
+   * Live LTC/USD price
    *
-   * Current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
+   * Current LTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
    *
    * Endpoint: `GET /api/oracle/price`
    * @param {{ signal?: AbortSignal, onValue?: (value: Dollars) => void, cache?: boolean, memCache?: boolean }} [options]
@@ -9377,7 +9377,7 @@ anything else answers 400, as mempool.space does
   /**
    * The oracle's payments, 144 blocks at a time
    *
-   * For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in sats, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
+   * For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in litoshis, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
    *
    * Endpoint: `GET /api/oracle/payments/{start}`
    *

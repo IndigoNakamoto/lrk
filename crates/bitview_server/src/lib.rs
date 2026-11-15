@@ -65,7 +65,7 @@ mod state;
 mod tests;
 mod unacceptable_encoding;
 
-pub use api::ApiRoutes;
+pub use api::{ApiRoutes, openapi_json};
 
 pub use bitview_website::Website;
 pub use cache::CdnCacheMode;

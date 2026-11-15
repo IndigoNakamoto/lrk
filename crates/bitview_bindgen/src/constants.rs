@@ -63,12 +63,13 @@ pub fn address_payload_lengths() -> impl Iterator<Item = (String, usize)> {
 }
 
 /// The display names the clients export: cohort families' and OP_RETURN protocols'.
+#[cfg_attr(not(feature = "litecoin"), allow(clippy::let_and_return))]
 pub fn name_constants() -> Vec<(&'static str, Value)> {
     let op_return_kinds: Map<String, Value> = OP_RETURN_KIND_NAMES
         .iter()
         .map(|&(key, name)| (key.to_owned(), json!(name)))
         .collect();
-    vec![
+    let names = vec![
         ("TERM_NAMES", json!(TERM_NAMES)),
         ("HALVING_EPOCH_NAMES", json!(HALVING_EPOCH_NAMES)),
         ("VINTAGE_NAMES", json!(VINTAGE_NAMES)),
@@ -81,7 +82,30 @@ pub fn name_constants() -> Vec<(&'static str, Value)> {
             json!(PROFITABILITY_RANGE_NAMES),
         ),
         ("OP_RETURN_KIND_NAMES", Value::Object(op_return_kinds)),
-    ]
+    ];
+    #[cfg(feature = "litecoin")]
+    let names = names
+        .into_iter()
+        .map(|(name, mut value)| {
+            relabel_names(&mut value);
+            (name, value)
+        })
+        .collect();
+    names
+}
+
+/// Litview's units in the display names ("1-10 litoshis", "100K+ LTC"); ids stay as they are.
+#[cfg(feature = "litecoin")]
+fn relabel_names(value: &mut Value) {
+    match value {
+        Value::Object(map) => map
+            .iter_mut()
+            .filter(|(key, _)| key.as_str() != "id")
+            .for_each(|(_, value)| relabel_names(value)),
+        Value::Array(items) => items.iter_mut().for_each(relabel_names),
+        Value::String(text) => *text = brk_relabel::relabel(text),
+        _ => {}
+    }
 }
 
 /// Convert top-level keys of a JSON object to camelCase.

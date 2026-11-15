@@ -58,6 +58,14 @@ const TRANSPARENT_PLUGINS: &[&str] = &[
 const TRANSPARENT_SCOPE: &str = "Scope: transparent. Litecoin's transparent chain only: the coins \
 inside MWEB (`mweb_supply`) are not in it; `total_supply` counts both.";
 
+/// Text as shown: Litview's names and units under litecoin.
+fn display(text: String) -> String {
+    #[cfg(feature = "litecoin")]
+    return brk_relabel::relabel(&text);
+    #[cfg(not(feature = "litecoin"))]
+    text
+}
+
 pub struct Vecs<'a> {
     by_series: FxHashMap<&'a str, Series<'a>>,
     shared: Vec<SharedSeries>,
@@ -117,7 +125,10 @@ impl<'a> Vecs<'a> {
     fn finish_build(
         mut builder: Builder<'a>,
         mut catalog: TreeNode,
-        descriptions_by_plugin: Vec<(&'a str, BTreeMap<&'a str, Vec<bitview_traversable::Fragment>>)>,
+        descriptions_by_plugin: Vec<(
+            &'a str,
+            BTreeMap<&'a str, Vec<bitview_traversable::Fragment>>,
+        )>,
     ) -> Self {
         let Resolution {
             shared,
@@ -155,7 +166,9 @@ impl<'a> Vecs<'a> {
             );
             let description = interned_descriptions
                 .entry(fragments)
-                .or_insert_with_key(|fragments| Arc::from(bitview_traversable::describe(fragments)))
+                .or_insert_with_key(|fragments| {
+                    Arc::from(display(bitview_traversable::describe(fragments)))
+                })
                 .clone();
             descriptions.insert(series, description);
         }
@@ -205,7 +218,7 @@ impl<'a> Vecs<'a> {
         let units: BTreeMap<String, Arc<str>> = catalog
             .units()
             .into_iter()
-            .map(|(kind, unit)| (kind.to_string(), unit))
+            .map(|(kind, unit)| (kind.to_string(), Arc::from(display(unit.to_string()))))
             .collect();
         debug_assert!(
             by_series.values().all(|series| series

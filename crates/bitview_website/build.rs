@@ -6,10 +6,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[path = "src/relabel.rs"]
-#[allow(dead_code)]
-mod relabel;
-
 /// The extensions of the files relabeled; any other is copied as is.
 const TEXT: &[&str] = &[
     "html",
@@ -28,7 +24,6 @@ const TEXT: &[&str] = &[
 const VERBATIM: &[&str] = &["modules", "changes/CHANGELOG.md", "changes/v"];
 
 fn main() -> io::Result<()> {
-    println!("cargo::rerun-if-changed=src/relabel.rs");
     println!("cargo::rerun-if-env-changed=CARGO_FEATURE_LITECOIN");
     if env::var_os("CARGO_FEATURE_LITECOIN").is_none() {
         return Ok(());
@@ -64,7 +59,7 @@ fn copy(from: &Path, to: &Path, relative: &str, relabel: bool) -> io::Result<()>
                 .is_some_and(|e| TEXT.contains(&e))
         {
             let text = fs::read_to_string(&path)?;
-            fs::write(&target, relabel::relabel(&text))?;
+            fs::write(&target, brk_relabel::relabel(&text))?;
         } else {
             fs::copy(&path, &target)?;
         }

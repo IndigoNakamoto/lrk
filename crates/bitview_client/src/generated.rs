@@ -2270,7 +2270,7 @@ impl BitviewClient {
 
     /// Sync status
     ///
-    /// Returns a coherent local index snapshot and a separately observed Bitcoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
+    /// Returns a coherent local index snapshot and a separately observed Litecoin Core tip height. The two heights can differ during indexing or a reorg. Conditional requests refresh these observations before validation.
     ///
     /// Endpoint: `GET /api/server/sync`
     pub fn get_sync_status(&self) -> Result<SyncStatus> {
@@ -2298,7 +2298,7 @@ impl BitviewClient {
 
     /// Disk usage
     ///
-    /// Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Bitcoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
+    /// Returns allocated file bytes (file lengths on non-Unix platforms) for BRK and Litecoin data. Each request scans both trees; these are independent observations, not an atomic filesystem snapshot. Conditional requests validate the newly observed totals. Directory-link cycles and excessive nesting fail without returning partial totals.
     ///
     /// Endpoint: `GET /api/server/disk`
     pub fn get_disk_usage(&self) -> Result<DiskUsage> {
@@ -2595,7 +2595,7 @@ impl BitviewClient {
 
     /// URPD at block height or date
     ///
-    /// URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is BTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole satoshis) and the bucket values follow it.
+    /// URPD for a cohort at a block height or the last block of a UTC day. Returns `{ height, hash, date, cohort, weight, aggregation, close, supply, buckets }` where `buckets` is columns, `{ price, supply, realized_cap, unrealized_pnl }`, one entry per bucket in ascending price: the same block header and columnar layout as `GET /api/utxo-set/{point}`. `close`, `price`, `realized_cap`, and `unrealized_pnl` are USD; `supply` is LTC. `unrealized_pnl` can be negative. Bucket `realized_cap` and `unrealized_pnl` value each coin at its creation price on the price grid (four significant digits of the price in cents, within 0.05% of the exact price), rounded to the cent per bucket, so the buckets need not sum to the realized cap series. With a `wakefulness` or `mobility` `weight`, `supply` is the weighted supply (whole litoshis) and the bucket values follow it.
     ///
     /// Endpoint: `GET /api/urpd/{cohort}/{point}`
     pub fn get_urpd(
@@ -2638,9 +2638,9 @@ impl BitviewClient {
             .get_json(&format!("/api/v1/difficulty-adjustment"))
     }
 
-    /// Current BTC price
+    /// Current LTC price
     ///
-    /// Returns bitcoin latest price (on-chain derived, USD only).
+    /// Returns litecoin latest price (on-chain derived, USD only).
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-price)*
     ///
@@ -2651,7 +2651,7 @@ impl BitviewClient {
 
     /// Historical price
     ///
-    /// Completed four-hour BTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
+    /// Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
     ///
@@ -2838,7 +2838,7 @@ impl BitviewClient {
 
     /// Validate address
     ///
-    /// Validate a Bitcoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
+    /// Validate a Litecoin address and get information about its type and scriptPubKey. Returns `isvalid: false` with an error message for invalid addresses; a string that isn't 2 to 130 letters and digits answers 400.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-address-validate)*
     ///
@@ -3269,7 +3269,7 @@ impl BitviewClient {
 
     /// Block fee rates
     ///
-    /// Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole sat/vB (`/precise` for 3 decimals).
+    /// Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each a whole lit/vB (`/precise` for 3 decimals).
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
     ///
@@ -3283,7 +3283,7 @@ impl BitviewClient {
 
     /// Block fee rates (precise)
     ///
-    /// Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in sat/vB to 3 decimals.
+    /// Get block fee rate percentiles (min, 10th, 25th, median, 75th, 90th, max) for a time period, each in lit/vB to 3 decimals.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-block-feerates)*
     ///
@@ -3314,7 +3314,7 @@ impl BitviewClient {
 
     /// Projected mempool blocks
     ///
-    /// Projected blocks for fee estimation. Block 0 reflects Bitcoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
+    /// Projected blocks for fee estimation. Block 0 reflects Litecoin Core's actual next-block selection; blocks 1+ are a fee-tier approximation.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-mempool-blocks-fees)*
     ///
@@ -3325,7 +3325,7 @@ impl BitviewClient {
 
     /// Recommended fees
     ///
-    /// Recommended fee rates by confirmation target, in whole sat/vB.
+    /// Recommended fee rates by confirmation target, in whole lit/vB.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees)*
     ///
@@ -3336,7 +3336,7 @@ impl BitviewClient {
 
     /// Recommended fee rates (precise)
     ///
-    /// Recommended fee rates by confirmation target, with up to three decimal places and support for sub-sat/vB rates.
+    /// Recommended fee rates by confirmation target, with up to three decimal places and support for sub-lit/vB rates.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-recommended-fees-precise)*
     ///
@@ -3400,7 +3400,7 @@ impl BitviewClient {
 
     /// Projected mempool block
     ///
-    /// A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Bitcoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
+    /// A projected mempool block with its transactions in order and its stats, by position as `GET /api/v1/fees/mempool-blocks` lists them: 0 is the next block, Litecoin Core's `getblocktemplate` selection, and the only one served for now (others answer 404). The returned `hash` is an opaque content token: poll `GET /api/mempool-blocks/{index}/diff/{hash}` to follow changes instead of refetching the block.
     ///
     /// Endpoint: `GET /api/mempool-blocks/{index}`
     pub fn get_mempool_block(&self, index: MempoolBlockIndex) -> Result<MempoolBlockContent> {
@@ -3602,7 +3602,7 @@ impl BitviewClient {
 
     /// UTXO set at block height or date
     ///
-    /// The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (BTC) is what remains unspent of block `i`'s outputs.
+    /// The UTXO set after a block (`840000`) or after the last published block of a UTC day (`YYYY-MM-DD`), by creation height. Returns `{ height, hash, date, count, supply, origins }`; entry `i` of `origins.count` and `origins.supply` (LTC) is what remains unspent of block `i`'s outputs.
     ///
     /// Endpoint: `GET /api/utxo-set/{point}`
     pub fn get_utxo_set(&self, point: HeightOrDate) -> Result<UtxoSet> {
@@ -3612,7 +3612,7 @@ impl BitviewClient {
 
     /// UTXO set changes of a block or date
     ///
-    /// What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (BTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
+    /// What a block (`840000`) or a UTC day's published blocks (`YYYY-MM-DD`) changed in the UTXO set. Returns `{ first, last, hash, date, created, spent }`: `created` has one row per block, `spent` one row per creation height, each as columnar `height`, `count` and `supply` (LTC). The set after block `first - 1` plus `created` minus `spent` is the set after block `last`.
     ///
     /// Endpoint: `GET /api/utxo-set/{point}/diff`
     pub fn get_utxo_set_diff(&self, point: HeightOrDate) -> Result<UtxoSetDiff> {
@@ -3620,9 +3620,9 @@ impl BitviewClient {
             .get_json(&format!("/api/utxo-set/{}/diff", path_segment(point)))
     }
 
-    /// Live BTC/USD price
+    /// Live LTC/USD price
     ///
-    /// Current BTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
+    /// Current LTC/USD price in dollars, derived from on-chain round-dollar output patterns in the oracle's recent-block window, with the mempool's outputs blended in when available, to the cent: `price` of `GET /api/oracle/live`. Confirmed per-height history is available at `GET /api/series/price/height`. Not found before the oracle's first prices.
     ///
     /// Endpoint: `GET /api/oracle/price`
     pub fn get_live_price(&self) -> Result<Dollars> {
@@ -3650,7 +3650,7 @@ impl BitviewClient {
 
     /// The oracle's payments, 144 blocks at a time
     ///
-    /// For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in sats, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
+    /// For each of the 144 blocks from `start` (a multiple of 144, else a bad request; from 508,032, earlier ones out of range): its payments as the oracle filters them, each read as each of its 19 round-dollar amounts ($1 to $10,000) at its exact amount in litoshis, counted by the price each reading implies, in buckets a tenth of a bin wide (0.115% of price) over the block's search window: finer than the oracle's bins, the evidence behind its prices. The chunk at the tip holds its blocks so far, `hash` its last block's; a whole, settled chunk never changes.
     ///
     /// Endpoint: `GET /api/oracle/payments/{start}`
     pub fn get_oracle_payments(&self, start: Height) -> Result<OraclePayments> {
