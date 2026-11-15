@@ -9,14 +9,14 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfbfa" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
     <title>Explorer · Bitview</title>
-    <meta name="description" content="What it takes to get into the next Litecoin block, and every block, transaction and address: where a payment is, when it gets in and what it paid, read exactly from the chain." />
+    <meta name="description" content="What it takes to get into the next Bitcoin block, and every block, transaction and address: where a payment is, when it gets in and what it paid, read exactly from the chain." />
     <!-- (Its address, wherever it's served from, and how a shared link previews: its card made by showcases/home.mjs --pictures.) -->
     <link rel="canonical" href="https://bitview.space/explorer/" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://bitview.space/explorer/" />
     <meta property="og:site_name" content="Bitview" />
     <meta property="og:title" content="Explorer · Bitview" />
-    <meta property="og:description" content="What it takes to get into the next Litecoin block, and every block, transaction and address: where a payment is, when it gets in and what it paid, read exactly from the chain." />
+    <meta property="og:description" content="What it takes to get into the next Bitcoin block, and every block, transaction and address: where a payment is, when it gets in and what it paid, read exactly from the chain." />
     <meta property="og:image" content="https://bitview.space/assets/cards/explorer.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -1361,7 +1361,7 @@
         <kbd>/</kbd>
         <span class="miss" id="miss" role="status"></span>
       </form>
-      <span class="price" title="Litecoin's price in dollars"><span>LTC</span><b id="price">&nbsp;</b></span>
+      <span class="price" title="Bitcoin's price in dollars"><span>BTC</span><b id="price">&nbsp;</b></span>
     </header>
     <h1 class="vh">Explorer</h1>
     <main class="page" id="view"><div class="wait">Loading</div></main>
@@ -1369,13 +1369,13 @@
     <script type="module">
       import { logo as poolLogo } from "/assets/pools/logos.js";
       // ---------------------------------------------------------------- The chain this server indexes.
-      const COIN = "LTC";
-      const ATOMS = "litoshis";
-      const RATE_UNIT = "lit/vB";
-      const BLOCK_SECONDS = 150;
-      const HALVING_BLOCKS = 840_000;
-      // The blocks "within" a short and a longer wait: 10 and 20 minutes at 150 seconds a block.
-      const SOON = [4, 8];
+      const COIN = "BTC";
+      const ATOMS = "sats";
+      const RATE_UNIT = "sat/vB";
+      const BLOCK_SECONDS = 600;
+      const HALVING_BLOCKS = 210_000;
+      // The blocks "within" a short and a longer wait: 30 minutes and an hour at 600 seconds a block.
+      const SOON = [3, 6];
       // ---------------------------------------------------------------- Reads, all from the server serving the page.
       const get = async (path) => {
         const r = await fetch(`/api${path}`);
@@ -1786,7 +1786,7 @@
           <div class="focus forming">
             <div class="lead">
               <p class="lead-kicker"><span class="chip live" id="forming">Forming</span></p>
-              <p class="answer"><b id="answer">&nbsp;</b><span>lit/vB gets you in</span></p>
+              <p class="answer"><b id="answer">&nbsp;</b><span>sat/vB gets you in</span></p>
               <p class="lead-lede" id="say">&nbsp;</p>
               <dl class="lead-figs" id="alts">${fig("&nbsp;", "&nbsp;").repeat(4)}</dl>
               <p class="lead-note" id="chainsay">&nbsp;</p>
@@ -2477,7 +2477,7 @@
         }
         // Value created and destroyed, as Studio counts them: its coins at the price they're spent at, and at the
         // prices they came in at; the difference is what spending them realizes. A coin that came in still waiting came
-        // in at today's price (it creates what it destroys), one from before Litecoin had a price at $0 (all it creates
+        // in at today's price (it creates what it destroys), one from before Bitcoin had a price at $0 (all it creates
         // is profit). A spend with no price has neither; past the coins whose births are read, the rest stay out.
         const priced = t.inputs.filter((c) => !c.coinbase && c.pnl !== undefined);
         if (t.price && priced.length) {
@@ -2929,7 +2929,7 @@
         // The server's own balance (exact past what a double holds), its coins as listed (waiting ones too).
         const balance = c.balance ?? c.funded_txo_sum - c.spent_txo_sum;
         const basis = c.realized_price;
-        // A basis of $0 is real (coins from before Litecoin had a price); only a held balance has one to show.
+        // A basis of $0 is real (coins from before Bitcoin had a price); only a held balance has one to show.
         const held = balance > 0 && Number.isFinite(basis);
         const unreal = held ? (balance / 1e8) * (price - basis) : null;
         const pending = a.mempool_stats.funded_txo_sum - a.mempool_stats.spent_txo_sum;

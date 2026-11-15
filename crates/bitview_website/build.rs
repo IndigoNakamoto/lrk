@@ -27,6 +27,23 @@ const VERBATIM: &[&str] = &["modules", "changes/CHANGELOG.md", "changes/v"];
 /// fails the build rather than ship Bitcoin's numbers.
 const FACTS: &[(&str, &str, &str)] = &[
     (
+        "explorer/index.html",
+        r#"      const COIN = "BTC";
+      const ATOMS = "sats";
+      const RATE_UNIT = "sat/vB";
+      const BLOCK_SECONDS = 600;
+      const HALVING_BLOCKS = 210_000;
+      // The blocks "within" a short and a longer wait: 30 minutes and an hour at 600 seconds a block.
+      const SOON = [3, 6];"#,
+        r#"      const COIN = "LTC";
+      const ATOMS = "litoshis";
+      const RATE_UNIT = "lit/vB";
+      const BLOCK_SECONDS = 150;
+      const HALVING_BLOCKS = 840_000;
+      // The blocks "within" a short and a longer wait: 10 and 20 minutes at 150 seconds a block.
+      const SOON = [4, 8];"#,
+    ),
+    (
         "_chain/index.html",
         "const HALVING_EPOCH_BLOCKS = 210_000;",
         "const HALVING_EPOCH_BLOCKS = 840_000;",
