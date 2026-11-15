@@ -22,7 +22,7 @@ const TEXT: &[&str] = &[
 /// Paths (from the showcases' root, by prefix) copied as is: the generated clients are code, and
 /// the release notes are upstream's history, true of Bitcoin.
 const VERBATIM: &[&str] = &["modules", "changes/CHANGELOG.md", "changes/v"];
-/// Bitcoin's chain facts written into the pages, and Litecoin's: (path, upstream's text, Litecoin's),
+/// Bitcoin's chain facts and words written into the pages, and Litecoin's: (path, upstream's text, Litecoin's),
 /// every occurrence replaced before relabeling. Each must still be found, so an upstream rewrite
 /// fails the build rather than ship Bitcoin's numbers.
 const FACTS: &[(&str, &str, &str)] = &[
@@ -103,6 +103,32 @@ const FACTS: &[(&str, &str, &str)] = &[
         "studio/presets.js",
         r#"levels: [{ value: 600, color: "gray", dash: 3 }]"#,
         r#"levels: [{ value: 150, color: "gray", dash: 3 }]"#,
+    ),
+    (
+        "series/index.html",
+        r#"avg: "average", opreturn: "OP_RETURN" });"#,
+        r#"avg: "average", opreturn: "OP_RETURN", btc: "LTC", sats: "litoshis", sat: "litoshi" });"#,
+    ),
+    (
+        "series/index.html",
+        r#"["Value type", info.type]"#,
+        r#"["Value type", ({ Bitcoin: "Litecoin", Sats: "Litoshis" })[info.type] ?? info.type]"#,
+    ),
+    (
+        "studio/index.html",
+        r#"txs: "transactions", utxos: "UTXOs" };"#,
+        r#"txs: "transactions", utxos: "UTXOs", btc: "LTC", sats: "litoshis", sat: "litoshi" };"#,
+    ),
+    // The Trail and Logs stay served, off the home page.
+    (
+        "index.html",
+        "      ]);\n      // (The developers' named",
+        "      ].filter((t) => ![\"trail\", \"logs\"].includes(t.id)));\n      // (The developers' named",
+    ),
+    (
+        "index.html",
+        r#"["studio", "oracle", "globe", "trail", "stack", "calendar"]"#,
+        r#"["studio", "oracle", "globe", "stack", "calendar"]"#,
     ),
 ];
 

@@ -1728,7 +1728,7 @@
         }
       });
       // The next block's transactions in their light shape, then only what changed. Only the latest read is kept.
-      const slim = (t) => ({ txid: t.txid, vsize: t.vsize, rate: t.fee / t.vsize, fee: t.fee, born: 0 });
+      const slim = (t) => ((vsize) => ({ txid: t.txid, vsize, rate: t.fee / vsize, fee: t.fee, born: 0 }))(t.vsize ?? Math.ceil(t.weight / 4));
       let nextReads = 0;
       function loadNext() {
         const n = ++nextReads;

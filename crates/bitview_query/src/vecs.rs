@@ -109,11 +109,12 @@ impl<'a> Vecs<'a> {
             plugin.collect_descriptions(&mut plugin_descriptions);
             #[cfg(feature = "litecoin")]
             if TRANSPARENT_PLUGINS.contains(&db) {
+                let scope = bitview_traversable::Fragment::Detail(TRANSPARENT_SCOPE);
                 plugin.for_each_visible(&mut |vec| {
-                    plugin_descriptions
-                        .entry(vec.name())
-                        .or_default()
-                        .push(bitview_traversable::Fragment::Detail(TRANSPARENT_SCOPE));
+                    let fragments = plugin_descriptions.entry(vec.name()).or_default();
+                    if !fragments.contains(&scope) {
+                        fragments.push(scope);
+                    }
                 });
             }
             descriptions.push((db, plugin_descriptions));
