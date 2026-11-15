@@ -1648,8 +1648,7 @@ capital, rounded to the cent once. Can be negative.
 /**
  * The UTXO set after a block, grouped by the height of the block that created each output.
  *
- * The set excludes `OP_RETURN` outputs and the genesis coinbase, which are unspendable, and the
- * coinbases of blocks 91812 and 91722 once duplicates at 91842 and 91880 overwrite them; it
+ * The set excludes `OP_RETURN` outputs and the genesis coinbase, which are unspendable; it
  * includes zero-value outputs. The set after block `first - 1` plus a diff's `created` minus its
  * `spent` gives the set after block `last`; rounding each supply to 8 decimals keeps it exact.
  *
@@ -1673,8 +1672,7 @@ block 0).
  * @property {Date} date - UTC date of block `last`'s monotonic timestamp.
  * @property {UtxoChanges} created - Outputs created, one row per block, including those spent again within the range (which
 `spent` lists too).
- * @property {UtxoChanges} spent - Outputs removed, one row per creation height in ascending order: spent outputs, plus the
-coinbase outputs of blocks 91812 and 91722, which duplicates at 91842 and 91880 overwrote.
+ * @property {UtxoChanges} spent - Outputs removed, one row per creation height in ascending order: spent outputs.
  */
 /**
  * Virtual size in vbytes (weight / 4, rounded up). Max block vsize is ~1,000,000 vB.
@@ -8101,7 +8099,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * Historical price
    *
-   * Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
+   * Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2012-01-31). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
    *
    * *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
    *

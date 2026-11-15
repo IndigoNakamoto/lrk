@@ -2651,7 +2651,7 @@ impl BitviewClient {
 
     /// Historical price
     ///
-    /// Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2010-08-16). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
+    /// Completed four-hour LTC/USD closes, newest first as mempool.space lists them, labeled by interval end, from the first priced interval (2012-01-31). With a UNIX timestamp, returns the latest nonempty completed close at or before it; before the first close returns an empty list. The current partial interval is excluded. USD only (`currency` accepts `USD`); exchangeRates is empty.
     ///
     /// *[Mempool.space docs](https://mempool.space/docs/api/rest#get-historical-price)*
     ///

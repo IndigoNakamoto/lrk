@@ -29,7 +29,7 @@ impl OpenApiBodies {
 }
 
 /// The spec as served: under litecoin, with Litview's names and units in its prose (titles,
-/// summaries, descriptions and the contact), leaving the identifiers it documents alone.
+/// summaries, descriptions, the contact and the license), leaving the identifiers it documents alone.
 pub fn openapi_json(openapi: &OpenApi) -> serde_json::Value {
     #[cfg_attr(not(feature = "litecoin"), allow(unused_mut))]
     let mut value = to_value(openapi).unwrap();
@@ -41,11 +41,11 @@ pub fn openapi_json(openapi: &OpenApi) -> serde_json::Value {
 #[cfg(feature = "litecoin")]
 fn relabel(value: &mut serde_json::Value) {
     relabel_text(value);
-    if let Some(contact) = value
-        .pointer_mut("/info/contact")
-        .and_then(|c| c.as_object_mut())
-    {
-        for value in contact.values_mut() {
+    for pointer in ["/info/contact", "/info/license"] {
+        let Some(fields) = value.pointer_mut(pointer).and_then(|c| c.as_object_mut()) else {
+            continue;
+        };
+        for value in fields.values_mut() {
             if let Some(text) = value.as_str() {
                 *value = brk_relabel::relabel(text).into();
             }

@@ -33,13 +33,73 @@ const RULES: &[(&str, &str, Guard)] = &[
     ("} sat`", "} lit`", any),
 ];
 
-/// `text` with every rule applied.
+/// Bitcoin's chain facts in prose, and Litecoin's, applied before the rules. Any whitespace in
+/// `from` matches any run of it, as doc comments wrap where they like.
+const FACTS: &[(&str, &str)] = &[
+    // Litecoin enforced BIP30 from genesis: it has no duplicate coinbases.
+    (
+        ", and the coinbases of blocks 91812 and 91722 once duplicates at 91842 and 91880 overwrite them;",
+        ";",
+    ),
+    (
+        ", plus the coinbase outputs of blocks 91812 and 91722, which duplicates at 91842 and 91880 overwrote.",
+        ".",
+    ),
+    (
+        "unclaimed block rewards and the two coinbase outputs that BIP30 duplicates overwrote (blocks 91812 and 91722, at 91842 and 91880)",
+        "and unclaimed block rewards",
+    ),
+    (
+        "the first priced interval (2010-08-16)",
+        "the first priced interval (2012-01-31)",
+    ),
+    (
+        "https://github.com/bitcoinresearchkit/mono",
+        "https://github.com/IndigoNakamoto/lrk",
+    ),
+];
+
+/// `text` with every fact and rule applied.
 pub fn relabel(text: &str) -> String {
-    RULES
-        .iter()
-        .fold(text.to_owned(), |text, &(from, to, guard)| {
-            replace_guarded(&text, from, to, guard)
-        })
+    let text = FACTS.iter().fold(text.to_owned(), |text, &(from, to)| {
+        replace_loose(&text, from, to)
+    });
+    RULES.iter().fold(text, |text, &(from, to, guard)| {
+        replace_guarded(&text, from, to, guard)
+    })
+}
+
+fn replace_loose(text: &str, from: &str, to: &str) -> String {
+    let mut words = from.split_whitespace();
+    let first = words.next().unwrap();
+    let words: Vec<&str> = words.collect();
+    let mut out = String::new();
+    let (mut rest, mut search) = (0, 0);
+    while let Some(found) = text[search..].find(first) {
+        let at = search + found;
+        search = at + first.len();
+        if let Some(len) = loose_match(&text[search..], &words) {
+            out.push_str(&text[rest..at]);
+            out.push_str(to);
+            search += len;
+            rest = search;
+        }
+    }
+    out.push_str(&text[rest..]);
+    out
+}
+
+/// The length of `words` at the start of `after`, each after a run of whitespace.
+fn loose_match(after: &str, words: &[&str]) -> Option<usize> {
+    let mut at = 0;
+    for word in words {
+        let gap = after[at..].len() - after[at..].trim_start().len();
+        if gap == 0 || !after[at + gap..].starts_with(word) {
+            return None;
+        }
+        at += gap + word.len();
+    }
+    Some(at)
 }
 
 fn replace_guarded(text: &str, from: &str, to: &str, guard: Guard) -> String {
@@ -188,6 +248,34 @@ mod tests {
             (
                 "fill=\"oklch(64.34% 0.191 44.41)\"",
                 "fill=\"oklch(64.34% 0.14 255)\"",
+            ),
+        ] {
+            assert_eq!(relabel(from), to, "{from}");
+        }
+    }
+
+    #[test]
+    fn states_litecoin_facts() {
+        for (from, to) in [
+            (
+                "genesis coinbase, which are unspendable, and the\ncoinbases of blocks 91812 and 91722 once duplicates at 91842 and 91880 overwrite them; it\nincludes",
+                "genesis coinbase, which are unspendable; it\nincludes",
+            ),
+            (
+                "order: spent outputs, plus the\ncoinbase outputs of blocks 91812 and 91722, which duplicates at 91842 and 91880 overwrote.",
+                "order: spent outputs.",
+            ),
+            (
+                "output values, unclaimed block rewards and the two coinbase outputs that BIP30 duplicates overwrote (blocks 91812 and 91722, at 91842 and 91880).",
+                "output values, and unclaimed block rewards.",
+            ),
+            (
+                "[GitHub](https://github.com/bitcoinresearchkit/mono/issues)",
+                "[GitHub](https://github.com/IndigoNakamoto/lrk/issues)",
+            ),
+            (
+                "the coinbases of blocks 91812",
+                "the coinbases of blocks 91812",
             ),
         ] {
             assert_eq!(relabel(from), to, "{from}");
