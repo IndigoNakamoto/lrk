@@ -20,36 +20,167 @@ use crate::{Dependencies, Vecs};
 use crate::{feed_blocks_for_warmup, feed_blocks_with};
 
 impl Vecs {
+    /// Litecoin's prices: exchange daily closes below [`START_HEIGHT_SLOW`], the on-chain oracle
+    /// from there, seeded at that height's close and kept off its aliases by the relock.
     #[cfg(feature = "litecoin")]
     fn compute_prices(&mut self, indexer: &Indexer, exit: &Exit) -> Result<()> {
         use bitview_primitives::Date;
+        use brk_oracle::{START_HEIGHT_SLOW, bin_to_cents, relock};
         use brk_types::Version;
+        use tracing::info;
+
+        use crate::block_histograms;
 
         let starting_height = indexer.compute_start().height;
-        let timestamps = &indexer.vecs().blocks.timestamp;
+        let vecs = indexer.vecs();
+        let source_version = [
+            vecs.blocks.timestamp.version(),
+            vecs.transactions.txid.version(),
+            vecs.transactions.first_tx_index.version(),
+            vecs.outputs.first_txout_index.version(),
+            vecs.transactions.first_txout_index.version(),
+            vecs.outputs.value.version(),
+            vecs.outputs.output_type.version(),
+        ]
+        .into_iter()
+        .sum::<Version>()
+            + Version::new(crate::exchange::VERSION + relock::VERSION);
+        let total_heights = vecs.blocks.timestamp.len();
         let committed = prepare_computed(
             [
                 &mut self.spot.cents.height as &mut dyn AnyStoredVec,
                 &mut self.oracle_bin,
+                &mut self.oracle_vote,
             ],
-            timestamps.version() + Version::new(crate::exchange::VERSION),
+            source_version,
             starting_height.to_usize(),
             exit,
         )?;
-        let total_heights = timestamps.len();
         if committed >= total_heights {
             return Ok(());
         }
-        let timestamps = timestamps.collect_range_at(committed, total_heights);
-        let mut closes = crate::exchange::closes();
-        closes.ensure(Date::from(*timestamps.last().data()?))?;
-        for timestamp in timestamps {
-            let cents = closes.price_at(Date::from(timestamp));
-            self.spot.cents.height.push(cents);
-            self.oracle_bin
-                .push(Float64::from(cents_to_bin(f64::from(cents))));
+
+        let below = total_heights.min(START_HEIGHT_SLOW);
+        if committed < below {
+            let timestamps = vecs.blocks.timestamp.collect_range_at(committed, below);
+            let mut closes = crate::exchange::closes();
+            closes.ensure(Date::from(*timestamps.last().data()?))?;
+            for timestamp in timestamps {
+                let cents = closes.price_at(Date::from(timestamp));
+                self.spot.cents.height.push(cents);
+                self.oracle_bin
+                    .push(Float64::from(cents_to_bin(f64::from(cents))));
+                self.oracle_vote.push(Float64::from(f64::NAN));
+            }
         }
+        let committed = self.spot.cents.height.len();
+        if committed >= total_heights {
+            return Ok(());
+        }
+
+        let (mut oracle, mut relock) = match (self.oracle.take(), self.relock.take()) {
+            (Some((next, oracle)), Some(relock)) if next == committed => (oracle, relock),
+            _ => self.restore_oracle(indexer, committed)?,
+        };
+        let num_new = total_heights - committed;
+        let (mut processed, mut next_progress) = (0usize, 10u8);
+        block_histograms(indexer, committed..total_heights, None, |height, hist| {
+            let mut bin = oracle.process_histogram(&hist);
+            relock.push(&hist);
+            let mut vote = None;
+            if relock::is_check(height) {
+                vote = relock.vote(bin);
+                if let Some(to) = relock.record(vote) {
+                    info!(
+                        "Oracle relocked at height {height}: ${} to ${}",
+                        bin_to_cents(bin),
+                        bin_to_cents(to)
+                    );
+                    oracle.relock(to);
+                    bin = to;
+                }
+            }
+            self.spot.cents.height.push(bin_to_cents(bin));
+            self.oracle_bin.push(Float64::from(bin));
+            self.oracle_vote
+                .push(Float64::from(vote.unwrap_or(f64::NAN)));
+            processed += 1;
+            let progress = (processed * 100 / num_new) as u8;
+            while num_new >= 100 && progress >= next_progress {
+                info!("Oracle price computation: {next_progress}%");
+                next_progress += 10;
+            }
+        })?;
+        self.oracle = Some((total_heights, oracle));
+        self.relock = Some(relock);
         Ok(())
+    }
+
+    /// The oracle and its relock as they stood after `committed - 1`: at the first on-chain
+    /// height seeded at its exchange close, else at the stored bin and warmed over the window;
+    /// the relock's day of payments read again, its last votes as stored.
+    #[cfg(feature = "litecoin")]
+    fn restore_oracle(
+        &self,
+        indexer: &Indexer,
+        committed: usize,
+    ) -> Result<(brk_oracle::Oracle, brk_oracle::relock::Relock)> {
+        use bitview_primitives::Date;
+        use brk_oracle::{
+            Config, Oracle, START_HEIGHT_SLOW,
+            relock::{self, Relock},
+        };
+
+        use crate::{block_histograms, feed_blocks_for_warmup};
+
+        let seed = if committed == START_HEIGHT_SLOW {
+            let date = Date::from(
+                indexer
+                    .vecs()
+                    .blocks
+                    .timestamp
+                    .collect_one_at(committed)
+                    .data()?,
+            );
+            let mut closes = crate::exchange::closes();
+            closes.ensure(date)?;
+            cents_to_bin(f64::from(closes.price_at(date)))
+        } else {
+            f64::from(self.oracle_bin.collect_one_at(committed - 1).data()?)
+        };
+        let config = Config::default();
+        let warmup = config.window_size.min(committed - START_HEIGHT_SLOW);
+        let oracle = Oracle::from_checkpoint(seed, config, |o| {
+            feed_blocks_for_warmup(o, indexer, (committed - warmup)..committed, None)
+        })?;
+        let mut relock = Relock::default();
+        block_histograms(
+            indexer,
+            committed.saturating_sub(relock::DAY)..committed,
+            None,
+            |_, hist| relock.push(&hist),
+        )?;
+        let first = committed
+            .saturating_sub(relock::VOTES * relock::CHECK)
+            .max(START_HEIGHT_SLOW);
+        let votes = self.oracle_vote.collect_range_at(first, committed);
+        for (height, vote) in (first..committed).zip(votes) {
+            if relock::is_check(height) {
+                let vote = f64::from(vote);
+                relock.record((!vote.is_nan()).then_some(vote));
+            }
+        }
+        Ok((oracle, relock))
+    }
+
+    /// The vecs this plugin computes, in the order it writes them.
+    fn stored(&mut self) -> Vec<&mut dyn AnyStoredVec> {
+        vec![
+            &mut self.spot.cents.height as &mut dyn AnyStoredVec,
+            &mut self.oracle_bin,
+            #[cfg(feature = "litecoin")]
+            &mut self.oracle_vote,
+        ]
     }
 
     #[cfg(not(feature = "litecoin"))]
@@ -167,12 +298,6 @@ impl ComputePlugin for Vecs {
         let exit = context.exit();
 
         self.compute_prices(indexer, exit)?;
-        write_locked(
-            [
-                &mut self.spot.cents.height as &mut dyn AnyStoredVec,
-                &mut self.oracle_bin,
-            ],
-            exit,
-        )
+        write_locked(self.stored(), exit)
     }
 }

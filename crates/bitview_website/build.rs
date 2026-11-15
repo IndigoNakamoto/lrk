@@ -119,6 +119,42 @@ const FACTS: &[(&str, &str, &str)] = &[
         r#"txs: "transactions", utxos: "UTXOs" };"#,
         r#"txs: "transactions", utxos: "UTXOs", btc: "LTC", sats: "litoshis", sat: "litoshi" };"#,
     ),
+    // The oracle reads Litecoin from 2,200,000; its accuracy from Litview's own run of it
+    // (`oracle_tune`), against each block's day's exchange close.
+    (
+        "oracle/index.html",
+        "Math.ceil(508_000 / DAY) * DAY",
+        "Math.ceil(2_200_000 / DAY) * DAY",
+    ),
+    (
+        "oracle/index.html",
+        "<strong>0.15%</strong><span>median distance from the exchanges' price range, block by block, over 596,251 blocks since January 2015.</span>",
+        "<strong>1.19%</strong><span>median distance from the day's exchange close, block by block, over 1,013,333 blocks since January 2022.</span>",
+    ),
+    (
+        "oracle/index.html",
+        r#"            <div><dt>95% of blocks</dt><dd>within 1.2%</dd></div>
+            <div><dt>99% of blocks</dt><dd>within 3.4%</dd></div>
+            <div><dt>Since 2022</dt><dd>none off by 10%</dd></div>"#,
+        r#"            <div><dt>95% of blocks</dt><dd>within 7.9%</dd></div>
+            <div><dt>99% of blocks</dt><dd>within 16.2%</dd></div>
+            <div><dt>Off by 10%</dt><dd>3.5% of blocks</dd></div>"#,
+    ),
+    (
+        "oracle/index.html",
+        r#"These numbers aren't measured live; they come from brk_oracle's own test, in <a href="https://github.com/bitcoinresearchkit/mono/blob/main/crates/brk_oracle/README.md#accuracy">its README</a>. It ran the oracle over every block from 340,000 (January 2015) through 952,314 and measured the 596,251 that exchange data covers against exchanges' high and low at that block; a block inside that range counts as 0%. So 2026 is partial (its fainter bar). It was weakest in 2015 and 2017, when fewer payments made a fainter fingerprint."#,
+        r#"These numbers aren't measured live; they come from Litview's own run of the oracle over every block from 2,200,000 (January 2022) through 3,213,332, each measured against its day's LTC/USD exchange close, so the day's own swings count against it. Before 2,200,000, prices are those closes. So 2026 is partial (its fainter bar). It was weakest in 2022. Twice, in March 2022 and August 2023, it settled on twice the price until its relock, which checks every 144 blocks whether a multiple of its price fits the last two days' payments better, moved it back."#,
+    ),
+    (
+        "oracle/index.html",
+        "/** Median distance from the exchanges' range, by year (brk_oracle's README, through block 952,314). */\n      const YEARS = [[2015, 0.26], [2016, 0.33], [2017, 0.45], [2018, 0.18], [2019, 0.16], [2020, 0.1], [2021, 0.07], [2022, 0.07], [2023, 0.1], [2024, 0.1], [2025, 0.11], [2026, 0.1]];",
+        "/** Median distance from the day's exchange close, by year (Litview's run, through block 3,213,332). */\n      const YEARS = [[2022, 1.96], [2023, 1.04], [2024, 1.09], [2025, 1.28], [2026, 0.87]];",
+    ),
+    (
+        "oracle/index.html",
+        "((median / 0.45) * 100)",
+        "((median / 1.96) * 100)",
+    ),
     // The Trail and Logs stay served, off the home page.
     (
         "index.html",

@@ -38,6 +38,16 @@ pub fn feed_blocks_with<IM: StorageMode>(
     })
 }
 
+/// Each block's histogram of payments, as the oracle reads it, in block order.
+pub fn block_histograms<IM: StorageMode>(
+    indexer: &Indexer<IM>,
+    range: Range<usize>,
+    cap: Option<&Lengths>,
+    each: impl FnMut(usize, HistogramRaw),
+) -> Result<()> {
+    read_blocks(indexer, range, cap, &Histograms, each)
+}
+
 /// The block at `height`'s outputs, each under the first rule of the oracle's filter that skips it,
 /// or a payment.
 pub fn block_tally<IM: StorageMode>(

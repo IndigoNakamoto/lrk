@@ -1,7 +1,8 @@
-//! Litecoin block prices from exchange daily closes.
+//! Litecoin block prices from exchange daily closes, below the oracle's first height.
 //!
-//! `brk_oracle` is calibrated on Bitcoin's round-USD payment patterns and its pre-oracle tape is
-//! BTC/USD, so Litecoin prices every block at the LTC/USD daily close of its date instead.
+//! `brk_oracle`'s pre-oracle tape is BTC/USD, so Litecoin prices each block below
+//! [`START_HEIGHT_SLOW`](brk_oracle::START_HEIGHT_SLOW) at the LTC/USD daily close of its date
+//! instead, and seeds the oracle at that height's.
 //! Bitfinex lists LTC/USD from 2013, Coinbase from 2016; Coinbase overlays Bitfinex where both
 //! exist. Heights before the first listing carry the earliest close.
 

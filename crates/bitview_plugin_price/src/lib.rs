@@ -11,7 +11,9 @@ mod split;
 
 pub use dependencies::Dependencies;
 pub use has::HasPrice;
-pub use oracle_feed::{block_payments, block_tally, feed_blocks_for_warmup, feed_blocks_with};
+pub use oracle_feed::{
+    block_histograms, block_payments, block_tally, feed_blocks_for_warmup, feed_blocks_with,
+};
 
 use bitview_plugin::{Plugin, PluginId, PluginStorage};
 use bitview_primitives::Float64;
@@ -23,8 +25,15 @@ use vecdb::{Database, PcoVec, Rw, StorageMode};
 
 use crate::{ohlc::OhlcPrice, split::SplitPrice};
 
-const STORAGE: PluginStorage =
-    PluginStorage::new(PluginId::new("price"), Version::new(20 + ORACLE_VERSION));
+#[cfg(not(feature = "litecoin"))]
+const CHAIN_VERSION: u32 = 0;
+#[cfg(feature = "litecoin")]
+const CHAIN_VERSION: u32 = brk_oracle::relock::VERSION;
+
+const STORAGE: PluginStorage = PluginStorage::new(
+    PluginId::new("price"),
+    Version::new(20 + ORACLE_VERSION + CHAIN_VERSION),
+);
 pub const ID: PluginId = STORAGE.id();
 
 #[derive(Traversable, Plugin)]
@@ -56,7 +65,9 @@ pub struct Vecs<M: StorageMode = Rw> {
     /// the first exchange price (block 74,641, August 2010), this price and USD
     /// amounts valued with it are zero. At time-period indexes, the value is taken
     /// at the period's final block; null when the period has no block.
-    #[traversable(lead = "Bitcoin's price in US dollars, block by block: from exchanges' history at first, then estimated from the chain itself.")]
+    #[traversable(
+        lead = "Bitcoin's price in US dollars, block by block: from exchanges' history at first, then estimated from the chain itself."
+    )]
     pub spot: Price<PerBlock<Cents, M>>,
     /// Whole satoshis one US dollar buys at the spot price, rounded down: 100,000,000 divided
     /// by the price in USD per BTC. 0 while the spot price is zero.
@@ -66,8 +77,15 @@ pub struct Vecs<M: StorageMode = Rw> {
     /// cents), so an update resumes the oracle where the previous one left it.
     #[traversable(hidden)]
     pub oracle_bin: M::Stored<PcoVec<Height, Float64>>,
+    /// The relock's vote at each height that takes one: the bin it voted for, NaN for none (and
+    /// at every other height), so an update resumes the relock's last votes.
+    #[cfg(feature = "litecoin")]
+    #[traversable(hidden)]
+    oracle_vote: M::Stored<PcoVec<Height, Float64>>,
     /// The oracle after the last computed height (the length it continues at): the next update
     /// resumes it instead of rebuilding it from the stored bin and its warmup blocks.
-    #[cfg_attr(feature = "litecoin", allow(dead_code))]
     oracle: M::WriteOnly<Option<(usize, Oracle)>>,
+    /// The relock with the oracle, resumed alike.
+    #[cfg(feature = "litecoin")]
+    relock: M::WriteOnly<Option<brk_oracle::relock::Relock>>,
 }

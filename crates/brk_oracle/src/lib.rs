@@ -24,6 +24,8 @@ use brk_types::{Dollars, Histogram};
 
 mod config;
 mod filter;
+#[cfg(feature = "litecoin")]
+pub mod relock;
 mod scale;
 mod seed;
 mod stencil;
@@ -122,6 +124,13 @@ impl Oracle {
             Ok::<_, Infallible>(())
         });
         *self = oracle;
+    }
+
+    /// Move onto `ref_bin`, re-warmed over the window as [`Self::reconfigure`] is.
+    #[cfg(feature = "litecoin")]
+    pub fn relock(&mut self, ref_bin: f64) {
+        self.ref_bin = ref_bin;
+        self.reconfigure(self.config);
     }
 
     /// The current weighted EMA over the window, one value per log-scale bin.

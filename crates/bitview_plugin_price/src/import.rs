@@ -20,6 +20,8 @@ impl Vecs {
             &spot.cents,
         );
         let oracle_bin = PcoVec::import(&db, "oracle_bin", version)?;
+        #[cfg(feature = "litecoin")]
+        let oracle_vote = PcoVec::import(&db, "oracle_vote", version)?;
 
         let this = Self {
             db,
@@ -28,7 +30,11 @@ impl Vecs {
             spot,
             sats_per_dollar,
             oracle_bin,
+            #[cfg(feature = "litecoin")]
+            oracle_vote,
             oracle: None,
+            #[cfg(feature = "litecoin")]
+            relock: None,
         };
         STORAGE.finalize_database(&this.db)?;
         Ok(this)

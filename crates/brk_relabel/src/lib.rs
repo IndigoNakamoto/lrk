@@ -57,6 +57,24 @@ const FACTS: &[(&str, &str)] = &[
         "https://github.com/bitcoinresearchkit/mono",
         "https://github.com/IndigoNakamoto/lrk",
     ),
+    // Litecoin's prices: exchange daily closes, the earliest carried back to genesis, then the
+    // oracle from 2,200,000.
+    (
+        "Heights before 340,000 use baked historical exchange prices;",
+        "Heights before 2,200,000 (January 2022) use exchange daily closes;",
+    ),
+    (
+        "Before the first exchange price (block 74,641, August 2010), this price and USD amounts valued with it are zero.",
+        "Blocks before the first exchange close carry the earliest one.",
+    ),
+    (
+        "Zero before the first exchange price (block 74,641, August 2010).",
+        "Blocks before the first exchange close carry the earliest one.",
+    ),
+    (
+        "Blocks before the first price (block 74,641) are left out: the period holding it starts there, and earlier periods are flat zero candles.",
+        "Blocks before the first exchange close carry the earliest one.",
+    ),
 ];
 
 /// `text` with every fact and rule applied.
@@ -276,6 +294,14 @@ mod tests {
             (
                 "the coinbases of blocks 91812",
                 "the coinbases of blocks 91812",
+            ),
+            (
+                "estimate. Heights before\n340,000 use baked historical exchange prices; later heights",
+                "estimate. Heights before 2,200,000 (January 2022) use exchange daily closes; later heights",
+            ),
+            (
+                "ticker. Before\nthe first exchange price (block 74,641, August 2010), this price and USD\namounts valued with it are zero. At",
+                "ticker. Blocks before the first exchange close carry the earliest one. At",
             ),
         ] {
             assert_eq!(relabel(from), to, "{from}");
