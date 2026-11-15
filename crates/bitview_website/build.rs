@@ -155,6 +155,24 @@ const FACTS: &[(&str, &str, &str)] = &[
         "((median / 0.45) * 100)",
         "((median / 1.96) * 100)",
     ),
+    // A week is 4,032 blocks at 150 seconds, not 1,008.
+    (
+        "oracle/index.html",
+        "const WEEK = 7 * 86400, FETCH = 1300;",
+        "const WEEK = 7 * 86400, FETCH = 5200;",
+    ),
+    ("oracle/index.html", "searchAt.size > 1008", "searchAt.size > 4032"),
+    // Its search reaches 8 bins either way (brk_oracle's litecoin `Config::default`).
+    (
+        "oracle/index.html",
+        "12 bins below (a higher price), 11 above. */\n      const BELOW = 12, ABOVE = 11;",
+        "8 bins below (a higher price), 8 above. */\n      const BELOW = 8, ABOVE = 8;",
+    ),
+    (
+        "oracle/index.html",
+        "never more than about <b>16% higher</b> or <b>13% lower</b>",
+        "never more than about <b>10% higher</b> or <b>9% lower</b>",
+    ),
     // The Trail and Logs stay served, off the home page.
     (
         "index.html",
