@@ -57,6 +57,24 @@ cargo check -q -p bitviewd --features litecoin && ok "litecoin build" || bad "li
 cargo check -q --workspace && ok "bitcoin build" || bad "bitcoin build"
 
 say ""
+say "Checking Litview's pages for Bitcoin's words, dates and orange..."
+cargo build -q -p bitview_website --features litecoin
+OUT="$(ls -td "$CARGO_TARGET_DIR"/debug/build/bitview_website-*/out/showcases | head -1)"
+# Kept on purpose: pool names, unit keys (`Bitcoin:`), the day1 index's 2009 origin, a comment's
+# history of Bitcoin's halvings, and Studio's palette orange.
+leftovers="$(cd "$OUT" && rg -n -o '.{0,40}(\bBitcoin\b|\bBTC\b|bitview\.dev|bitcoind|bitcoin-cli|bitcoinresearchkit\.org|\b2009\b|\b2010\b|210,000|210_000|2020-05-11|2024-04-20|0\.191 44\.41|#f7931a|rgb\(230 91 0).{0,40}' \
+  --glob '!modules/**' --glob '!changes/**' --glob '!assets/pools/**' --glob '!studio/sitemap.xml' \
+  --glob '!studio/palette.js' \
+  | grep -v -F -e 'Bitcoin.com' -e 'BTC.' -e 'BTC Guild' -e 'Bitcoin:' -e 'Jan 2009' \
+    -e 'Date.UTC(2009, 0, 1)' -e 'multiple of 210,000' -e '(210,000 to' || true)"
+if [[ -n "$leftovers" ]]; then
+  bad "Bitcoin leftovers in the litecoin showcases (add a FACTS entry in crates/bitview_website/build.rs or a rule in brk_relabel):"
+  say "$leftovers"
+else
+  ok "no Bitcoin leftovers in the litecoin showcases"
+fi
+
+say ""
 say "Running litecoin tests..."
 if cargo test -q --features litecoin \
   -p brk_types -p brk_rpc -p brk_reader -p bitview_primitives \

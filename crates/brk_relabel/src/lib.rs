@@ -14,11 +14,36 @@ type Guard = fn(&str, &str) -> bool;
 const RULES: &[(&str, &str, Guard)] = &[
     (BRAND_ORANGE, BRAND_BLUE, any),
     ("#e65b00", "#345d9d", any),
+    ("oklch%2864.34%25 0.191 44.41", "oklch%2864.34%25 0.14 255", any),
+    ("oklch(52% 0.16 44.41", "oklch(52% 0.14 255", any),
+    ("#f7931a", "#4d8fe0", any),
+    ("#a95600", "#2769b7", any),
+    ("#c24e00", "#345d9d", any),
+    ("#a94400", "#2b4e85", any),
+    ("rgb(230 91 0", "rgb(52 93 157", any),
+    // Pages' accents as light and dark pairs: the same colors elsewhere are data's, not the brand's.
+    ("light-dark(#d4570a, #f2873a)", "light-dark(#2769b7, #69a1e8)", any),
+    ("light-dark(#9c3d00, #ffb27a)", "light-dark(#1f5596, #a1c7f8)", any),
+    ("light-dark(#fbe9dc, #33221a)", "light-dark(#e4edf9, #19243a)", any),
+    ("light-dark(#f6d7bf, #47291a)", "light-dark(#cddcf2, #1d2e4d)", any),
+    ("light-dark(#ad470b, #ff8a3d)", "light-dark(#2769b7, #69a1e8)", any),
+    ("light-dark(#fff8f2, #170b02)", "light-dark(#f4f8ff, #04101f)", any),
+    (
+        "light-dark(rgb(184 68 10), rgb(255 128 52))",
+        "light-dark(rgb(39 105 183), rgb(105 161 232))",
+        any,
+    ),
+    ("https://bitview.dev/", "https://litview.space/dev/", any),
+    ("https://bitview.dev", "https://litview.space/dev/", any),
+    ("https://bitcoinresearchkit.org/", "https://litview.space/brk/", any),
+    ("https://bitcoinresearchkit.org", "https://litview.space/brk/", any),
     ("bitview.space", "litview.space", any),
     ("sats: \"sats\"", "sats: \"litoshis\"", any),
     ("Bitview", "Litview", word),
     ("Bitcoin", "Litecoin", prose_word),
     ("bitcoin", "litecoin", lower_prose_word),
+    ("bitcoind", "litecoind", lower_prose_word),
+    ("bitcoin-cli", "litecoin-cli", lower_prose_word),
     ("BTC", "LTC", prose_word),
     ("sats/vB", "lit/vB", word_start),
     ("sat/vB", "lit/vB", word_start),
@@ -267,6 +292,60 @@ mod tests {
                 "fill=\"oklch(64.34% 0.191 44.41)\"",
                 "fill=\"oklch(64.34% 0.14 255)\"",
             ),
+            (
+                "--brand-text: light-dark(oklch(52% 0.16 44.41), var(--brand));",
+                "--brand-text: light-dark(oklch(52% 0.14 255), var(--brand));",
+            ),
+            (
+                "fill=%22oklch%2864.34%25 0.191 44.41%29%22",
+                "fill=%22oklch%2864.34%25 0.14 255%29%22",
+            ),
+            ("--now: #f7931a;", "--now: #4d8fe0;"),
+            ("--now-text: #a95600;", "--now-text: #2769b7;"),
+            (
+                "--bitview-version-orange: #c24e00;",
+                "--bitview-version-orange: #345d9d;",
+            ),
+            ("rgb(230 91 0 / 0.16)", "rgb(52 93 157 / 0.16)"),
+            (
+                "--accent: light-dark(#d4570a, #f2873a);",
+                "--accent: light-dark(#2769b7, #69a1e8);",
+            ),
+            (
+                "--accent: light-dark(#ad470b, #ff8a3d);",
+                "--accent: light-dark(#2769b7, #69a1e8);",
+            ),
+            ("colors: [\"#ff8a3d\"]", "colors: [\"#ff8a3d\"]"),
+            (
+                "--answer: light-dark(rgb(184 68 10), rgb(255 128 52));",
+                "--answer: light-dark(rgb(39 105 183), rgb(105 161 232));",
+            ),
+            (
+                "<link rel=\"canonical\" href=\"https://bitview.dev/\" />",
+                "<link rel=\"canonical\" href=\"https://litview.space/dev/\" />",
+            ),
+            (
+                "<a href=\"https://bitview.dev\">Bitview</a>",
+                "<a href=\"https://litview.space/dev/\">Litview</a>",
+            ),
+            ("https://perf.bitview.dev", "https://perf.bitview.dev"),
+            (
+                "<a href=\"https://bitcoinresearchkit.org\">Bitcoin Research Kit</a>",
+                "<a href=\"https://litview.space/brk/\">Litecoin Research Kit</a>",
+            ),
+            (
+                "content=\"https://bitcoinresearchkit.org/\"",
+                "content=\"https://litview.space/brk/\"",
+            ),
+            (
+                "without a bitcoind round-trip",
+                "without a litecoind round-trip",
+            ),
+            (
+                "as mempool.space and bitcoin-cli report it",
+                "as mempool.space and litecoin-cli report it",
+            ),
+            ("~/.bitcoin/bitcoin.conf", "~/.bitcoin/bitcoin.conf"),
         ] {
             assert_eq!(relabel(from), to, "{from}");
         }
