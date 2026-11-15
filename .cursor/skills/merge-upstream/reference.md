@@ -73,6 +73,16 @@ Where each decision is enforced (re-check these on every upstream merge):
 - Supply: `bitview_plugin_supply/src/mweb.rs` (`total_supply`,
   `supply_invariant_mismatch = total - (scheduled subsidy - burned)`). Under
   `litecoin`, supply computes after holders in `bitview_default/src/compute.rs`.
+- RPC: `getmempoolinfo` deserializes into the local `GetMempoolInfo` in
+  `brk_rpc/src/rpc_client/responses.rs` (Core 0.21 has no `total_fee`);
+  `getblocktemplate` sends the `mweb` + `segwit` rules.
+
+A panic in a compute pass pins the served tip: `/api/blocks/tip/height` stops
+while `/health` still reports `blocks_behind: 0`. The pre-Bitview fork hit this
+at 3,192,925 from a realized-cap wrap (main `2f19e5baa` saturated `Cents` to
+survive it). Bitview fixes the cause instead (MWEB kept out of distribution),
+so `Cents` overflow stays a loud error; if it fires, look for MWEB leaking into
+a transparent series, don't saturate.
 
 ## Runtime (do not invent new paths)
 
