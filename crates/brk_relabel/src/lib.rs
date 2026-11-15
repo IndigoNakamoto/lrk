@@ -33,6 +33,24 @@ const RULES: &[(&str, &str, Guard)] = &[
         "light-dark(rgb(39 105 183), rgb(105 161 232))",
         any,
     ),
+    // Oracle's heat ramp, low to high, and its launch color.
+    (
+        "light-dark(rgb(250 230 212), rgb(54 16 4))",
+        "light-dark(rgb(218 230 248), rgb(6 18 46))",
+        any,
+    ),
+    (
+        "light-dark(rgb(245 172 112), rgb(196 66 14))",
+        "light-dark(rgb(124 168 232), rgb(30 86 172))",
+        any,
+    ),
+    (
+        "light-dark(rgb(232 108 30), rgb(255 152 66))",
+        "light-dark(rgb(39 105 183), rgb(112 172 255))",
+        any,
+    ),
+    ("data-color=\"#e86c1e\"", "data-color=\"#345d9d\"", any),
+    ("oklch(67.64% 0.191 44.41", "oklch(67.64% 0.14 255", any),
     ("https://bitview.dev/", "https://litview.space/dev/", any),
     ("https://bitview.dev", "https://litview.space/dev/", any),
     ("https://bitcoinresearchkit.org/", "https://litview.space/brk/", any),
@@ -319,6 +337,18 @@ mod tests {
             (
                 "--answer: light-dark(rgb(184 68 10), rgb(255 128 52));",
                 "--answer: light-dark(rgb(39 105 183), rgb(105 161 232));",
+            ),
+            (
+                "--heat-hi: light-dark(rgb(232 108 30), rgb(255 152 66));",
+                "--heat-hi: light-dark(rgb(39 105 183), rgb(112 172 255));",
+            ),
+            (
+                "data-app=\"Oracle\" data-color=\"#e86c1e\"",
+                "data-app=\"Oracle\" data-color=\"#345d9d\"",
+            ),
+            (
+                "--orange: oklch(67.64% 0.191 44.41);",
+                "--orange: oklch(67.64% 0.14 255);",
             ),
             (
                 "<link rel=\"canonical\" href=\"https://bitview.dev/\" />",

@@ -12,8 +12,12 @@ pre-release-replacements = [
     { file = "server.json", search = '"version": "[^"]+"', replace = '"version": "{{version}}"', exactly = 1, prerelease = true },
 ]
 
+[features]
+litecoin = ["dep:brk_relabel"]
+
 [dependencies]
 axum = { workspace = true }
+brk_relabel = { workspace = true, optional = true }
 base64 = "0.23.1"
 bitview_http = { workspace = true }
 http-body-util = "0.1.5"
