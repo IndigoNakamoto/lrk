@@ -1,0 +1,280 @@
+use std::ops::Range;
+
+#[cfg(feature = "storage")]
+use bitview_traversable::Traversable;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use super::{Age, CohortId, CohortName, Term};
+
+const HOURS_1H: usize = 1;
+const HOURS_1D: usize = 24;
+const HOURS_1W: usize = 24 * 7;
+const HOURS_1M: usize = 24 * 30;
+const HOURS_2M: usize = 24 * 2 * 30;
+const HOURS_3M: usize = 24 * 3 * 30;
+pub const HOURS_4M: usize = 24 * 4 * 30;
+pub const HOURS_5M: usize = Term::THRESHOLD_HOURS;
+pub const HOURS_6M: usize = 24 * 6 * 30;
+const HOURS_9M: usize = HOURS_6M + HOURS_3M;
+const HOURS_1Y: usize = 24 * 365;
+// Keep year-based ranges anchored to the existing 365-day year convention.
+const HOURS_18M: usize = HOURS_1Y + HOURS_6M;
+const HOURS_2Y: usize = 24 * 2 * 365;
+const HOURS_3Y: usize = 24 * 3 * 365;
+const HOURS_4Y: usize = 24 * 4 * 365;
+const HOURS_5Y: usize = 24 * 5 * 365;
+const HOURS_6Y: usize = 24 * 6 * 365;
+const HOURS_7Y: usize = 24 * 7 * 365;
+const HOURS_8Y: usize = 24 * 8 * 365;
+const HOURS_10Y: usize = 24 * 10 * 365;
+const HOURS_12Y: usize = 24 * 12 * 365;
+const HOURS_15Y: usize = 24 * 15 * 365;
+
+pub const AGE_RANGE_COUNT: usize = AgeRangeId::ALL.len();
+pub const AGE_RANGE_IDS: [AgeRangeId; AGE_RANGE_COUNT] = *AgeRangeId::ALL.first_chunk().unwrap();
+const STH_AGE_RANGE_COUNT: usize = AgeRangeId::From5MTo6M.index();
+
+pub(crate) const STH_AGE_RANGE_IDS: &[AgeRangeId] = AgeRangeId::ALL.split_at(STH_AGE_RANGE_COUNT).0;
+pub(crate) const LTH_AGE_RANGE_IDS: &[AgeRangeId] = AgeRangeId::ALL.split_at(STH_AGE_RANGE_COUNT).1;
+
+impl AgeRangeId {
+    pub const fn cohort(self) -> CohortId {
+        CohortId::Age(self)
+    }
+
+    /// The band's cohort name, its series' prefix (`age_2y_to_3y`).
+    pub fn full_name(self) -> String {
+        format!("age_{}", self.name().id)
+    }
+
+    pub fn from_full_name(name: &str) -> Option<Self> {
+        let name = name.strip_prefix("age_")?;
+        Self::ALL.iter().copied().find(|id| id.name().id == name)
+    }
+
+    #[inline]
+    pub fn bounds(self) -> &'static Range<usize> {
+        &AGE_RANGE_BOUNDS[self.index()]
+    }
+
+    #[inline]
+    pub fn name(self) -> &'static CohortName {
+        self.select(&AGE_RANGE_NAMES)
+    }
+
+    pub fn term(self) -> Term {
+        if self.bounds().end <= Term::THRESHOLD_HOURS {
+            Term::Sth
+        } else {
+            Term::Lth
+        }
+    }
+
+    #[inline]
+    const fn from_hours(hours: usize) -> Self {
+        match hours {
+            0..HOURS_1H => Self::Under1H,
+            HOURS_1H..HOURS_1D => Self::From1HTo1D,
+            HOURS_1D..HOURS_1W => Self::From1DTo1W,
+            HOURS_1W..HOURS_1M => Self::From1WTo1M,
+            HOURS_1M..HOURS_2M => Self::From1MTo2M,
+            HOURS_2M..HOURS_3M => Self::From2MTo3M,
+            HOURS_3M..HOURS_4M => Self::From3MTo4M,
+            HOURS_4M..HOURS_5M => Self::From4MTo5M,
+            HOURS_5M..HOURS_6M => Self::From5MTo6M,
+            HOURS_6M..HOURS_9M => Self::From6MTo9M,
+            HOURS_9M..HOURS_1Y => Self::From9MTo1Y,
+            HOURS_1Y..HOURS_18M => Self::From1YTo18M,
+            HOURS_18M..HOURS_2Y => Self::From18MTo2Y,
+            HOURS_2Y..HOURS_3Y => Self::From2YTo3Y,
+            HOURS_3Y..HOURS_4Y => Self::From3YTo4Y,
+            HOURS_4Y..HOURS_5Y => Self::From4YTo5Y,
+            HOURS_5Y..HOURS_6Y => Self::From5YTo6Y,
+            HOURS_6Y..HOURS_7Y => Self::From6YTo7Y,
+            HOURS_7Y..HOURS_8Y => Self::From7YTo8Y,
+            HOURS_8Y..HOURS_10Y => Self::From8YTo10Y,
+            HOURS_10Y..HOURS_12Y => Self::From10YTo12Y,
+            HOURS_12Y..HOURS_15Y => Self::From12YTo15Y,
+            _ => Self::Over15Y,
+        }
+    }
+}
+
+impl From<Age> for AgeRangeId {
+    #[inline]
+    fn from(age: Age) -> Self {
+        Self::from_hours(age.hours())
+    }
+}
+
+/// Age boundaries in hours. Defines the cohort ranges:
+/// [0, 1h), [1h, 1d), [1d, 1w), [1w, 1m), ..., [15y, ∞)
+pub const AGE_BOUNDARIES: [usize; AGE_RANGE_COUNT - 1] = [
+    HOURS_1H, HOURS_1D, HOURS_1W, HOURS_1M, HOURS_2M, HOURS_3M, HOURS_4M, HOURS_5M, HOURS_6M,
+    HOURS_9M, HOURS_1Y, HOURS_18M, HOURS_2Y, HOURS_3Y, HOURS_4Y, HOURS_5Y, HOURS_6Y, HOURS_7Y,
+    HOURS_8Y, HOURS_10Y, HOURS_12Y, HOURS_15Y,
+];
+
+/// Each range's bounds from [`AGE_BOUNDARIES`] (end = usize::MAX means unbounded). Building them
+/// checks at compile time that classification agrees with the boundaries and the id order.
+const AGE_RANGE_BOUNDS: [Range<usize>; AGE_RANGE_COUNT] = {
+    let mut bounds = [const { 0..0 }; AGE_RANGE_COUNT];
+    let mut i = 0;
+    while i < AGE_RANGE_COUNT {
+        let start = if i == 0 { 0 } else { AGE_BOUNDARIES[i - 1] };
+        let end = if i < AGE_BOUNDARIES.len() {
+            AGE_BOUNDARIES[i]
+        } else {
+            usize::MAX
+        };
+        assert!(AgeRangeId::from_hours(start).index() == i);
+        assert!(AgeRangeId::from_hours(end - 1).index() == i);
+        bounds[i] = start..end;
+        i += 1;
+    }
+    bounds
+};
+
+pub const AGE_RANGE_NAMES: AgeRange<CohortName> = AgeRange {
+    under_1h: CohortName::new("under_1h", "<1h", "Under 1 Hour Old"),
+    _1h_to_1d: CohortName::new("1h_to_1d", "1h-1d", "1 Hour to 1 Day Old"),
+    _1d_to_1w: CohortName::new("1d_to_1w", "1d-1w", "1 Day to 1 Week Old"),
+    _1w_to_1m: CohortName::new("1w_to_1m", "1w-1m", "1 Week to 1 Month Old"),
+    _1m_to_2m: CohortName::new("1m_to_2m", "1m-2m", "1 to 2 Months Old"),
+    _2m_to_3m: CohortName::new("2m_to_3m", "2m-3m", "2 to 3 Months Old"),
+    _3m_to_4m: CohortName::new("3m_to_4m", "3m-4m", "3 to 4 Months Old"),
+    _4m_to_5m: CohortName::new("4m_to_5m", "4m-5m", "4 to 5 Months Old"),
+    _5m_to_6m: CohortName::new("5m_to_6m", "5m-6m", "5 to 6 Months Old"),
+    _6m_to_9m: CohortName::new("6m_to_9m", "6m-9m", "6 to 9 Months Old"),
+    _9m_to_1y: CohortName::new("9m_to_1y", "9m-1y", "9 Months to 1 Year Old"),
+    _1y_to_18m: CohortName::new("1y_to_18m", "1y-18m", "1 Year to 18 Months Old"),
+    _18m_to_2y: CohortName::new("18m_to_2y", "18m-2y", "18 Months to 2 Years Old"),
+    _2y_to_3y: CohortName::new("2y_to_3y", "2y-3y", "2 to 3 Years Old"),
+    _3y_to_4y: CohortName::new("3y_to_4y", "3y-4y", "3 to 4 Years Old"),
+    _4y_to_5y: CohortName::new("4y_to_5y", "4y-5y", "4 to 5 Years Old"),
+    _5y_to_6y: CohortName::new("5y_to_6y", "5y-6y", "5 to 6 Years Old"),
+    _6y_to_7y: CohortName::new("6y_to_7y", "6y-7y", "6 to 7 Years Old"),
+    _7y_to_8y: CohortName::new("7y_to_8y", "7y-8y", "7 to 8 Years Old"),
+    _8y_to_10y: CohortName::new("8y_to_10y", "8y-10y", "8 to 10 Years Old"),
+    _10y_to_12y: CohortName::new("10y_to_12y", "10y-12y", "10 to 12 Years Old"),
+    _12y_to_15y: CohortName::new("12y_to_15y", "12y-15y", "12 to 15 Years Old"),
+    over_15y: CohortName::new("over_15y", "15y+", "15+ Years Old"),
+};
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "storage", derive(Traversable))]
+pub struct AgeRange<T> {
+    /// Uses UTXOs less than 1 hour old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins that moved within the last hour."))]
+    pub under_1h: T,
+    /// Uses UTXOs at least 1 hour and less than 1 day old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 1 hour to 1 day ago."))]
+    pub _1h_to_1d: T,
+    /// Uses UTXOs at least 1 day and less than 7 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 1 day to 1 week ago."))]
+    pub _1d_to_1w: T,
+    /// Uses UTXOs at least 7 days and less than 30 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 1 week to 1 month ago."))]
+    pub _1w_to_1m: T,
+    /// Uses UTXOs at least 30 days and less than 60 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 1 to 2 months ago."))]
+    pub _1m_to_2m: T,
+    /// Uses UTXOs at least 60 days and less than 90 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 2 to 3 months ago."))]
+    pub _2m_to_3m: T,
+    /// Uses UTXOs at least 90 days and less than 120 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 3 to 4 months ago."))]
+    pub _3m_to_4m: T,
+    /// Uses UTXOs at least 120 days and less than 150 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 4 to 5 months ago."))]
+    pub _4m_to_5m: T,
+    /// Uses UTXOs at least 150 days and less than 180 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 5 to 6 months ago."))]
+    pub _5m_to_6m: T,
+    /// Uses UTXOs at least 180 days and less than 270 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 6 to 9 months ago."))]
+    pub _6m_to_9m: T,
+    /// Uses UTXOs at least 270 days and less than 365 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 9 months to 1 year ago."))]
+    pub _9m_to_1y: T,
+    /// Uses UTXOs at least 365 days and less than 545 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 1 year to 18 months ago."))]
+    pub _1y_to_18m: T,
+    /// Uses UTXOs at least 545 days and less than 730 days old.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 18 months to 2 years ago."))]
+    pub _18m_to_2y: T,
+    /// Uses UTXOs at least 2 years and less than 3 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 2 to 3 years ago."))]
+    pub _2y_to_3y: T,
+    /// Uses UTXOs at least 3 years and less than 4 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 3 to 4 years ago."))]
+    pub _3y_to_4y: T,
+    /// Uses UTXOs at least 4 years and less than 5 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 4 to 5 years ago."))]
+    pub _4y_to_5y: T,
+    /// Uses UTXOs at least 5 years and less than 6 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 5 to 6 years ago."))]
+    pub _5y_to_6y: T,
+    /// Uses UTXOs at least 6 years and less than 7 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 6 to 7 years ago."))]
+    pub _6y_to_7y: T,
+    /// Uses UTXOs at least 7 years and less than 8 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 7 to 8 years ago."))]
+    pub _7y_to_8y: T,
+    /// Uses UTXOs at least 8 years and less than 10 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 8 to 10 years ago."))]
+    pub _8y_to_10y: T,
+    /// Uses UTXOs at least 10 years and less than 12 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 10 to 12 years ago."))]
+    pub _10y_to_12y: T,
+    /// Uses UTXOs at least 12 years and less than 15 years old, using 365-day
+    /// years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins last moved 12 to 15 years ago."))]
+    pub _12y_to_15y: T,
+    /// Uses UTXOs at least 15 years old, using 365-day years.
+    #[cfg_attr(feature = "storage", traversable(lead = "Coins unmoved for 15 years or more."))]
+    pub over_15y: T,
+}
+
+define_cohort_id!(AgeRangeId for AgeRange {
+    Under1H => under_1h,
+    From1HTo1D => _1h_to_1d,
+    From1DTo1W => _1d_to_1w,
+    From1WTo1M => _1w_to_1m,
+    From1MTo2M => _1m_to_2m,
+    From2MTo3M => _2m_to_3m,
+    From3MTo4M => _3m_to_4m,
+    From4MTo5M => _4m_to_5m,
+    From5MTo6M => _5m_to_6m,
+    From6MTo9M => _6m_to_9m,
+    From9MTo1Y => _9m_to_1y,
+    From1YTo18M => _1y_to_18m,
+    From18MTo2Y => _18m_to_2y,
+    From2YTo3Y => _2y_to_3y,
+    From3YTo4Y => _3y_to_4y,
+    From4YTo5Y => _4y_to_5y,
+    From5YTo6Y => _5y_to_6y,
+    From6YTo7Y => _6y_to_7y,
+    From7YTo8Y => _7y_to_8y,
+    From8YTo10Y => _8y_to_10y,
+    From10YTo12Y => _10y_to_12y,
+    From12YTo15Y => _12y_to_15y,
+    Over15Y => over_15y,
+});
+
+impl<T> AgeRange<T> {
+    /// O(1) age-bucket lookup.
+    #[inline]
+    pub fn get_mut(&mut self, age: Age) -> &mut T {
+        AgeRangeId::from(age).select_mut(self)
+    }
+}

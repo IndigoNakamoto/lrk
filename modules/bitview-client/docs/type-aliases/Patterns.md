@@ -1,0 +1,27 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / Patterns
+
+# Type Alias: Patterns
+
+> **Patterns** = `object`
+
+Defined in: modules/bitview-client/index.js:4709
+
+## Type Parameters
+
+## Type Declaration
+
+### batchPayout
+
+> **batchPayout**: [`TransactionsFlagged`](TransactionsFlagged.md)
+
+### coinjoin
+
+> **coinjoin**: [`TransactionsFlagged`](TransactionsFlagged.md)
+
+### consolidation
+
+> **consolidation**: [`TransactionsFlagged`](TransactionsFlagged.md)

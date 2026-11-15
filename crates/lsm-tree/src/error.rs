@@ -2,14 +2,28 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{Checksum, CompressionType};
+use std::{
+    error::Error as ErrorError,
+    fmt::{Display, Formatter, Result as FmtResult},
+    io::Error as IoError,
+    result::Result as StdResult,
+    str::Utf8Error,
+};
+
+use log::error;
+use sfa::Error as SfaError;
+
+use crate::CompressionType;
+
+/// Result using the LSM tree's error type.
+pub type Result<T> = StdResult<T, Error>;
 
 /// Represents errors that can occur in the LSM-tree
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// I/O error
-    Io(std::io::Error),
+    Io(IoError),
 
     /// Decompression failed
     Decompress(CompressionType),
@@ -20,17 +34,16 @@ pub enum Error {
     /// Some required files could not be recovered from disk
     Unrecoverable,
 
-    /// Checksum mismatch
-    ChecksumMismatch {
-        /// Checksum of loaded block
-        got: Checksum,
-
-        /// Checksum that was saved in block header
-        expected: Checksum,
-    },
-
     /// Invalid enum tag
     InvalidTag((&'static str, u8)),
+
+    /// A record does not match the requested fixed width.
+    InvalidRecordLength {
+        /// Requested width in bytes.
+        expected: usize,
+        /// Width found in the block.
+        actual: usize,
+    },
 
     /// Invalid block trailer
     InvalidTrailer,
@@ -39,17 +52,17 @@ pub enum Error {
     InvalidHeader(&'static str),
 
     /// UTF-8 error
-    Utf8(std::str::Utf8Error),
+    Utf8(Utf8Error),
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "LsmTreeError: {self:?}")
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl ErrorError for Error {
+    fn source(&self) -> Option<&(dyn ErrorError + 'static)> {
         match self {
             Self::Io(e) => Some(e),
             _ => None,
@@ -57,38 +70,32 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<sfa::Error> for Error {
-    fn from(value: sfa::Error) -> Self {
+impl From<SfaError> for Error {
+    fn from(value: SfaError) -> Self {
         match value {
-            sfa::Error::Io(e) => Self::from(e),
-            sfa::Error::ChecksumMismatch { got, expected } => {
-                log::error!("Archive ToC checksum mismatch");
-                Self::ChecksumMismatch {
-                    got: got.into(),
-                    expected: expected.into(),
-                }
-            }
-            sfa::Error::InvalidHeader => {
-                log::error!("Invalid archive header");
+            SfaError::Io(e) => Self::from(e),
+            SfaError::ChecksumMismatch { .. } => {
+                error!("Archive ToC checksum mismatch");
                 Self::Unrecoverable
             }
-            sfa::Error::InvalidVersion => {
-                log::error!("Invalid archive version");
+            SfaError::InvalidHeader => {
+                error!("Invalid archive header");
                 Self::Unrecoverable
             }
-            sfa::Error::UnsupportedChecksumType => {
-                log::error!("Invalid archive checksum type");
+            SfaError::InvalidVersion => {
+                error!("Invalid archive version");
+                Self::Unrecoverable
+            }
+            SfaError::UnsupportedChecksumType => {
+                error!("Invalid archive checksum type");
                 Self::Unrecoverable
             }
         }
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(value: std::io::Error) -> Self {
+impl From<IoError> for Error {
+    fn from(value: IoError) -> Self {
         Self::Io(value)
     }
 }
-
-/// Tree result
-pub type Result<T> = std::result::Result<T, Error>;

@@ -1,25 +1,21 @@
-use std::fmt;
-
-/// Fast formatting trait that writes UTF-8 bytes directly into a buffer,
-/// avoiding the `std::fmt` machinery for number types.
+/// Formats values as UTF-8 bytes directly into a buffer, avoiding the `std::fmt` machinery for
+/// numbers. JSON and CSV bodies are built as bytes, so no method needs a `String`.
 pub trait Formattable {
-    /// Write formatted UTF-8 bytes. Primary method — all others derive from it.
+    /// Whether this type has an undefined value of its own (NaN, or a sentinel such as
+    /// `u64::MAX`), written as JSON `null`.
+    const UNDEFINED: bool = false;
+
+    /// Whether a value can be missing (`Option`), written as JSON `null`.
+    const MISSING: bool = false;
+
+    /// Write formatted UTF-8 bytes; the default `fmt_csv` and `fmt_json` delegate here.
     fn write_to(&self, buf: &mut Vec<u8>);
 
-    /// Write to a String via write_to.
+    /// Write one CSV cell. Override for types needing CSV escaping ([`escape_csv_cell`]) or an
+    /// empty cell for undefined values.
     #[inline(always)]
-    fn fmt_into(&self, f: &mut String) {
-        // SAFETY: write_to produces valid UTF-8 (itoa/ryu/Display guarantee this).
-        unsafe {
-            self.write_to(f.as_mut_vec());
-        }
-    }
-
-    /// Write in CSV format. Override for types needing CSV escaping (e.g., quoting commas).
-    #[inline(always)]
-    fn fmt_csv(&self, f: &mut String) -> fmt::Result {
-        self.fmt_into(f);
-        Ok(())
+    fn fmt_csv(&self, buf: &mut Vec<u8>) {
+        self.write_to(buf);
     }
 
     /// Write in JSON format. Override for types needing JSON wrapping (e.g., string quotes).
@@ -27,6 +23,41 @@ pub trait Formattable {
     fn fmt_json(&self, buf: &mut Vec<u8>) {
         self.write_to(buf);
     }
+}
+
+/// Makes the bytes written from `start` one CSV cell: when they hold a comma, quote or line
+/// break, they are quoted and their quotes doubled, in place.
+pub fn escape_csv_cell(buf: &mut Vec<u8>, start: usize) {
+    let cell = &buf[start..];
+    if !cell
+        .iter()
+        .any(|byte| matches!(byte, b',' | b'"' | b'\n' | b'\r'))
+    {
+        return;
+    }
+    let quotes = cell.iter().filter(|&&byte| byte == b'"').count();
+    let end = buf.len();
+    buf.resize(end + quotes + 2, 0);
+    // Shift the cell right, back to front, doubling quotes on the way.
+    let mut write = buf.len() - 1;
+    buf[write] = b'"';
+    for read in (start..end).rev() {
+        let byte = buf[read];
+        write -= 1;
+        buf[write] = byte;
+        if byte == b'"' {
+            write -= 1;
+            buf[write] = b'"';
+        }
+    }
+    write -= 1;
+    buf[write] = b'"';
+    debug_assert_eq!(write, start);
+}
+
+/// Whether `T`'s JSON values can be `null`: missing or undefined.
+pub const fn nullable<T: Formattable>() -> bool {
+    T::MISSING || T::UNDEFINED
 }
 
 macro_rules! impl_formattable_int {
@@ -47,14 +78,28 @@ impl_formattable_int!(
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
 );
 
+/// A non-finite float is undefined: JSON `null`, an empty CSV cell.
 macro_rules! impl_formattable_float {
     ($($t:ty),*) => {
         $(
             impl Formattable for $t {
+                const UNDEFINED: bool = true;
+
                 #[inline(always)]
                 fn write_to(&self, buf: &mut Vec<u8>) {
-                    let mut b = ryu::Buffer::new();
-                    buf.extend_from_slice(b.format(*self).as_bytes());
+                    if self.is_finite() {
+                        buf.extend_from_slice(ryu::Buffer::new().format_finite(*self).as_bytes());
+                    }
+                }
+
+                /// One finiteness check on the hot path.
+                #[inline(always)]
+                fn fmt_json(&self, buf: &mut Vec<u8>) {
+                    if self.is_finite() {
+                        buf.extend_from_slice(ryu::Buffer::new().format_finite(*self).as_bytes());
+                    } else {
+                        buf.extend_from_slice(b"null");
+                    }
                 }
             }
         )*
@@ -70,7 +115,29 @@ impl Formattable for bool {
     }
 }
 
+impl<T: Formattable, const N: usize> Formattable for [T; N] {
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.push(b'[');
+        for (index, value) in self.iter().enumerate() {
+            if index > 0 {
+                buf.push(b',');
+            }
+            value.fmt_json(buf);
+        }
+        buf.push(b']');
+    }
+
+    fn fmt_csv(&self, buf: &mut Vec<u8>) {
+        let start = buf.len();
+        self.write_to(buf);
+        escape_csv_cell(buf, start);
+    }
+}
+
 impl<T: Formattable> Formattable for Option<T> {
+    const UNDEFINED: bool = T::UNDEFINED;
+    const MISSING: bool = true;
+
     #[inline]
     fn write_to(&self, buf: &mut Vec<u8>) {
         if let Some(v) = self {
@@ -79,11 +146,10 @@ impl<T: Formattable> Formattable for Option<T> {
     }
 
     #[inline]
-    fn fmt_csv(&self, f: &mut String) -> fmt::Result {
+    fn fmt_csv(&self, buf: &mut Vec<u8>) {
         if let Some(v) = self {
-            v.fmt_csv(f)?;
+            v.fmt_csv(buf);
         }
-        Ok(())
     }
 
     #[inline]

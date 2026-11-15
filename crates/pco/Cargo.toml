@@ -1,0 +1,31 @@
+[package]
+name = "brk_pco"
+description = "BRK-maintained fork of PCO 1.0.3, numerical sequence compression"
+version.workspace = true
+edition = "2021"
+rust-version = "1.87.0"
+authors = ["mwlon <m.w.loncaric@gmail.com>"]
+repository.workspace = true
+homepage.workspace = true
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["compression", "numerical", "delta"]
+categories = ["compression", "encoding"]
+include = [
+  "src/**/*.rs",
+  "Cargo.toml",
+  "README.md",
+  "BRK_PATCH.md",
+  "LICENSE",
+  "build.rs",
+]
+build = "build.rs"
+
+[lib]
+name = "pco"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+better_io = "0.2.0"
+dtype_dispatch = "0.2.1"

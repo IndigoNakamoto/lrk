@@ -1,0 +1,166 @@
+use bitview_primitives::TxVersion;
+use brk_error::{Error, Result};
+use brk_store::Store;
+use brk_types::{Height, TxIndex, Txid, TxidPrefix};
+use rayon::{join, prelude::*};
+use tracing::error;
+use vecdb::{WritableVec, likely};
+
+use self::analysis::TransactionAnalysis;
+use super::{
+    BlockProcessor,
+    txin::{self, InputSource},
+    txout::{self, BlockAddresses, ProcessedOutput},
+};
+use crate::{
+    TransactionCounts, TxMetadataVecs, constants::overwritten_tx_index,
+    stores::TransactionStoresMut,
+};
+
+pub mod analysis;
+pub mod computed;
+
+pub use computed::ComputedTx;
+
+impl<'a> BlockProcessor<'a> {
+    pub fn compute_txids(&self) -> Result<Vec<ComputedTx<'a>>> {
+        let base_tx_index = self.lengths.tx_index;
+
+        let mut txs = self
+            .block
+            .txdata
+            .par_iter()
+            .enumerate()
+            .map(|(index, tx)| {
+                let (btc_txid, base_size, total_size) = self.block.compute_txid_and_sizes(index);
+                let txid = Txid::from(btc_txid);
+                let tx_index = base_tx_index + TxIndex::from(index);
+
+                // Only debug builds check: in release it measured +115% indexing.
+                if cfg!(debug_assertions)
+                    && let Some(prev_tx_index) = self.stores.tx_index(&TxidPrefix::from(&txid))?
+                {
+                    self.validate_txid_collision(tx_index, prev_tx_index)?;
+                }
+
+                Ok(ComputedTx::new(tx_index, tx, txid, base_size, total_size))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        ComputedTx::set_block_offsets(&mut txs);
+        Ok(txs)
+    }
+
+    /// A txid prefix already stored is the same transaction or the original of a BIP30 duplicate.
+    fn validate_txid_collision(&self, tx_index: TxIndex, prev_tx_index: TxIndex) -> Result<()> {
+        if tx_index == prev_tx_index || overwritten_tx_index(tx_index) == Some(prev_tx_index) {
+            return Ok(());
+        }
+        error!(
+            height = ?self.height,
+            ?tx_index,
+            ?prev_tx_index,
+            "Txid prefix collision"
+        );
+        Err(Error::Internal("Txid prefix collision"))
+    }
+
+    /// Analyzes transactions, then finalizes outputs/inputs in parallel with metadata storage.
+    pub fn analyze_and_finalize_transactions(
+        &mut self,
+        txs: Vec<ComputedTx>,
+        txouts: &mut [ProcessedOutput],
+        txins: &[InputSource],
+        addresses: &mut BlockAddresses,
+        analyses: &mut Vec<TransactionAnalysis>,
+    ) {
+        self.analyze_transactions(&txs, txins, txouts, analyses);
+        let lengths = &mut *self.lengths;
+        let base_txin_index = lengths.txin_index;
+
+        // Split transactions vecs: finalize needs first_txout_index/first_txin_index, metadata needs the rest
+        let (first_txout_index, first_txin_index, mut tx_metadata) =
+            self.vecs.transactions.split_for_finalize();
+
+        let outputs = &mut self.vecs.outputs;
+        let inputs = &mut self.vecs.inputs;
+        let addrs = &mut self.vecs.addrs;
+        let scripts = &mut self.vecs.scripts;
+        let op_return = &mut self.vecs.op_return;
+        let height = self.height;
+
+        let TransactionStoresMut {
+            addr_hashes,
+            addr_tx_indexes,
+            addr_unspent_outpoints,
+            txid_prefixes,
+            utxos,
+        } = self.stores.transaction_stores_mut();
+        let txs = &txs;
+
+        join(
+            || {
+                txout::finalize_outputs(
+                    txs,
+                    lengths,
+                    first_txout_index,
+                    outputs,
+                    addrs,
+                    scripts,
+                    op_return,
+                    addr_hashes,
+                    addr_tx_indexes,
+                    addr_unspent_outpoints,
+                    utxos,
+                    txouts,
+                    addresses,
+                );
+                txin::finalize_inputs(
+                    txs,
+                    base_txin_index,
+                    first_txin_index,
+                    inputs,
+                    addr_tx_indexes,
+                    addr_unspent_outpoints,
+                    utxos,
+                    txins,
+                    txouts,
+                );
+            },
+            || store_tx_metadata(height, txs, analyses, txid_prefixes, &mut tx_metadata),
+        );
+    }
+}
+
+pub fn store_tx_metadata(
+    height: Height,
+    txs: &[ComputedTx],
+    analyses: &[TransactionAnalysis],
+    store: &mut Store<TxidPrefix, TxIndex>,
+    md: &mut TxMetadataVecs<'_>,
+) {
+    debug_assert_eq!(txs.len(), analyses.len());
+    let mut counts = TransactionCounts::default();
+    for (ct, analysis) in txs.iter().zip(analyses) {
+        // A BIP30 duplicate keeps the shared txid on its original, in every build.
+        if likely(overwritten_tx_index(ct.tx_index).is_none()) {
+            store.insert(ct.txid_prefix(), ct.tx_index);
+        }
+        let tx_version = TxVersion::from(ct.tx.version);
+        md.tx_version.debug_checked_push(ct.tx_index, tx_version);
+        md.txid.debug_checked_push(ct.tx_index, ct.txid);
+        md.raw_locktime
+            .debug_checked_push(ct.tx_index, ct.tx.lock_time.into());
+        md.weight
+            .debug_checked_push(ct.tx_index, ct.weight().into());
+        md.total_size
+            .debug_checked_push(ct.tx_index, ct.total_size.into());
+        md.total_sigop_cost
+            .debug_checked_push(ct.tx_index, analysis.total_sigop_cost);
+        counts.add_base(ct.tx.input.len(), ct.tx.output.len(), tx_version);
+        md.features
+            .push_and_count(ct.tx_index, analysis.features, &mut counts);
+    }
+    md.features.push_counts(height, &counts);
+    md.versions.push(height, &counts);
+}

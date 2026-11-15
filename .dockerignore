@@ -1,3 +1,18 @@
-.git
-target
-docker
+# Build context for docker/Dockerfile: only what the image build reads.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!crates
+!examples
+!showcases
+!modules
+!docs/CHANGELOG.md
+**/target
+**/node_modules
+**/.DS_Store
+# Re-excluded below the whitelist: local snapshot baselines, local assistant
+# settings (reachable through the showcases -> modules symlink) and logs.
+crates/bitview_devtools/snapshots
+**/.claude
+**/*.log

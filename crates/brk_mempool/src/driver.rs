@@ -1,146 +1,168 @@
-//! Cycle loop. `start_with` drives [`Mempool::tick_with`] every
-//! [`PERIOD`]. Each cycle is wrapped in `catch_unwind` so a panic
-//! doesn't freeze the snapshot. `parking_lot` locks don't poison.
+//! The sole update owner prepares data privately and publishes once per cycle.
 
 use std::{
     any::Any,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::atomic::Ordering,
-    thread,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
-use brk_error::Result;
-use brk_types::{TxOut, Txid, Vout};
+use brk_error::{Error, Result};
+use brk_types::{BlockHash, TxOut, Txid, Vout};
 use rustc_hash::FxHashMap;
-use tracing::error;
+use tracing::{error, info, warn};
 
 use crate::{
-    Inner, Mempool,
-    cycle::{Cycle, CycleDiff},
-    steps::{Applier, Fetched, Fetcher, Preparer, Prevouts},
+    Mempool, State,
+    steps::{
+        Fetched, applier,
+        fetcher::{self, MAX_TX_FETCHES_PER_CYCLE},
+        preparer, prevouts,
+    },
 };
 
 const PERIOD: Duration = Duration::from_millis(1000);
 
 impl Mempool {
-    /// Infinite update loop with a 1s interval. Resolves
-    /// confirmed-parent prevouts via the default `getrawtransaction`
-    /// resolver. Requires bitcoind started with `txindex=1`. Discards
-    /// per-cycle [`Cycle`] events - use [`Mempool::tick`] to consume them.
-    pub fn start(&self) {
-        self.start_with(Prevouts::rpc_resolver(self.0.client.clone()));
-    }
-
-    /// Variant of `start` that uses a caller-supplied resolver for
-    /// confirmed-parent prevouts (typically backed by an indexer).
+    /// Drive one update per second. Overrunning cycles resume immediately.
+    /// The exclusive writer borrow prevents concurrent drivers or manual ticks.
     ///
-    /// Sleep is `PERIOD - work_duration`, so a 350ms cycle followed by
-    /// a 100ms cycle still ticks roughly every `PERIOD`. When work
-    /// overruns `PERIOD`, the next cycle starts immediately.
-    ///
-    /// # Panics
-    ///
-    /// Panics if a driver is already running on this `Mempool` instance.
-    /// One `Mempool` may host at most one driver. Spawn another instance
-    /// for additional loops.
-    pub fn start_with<F>(&self, resolver: F)
+    /// A pool is published only at the tip the chain has published (`published_tip`), so readers
+    /// pair it with their chain view; when the chain publishes a tip and wakes the driver
+    /// ([`Self::chain_waker`]), a pool behind it follows at once.
+    pub fn start_with<F>(&mut self, resolver: F, published_tip: impl Fn() -> BlockHash)
     where
         F: Fn(&[(Txid, Vout)]) -> FxHashMap<(Txid, Vout), TxOut> + Send,
     {
-        if self
-            .0
-            .started
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            panic!("Mempool::start_with already running on this instance");
-        }
+        let gate = || Some(published_tip());
+        let loading = Instant::now();
         loop {
             let started = Instant::now();
+            let loaded = self.read_only.load().tip().is_some();
             let outcome = catch_unwind(AssertUnwindSafe(|| {
-                if let Err(e) = self.tick_with(&resolver) {
-                    error!("update failed: {e}");
+                match self.tick_with(&resolver, gate) {
+                    // A block arrived mid-fetch: the next cycle observes the new tip.
+                    Ok(()) | Err(Error::StateUpdating) => {}
+                    Err(e) => error!("mempool update failed: {e}"),
                 }
             }));
             if let Err(payload) = outcome {
                 error!(
-                    "mempool update panicked, continuing loop: {}",
+                    "mempool update panicked; restoring completed state: {}",
                     Self::panic_msg(&payload)
                 );
             }
-            if let Some(rest) = PERIOD.checked_sub(started.elapsed()) {
-                thread::sleep(rest);
+            if !loaded && let Some(pool) = &self.read_only.load().pool {
+                info!(
+                    "Loaded mempool ({} transactions) in {:?}",
+                    pool.info.count,
+                    loading.elapsed()
+                );
+            }
+            while let Some(rest) = PERIOD.checked_sub(started.elapsed()) {
+                if self.chain.wait(rest) && self.read_only.load().tip() != Some(published_tip()) {
+                    break;
+                }
             }
         }
     }
 
-    /// One sync cycle: fetch, prepare, apply, fill prevouts, rebuild.
-    /// Returns a [`Cycle`] reporting everything that changed. Uses the
-    /// default `getrawtransaction` resolver for confirmed-parent
-    /// prevouts (requires `txindex=1`).
-    ///
-    /// # Errors
-    ///
-    /// Propagates any failure from the initial RPC fetch (network drop,
-    /// auth, bitcoind error). Steps after `Fetcher::fetch` are infallible
-    /// today. The resolver itself swallows its own errors and retries
-    /// next cycle.
-    pub fn tick(&self) -> Result<Cycle> {
-        self.tick_with(Prevouts::rpc_resolver(self.0.client.clone()))
+    /// One update published at the node's tip, for drivers without a chain to follow.
+    pub fn tick(&mut self) -> Result<()> {
+        self.tick_with(prevouts::rpc_resolver(self.client.clone()), || None)
     }
 
-    /// Variant of [`Mempool::tick`] with a caller-supplied resolver for
-    /// confirmed-parent prevouts. The resolver MUST resolve confirmed
-    /// prevouts only. Mempool-to-mempool chains are wired internally
-    /// and the resolver is never called for them.
-    ///
-    /// # Errors
-    ///
-    /// Same as [`Mempool::tick`]: only the RPC fetch is fallible.
-    pub fn tick_with<F>(&self, resolver: F) -> Result<Cycle>
+    /// Resolve confirmed parents with `resolver`; mempool parents are filled
+    /// internally. Failed observations leave the public state intact.
+    fn tick_with<F>(&mut self, resolver: F, gate: impl Fn() -> Option<BlockHash>) -> Result<()>
     where
         F: Fn(&[(Txid, Vout)]) -> FxHashMap<(Txid, Vout), TxOut>,
     {
-        let started = Instant::now();
-        let Inner {
-            client,
-            state,
-            rebuilder,
-            ..
-        } = &*self.0;
+        if self.needs_recovery {
+            self.restore_published();
+        }
+        self.tick_once(resolver, gate)?;
+        self.needs_recovery = false;
+        Ok(())
+    }
 
+    fn restore_published(&mut self) {
+        let published = self.read_only.load();
+        self.state = published
+            .pool
+            .as_ref()
+            .map_or_else(State::default, |pool| pool.restore());
+        self.rebuilder.restore(
+            published
+                .pool
+                .as_ref()
+                .map_or_else(Arc::default, |pool| pool.graph.clone()),
+        );
+        self.needs_recovery = false;
+    }
+
+    fn tick_once<F>(&mut self, resolver: F, gate: impl Fn() -> Option<BlockHash>) -> Result<()>
+    where
+        F: Fn(&[(Txid, Vout)]) -> FxHashMap<(Txid, Vout), TxOut>,
+    {
+        // RPC batches are not atomic. Bracket fetch and resolution with full tips.
+        let tip_before = self.client.get_best_block_hash()?;
         let Fetched {
             state: rpc,
             new_entries,
             new_txs,
             block_template_txids,
-        } = Fetcher::fetch(client, state)?;
-        let pulled = Preparer::prepare(&rpc.live_txids, new_entries, new_txs, state);
-        let mut diff = CycleDiff::default();
-        let prev_snapshot = rebuilder.snapshot();
-        Applier::apply(state, &prev_snapshot, pulled, &mut diff);
-        drop(prev_snapshot);
-        Prevouts::fill(state, &mut diff, resolver);
-        rebuilder.tick(state, &block_template_txids, rpc.min_fee);
-        let CycleDiff {
-            added,
-            removed,
-            addrs,
-        } = diff;
-        let (addr_enters, addr_leaves) = addrs.into_vecs();
+            template_only,
+            capped,
+        } = fetcher::fetch(&self.client, &self.state)?;
+        // The first load fills the cap every cycle until the pool publishes; after it, a full
+        // cycle means a flood of new transactions.
+        if capped && self.read_only.load().tip().is_some() {
+            warn!(
+                cap = MAX_TX_FETCHES_PER_CYCLE,
+                "mempool new-tx fetch hit the per-cycle cap"
+            );
+        }
+        if rpc.tip_hash != tip_before {
+            return Err(Error::StateUpdating);
+        }
+        let diff = preparer::prepare(
+            &rpc.live_txids,
+            &template_only,
+            new_entries,
+            new_txs,
+            &self.state,
+        );
+        // A panic after this point requires restoring private indexes before reuse.
+        self.needs_recovery = true;
+        applier::apply(&mut self.state, self.rebuilder.snapshot(), diff);
+        self.state.template_only = template_only;
+        prevouts::fill(&mut self.state, resolver);
+        let coherent_tip = self.client.get_best_block_hash().ok() == Some(tip_before);
+        self.rebuilder
+            .tick(&self.state, &block_template_txids, rpc.min_fee);
+        if coherent_tip {
+            // Never ahead of the chain readers pair the pool with.
+            if gate().is_none_or(|published| published == rpc.tip_hash) {
+                self.publish_observation(
+                    rpc.tip_hash,
+                    self.state.template_only.is_empty() && self.state.contains_all(&rpc.live_txids),
+                );
+            }
+        }
+        Ok(())
+    }
 
-        Ok(Cycle {
-            added,
-            removed,
-            addr_enters,
-            addr_leaves,
-            tip_hash: rpc.tip_hash,
-            tip_height: rpc.tip_height,
-            info: self.info(),
-            snapshot: rebuilder.snapshot(),
-            took: started.elapsed(),
-        })
+    fn publish_observation(&mut self, tip: BlockHash, membership_complete: bool) {
+        let previous = self.read_only.load();
+        if let Some(next) = previous.updated(
+            &self.state,
+            tip,
+            self.rebuilder.snapshot().clone(),
+            membership_complete,
+        ) {
+            self.read_only.current.store(Arc::new(next));
+        }
     }
 
     fn panic_msg(payload: &(dyn Any + Send)) -> &str {
@@ -149,49 +171,5 @@ impl Mempool {
             .copied()
             .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
             .unwrap_or("<non-string panic payload>")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::panic::catch_unwind;
-
-    use rustc_hash::FxHashMap;
-
-    use super::*;
-
-    #[test]
-    #[should_panic(expected = "Mempool::start_with already running on this instance")]
-    fn double_start_panics_with_documented_message() {
-        let mempool = Mempool::for_test();
-        // Simulate a prior `start_with` having grabbed the latch. We
-        // can't actually call it first because the real call enters an
-        // infinite loop. Flipping the atomic is what the runtime check
-        // observes anyway.
-        mempool.0.started.store(true, Ordering::Release);
-        mempool.start_with(|_: &[(Txid, Vout)]| FxHashMap::default());
-    }
-
-    #[test]
-    fn panic_msg_extracts_static_str_payload() {
-        let payload = catch_unwind(|| panic!("boom static")).unwrap_err();
-        assert_eq!(Mempool::panic_msg(payload.as_ref()), "boom static");
-    }
-
-    #[test]
-    fn panic_msg_extracts_string_payload() {
-        let payload = catch_unwind(|| panic!("boom owned {}", 42)).unwrap_err();
-        assert_eq!(Mempool::panic_msg(payload.as_ref()), "boom owned 42");
-    }
-
-    #[test]
-    fn panic_msg_falls_back_for_non_string_payload() {
-        // Payload that isn't &str or String: the helper labels it
-        // explicitly instead of dropping it on the floor.
-        let payload = catch_unwind(|| std::panic::panic_any(42u32)).unwrap_err();
-        assert_eq!(
-            Mempool::panic_msg(payload.as_ref()),
-            "<non-string panic payload>"
-        );
     }
 }

@@ -1,12 +1,10 @@
-use std::ops::{Add, AddAssign};
-
-use byteview::ByteView;
 use derive_more::{Deref, DerefMut};
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco, PrintableIndex, VecIndex};
 
-use super::StoredU32;
+#[cfg(feature = "storage")]
+use vecdb::{Pco, PrintableIndex, VecIndex};
 
 /// Chain-wide transaction index (0 = the genesis coinbase). For an
 /// in-block position, use `BlockTxIndex` instead.
@@ -23,18 +21,16 @@ use super::StoredU32;
     Default,
     Serialize,
     Deserialize,
-    Pco,
-    JsonSchema,
     Hash,
 )]
-#[schemars(example = 0)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
+#[cfg_attr(feature = "schemars", schemars(example = 0))]
 pub struct TxIndex(u32);
 
 impl TxIndex {
     pub const ZERO: Self = Self(0);
-    pub const COINBASE: Self = Self(u32::MAX);
-
-    pub fn new(tx_index: u32) -> Self {
+    pub const fn new(tx_index: u32) -> Self {
         Self(tx_index)
     }
 
@@ -42,64 +38,12 @@ impl TxIndex {
         Self(*self + 1)
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 4] {
-        self.0.to_be_bytes()
-    }
-
-    pub fn to_ne_bytes(&self) -> [u8; 4] {
-        self.0.to_ne_bytes()
-    }
-
-    #[inline(always)]
-    pub fn is_coinbase(self) -> bool {
-        self == Self::COINBASE
-    }
-
-    #[inline(always)]
-    pub fn is_not_coinbase(self) -> bool {
-        self != Self::COINBASE
+    pub fn index_name() -> &'static str {
+        "tx_index"
     }
 }
 
-impl Add<TxIndex> for TxIndex {
-    type Output = Self;
-    fn add(self, rhs: TxIndex) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl Add<usize> for TxIndex {
-    type Output = Self;
-    fn add(self, rhs: usize) -> Self::Output {
-        Self(self.0 + rhs as u32)
-    }
-}
-
-impl AddAssign<TxIndex> for TxIndex {
-    fn add_assign(&mut self, rhs: TxIndex) {
-        self.0 += rhs.0
-    }
-}
-
-impl CheckedSub<TxIndex> for TxIndex {
-    fn checked_sub(self, rhs: TxIndex) -> Option<Self> {
-        self.0.checked_sub(rhs.0).map(TxIndex::from)
-    }
-}
-
-impl From<u32> for TxIndex {
-    #[inline]
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<TxIndex> for u32 {
-    #[inline]
-    fn from(value: TxIndex) -> Self {
-        value.0
-    }
-}
+crate::impl_integer_index!(TxIndex, u32);
 
 impl From<u64> for TxIndex {
     #[inline]
@@ -114,71 +58,16 @@ impl From<TxIndex> for u64 {
     }
 }
 
-impl From<usize> for TxIndex {
-    #[inline]
-    fn from(value: usize) -> Self {
-        Self(value as u32)
-    }
-}
-impl From<TxIndex> for usize {
-    #[inline]
-    fn from(value: TxIndex) -> Self {
-        value.0 as usize
-    }
-}
+crate::impl_store_value!(TxIndex, u32);
 
-impl From<ByteView> for TxIndex {
-    #[inline(always)]
-    fn from(value: ByteView) -> Self {
-        Self(u32::from_be_bytes((&*value).try_into().unwrap()))
-    }
-}
-impl From<TxIndex> for ByteView {
-    #[inline(always)]
-    fn from(value: TxIndex) -> Self {
-        ByteView::from(&value)
-    }
-}
-impl From<&TxIndex> for ByteView {
-    #[inline(always)]
-    fn from(value: &TxIndex) -> Self {
-        Self::new(&value.to_be_bytes())
-    }
-}
-
-impl From<TxIndex> for StoredU32 {
-    #[inline]
-    fn from(value: TxIndex) -> Self {
-        Self::from(value.0)
-    }
-}
-
+#[cfg(feature = "storage")]
 impl PrintableIndex for TxIndex {
     fn to_string() -> &'static str {
-        "tx_index"
-    }
-
-    fn to_possible_strings() -> &'static [&'static str] {
-        &["tx", "tx_index"]
+        Self::index_name()
     }
 }
 
+#[cfg(feature = "storage")]
 impl VecIndex for TxIndex {
     const INITIAL_CAPACITY: usize = 1_700_000_000;
-}
-
-impl std::fmt::Display for TxIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = itoa::Buffer::new();
-        let str = buf.format(self.0);
-        f.write_str(str)
-    }
-}
-
-impl Formattable for TxIndex {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
-    }
 }

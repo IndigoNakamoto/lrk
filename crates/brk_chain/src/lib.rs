@@ -1,25 +1,14 @@
-//! Chain-agnostic primitives re-export and chain constants for BRK.
+//! The workspace depends on this crate under the name `bitcoin`
+//! (`bitcoin = { package = "brk_chain", ... }`), so every `bitcoin::` path in
+//! Bitview resolves to the `bitcoin` crate by default and to the `litecoin`
+//! crate (a rust-bitcoin fork with MWEB support) under the `litecoin` feature.
 //!
-//! Enable the `litecoin` Cargo feature (and disable the default `bitcoin`
-//! feature) to compile BRK against the Litecoin network:
-//!
-//! ```toml
-//! brk_chain = { ..., default-features = false, features = ["litecoin"] }
-//! ```
-//!
-//! All downstream crates that depend on `brk_chain` then access protocol types
-//! through `brk_chain::primitives`, which resolves to either the `bitcoin` or
-//! `litecoin` crate depending on the active feature.
+//! Cargo unifies features per build, so enabling `litecoin` anywhere switches
+//! every crate. Crates with Litecoin-only code must therefore forward their own
+//! `litecoin` feature here and to every dependency that also has one.
 
-mod chain;
-pub use chain::{Chain, ChainConstants};
-
-// Re-export the active chain's primitive types under a stable module path so
-// downstream crates can write `use brk_chain::primitives as bitcoin` and keep
-// all existing `bitcoin::Foo` references working without modification.
-
-#[cfg(all(feature = "bitcoin", not(feature = "litecoin")))]
-pub use ::bitcoin as primitives;
+#[cfg(not(feature = "litecoin"))]
+pub use bitcoin_crate::*;
 
 #[cfg(feature = "litecoin")]
-pub use ::litecoin as primitives;
+pub use litecoin::*;

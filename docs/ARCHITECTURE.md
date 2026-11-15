@@ -1,109 +1,116 @@
 # Architecture
 
-## Overview
+Bitview is the application layer built on the reusable Bitcoin Research Kit
+(BRK) crates. BRK reads and follows Bitcoin Core; Bitview turns that data into
+a typed plugin graph, queries, HTTP APIs, showcase pages, generated clients, and MCP
+tools.
 
+```text
+Bitcoin Core blk*.dat, RPC --> brk_reader, brk_rpc --> Bitview plugin set --> Query
+Bitcoin Core mempool --------> brk_mempool --------------------------------> Query
+Query --> REST server --> Showcases and clients
+MCP clients --> MCP adapter --> REST server
 ```
-blk*.dat ──▶ Reader ──┐
-                      ├──▶ Indexer ──▶ Computer ──┐
-         RPC Client ──┤                           ├──▶ Query ──▶ Server
-                      └──▶ Mempool ───────────────┘
 
-MCP clients ──▶ MCP Adapter ──▶ Server
-```
+## Layers
 
-## Components
+### BRK foundation
 
-### Reader (`brk_reader`)
+- [`brk_reader`](../crates/brk_reader) parses Bitcoin Core block files,
+  including XOR-obfuscated files, and supports parallel historical reads.
+- [`brk_rpc`](../crates/brk_rpc) follows the chain tip and accesses Bitcoin Core
+  RPC data.
+- [`brk_mempool`](../crates/brk_mempool) maintains live mempool state and
+  projected blocks.
+- [`brk_cpfp`](../crates/brk_cpfp) linearizes CPFP clusters into feerate chunks,
+  for the mempool and for confirmed blocks alike.
+- [`brk_types`](../crates/brk_types), [`brk_store`](../crates/brk_store), and
+  [`vecdb`](../crates/vecdb) provide the shared domain and storage primitives.
 
-Parses Bitcoin Core's `blk*.dat` files directly, bypassing RPC for historical data. Supports parallel parsing and handles XOR-encoded blocks (Bitcoin Core 28+).
+These crates can be used independently; they do not require the Bitview
+application.
 
-### RPC Client (`brk_rpc`)
+### Plugin platform
 
-Connects to Bitcoin Core for real-time data: new blocks, mempool transactions, and fee estimates. Thread-safe with automatic retries.
+- [`bitview_plugin`](../crates/bitview_plugin) defines plugin identity,
+  dependencies, storage ownership, update contexts, and the `PluginSet` and
+  `ComputePluginSet` contracts that `bitview` drives; `Plugin` and `PluginSet`
+  have derive macros.
+- [`bitview_plugin_indexer`](../crates/bitview_plugin_indexer) is the root plugin.
+  It assigns chain-order indexes and maintains the lookup state used by
+  downstream plugins.
+- `bitview_plugin_*` crates own focused datasets such as mappings, blocks,
+  transactions, mining, price, supply, distribution, and market analytics.
+- [`bitview_primitives`](../crates/bitview_primitives) holds Bitview's index and
+  unit-typed value types, [`bitview_types`](../crates/bitview_types) the REST
+  response and error types, and [`bitview_catalog`](../crates/bitview_catalog) the
+  series catalog that queries and generated clients read.
+- [`bitview_default`](../crates/bitview_default) declares the official typed
+  plugin graph and compute order. Custom applications may supply a different
+  composition.
 
-### Indexer (`brk_indexer`)
+Each plugin owns one directory below `plugins/`, its schema version, and its
+reorg-safe state. Dependencies are explicit Rust types rather than runtime
+name lookups.
 
-Builds lookup tables from parsed blocks:
-- Transaction index (txid → block position)
-- Address index (address → transactions, UTXOs)
-- UTXO set tracking
-- Output type classification (P2PKH, P2WPKH, P2TR, etc.)
+### Application and interfaces
 
-### Computer (`brk_computer`)
+- [`bitview`](../crates/bitview) is the composition-independent daemon runtime:
+  configuration (file and arguments), logging, signal handling, the plugin set's
+  bootstrap and update lifecycle,
+  mempool monitoring, query creation, and server startup.
+- [`bitview_query`](../crates/bitview_query) exposes generic series discovery
+  plus typed capabilities for enabled plugins.
+- [`bitview_server`](../crates/bitview_server) maps those capabilities to REST,
+  OpenAPI, JSON/CSV responses, and cache-aware HTTP behavior. Route families
+  that are not compiled into a composition are not registered.
+- [`bitviewd`](../crates/bitviewd) is the official binary: `bitview::run` with
+  the default composition.
+- [`bitview_mcp`](../crates/bitview_mcp) exposes stateless, read-only MCP tools
+  generated from non-deprecated REST `GET` operations without
+  `x-mcp-ignore: true`, and forwards calls to a configured Bitview server.
 
-Derives analytics from indexed data:
-- Market metrics: realized cap, MVRV, SOPR, NVT
-- Supply metrics: circulating, liquid, illiquid
-- UTXO cohorts: by age, size, type
-- Address cohorts: by balance, activity
-- Pricing models: thermocap, realized price bands
+## Data flow
 
-Metrics are computed across multiple time resolutions (daily, weekly, monthly, by block height).
+Initial sync and later updates read blocks from `blk*.dat` through `brk_reader`:
+the indexer assigns chain-order indexes, and dependent plugins compute their
+datasets in dependency order. Once bootstrap completes, the server starts, the
+runtime watches the tip through RPC, and `brk_mempool` maintains mempool state.
 
-### Mempool (`brk_mempool`)
-
-Monitors unconfirmed transactions:
-- Fee rate distribution and estimation
-- Projected block templates
-- Address mempool activity
-
-### Query (`brk_query`)
-
-Unified interface to all data sources:
-- Block and transaction lookups
-- Address balances and history
-- Computed metrics with range queries
-- Mempool state
-
-### Server (`brk_server`)
-
-REST API exposing Query functionality:
-- OpenAPI documentation (Scalar UI)
-- JSON and CSV output formats
-- ETag caching
-- mempool.space compatible endpoints
-
-### MCP Adapter (`brk_mcp`)
-
-Provides stateless, read-only MCP tools generated from the server's OpenAPI
-operations. It forwards tool calls to the configured REST origin, allowing a
-Cloudflare-fronted API to keep serving cached responses. The official endpoint
-is [mcp.bitview.space](https://mcp.bitview.space/) and requires no
-authentication.
-
-## Data Flow
-
-**Initial sync:**
-1. Reader parses all `blk*.dat` files in parallel
-2. Indexer processes blocks sequentially, building indexes
-3. Computer derives metrics from indexed data
-4. Server starts accepting requests
-
-**Ongoing operation:**
-1. RPC client polls for new blocks
-2. Reader fetches block data
-3. Indexer updates indexes
-4. Computer recalculates affected metrics
-5. Mempool monitors transaction pool
+The indexer tracks a pipeline-safe length shared with the query layer, and the
+runtime sequences each update's publication, so readers see data only after
+every plugin update has completed. On a
+reorganization, owned plugin state rolls back to the last valid chain state and
+is recomputed forward.
 
 ## Storage
 
-Data is stored in `~/.brk/` (configurable):
+The default data directory is `~/.bitview/`:
 
+```text
+~/.bitview/
+|-- config.toml
+|-- logs/
+`-- plugins/
+    |-- indexer/
+    |-- mappings/
+    |-- blocks/
+    |-- inputs/
+    |   `-- spends/
+    |-- outputs/
+    |   `-- creations/
+    |-- utxo_set/
+    |   `-- snapshots/
+    `-- ... one directory per active plugin ID
 ```
-~/.brk/
-├── indexer/     # Transaction and address indexes (fjall)
-├── computer/    # Computed metrics (vecdb)
-└── config.toml  # Configuration
-```
 
-Disk usage scales with blockchain size. Full index with metrics: ~400 GB.
+The UTXO set history stores are split by owner: Inputs owns `spends/`, Outputs owns
+`creations/`, and UTXO Set owns `snapshots/` and its aggregate metrics. This
+keeps every persisted file below the plugin that creates it and lets the runtime
+clean up inactive plugin roots.
 
-## Dependencies
+See the [self-hosting requirements and disk usage](../crates/bitviewd/README.md#requirements).
 
-Built on:
-- [`rust-bitcoin`](https://github.com/rust-bitcoin/rust-bitcoin) - Bitcoin primitives
-- [`fjall`](https://github.com/fjall-rs/fjall) - LSM-tree storage
-- [`vecdb`](https://github.com/anydb-rs/anydb) - Vector storage
-- [`axum`](https://github.com/tokio-rs/axum) - HTTP server
-- [`aide`](https://github.com/tamasfe/aide) - OpenAPI generation
+The active composition owns the complete `plugins/` directory. At startup the
+runtime removes entries not claimed by an active plugin ID; use a separate
+Bitview data directory when preserving data from another composition.

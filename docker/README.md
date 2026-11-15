@@ -1,110 +1,92 @@
-# Docker Setup for BRK
+# Run Bitview with Docker
 
-## Prerequisites
+The Compose setup builds and runs the official `bitviewd` composition against
+an existing Bitcoin Core node.
 
-- Docker Engine (with buildx support)
-- Docker Compose v2
-- A running Bitcoin Core node with RPC enabled
+## Requirements
 
-## Quick Start
+- Docker Engine with Buildx and Docker Compose v2
+- Bitcoin Core with RPC enabled
+- A readable Bitcoin Core data directory containing `blocks/`
+- About 290 GiB for the current Bitview data, plus Bitcoin Core storage and
+  growth headroom
+- 16 GB of RAM recommended for a full sync
 
-1. **Create environment file**
-   ```bash
-   cp docker/.env.example docker/.env
-   ```
-   Edit `docker/.env` and set `BITCOIN_DATA_DIR` to your Bitcoin Core data directory.
-
-2. **Run with Docker Compose**
-   ```bash
-   docker compose -f docker/docker-compose.yml up -d
-   ```
-
-3. **Access BRK**
-   - Web interface: http://localhost:7070
-   - API: http://localhost:7070/api
-   - Health check: http://localhost:7070/health
-
-## Public demo (Cloudflare Tunnel)
-
-To serve **litview.space** from this machine while you demo:
+## Start
 
 ```bash
-cd docker/cloudflared
-./setup.sh          # creates config.yml — fill in tunnel UUID + credentials
-./route-dns.sh      # once, after Cloudflare login + tunnel create
-./start.sh          # when demoing (LRK must be up on :7070)
+cp docker/.env.example docker/.env
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-Full walkthrough: [cloudflared/README.md](./cloudflared/README.md)
+Set `BITCOIN_DATA_DIR` and a `BTC_RPC_HOST` reachable from the container in
+`docker/.env` before starting. The Compose file maps host port 7070, on this
+machine only, to Bitview's port 3110 inside the container:
 
-For always-on hosting on this Mac (native BRK + LaunchAgents, not Docker Desktop), see [services/RELIABILITY.md](./services/RELIABILITY.md) and [services/README.md](./services/README.md).
+- Showcases: <http://localhost:7070>
+- Interactive API: <http://localhost:7070/api>
+- Health: <http://localhost:7070/health>
+
+Inside the container Bitview listens on all interfaces: the image passes
+`--serverbind 0.0.0.0`, which overrides any `serverbind` in its `config.toml`.
+Who can reach it is set by the port mapping; to open it to other machines, map
+`7070:3110` instead.
 
 ## Configuration
 
-All configuration is passed via CLI args in `docker-compose.yml`. Edit the `command:` section to change settings.
+The Compose file passes settings to `bitviewd` as command-line arguments.
+These environment variables are interpolated when Compose starts:
 
-### Environment Variables
+| Variable | Purpose | Default |
+|---|---|---|
+| `BITCOIN_DATA_DIR` | Host path to the Bitcoin Core data directory | `/path/to/bitcoin` |
+| `BTC_RPC_HOST` | Bitcoin Core RPC host as reached from the container | `localhost` |
+| `BTC_RPC_USER` | RPC username | empty |
+| `BTC_RPC_PASSWORD` | RPC password; when empty, the cookie in `BITCOIN_DATA_DIR` is used | empty |
+| `BITVIEW_DATA_VOLUME` | Docker volume used for Bitview data | `bitview-data` |
 
-These variables are interpolated into `docker-compose.yml` at startup:
+Edit the `command:` section in [`docker-compose.yml`](./docker-compose.yml) for
+other `bitviewd` options.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BITCOIN_DATA_DIR` | Path to Bitcoin Core data directory | - |
-| `BTC_RPC_HOST` | Bitcoin Core RPC host | `localhost` |
-| `BTC_RPC_USER` | Bitcoin RPC username | `bitcoin` |
-| `BTC_RPC_PASSWORD` | Bitcoin RPC password | `bitcoin` |
-| `BRK_DATA_VOLUME` | Docker volume name for BRK data | `brk-data` |
+### Reach Bitcoin Core
 
-### Connecting to Bitcoin Core
+- Bitcoin Core on the Docker host: use `host.docker.internal` on macOS and
+  Windows. On Linux, use an address reachable from the container.
+- Bitcoin Core in another container: use its service name on a shared Docker
+  network.
+- Remote Bitcoin Core: use its reachable hostname or IP address.
 
-**Cookie File Authentication (Recommended)**
-Uncomment the `--rpccookiefile` lines in `docker-compose.yml` and remove `--rpcuser`/`--rpcpassword`.
+For username/password authentication, set `BTC_RPC_USER` and
+`BTC_RPC_PASSWORD` in `docker/.env`. Leave `BTC_RPC_PASSWORD` unset to use
+cookie authentication: Bitcoin Core's `.cookie` in `BITCOIN_DATA_DIR` must be
+readable by the container user (UID 1000). bitcoind rewrites the cookie with
+owner-only permissions on every start, so either run bitcoind as UID 1000, or
+start it with `-rpccookieperms=group` (Bitcoin Core 28+) and add its group to
+the container with `group_add` in `docker-compose.yml`.
 
-**Username/Password**
-Set `BTC_RPC_USER` and `BTC_RPC_PASSWORD` in your `docker/.env` file.
+## Data storage
 
-**Network Connectivity**
-- **Same host (Bitcoin Core running natively)**: Use `host.docker.internal` on macOS/Windows or `172.17.0.1` on Linux
-- **Same host (Bitcoin Core in Docker)**: Use the service name or container IP
-- **Remote host**: Use the actual IP address or hostname
+The default named volume is `bitview-data`. To select another named volume, set
+`BITVIEW_DATA_VOLUME`.
 
-## Building
+For a bind mount:
+
+1. Set `BITVIEW_DATA_DIR` in `docker/.env`.
+2. Uncomment the bind-mount line and comment the named-volume line in
+   [`docker-compose.yml`](./docker-compose.yml).
+3. Remove the top-level `volumes:` declaration if it is no longer used.
+
+Bitview uses sparse files. Docker volume inspection may report logical sizes
+above 1 TiB; use `du -sh` on the volume mount point to see allocated space.
+
+## Operate
 
 ```bash
 docker compose -f docker/docker-compose.yml build
-```
-
-## Data Storage
-
-BRK uses [sparse files](https://en.wikipedia.org/wiki/Sparse_file). Volume inspection and `docker system df` may report the logical file size (>1 TB) instead of actual disk usage (~350 GB). Use `du -sh` on the volume mount point to see real usage.
-
-### Named Volume (Default)
-Uses a Docker-managed volume called `brk-data`.
-
-### Bind Mount
-1. Set `BRK_DATA_DIR` in `docker/.env`
-2. In `docker-compose.yml`, comment out the named volume line and uncomment the bind mount line
-3. Remove the `volumes:` section at the bottom of `docker-compose.yml`
-
-## Monitoring
-
-```bash
 docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs -f
 ```
 
-## Troubleshooting
-
-### Cannot connect to Bitcoin Core
-1. Ensure Bitcoin Core is running with `-server=1`
-2. Check RPC credentials are correct
-3. Verify network connectivity from container
-
-### Permission denied errors
-Ensure the Bitcoin data directory is readable by the container user (UID 1000).
-
-## Security
-
-- Bitcoin data is mounted read-only
-- BRK runs as non-root user inside container
-- Only necessary ports are exposed
+The Bitcoin directory is mounted read-only and `bitviewd` runs as the non-root
+`bitview` user (UID 1000). If startup reports a permission error, make the
+Bitcoin data directory readable by that user.

@@ -1,19 +1,15 @@
 [package]
 name = "brk_oracle"
-description = "Pure on-chain BTC/USD price oracle algorithm"
+description = "BTC/USD price tracking from round-dollar transaction-output patterns"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude = ["examples/"]
+
+[features]
+litecoin = ["brk_types/litecoin"]
+schemars = ["brk_types/schemars"]
 
 [dependencies]
 brk_types = { workspace = true }
-
-[dev-dependencies]
-brk_indexer = { workspace = true }
-brk_reader = { workspace = true }
-brk_rpc = { workspace = true }
-serde_json = { workspace = true }
-vecdb = { workspace = true }

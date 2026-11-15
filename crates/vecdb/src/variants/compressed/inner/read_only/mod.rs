@@ -1,106 +1,17 @@
-use std::{marker::PhantomData, sync::Arc};
+use super::ReadOnlyCompressedVec;
+use crate::{ReadOnlyClone, VecValue, cache::CachePolicy};
 
-use parking_lot::RwLock;
+pub mod any_vec;
+pub mod readable;
+pub mod typed;
 
-mod any_vec;
-mod readable;
-mod typed;
-
-use crate::{
-    CompressedIoSource, CompressedMmapSource, MMAP_CROSSOVER_BYTES, ReadOnlyBaseVec, VecIndex,
-    VecValue,
-};
-
-use super::{CompressionStrategy, Pages};
-
-/// Lean read-only view of a compressed vector (~48 bytes).
-///
-/// Carries only the fields needed for disk reads: region, shared length,
-/// name/header metadata, and the pages index. No pushed buffer, no rollback state.
-///
-/// Created via `ReadWriteCompressedVec::read_only_clone`.
-#[derive(Debug, Clone)]
-pub struct ReadOnlyCompressedVec<I, T, S> {
-    pub(super) base: ReadOnlyBaseVec<I, T>,
-    pub(super) pages: Arc<RwLock<Pages>>,
-    _strategy: PhantomData<S>,
-}
-
-impl<I, T, S> ReadOnlyCompressedVec<I, T, S> {
-    pub(crate) fn new(base: ReadOnlyBaseVec<I, T>, pages: Arc<RwLock<Pages>>) -> Self {
-        Self {
-            base,
-            pages,
-            _strategy: PhantomData,
-        }
-    }
-}
-
-impl<I, T, S> ReadOnlyCompressedVec<I, T, S>
-where
-    I: VecIndex,
-    T: VecValue,
-    S: CompressionStrategy<T>,
+/// Already read-only: a clone shares the stored vector's publication state.
+impl<I: Clone, T: VecValue, S: Clone, C: CachePolicy + Clone> ReadOnlyClone
+    for ReadOnlyCompressedVec<I, T, S, C>
 {
-    #[inline(always)]
-    pub(super) fn fold_source<B, F: FnMut(B, T) -> B>(
-        &self,
-        from: usize,
-        to: usize,
-        len: usize,
-        init: B,
-        f: F,
-    ) -> B {
-        let range_bytes = (to - from) * size_of::<T>();
-        if range_bytes > MMAP_CROSSOVER_BYTES {
-            CompressedIoSource::<I, T, S>::new_from_parts(
-                self.base.region(),
-                &self.pages,
-                len,
-                from,
-                to,
-            )
-            .fold(init, f)
-        } else {
-            CompressedMmapSource::<I, T, S>::new_from_parts(
-                self.base.region(),
-                &self.pages,
-                len,
-                from,
-                to,
-            )
-            .fold(init, f)
-        }
-    }
+    type ReadOnly = Self;
 
-    #[inline(always)]
-    pub(super) fn try_fold_source<B, E, F: FnMut(B, T) -> std::result::Result<B, E>>(
-        &self,
-        from: usize,
-        to: usize,
-        len: usize,
-        init: B,
-        f: F,
-    ) -> std::result::Result<B, E> {
-        let range_bytes = (to - from) * size_of::<T>();
-        if range_bytes > MMAP_CROSSOVER_BYTES {
-            CompressedIoSource::<I, T, S>::new_from_parts(
-                self.base.region(),
-                &self.pages,
-                len,
-                from,
-                to,
-            )
-            .try_fold(init, f)
-        } else {
-            CompressedMmapSource::<I, T, S>::new_from_parts(
-                self.base.region(),
-                &self.pages,
-                len,
-                from,
-                to,
-            )
-            .try_fold(init, f)
-        }
+    fn read_only_clone(&self) -> Self {
+        self.clone()
     }
 }

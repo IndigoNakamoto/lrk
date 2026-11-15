@@ -1,14 +1,12 @@
-use std::{
-    iter::Sum,
-    ops::{Add, AddAssign, Div, Mul, Sub, SubAssign},
-};
-
-use derive_more::Deref;
+use derive_more::{Add, AddAssign, Deref, From, Into, Sub, SubAssign, Sum};
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco};
 
-use crate::Weight;
+use crate::{CheckedSub, Weight, Weight32};
+
+#[cfg(feature = "storage")]
+use vecdb::Pco;
 
 /// Virtual size in vbytes (weight / 4, rounded up). Max block vsize is ~1,000,000 vB.
 #[derive(
@@ -23,16 +21,23 @@ use crate::Weight;
     Ord,
     Serialize,
     Deserialize,
-    Pco,
-    JsonSchema,
+    Add,
+    AddAssign,
+    Sub,
+    SubAssign,
+    Sum,
+    From,
+    Into,
 )]
-#[schemars(
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
+#[cfg_attr(feature = "schemars", schemars(
     example = &110,
     example = &140,
     example = &225,
     example = &500_000,
     example = &998_368
-)]
+))]
 pub struct VSize(u64);
 
 impl VSize {
@@ -50,13 +55,6 @@ impl VSize {
     }
 }
 
-impl From<u64> for VSize {
-    #[inline]
-    fn from(value: u64) -> Self {
-        Self(value)
-    }
-}
-
 impl From<u32> for VSize {
     #[inline]
     fn from(value: u32) -> Self {
@@ -64,17 +62,17 @@ impl From<u32> for VSize {
     }
 }
 
-impl From<VSize> for u64 {
+impl From<Weight32> for VSize {
     #[inline]
-    fn from(value: VSize) -> Self {
-        value.0
+    fn from(weight: Weight32) -> Self {
+        Self::from(Weight::from(weight))
     }
 }
 
 impl From<Weight> for VSize {
     #[inline]
     fn from(weight: Weight) -> Self {
-        Self(weight.to_vbytes_ceil())
+        Self(u64::from(weight).div_ceil(4))
     }
 }
 
@@ -101,52 +99,6 @@ impl From<VSize> for f64 {
     }
 }
 
-impl Add for VSize {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for VSize {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
-    }
-}
-
-impl Sub for VSize {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl SubAssign for VSize {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
-    }
-}
-
-impl Div<usize> for VSize {
-    type Output = Self;
-    fn div(self, rhs: usize) -> Self::Output {
-        Self(self.0 / rhs as u64)
-    }
-}
-
-impl Mul<u32> for VSize {
-    type Output = Self;
-    fn mul(self, rhs: u32) -> Self::Output {
-        Self(self.0 * u64::from(rhs))
-    }
-}
-
-impl Sum for VSize {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        Self(iter.map(|v| v.0).sum())
-    }
-}
-
 impl CheckedSub for VSize {
     #[inline]
     fn checked_sub(self, rhs: Self) -> Option<Self> {
@@ -154,18 +106,4 @@ impl CheckedSub for VSize {
     }
 }
 
-impl std::fmt::Display for VSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = itoa::Buffer::new();
-        let str = buf.format(self.0);
-        f.write_str(str)
-    }
-}
-
-impl Formattable for VSize {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
-    }
-}
+crate::impl_int_format!(VSize);

@@ -1,25 +1,30 @@
 # vecdb
 
-High-performance mutable persistent vectors built on [`rawdb`](../rawdb/README.md).
+Typed persistent vectors built on [`rawdb`](../rawdb/README.md) for large,
+fixed-width datasets.
 
-## Features
+VecDB is designed for append-heavy sequences addressed by integer-like index
+types. Writes are buffered, readers can scan or access ranges, and stored
+vectors can retain stamped changes for explicit rollback. It is not a
+key-value database or an ACID transaction layer.
 
-- **Vec-like API**: `push`, `update`, `truncate`, delete by index with sparse holes
-- **Multiple storage formats**:
-  - **Raw**: `BytesVec`, `ZeroCopyVec` (uncompressed)
-  - **Compressed**: `PcoVec`, `LZ4Vec`, `ZstdVec`
-- **Computed vectors**: `EagerVec` (stored computations), `LazyVecFrom1/2/3` (on-the-fly computation)
-- **Rollback support**: Time-travel via stamped change deltas without full snapshots
-- **Sparse deletions**: Delete elements leaving holes, no reindexing required
-- **Thread-safe**: Concurrent reads with exclusive writes
-- **Blazing fast**: See [benchmarks](../vecdb_bench/README.md)
-- **Lazy persistence**: Changes buffered in memory, persisted only on explicit `flush()`
+## Choose a vector
 
-## Not Suited For
+| Type | Use |
+|---|---|
+| `BytesVec<I, T>` | Portable, fixed-width values implementing `Bytes` |
+| `ZeroCopyVec<I, T>` | Native-layout mmap reads for zerocopy-compatible values |
+| `PcoVec<I, T>` | Numeric data compressed with pco |
+| `LZ4Vec<I, T>` | Fast general-purpose compression |
+| `ZstdVec<I, T>` | Denser general-purpose compression |
+| `MutableVec<V>` | Updates and sparse deletions over a raw stored vector |
+| `OverflowVec<I, T>` | Compact common values with a stored overflow path |
+| `LazyVec<I, T, S>` | A read-only derivation from one source vector |
 
-- **Key-value storage** - Use [`fjall`](https://crates.io/crates/fjall) or [`redb`](https://crates.io/crates/redb)
-- **Variable-sized types** - Types like `String`, `Vec<T>`, or dynamic structures
-- **ACID transactions** - No transactional guarantees (use explicit rollback instead)
+`LazyVec` maps one source; `LazyDeltaVec` combines a source with a vector of
+window starts. Computations over several inputs are stored: any stored vector
+computes them incrementally through `ComputeVec` (`compute_to`,
+`compute_transform`, ...).
 
 ## Install
 
@@ -27,295 +32,119 @@ High-performance mutable persistent vectors built on [`rawdb`](../rawdb/README.m
 cargo add vecdb
 ```
 
-## Quick Start
+No optional feature is enabled by default. Enable the representation or
+integration you use, for example:
 
-```rust,no_run
-use vecdb::{
-    AnyStoredVec, AnyVec, BytesVec, Database, WritableVec,
-    ImportableVec, ReadableVec, Result, Version
-};
-use std::path::Path;
-
-fn main() -> Result<()> {
-    // Open database
-    let db = Database::open(Path::new("data"))?;
-
-    // Create vector with index type usize and value type u64
-    let mut vec: BytesVec<usize, u64> =
-        BytesVec::import(&db, "my_vec", Version::TWO)?;
-
-    // Push values (buffered in memory)
-    for i in 0..1_000_000 {
-        vec.push(i);
-    }
-
-    // Flush writes to rawdb region and syncs to disk
-    vec.flush()?;  // Calls write() internally then flushes region
-    db.flush()?;   // Syncs database metadata
-
-    // Sequential scan via fold
-    let sum = vec.fold_range(0, vec.len(), 0u64, |acc, v| acc.wrapping_add(v));
-
-    // Random access via reader
-    let reader = vec.reader();
-    for i in [500, 1000, 10] {
-        println!("vec[{}] = {}", i, reader.get(i));
-    }
-
-    Ok(())
-}
-```
-
-## Type Constraints
-
-vecdb works with **fixed-size types**:
-- Numeric primitives: `u8`, `i32`, `f64`, etc.
-- Fixed arrays: `[T; N]`
-- Structs with `#[repr(C)]`
-- Types implementing `zerocopy::FromBytes + zerocopy::AsBytes` (for `ZeroCopyVec`)
-- Types implementing `Bytes` trait (for `BytesVec`, `LZ4Vec`, `ZstdVec`)
-- Numeric types implementing `Pco` trait (for `PcoVec`)
-
-Use `#[derive(Bytes)]` or `#[derive(Pco)]` from `vecdb_derive` to enable custom wrapper types.
-
-## Vector Variants
-
-### Raw (Uncompressed)
-
-**`BytesVec<I, T>`** - Custom serialization via `Bytes` trait
-```rust,ignore
-use vecdb::{BytesVec, Bytes};
-
-#[derive(Bytes)]
-struct UserId(u64);
-
-let mut vec: BytesVec<usize, UserId> =
-    BytesVec::import(&db, "users", Version::TWO)?;
-```
-
-**`ZeroCopyVec<I, T>`** - Zero-copy mmap access (fastest random reads)
-```rust,ignore
-use vecdb::ZeroCopyVec;
-
-let mut vec: ZeroCopyVec<usize, u32> =
-    ZeroCopyVec::import(&db, "raw", Version::TWO)?;
-```
-
-### Compressed
-
-**`PcoVec<I, T>`** - Pcodec compression (best for numeric data, excellent compression ratios)
-```rust,ignore
-use vecdb::PcoVec;
-
-let mut vec: PcoVec<usize, f64> =
-    PcoVec::import(&db, "prices", Version::TWO)?;
-```
-
-**`LZ4Vec<I, T>`** - LZ4 compression (fast, general-purpose)
-```rust,ignore
-use vecdb::LZ4Vec;
-
-let mut vec: LZ4Vec<usize, [u8; 16]> =
-    LZ4Vec::import(&db, "hashes", Version::TWO)?;
-```
-
-**`ZstdVec<I, T>`** - Zstd compression (high compression ratio, general-purpose)
-```rust,ignore
-use vecdb::ZstdVec;
-
-let mut vec: ZstdVec<usize, u64> =
-    ZstdVec::import(&db, "data", Version::TWO)?;
-```
-
-### Computed Vectors
-
-**`EagerVec<V>`** - Wraps any stored vector to enable eager computation methods
-
-Stores computed results on disk, incrementally updating when source data changes. Use for derived metrics, aggregations, transformations, moving averages, etc.
-
-```rust,ignore
-use vecdb::EagerVec;
-
-let mut derived: EagerVec<BytesVec<usize, f64>> =
-    EagerVec::import(&db, "derived", Version::TWO)?;
-
-// Compute methods store results on disk
-// derived.compute_add(&source1, &source2)?;
-// derived.compute_sma(&source, 20)?;
-```
-
-**`LazyVecFrom1/2/3<...>`** - Lazily computed vectors from 1-3 source vectors
-
-Values computed on-the-fly during iteration, nothing stored on disk. Use for temporary views or simple transformations.
-
-```rust,ignore
-use vecdb::LazyVecFrom1;
-
-let lazy = LazyVecFrom1::init(
-    "computed",
-    Version::TWO,
-    Box::new(source.clone()),  // ScannableBoxedVec
-    |_i, v| v * 2,
-);
-
-// Computed on-the-fly via ReadableVec trait, not stored
-lazy.for_each(|value| {
-    // ...
-});
-```
-
-## Core Operations
-
-### Write and Persistence
-
-```rust,ignore
-// Push values (buffered in memory)
-vec.push(42);
-vec.push(100);
-
-// write() moves pushed values to storage (visible for reads)
-vec.write()?;
-
-// flush() calls write() + region().flush() for durability
-vec.flush()?;
-db.flush()?;   // Also flush database metadata
-```
-
-### Updates and Deletions
-
-```rust,ignore
-// Update element at index (works on stored data)
-vec.update(5, 999)?;
-
-// Delete element (creates a hole at that index)
-let reader = vec.reader();
-let _ = vec.take(10, &reader);
-drop(reader);
-
-// Holes are tracked and can be checked
-if vec.holes().contains(&10) {
-    println!("Index 10 is a hole");
-}
-
-// Reading a hole returns None
-let reader = vec.reader();
-assert_eq!(vec.get_with_reader(10, &reader), None);
-```
-
-### Rollback with Stamps
-
-Rollback uses stamped change deltas - lightweight compared to full snapshots.
-
-```rust,ignore
-use vecdb::Stamp;
-
-// Create initial state
-vec.push(100);
-vec.push(200);
-vec.stamped_write_with_changes(Stamp::new(1))?;
-
-// Make more changes
-vec.push(300);
-vec.update(0, 999)?;
-vec.stamped_write_with_changes(Stamp::new(2))?;
-
-// Rollback to previous stamp (undoes changes from stamp 2)
-vec.rollback()?;
-assert_eq!(vec.stamp(), Stamp::new(1));
-
-// Rollback before a stamp (undoes everything including stamp 1)
-vec.rollback_before(Stamp::new(1))?;
-assert_eq!(vec.stamp(), Stamp::new(0));
-```
-
-Configure number of stamps to keep:
-```rust,ignore
-let options = (&db, "vec", Version::TWO)
-    .into()
-    .with_saved_stamped_changes(10);  // Keep last 10 stamps
-let vec = BytesVec::import_with(options)?;
-```
-
-## When To Use
-
-**Perfect for:**
-- Storing large `Vec`s persistently on disk
-- Append-only or append-mostly workloads
-- High-speed sequential reads
-- High-speed random reads (improved with `ZeroCopyVec`)
-- Space-efficient storage for numeric time series (improved with `PcoVec`)
-- Sparse deletions without reindexing
-- Lightweight rollback without full snapshots
-- Derived computations stored on disk (with `EagerVec`)
-
-**Not ideal for:**
-- Heavy random write workloads
-- Frequent insertions in the middle
-- Variable-length data (strings, nested vectors)
-- ACID transaction requirements
-- Key-value lookups (use a proper key-value store)
-
-## Feature Flags
-
-No features are enabled by default. Enable only what you need:
-
-```bash
-cargo add vecdb  # BytesVec only, no compression or optional features
-```
-
-Available features:
-- `pco` - Pcodec compression support (`PcoVec`)
-- `zerocopy` - Zero-copy mmap access (`ZeroCopyVec`)
-- `lz4` - LZ4 compression support (`LZ4Vec`)
-- `zstd` - Zstd compression support (`ZstdVec`)
-- `derive` - Derive macros for `Bytes` and `Pco` traits
-- `serde` - Serde serialization support
-- `serde_json` - JSON output using serde_json
-- `sonic-rs` - Faster JSON using sonic-rs
-
-With Pcodec compression:
 ```bash
 cargo add vecdb --features pco,derive
 ```
 
-With all compression formats:
-```bash
-cargo add vecdb --features pco,zerocopy,lz4,zstd,derive
+## Basic use
+
+```rust,ignore
+let db = Database::open(Path::new("data"))?;
+let mut values: BytesVec<usize, u64> = BytesVec::import(&db, "values", Version::ONE)?;
+values.push(42);
+values.write()?;
+assert_eq!(values.collect_one(0), Some(42));
 ```
 
-## Examples
+A vector is stored under its database, name and index type. `import` opens it,
+creating it if needed, and deletes it (with any sidecar regions and rollback history) when the
+stored version, format or value size differs, so the caller rebuilds it: bump the version whenever
+stored values change meaning. Compressed vectors also reset a corrupt layout;
+other corruption is an error.
 
-Comprehensive examples in [`examples/`](examples/):
-- [`zerocopy.rs`](examples/zerocopy.rs) - ZeroCopyVec with holes, updates, and rollback
-- [`pcodec.rs`](examples/pcodec.rs) - PcoVec with compression
+## Reads, writes, and rollback
 
-Run examples:
-```bash
-cargo run --example zerocopy --features zerocopy
-cargo run --example pcodec --features pco
-```
+- `push` appends to the in-memory write buffer.
+- `write` publishes buffered changes to the backing regions.
+- `flush` publishes the vector's changes and flushes its database.
+- `Database::flush` makes space freed by moves and removals reusable (no device syncs: written data lives in the
+  OS page cache, which survives soft quits).
+- `reader` (raw, mutable and overflow vectors) creates a handle for repeated random access;
+  `range_cursor_at` (raw and compressed vectors) scans a persisted range.
+- `collect`, `collect_range`, folds, and iterators provide sequential access.
+- `truncate_if_needed` removes a suffix without changing earlier indexes.
 
-## Benchmarks
+Readers and cursors keep their backing regions stable. Drop them before
+rewriting, truncating or moving those same regions; an append within a region's
+reserved capacity goes past every reader and does not wait for them, while one
+that must grow the capacity does. Writes to other regions proceed while readers
+are alive. Buffered file readers use the same region lock as mmap readers.
 
-> 10B sequential `u64` values (80 GB), Apple Silicon, `--release`. Compression ratios reflect sequential data — real-world ratios will vary.
+Wrap `BytesVec` or `ZeroCopyVec` in `MutableVec` when existing positions must be
+replaced or deleted. Deletions leave holes, so later indexes do not move.
 
-| Type | Disk | Write | Read |
-|------|------|-------|------|
-| `BytesVec` | 80.0 GB | 1.8 GB/s | 6.7 GB/s |
-| `ZeroCopyVec` | 80.0 GB | 1.7 GB/s | 6.7 GB/s |
-| `PcoVec` | 181 MB | 0.4 GB/s | 7.7 GB/s |
-| `LZ4Vec` | 40.1 GB | 0.4 GB/s | 3.0 GB/s |
-| `ZstdVec` | 10.4 GB | 0.5 GB/s | 1.0 GB/s |
+Import options can set `saved_stamped_changes`;
+`stamped_write_with_changes` then preserves a bounded rollback history before
+overwriting values. Periodic writes inside compute loops use
+`stamped_write_maybe_with_changes(stamp, false)` to advance the baseline without
+undo history. The final update write saves changes; `rollback` and
+`rollback_before` run when preparing an update, before its compute loop.
 
-```bash
-cargo run --release --example bench -p vecdb --features pco,lz4,zstd,zerocopy
-BENCH_COUNT=100_000_000 cargo run ...  # smaller dataset
-```
+A failed or unwound write fences the writer, including failures in a mutable or
+overflow sidecar. Further writes return `WriteFailed`; infallible mutation
+methods panic. `push` checks the fence only in debug builds on raw and
+compressed vectors (also through `MutableVec`), and in every build on
+`OverflowVec`. Resetting pending state cannot clear the fence. Discard the
+affected handles and validate or rebuild the data before continuing. In-place
+writes are not crash-atomic, and reopening does not itself repair a partial
+write.
 
-### PcoVec SIMD (x86_64)
+## Range retention
 
-For best `PcoVec` decompression on x86_64, enable BMI and AVX2:
+The raw and compressed vectors (`BytesVec`, `ZeroCopyVec`, `PcoVec`, `LZ4Vec`,
+`ZstdVec`) take a cache policy as their third type parameter:
 
-```bash
-RUSTFLAGS="-C target-feature=+bmi1,+bmi2,+avx2" cargo build --release
-```
+- `NoCache` (the default) has no cache allocation or cache-side locking.
+- `Budgeted` shares one immutable, process-wide byte limit across sources.
+
+Read-only and type-erased clones share the source's ranges.
+
+Cache retention is always evictable. Algorithms that need a working set own
+ordinary read results and pass references through their computation context.
+Those buffers remain valid after cache eviction without pinning cache entries.
+Reads retain only requested ranges, not physical decoder overread. Isolated
+values stay inline in a sorted span directory; uniquely owned tails can extend
+in place without copying existing history.
+When the shared budget is full, reclamation rotates through source owners and
+evicts all of each selected source's ranges. Recently used sources get one second
+chance, busy sources are skipped, and a read stays uncached if two bounded passes
+cannot free enough space.
+Source writes invalidate changed suffixes and preserve unchanged prefixes.
+Successful persisted writes can extend an already-retained tail, but do not warm
+cold caches. Missing or repeated initialization is an error; a zero-byte
+budget disables retention. `NoCache` needs no initialization or global lookup.
+
+Global and per-source charges account for allocation capacity and follow buffer
+lifetimes, including buffers still borrowed by a fold after eviction.
+Caller-owned results and decoder scratch are outside this
+retention budget. Lazy readers use their stored sources' caches without retaining
+another copy of derived values or requiring separate cache invalidation.
+Cache protection covers an individual source operation, not a transaction across
+multiple vectors: related reads still require the application's own consistency (Bitview bounds them by one
+published state).
+
+## Value and index types
+
+Values are fixed width. Numeric primitives and the supported fixed byte arrays
+work directly with the relevant representation. Custom portable values
+implement `Bytes`; custom pco values implement `Pco`; zero-copy values satisfy
+the zerocopy traits used by `ZeroCopyVec`. The optional `derive` feature exports
+`#[derive(Bytes)]` and `#[derive(Pco)]`.
+
+Indexes implement `VecIndex`. Using domain-specific newtypes instead of
+`usize` keeps unrelated vector axes distinct at compile time.
+
+## Features
+
+| Feature | Enables |
+|---|---|
+| `derive` | `Bytes` and `Pco` derive macros |
+| `pco` | `PcoVec` |
+| `zerocopy` | `ZeroCopyVec` |
+| `lz4` | `LZ4Vec` |
+| `zstd` | `ZstdVec` |
+| `serde` | Serialization support for public metadata types |
+| `schemars` | JSON Schema support for public metadata types |

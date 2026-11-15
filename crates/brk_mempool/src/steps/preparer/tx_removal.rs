@@ -1,9 +1,9 @@
 //! Why a tx left the mempool between two pull cycles. The diff that
-//! produces one [`TxRemoval`] per loser lives on [`super::Preparer`].
+//! produces one [`TxRemoval`] per loser lives in [`super::prepare`].
 
 use brk_types::Txid;
 
-/// `Replaced` = at least one freshly added tx this cycle spends one of
+/// `Replaced` = a tx added this cycle, or one still live, spends one of
 /// its inputs (BIP-125 replacement inferred from conflicting outpoints).
 /// `by` is the immediate successor. The chain extends if `by` is itself
 /// later replaced. Walk it forward via `TxGraveyard::replacement_root_of`.

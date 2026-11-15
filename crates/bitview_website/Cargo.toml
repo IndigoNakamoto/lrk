@@ -1,0 +1,30 @@
+[package]
+name = "bitview_website"
+description = "Serves Bitview's showcases, embedded or from a directory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+include = ["src/**/*", "showcases/**/*", "litecoin/**/*", "build.rs", "Cargo.toml", "README.md"]
+
+[features]
+default = []
+litecoin = []
+
+[dependencies]
+axum = { workspace = true }
+bitview_http = { workspace = true }
+include_dir = { workspace = true }
+rapidhash = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+
+[build-dependencies]
+brk_relabel = { workspace = true }
+
+[dev-dependencies]
+brk_logger = { workspace = true }
+tower-http = { workspace = true }
+tower-layer = { workspace = true }

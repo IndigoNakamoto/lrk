@@ -2,30 +2,49 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-mod filter;
-mod index;
-mod meta;
+use std::{
+    fs::{self, File},
+    io::BufWriter,
+    path::{self, PathBuf},
+};
+
+use index::BlockIndexWriter;
+use log::{debug, trace};
+use sfa::Writer as SfaWriter;
 
 use super::{
-    Block, BlockOffset, DataBlock, KeyedBlockHandle, block::Header as BlockHeader,
+    Block, DataBlock, KeyedBlockHandle,
+    block::{BlockType, Header as BlockHeader, Lz4Scratch},
     filter::BloomConstructionPolicy,
 };
 use crate::{
-    Checksum, CompressionType, InternalValue, TableId, UserKey, ValueType,
-    checksum::{ChecksumType, ChecksummedWriter},
+    CompressionType, Config, InternalValue, RecordBytes, Result, Slice, ValueType,
     coding::Encode,
-    file::fsync_directory,
     table::{
         BlockHandle,
+        block::BlockType as BlockBlockType,
         writer::{
             filter::{FilterWriter, FullFilterWriter},
             index::FullIndexWriter,
         },
     },
-    time::unix_timestamp,
 };
-use index::BlockIndexWriter;
-use std::{fs::File, io::BufWriter, path::PathBuf};
+
+mod filter;
+mod index;
+mod meta;
+
+const FILE_BUFFER_CAPACITY: usize = 256 * 1_024;
+
+/// Uncompressed data block size at which a block is cut.
+const DATA_BLOCK_SIZE: usize = 4_096;
+
+/// Target size of index and filter partitions.
+const META_PARTITION_SIZE: u32 = 4_096;
+
+/// Data blocks are LZ4-compressed; index, filter and meta blocks are stored uncompressed.
+const DATA_BLOCK_COMPRESSION: CompressionType = CompressionType::Lz4;
+const INDEX_BLOCK_COMPRESSION: CompressionType = CompressionType::None;
 
 #[derive(Default)]
 struct FixedLen {
@@ -51,289 +70,138 @@ impl FixedLen {
     }
 }
 
-/// Serializes and compresses values into blocks and writes them to disk as a table
-pub struct Writer {
-    /// Table file path
-    pub(crate) path: PathBuf,
+/// How a writer encodes its tables, resolved once per ingestion or compaction.
+#[derive(Clone, Copy)]
+pub struct WriterOptions {
+    restart_interval: u8,
+    partition_index: bool,
+    partition_filter: bool,
+    /// `None` builds no filter.
+    bloom: Option<BloomConstructionPolicy>,
+}
 
-    table_id: TableId,
+impl WriterOptions {
+    /// The block policies of `level`, with `bloom` filters.
+    pub fn new(config: &Config, level: usize, bloom: Option<BloomConstructionPolicy>) -> Self {
+        Self {
+            restart_interval: config.data_block_restart_interval_policy.at_level(level),
+            partition_index: config.index_block_partitioning_policy.at_level(level),
+            partition_filter: config.filter_block_partitioning_policy.at_level(level),
+            bloom,
+        }
+    }
+}
+
+/// Serializes and compresses values into blocks and writes them to disk as a table
+pub struct Writer<K = Slice, V = Slice> {
+    /// Table file path
+    pub path: PathBuf,
+
+    table_id: u32,
 
     data_block_restart_interval: u8,
-    index_block_restart_interval: u8,
-
-    meta_partition_size: u32,
-
-    data_block_size: u32,
-
-    data_block_hash_ratio: f32,
-
-    /// Compression to use for data blocks
-    data_block_compression: CompressionType,
-
-    /// Compression to use for data blocks
-    index_block_compression: CompressionType,
 
     /// Buffer to serialize blocks into
     block_buffer: Vec<u8>,
 
+    /// Restart offsets of the block being serialized
+    restart_buffer: Vec<u32>,
+
+    /// Reused LZ4 compression state
+    lz4_scratch: Lz4Scratch,
+
     /// File writer
     #[expect(clippy::struct_field_names)]
-    file_writer: sfa::Writer<ChecksummedWriter<BufWriter<File>>>,
+    file_writer: SfaWriter<BufWriter<File>>,
 
     /// Writer of index blocks
     #[expect(clippy::struct_field_names)]
-    index_writer: Box<dyn BlockIndexWriter<BufWriter<File>>>,
+    index_writer: Box<dyn BlockIndexWriter>,
 
-    /// Writer of filter
+    /// Writer of filter, if any
     #[expect(clippy::struct_field_names)]
-    filter_writer: Box<dyn FilterWriter<BufWriter<File>>>,
+    filter_writer: Option<Box<dyn FilterWriter<K, V>>>,
 
     /// Buffer of KVs
-    chunk: Vec<InternalValue>,
+    chunk: Vec<InternalValue<K, V>>,
     chunk_size: usize,
     chunk_key_len: FixedLen,
     chunk_value_len: FixedLen,
 
-    pub(crate) meta: meta::Metadata,
-
-    /// Stores the previous block position (used for creating back links)
-    prev_pos: (BlockOffset, BlockOffset),
-
-    current_key: Option<UserKey>,
-
-    bloom_policy: BloomConstructionPolicy,
-
-    /// Tracks the previously written item to detect weak tombstone/value pairs
-    previous_item: Option<(UserKey, ValueType)>,
-
-    initial_level: u8,
+    pub meta: meta::Metadata,
 }
 
-impl Writer {
-    pub fn new(path: PathBuf, table_id: TableId, initial_level: u8) -> crate::Result<Self> {
-        let writer = BufWriter::with_capacity(u16::MAX.into(), File::create_new(&path)?);
-        let writer = ChecksummedWriter::new(writer);
-        let mut writer = sfa::Writer::from_writer(writer);
+impl<K: RecordBytes, V: RecordBytes> Writer<K, V> {
+    pub fn new(path: PathBuf, table_id: u32, options: WriterOptions) -> Result<Self> {
+        let writer = BufWriter::with_capacity(FILE_BUFFER_CAPACITY, File::create_new(&path)?);
+        let mut writer = SfaWriter::from_writer(writer);
         writer.start("data")?;
 
         Ok(Self {
-            initial_level,
-
             meta: meta::Metadata::default(),
 
             table_id,
 
-            data_block_restart_interval: 16,
-            index_block_restart_interval: 1,
+            data_block_restart_interval: options.restart_interval,
 
-            data_block_hash_ratio: 0.0,
+            path: path::absolute(path)?,
 
-            meta_partition_size: 4_096,
-
-            data_block_size: 4_096,
-
-            data_block_compression: CompressionType::None,
-            index_block_compression: CompressionType::None,
-
-            path: std::path::absolute(path)?,
-
-            index_writer: Box::new(FullIndexWriter::new()),
-            filter_writer: Box::new(FullFilterWriter::new(BloomConstructionPolicy::default())),
+            index_writer: if options.partition_index {
+                Box::new(index::PartitionedIndexWriter::new())
+            } else {
+                Box::new(FullIndexWriter::new())
+            },
+            filter_writer: options.bloom.map(|bloom| -> Box<dyn FilterWriter<K, V>> {
+                if options.partition_filter {
+                    Box::new(filter::PartitionedFilterWriter::new(bloom))
+                } else {
+                    Box::new(FullFilterWriter::new(bloom))
+                }
+            }),
 
             block_buffer: Vec::new(),
+            restart_buffer: Vec::new(),
+            lz4_scratch: Lz4Scratch::default(),
             file_writer: writer,
             chunk: Vec::new(),
-
-            prev_pos: (BlockOffset(0), BlockOffset(0)),
 
             chunk_size: 0,
             chunk_key_len: FixedLen::default(),
             chunk_value_len: FixedLen::default(),
-
-            current_key: None,
-
-            bloom_policy: BloomConstructionPolicy::default(),
-
-            previous_item: None,
         })
-    }
-
-    #[must_use]
-    pub fn use_partitioned_filter(mut self) -> Self {
-        self.filter_writer = Box::new(filter::PartitionedFilterWriter::new(self.bloom_policy))
-            .use_tli_compression(self.index_block_compression);
-        self
-    }
-
-    #[must_use]
-    pub fn use_partitioned_index(mut self) -> Self {
-        self.index_writer = Box::new(index::PartitionedIndexWriter::new())
-            .use_compression(self.index_block_compression);
-        self
-    }
-
-    #[must_use]
-    pub fn use_data_block_restart_interval(mut self, interval: u8) -> Self {
-        self.data_block_restart_interval = interval;
-        self
-    }
-
-    #[must_use]
-    pub fn use_index_block_restart_interval(mut self, interval: u8) -> Self {
-        self.index_block_restart_interval = interval;
-        self
-    }
-
-    #[must_use]
-    pub fn use_data_block_hash_ratio(mut self, ratio: f32) -> Self {
-        self.data_block_hash_ratio = ratio;
-        self
-    }
-
-    #[must_use]
-    pub fn use_data_block_size(mut self, size: u32) -> Self {
-        assert!(
-            size <= 4 * 1_024 * 1_024,
-            "data block size must be <= 4 MiB",
-        );
-        self.data_block_size = size;
-        self
-    }
-
-    #[must_use]
-    pub fn use_meta_partition_size(mut self, size: u32) -> Self {
-        assert!(
-            size <= 4 * 1_024 * 1_024,
-            "data block size must be <= 4 MiB",
-        );
-        self.meta_partition_size = size;
-        self.index_writer = self.index_writer.use_partition_size(size);
-        self.filter_writer = self.filter_writer.use_partition_size(size);
-        self
-    }
-
-    #[must_use]
-    pub fn use_data_block_compression(mut self, compression: CompressionType) -> Self {
-        self.data_block_compression = compression;
-        self
-    }
-
-    #[must_use]
-    pub fn use_index_block_compression(mut self, compression: CompressionType) -> Self {
-        self.index_block_compression = compression;
-        self.index_writer = self.index_writer.use_compression(compression);
-        self.filter_writer = self.filter_writer.use_tli_compression(compression);
-        self
-    }
-
-    #[must_use]
-    pub fn use_bloom_policy(mut self, bloom_policy: BloomConstructionPolicy) -> Self {
-        self.bloom_policy = bloom_policy;
-        self.filter_writer = self.filter_writer.set_filter_policy(bloom_policy);
-        self
     }
 
     /// Writes an item.
     ///
     /// # Note
     ///
-    /// It's important that the incoming stream of items is correctly
-    /// sorted as described by the [`UserKey`], otherwise the block layout will
-    /// be non-sense.
-    pub fn write(&mut self, item: InternalValue) -> crate::Result<()> {
+    /// Items must have strictly increasing user keys.
+    pub fn write(&mut self, item: InternalValue<K, V>) -> Result<()> {
         let value_type = item.key.value_type;
         let seqno = item.key.seqno;
-        let user_key = item.key.user_key.clone();
-        let value_len = item.value.len();
-
-        if item.is_tombstone() {
-            self.meta.tombstone_count += 1;
-        }
-
-        if value_type == ValueType::WeakTombstone {
-            self.meta.weak_tombstone_count += 1;
-        }
-
-        if value_type == ValueType::Value
-            && let Some((prev_key, prev_type)) = &self.previous_item
-            && prev_type == &ValueType::WeakTombstone
-            && prev_key.as_ref() == user_key.as_ref()
-        {
-            self.meta.weak_tombstone_reclaimable_count += 1;
-        }
-
-        // NOTE: Check if we visit a new key
-        if Some(&user_key) != self.current_key.as_ref() {
-            self.meta.key_count += 1;
-            self.current_key = Some(user_key.clone());
-
-            // IMPORTANT: Do not buffer *every* item's key
-            // because there may be multiple versions
-            // of the same key
-
-            if self.bloom_policy.is_active() {
-                self.filter_writer.register_key(&user_key)?;
-            }
-        }
+        let user_key = item.key.user_key.as_ref();
+        let value_len = if value_type.is_tombstone() {
+            0
+        } else {
+            item.value.as_ref().len()
+        };
 
         if self.meta.first_key.is_none() {
-            self.meta.first_key = Some(user_key.clone());
+            self.meta.first_key = Some(Slice::new(user_key));
         }
 
         self.chunk_size += user_key.len() + value_len;
-        self.chunk_key_len.observe(user_key.len());
-        if !value_type.is_tombstone() {
+        if K::FIXED_LEN.is_none() {
+            self.chunk_key_len.observe(user_key.len());
+        }
+        if V::FIXED_LEN.is_none() && !value_type.is_tombstone() {
             self.chunk_value_len.observe(value_len);
         }
         self.chunk.push(item);
-        self.previous_item = Some((user_key, value_type));
-
-        if self.chunk_size >= self.data_block_size as usize {
+        if self.chunk_size >= DATA_BLOCK_SIZE {
             self.spill_block()?;
         }
 
-        self.meta.lowest_seqno = self.meta.lowest_seqno.min(seqno);
-        self.meta.highest_seqno = self.meta.highest_seqno.max(seqno);
-
-        Ok(())
-    }
-
-    pub(crate) fn write_distinct(&mut self, item: InternalValue) -> crate::Result<()> {
-        let value_type = item.key.value_type;
-        let seqno = item.key.seqno;
-        let user_key = &item.key.user_key;
-        let value_len = item.value.len();
-
-        if item.is_tombstone() {
-            self.meta.tombstone_count += 1;
-        }
-
-        if value_type == ValueType::WeakTombstone {
-            self.meta.weak_tombstone_count += 1;
-        }
-
-        self.meta.key_count += 1;
-
-        if self.bloom_policy.is_active() {
-            self.filter_writer.register_key(user_key)?;
-        }
-
-        if self.meta.first_key.is_none() {
-            self.meta.first_key = Some(user_key.clone());
-        }
-
-        self.chunk_size += user_key.len() + value_len;
-        self.chunk_key_len.observe(user_key.len());
-        if !value_type.is_tombstone() {
-            self.chunk_value_len.observe(value_len);
-        }
-        self.chunk.push(item);
-
-        if self.chunk_size >= self.data_block_size as usize {
-            self.spill_block()?;
-        }
-
-        self.meta.lowest_seqno = self.meta.lowest_seqno.min(seqno);
         self.meta.highest_seqno = self.meta.highest_seqno.max(seqno);
 
         Ok(())
@@ -344,43 +212,44 @@ impl Writer {
     /// This is triggered when a `Writer::write` causes the buffer to grow to the configured `block_size`.
     ///
     /// Should only be called when the block has items in it.
-    pub(crate) fn spill_block(&mut self) -> crate::Result<()> {
+    pub fn spill_block(&mut self) -> Result<()> {
         let Some(last) = self.chunk.last() else {
             return Ok(());
         };
 
+        if let Some(filter_writer) = &mut self.filter_writer {
+            filter_writer.register_block(&self.chunk)?;
+        }
+
         self.block_buffer.clear();
 
         #[expect(clippy::cast_possible_truncation, reason = "values are u32 length max")]
-        let fixed_value_len = self.chunk_value_len.get().map(|len| len as u32);
+        let fixed_value_len = V::FIXED_LEN
+            .or_else(|| self.chunk_value_len.get())
+            .map(|len| len as u32);
         // With compressed empty-value blocks, keeping the repeated key-length byte gives LZ4
         // a useful alignment/pattern and is smaller than omitting both lengths.
         #[expect(clippy::cast_possible_truncation, reason = "keys are u16 length max")]
-        let fixed_key_len = self
-            .chunk_key_len
-            .get()
-            .filter(|_| {
-                self.data_block_compression == CompressionType::None || fixed_value_len != Some(0)
-            })
+        let fixed_key_len = K::FIXED_LEN
+            .or_else(|| self.chunk_key_len.get())
+            .filter(|_| fixed_value_len != Some(0))
             .map(|len| len as u16);
 
         DataBlock::encode_into_with_fixed_lengths(
             &mut self.block_buffer,
+            &mut self.restart_buffer,
             &self.chunk,
             self.data_block_restart_interval,
-            self.data_block_hash_ratio,
             fixed_key_len,
             fixed_value_len,
         )?;
 
-        let header = Block::write_into(
+        let header = Block::write_lz4_into(
             &mut self.file_writer,
             &self.block_buffer,
-            super::block::BlockType::Data,
-            self.data_block_compression,
+            BlockType::Data,
+            &mut self.lz4_scratch,
         )?;
-
-        self.meta.uncompressed_size += u64::from(header.uncompressed_length);
 
         #[expect(
             clippy::cast_possible_truncation,
@@ -388,9 +257,10 @@ impl Writer {
         )]
         let bytes_written = BlockHeader::serialized_len() as u32 + header.data_length;
 
+        let last_key = Slice::new(last.key.user_key.as_ref());
         self.index_writer
             .register_data_block(KeyedBlockHandle::new(
-                last.key.user_key.clone(),
+                last_key.clone(),
                 last.key.seqno,
                 BlockHandle::new(self.meta.file_pos, bytes_written),
             ))?;
@@ -400,22 +270,8 @@ impl Writer {
         self.meta.item_count += self.chunk.len();
         self.meta.data_block_count += 1;
 
-        // Back link stuff
-        self.prev_pos.0 = self.prev_pos.1;
-        self.prev_pos.1 += u64::from(bytes_written);
-
         // Set last key
-        self.meta.last_key = Some(
-            // NOTE: We are allowed to remove the last item
-            // to get ownership of it, because the chunk is cleared after
-            // this anyway
-            #[expect(clippy::expect_used, reason = "chunk is not empty")]
-            self.chunk
-                .pop()
-                .expect("chunk should not be empty")
-                .key
-                .user_key,
-        );
+        self.meta.last_key = Some(last_key);
 
         // IMPORTANT: Clear chunk after everything else
         self.chunk.clear();
@@ -427,36 +283,36 @@ impl Writer {
     }
 
     // TODO: split meta writing into new function
-    #[expect(clippy::too_many_lines)]
-    /// Finishes the table, making sure all data is written durably
-    pub fn finish(mut self) -> crate::Result<Option<(TableId, Checksum)>> {
-        use std::io::Write;
-
+    /// Finishes the table and flushes all userspace buffers.
+    pub fn finish(mut self) -> Result<Option<u32>> {
         self.spill_block()?;
 
         // No items written! Just delete table file and return nothing
         if self.meta.item_count == 0 {
-            std::fs::remove_file(&self.path)?;
+            fs::remove_file(&self.path)?;
             return Ok(None);
         }
 
         // Write index
-        log::trace!("Finishing index writer");
-        let index_block_count = self.index_writer.finish(&mut self.file_writer)?;
+        trace!("Finishing index writer");
+        self.index_writer.finish(&mut self.file_writer)?;
 
         // Write filter
-        log::trace!("Finishing filter writer");
-        let filter_block_count = self.filter_writer.finish(&mut self.file_writer)?;
-
-        self.file_writer.start("table_version")?;
-        self.file_writer.write_all(&[0x5])?;
+        if let Some(filter_writer) = self.filter_writer {
+            trace!("Finishing filter writer");
+            filter_writer.finish(
+                &mut self.file_writer,
+                #[expect(clippy::expect_used, reason = "the non-empty table has been flushed")]
+                self.meta.last_key.as_ref().expect("non-empty table"),
+            )?;
+        }
 
         // Write metadata
         self.file_writer.start("meta")?;
 
         {
             fn meta(key: &str, value: &[u8]) -> InternalValue {
-                InternalValue::from_components(key, value, 0, crate::ValueType::Value)
+                InternalValue::from_components(key, value, 0, ValueType::Value)
             }
 
             let meta_items = [
@@ -465,32 +321,14 @@ impl Writer {
                     &(self.meta.data_block_count as u64).to_le_bytes(),
                 ),
                 meta(
-                    "block_count#filter",
-                    &(filter_block_count as u64).to_le_bytes(),
-                ),
-                meta(
-                    "block_count#index",
-                    &(index_block_count as u64).to_le_bytes(),
-                ),
-                meta("checksum_type", &[u8::from(ChecksumType::Xxh3)]),
-                meta(
                     "compression#data",
-                    &self.data_block_compression.encode_into_vec(),
+                    &DATA_BLOCK_COMPRESSION.encode_into_vec(),
                 ),
                 meta(
                     "compression#index",
-                    &self.index_block_compression.encode_into_vec(),
-                ),
-                meta("crate_version", env!("CARGO_PKG_VERSION").as_bytes()),
-                meta("created_at", &unix_timestamp().as_nanos().to_le_bytes()),
-                meta(
-                    "data_block_hash_ratio",
-                    &self.data_block_hash_ratio.to_le_bytes(),
+                    &INDEX_BLOCK_COMPRESSION.encode_into_vec(),
                 ),
                 meta("file_size", &self.meta.file_pos.to_le_bytes()),
-                meta("filter_hash_type", &[u8::from(ChecksumType::Xxh3)]),
-                meta("index_keys_have_seqno", &[0x1]),
-                meta("initial_level", &self.initial_level.to_le_bytes()),
                 meta("item_count", &(self.meta.item_count as u64).to_le_bytes()),
                 meta(
                     "key#max",
@@ -504,34 +342,8 @@ impl Writer {
                     #[expect(clippy::expect_used)]
                     self.meta.first_key.as_ref().expect("should exist"),
                 ),
-                meta("key_count", &(self.meta.key_count as u64).to_le_bytes()),
-                meta("prefix_truncation#data", &[1]), // NOTE: currently prefix truncation can not be disabled
-                meta("prefix_truncation#index", &[1]), // NOTE: currently prefix truncation can not be disabled
-                meta(
-                    "restart_interval#data",
-                    &self.data_block_restart_interval.to_le_bytes(),
-                ),
-                meta(
-                    "restart_interval#index",
-                    &self.index_block_restart_interval.to_le_bytes(),
-                ),
                 meta("seqno#max", &self.meta.highest_seqno.to_le_bytes()),
-                meta("seqno#min", &self.meta.lowest_seqno.to_le_bytes()),
                 meta("table_id", &self.table_id.to_le_bytes()),
-                meta("table_version", &[5u8]),
-                meta(
-                    "tombstone_count",
-                    &(self.meta.tombstone_count as u64).to_le_bytes(),
-                ),
-                meta("user_data_size", &self.meta.uncompressed_size.to_le_bytes()),
-                meta(
-                    "weak_tombstone_count",
-                    &(self.meta.weak_tombstone_count as u64).to_le_bytes(),
-                ),
-                meta(
-                    "weak_tombstone_reclaimable",
-                    &(self.meta.weak_tombstone_reclaimable_count as u64).to_le_bytes(),
-                ),
             ];
 
             // NOTE: Just to make sure the items are definitely sorted
@@ -544,31 +356,20 @@ impl Writer {
             self.block_buffer.clear();
 
             // TODO: disable binary index: https://github.com/fjall-rs/lsm-tree/issues/185
-            DataBlock::encode_into(&mut self.block_buffer, &meta_items, 1, 0.0)?;
+            DataBlock::encode_into(&mut self.block_buffer, &meta_items, 1)?;
 
             Block::write_into(
                 &mut self.file_writer,
                 &self.block_buffer,
-                crate::table::block::BlockType::Meta,
-                CompressionType::None,
+                BlockBlockType::Meta,
             )?;
         };
 
-        // Write fixed-size trailer
-        // and flush & fsync the table file
-        let mut checksum = self.file_writer.into_inner()?;
-        checksum.inner_mut().get_mut().sync_all()?;
-        let checksum = checksum.checksum();
+        // Write the fixed-size trailer and flush buffered table bytes. BRK does
+        // not require storage-device barriers for crash or power-loss safety.
+        drop(self.file_writer.into_inner()?);
 
-        // IMPORTANT: fsync folder on Unix
-
-        #[expect(
-            clippy::expect_used,
-            reason = "if there's no parent folder, something has gone horribly wrong"
-        )]
-        fsync_directory(self.path.parent().expect("should have folder"))?;
-
-        log::debug!(
+        debug!(
             "Written {} items in {} blocks into new table file #{}, written {} MiB",
             self.meta.item_count,
             self.meta.data_block_count,
@@ -576,54 +377,6 @@ impl Writer {
             *self.meta.file_pos / 1_024 / 1_024,
         );
 
-        Ok(Some((self.table_id, checksum)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_log::test;
-
-    #[test]
-    fn table_writer_count() -> crate::Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("1");
-        let mut writer = Writer::new(path, 1, 0)?;
-
-        assert_eq!(0, writer.meta.key_count);
-        assert_eq!(0, writer.chunk_size);
-
-        writer.write(InternalValue::from_components(
-            b"a",
-            b"a",
-            0,
-            ValueType::Value,
-        ))?;
-        assert_eq!(1, writer.meta.key_count);
-        assert_eq!(2, writer.chunk_size);
-
-        writer.write(InternalValue::from_components(
-            b"b",
-            b"b",
-            0,
-            ValueType::Value,
-        ))?;
-        assert_eq!(2, writer.meta.key_count);
-        assert_eq!(4, writer.chunk_size);
-
-        writer.write(InternalValue::from_components(
-            b"c",
-            b"c",
-            0,
-            ValueType::Value,
-        ))?;
-        assert_eq!(3, writer.meta.key_count);
-        assert_eq!(6, writer.chunk_size);
-
-        writer.spill_block()?;
-        assert_eq!(0, writer.chunk_size);
-
-        Ok(())
+        Ok(Some(self.table_id))
     }
 }

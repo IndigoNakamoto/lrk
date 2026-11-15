@@ -1,0 +1,276 @@
+mod block;
+mod values;
+
+use std::time::{Duration, Instant};
+
+use bitview_compute::write_locked;
+use bitview_plugin_indexer::Indexer;
+use bitview_plugin_mappings::Vecs as MappingsVecs;
+use bitview_primitives::{Boolean, Count, Lengths};
+use bitview_traversable::Traversable;
+use bitview_vecs::CachedSeries;
+use brk_error::Result;
+use brk_exit::Exit;
+use brk_types::{Height, Sats, VSize};
+use rayon::prelude::*;
+use tracing::info;
+use vecdb::{AnyStoredVec, AnyVec, ComputeVec, ReadableVec, VecIndex, WritableVec};
+
+use super::Vecs;
+use crate::{distribution::TxDistribution, resume::prepare_blocks};
+use block::{Block, Components};
+
+const COMPUTE_BATCH_HEIGHTS: usize = 64;
+/// Blocks between flushes, below the shared `WRITE_INTERVAL`: five per-transaction columns hold
+/// their pushed rows in memory until written (~3,000 transactions per block at the tip).
+const FLUSH_BLOCKS: usize = 1_000;
+
+impl Vecs {
+    /// The fee pass, which also yields the per-block fee, effective fee rate and `vsize`
+    /// distributions from the values it holds, then the cumulative fee total.
+    pub(crate) fn compute(
+        &mut self,
+        indexer: &Indexer,
+        mappings: &MappingsVecs,
+        vsize: &mut TxDistribution<VSize>,
+        transfer_volume: &mut CachedSeries<Height, Sats>,
+        exit: &Exit,
+    ) -> Result<()> {
+        let starting_lengths = indexer.compute_start();
+        self.compute_fees(
+            indexer,
+            starting_lengths,
+            mappings,
+            vsize,
+            transfer_volume,
+            exit,
+        )?;
+        self.total_cumulative
+            .compute_cumulative(starting_lengths.height, &self.total, exit)?;
+        Ok(())
+    }
+
+    /// The fee pass's outputs, one restart group: per transaction, then per block.
+    fn outputs_mut<'a>(
+        &'a mut self,
+        vsize: &'a mut TxDistribution<VSize>,
+        transfer_volume: &'a mut CachedSeries<Height, Sats>,
+    ) -> ([&'a mut dyn AnyStoredVec; 5], Vec<&'a mut dyn AnyStoredVec>) {
+        let (parent_flag, parent_count) = self.cpfp_parent.stored_mut();
+        let (child_flag, child_count) = self.cpfp_child.stored_mut();
+        let mut blocks: Vec<&mut dyn AnyStoredVec> = vec![
+            &mut self.coinbase_value,
+            transfer_volume,
+            &mut self.total,
+            parent_count,
+            child_count,
+        ];
+        blocks.extend(self.fee.distribution.iter_any_stored_mut());
+        blocks.extend(self.effective_fee_rate.distribution.iter_any_stored_mut());
+        blocks.extend(vsize.iter_any_stored_mut());
+        (
+            [
+                &mut self.fee.tx,
+                &mut self.fee_rate,
+                &mut self.effective_fee_rate.tx,
+                parent_flag,
+                child_flag,
+            ],
+            blocks,
+        )
+    }
+
+    fn compute_fees(
+        &mut self,
+        indexer: &Indexer,
+        starting_lengths: Lengths,
+        mappings: &MappingsVecs,
+        vsize: &mut TxDistribution<VSize>,
+        transfer_volume: &mut CachedSeries<Height, Sats>,
+        exit: &Exit,
+    ) -> Result<()> {
+        let vecs = indexer.vecs();
+        let (txs, inputs, outputs) = (&vecs.transactions, &vecs.inputs, &vecs.outputs);
+        let (input_values, output_values, outpoints) =
+            (&inputs.value, &outputs.value, &inputs.outpoint);
+        let tx_counts = &mappings.height.tx_index_count;
+        let version = input_values.version()
+            + output_values.version()
+            + txs.first_txout_index.version()
+            + inputs.first_txin_index.version()
+            + outputs.first_txout_index.version()
+            + txs.first_tx_index.version()
+            + txs.first_txin_index.version()
+            + tx_counts.version()
+            + txs.weight.version()
+            + outpoints.version();
+        #[cfg(feature = "litecoin")]
+        let version = version + txs.features.hogex.block.version();
+        let target = txs.first_txin_index.len();
+        let max_height = txs.first_tx_index.len();
+        let (heights, start_tx) = {
+            let (mut txs_out, mut blocks_out) = self.outputs_mut(vsize, transfer_volume);
+            prepare_blocks(
+                &mut txs_out,
+                &mut blocks_out,
+                version,
+                starting_lengths,
+                target,
+                max_height,
+                mappings,
+                &txs.first_tx_index,
+                exit,
+            )?
+        };
+        let start_height = heights.start;
+        if heights.is_empty() {
+            return Ok(());
+        }
+
+        let mut cumulative_volume = transfer_volume.collect_last().unwrap_or_default();
+
+        // Bounded: an update of a few blocks reads only their counts and boundaries.
+        let mut tx_count = tx_counts.bounded_cursor_at(start_height, max_height);
+        #[cfg(feature = "litecoin")]
+        let mut hogex_count = txs
+            .features
+            .hogex
+            .block
+            .bounded_cursor_at(start_height, max_height);
+        let mut next_block_input = inputs
+            .first_txin_index
+            .bounded_cursor_at(start_height, max_height + 1);
+        let start_input = next_block_input.next().unwrap().to_usize();
+        let mut next_block_output = outputs
+            .first_txout_index
+            .bounded_cursor_at(start_height + 1, max_height + 1);
+        let mut output_starts = Vec::new();
+
+        // Dependencies have written their vectors before this pass. Retain the
+        // decoded pages across blocks instead of reopening each compressed range.
+        let mut weights = txs.weight.range_cursor_at(start_tx, target);
+        let mut txin_starts = txs.first_txin_index.range_cursor_at(start_tx, target);
+        let outpoint_len = outpoints.len();
+        let mut outpoints = outpoints.range_cursor_at(start_input, outpoint_len);
+        let mut input_value = input_values.range_cursor_at(start_input, input_values.len());
+
+        // Grows to the largest batch: an update of a few blocks fills a few.
+        let mut blocks: Vec<Block> = Vec::new();
+        let mut first_tx = start_tx;
+        let mut height = start_height;
+        let mut last_progress = Instant::now();
+
+        while height < max_height {
+            let batch_end = (height + COMPUTE_BATCH_HEIGHTS).min(max_height);
+            let mut batch_len = 0;
+
+            for _ in height..batch_end {
+                let n = u64::from(tx_count.next().unwrap()) as usize;
+                if batch_len == blocks.len() {
+                    blocks.push(Block::default());
+                }
+                let block = &mut blocks[batch_len];
+                block.reset(first_tx);
+                #[cfg(feature = "litecoin")]
+                {
+                    block.hogex = u16::from(hogex_count.next().unwrap()) > 0;
+                }
+
+                block.vsizes.reserve(n);
+                weights.for_each(n, |weight| block.vsizes.push(weight.into()));
+                txin_starts.collect_into(n, &mut block.txin_starts);
+                block.input_begin = block.txin_starts[0].to_usize();
+                let input_end = next_block_input
+                    .next()
+                    .map_or(outpoint_len, |index| index.to_usize());
+                let output_end = next_block_output
+                    .next()
+                    .map_or(output_values.len(), |index| index.to_usize());
+                txs.first_txout_index.collect_range_into_at(
+                    first_tx,
+                    first_tx + n,
+                    &mut output_starts,
+                );
+                input_value.for_each(
+                    input_end - block.input_begin,
+                    values::sum(&block.txin_starts, input_end, &mut block.input_values),
+                );
+                output_values.for_each_range_at(
+                    output_starts[0].get().to_usize(),
+                    output_end,
+                    values::sum(&output_starts, output_end, &mut block.output_values),
+                );
+                outpoints.collect_into(input_end - block.input_begin, &mut block.outpoints);
+
+                first_tx += n;
+                batch_len += 1;
+            }
+
+            blocks[..batch_len]
+                .par_iter_mut()
+                // Component scratch per worker task, freed with the batch: a big
+                // component's buffers don't stay retained per block slot.
+                .for_each_init(Components::default, |components, block| {
+                    block.compute(components)
+                });
+
+            for (offset, block) in blocks[..batch_len].iter().enumerate() {
+                let mut parent_count = 0;
+                let mut child_count = 0;
+                for ((&fee, &fee_rate), &effective) in block
+                    .fees
+                    .iter()
+                    .zip(&block.fee_rates)
+                    .zip(&block.effective_fee_rates)
+                {
+                    let is_parent = effective > fee_rate;
+                    let is_child = effective < fee_rate;
+                    parent_count += u64::from(is_parent);
+                    child_count += u64::from(is_child);
+                    self.fee.tx.push(fee);
+                    self.fee_rate.push(fee_rate);
+                    self.effective_fee_rate.tx.push(effective);
+                    self.cpfp_parent.flag.push(Boolean::from(is_parent));
+                    self.cpfp_child.flag.push(Boolean::from(is_child));
+                }
+                self.cpfp_parent.count.push_block(Count::from(parent_count));
+                self.cpfp_child.count.push_block(Count::from(child_count));
+                self.fee.distribution.push(block.fee_stats);
+                self.effective_fee_rate.distribution.push(block.rate_stats);
+                vsize.push(block.vsize_stats);
+                self.coinbase_value.push(block.output_values[0]);
+                self.total.push(block.total_fee);
+                cumulative_volume += block.transfer_volume;
+                transfer_volume.push(cumulative_volume);
+
+                if (height + offset + 1).is_multiple_of(FLUSH_BLOCKS) {
+                    self.write_fees(vsize, transfer_volume, exit)?;
+                }
+            }
+
+            height += batch_len;
+            if last_progress.elapsed() >= Duration::from_secs(10) {
+                info!(
+                    "Computing transaction fees: block {}/{}, transactions {}/{}",
+                    height - 1,
+                    max_height - 1,
+                    first_tx - start_tx,
+                    target - start_tx,
+                );
+                last_progress = Instant::now();
+            }
+        }
+
+        self.write_fees(vsize, transfer_volume, exit)
+    }
+
+    fn write_fees(
+        &mut self,
+        vsize: &mut TxDistribution<VSize>,
+        transfer_volume: &mut CachedSeries<Height, Sats>,
+        exit: &Exit,
+    ) -> Result<()> {
+        let (txs, blocks) = self.outputs_mut(vsize, transfer_volume);
+        write_locked(txs.into_iter().chain(blocks), exit)
+    }
+}

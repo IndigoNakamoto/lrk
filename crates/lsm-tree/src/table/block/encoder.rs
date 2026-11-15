@@ -2,57 +2,54 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::io::Write;
+
 use super::{
     super::{
-        block::binary_index::Builder as BinaryIndexBuilder,
-        block::hash_index::{Builder as HashIndexBuilder, MAX_POINTERS_FOR_HASH_INDEX},
-        util::longest_shared_prefix_length,
+        block::binary_index::Builder as BinaryIndexBuilder, util::longest_shared_prefix_length,
     },
     Trailer,
 };
-use std::marker::PhantomData;
+use crate::Result;
 
 pub trait Encodable<Context: Default> {
     fn key(&self) -> &[u8];
 
-    fn encode_full_into<W: std::io::Write>(
+    fn encode_full_into<W: Write>(
         &self,
         writer: &mut W,
         state: &mut Context,
         fixed_key_len: Option<u16>,
         fixed_value_len: Option<u32>,
-    ) -> crate::Result<()>
+    ) -> Result<()>
     where
         Self: Sized;
 
-    fn encode_truncated_into<W: std::io::Write>(
+    fn encode_truncated_into<W: Write>(
         &self,
         writer: &mut W,
         state: &mut Context,
         shared_len: usize,
         fixed_key_len: Option<u16>,
         fixed_value_len: Option<u32>,
-    ) -> crate::Result<()>
+    ) -> Result<()>
     where
         Self: Sized;
 }
 
 /// Block encoder
 ///
-/// The block encoder accepts an ascending stream of items, encodes them into
-/// restart intervals and builds a binary seek index (and optionally a hash index).
+/// The block encoder accepts an ascending slice of items, encodes them into
+/// restart intervals and builds a binary seek index.
 ///
 /// # Example
 ///
 /// A block with `restart_interval=4`
 ///
-/// ```js
-///                                                                         _______________
-///                                                              __________|__________     |
-///                                                             v          v          |    |
-/// [h][t][t][t][h][t][t][t][h][t][t][t][h][t][t][t][h][t][t][t][0,1,2,3,4][0 C F F 3][ptr][ptr]
-/// ^           ^           ^           ^           ^           ^          ^
-/// 0           1           2           3           4           bin index  hash index
+/// ```text
+/// [h][t][t][t][h][t][t][t][h][t][t][t][binary index][trailer]
+/// ^           ^           ^
+/// 0           1           2
 ///
 /// h = restart head
 /// t = truncated item
@@ -60,27 +57,18 @@ pub trait Encodable<Context: Default> {
 ///
 /// The binary index holds pointers to all restart heads.
 /// Because restart heads hold a full key, they can be used to compare to a needle key.
-///
-/// For explanation of hash index, see `hash_index/mod.rs`.
 pub struct Encoder<'a, Context: Default, Item: Encodable<Context>> {
-    pub(crate) phantom: PhantomData<(Context, Item)>,
+    pub writer: &'a mut Vec<u8>,
 
-    pub(crate) writer: &'a mut Vec<u8>,
+    pub state: Context,
 
-    pub(crate) state: Context,
+    pub items: &'a [Item],
 
-    pub(crate) item_count: usize,
-    pub(crate) restart_count: usize,
+    pub restart_interval: u8,
+    pub binary_index_builder: BinaryIndexBuilder<'a>,
 
-    pub(crate) restart_interval: u8,
-    // pub(crate) use_prefix_truncation: bool, // TODO: support non-prefix truncation?
-    pub(crate) binary_index_builder: BinaryIndexBuilder,
-    pub(crate) hash_index_builder: HashIndexBuilder,
-
-    pub(crate) fixed_key_len: Option<u16>,
-    pub(crate) fixed_value_len: Option<u32>,
-
-    base_key: &'a [u8],
+    pub fixed_key_len: Option<u16>,
+    pub fixed_value_len: Option<u32>,
 }
 
 // TODO: support no binary index -> use in meta blocks with restart interval = 1
@@ -88,35 +76,28 @@ pub struct Encoder<'a, Context: Default, Item: Encodable<Context>> {
 // TODO: https://github.com/fjall-rs/lsm-tree/issues/185
 
 impl<'a, Context: Default, Item: Encodable<Context>> Encoder<'a, Context, Item> {
+    /// Encodes `items` into `writer`, collecting restart offsets in the reused `restarts`.
     pub fn new(
         writer: &'a mut Vec<u8>,
-        item_count: usize,
+        restarts: &'a mut Vec<u32>,
+        items: &'a [Item],
         restart_interval: u8, // TODO: should be NonZero
-        hash_index_ratio: f32,
-        first_key: &'a [u8],
     ) -> Self {
-        let binary_index_builder = BinaryIndexBuilder::new(item_count / restart_interval as usize);
-        let hash_index_builder = HashIndexBuilder::with_hash_ratio(item_count, hash_index_ratio);
+        assert!(!items.is_empty(), "chunk should not be empty");
+        let binary_index_builder = BinaryIndexBuilder::new(restarts);
 
         Self {
-            phantom: PhantomData,
-
             writer,
 
             state: Context::default(),
 
-            item_count: 0,
-            restart_count: 0,
+            items,
 
             restart_interval,
-            // use_prefix_truncation: true,
             binary_index_builder,
-            hash_index_builder,
 
             fixed_key_len: None,
             fixed_value_len: None,
-
-            base_key: first_key,
         }
     }
 
@@ -132,66 +113,32 @@ impl<'a, Context: Default, Item: Encodable<Context>> Encoder<'a, Context, Item> 
         self
     }
 
-    // /// Toggles prefix truncation.
-    // pub fn use_prefix_truncation(mut self, flag: bool) -> Self {
-    //     assert!(flag, "prefix truncation is currently required to be true");
-
-    //     self.use_prefix_truncation = flag;
-
-    //     self
-    // }
-
-    pub fn write(&mut self, item: &'a Item) -> crate::Result<()> {
-        // NOTE: Check if we are a restart marker
-        if self
-            .item_count
-            .is_multiple_of(usize::from(self.restart_interval))
-        {
-            self.restart_count += 1;
-
-            if self.restart_interval > 0 {
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    reason = "we consider the caller to be trustworthy"
-                )]
-                self.binary_index_builder.insert(self.writer.len() as u32);
-            }
-
-            item.encode_full_into(
-                &mut *self.writer,
-                &mut self.state,
-                self.fixed_key_len,
-                self.fixed_value_len,
-            )?;
-
-            self.base_key = item.key();
-        } else {
-            let shared_prefix_len = longest_shared_prefix_length(self.base_key, item.key());
-            item.encode_truncated_into(
-                &mut *self.writer,
-                &mut self.state,
-                shared_prefix_len,
-                self.fixed_key_len,
-                self.fixed_value_len,
-            )?;
-        }
-
-        let restart_idx = self.restart_count - 1;
-
-        if self.hash_index_builder.bucket_count() > 0 && restart_idx < MAX_POINTERS_FOR_HASH_INDEX {
+    pub fn finish(mut self) -> Result<()> {
+        for chunk in self.items.chunks(usize::from(self.restart_interval)) {
+            #[expect(clippy::expect_used, reason = "chunks never yields an empty slice")]
+            let (head, tail) = chunk.split_first().expect("restart group is non-empty");
             #[expect(
                 clippy::cast_possible_truncation,
-                reason = "max binary index is bound to u8 by MAX_POINTERS_FOR_HASH_INDEX"
+                reason = "blocks never approach 4 GiB"
             )]
-            self.hash_index_builder.set(item.key(), restart_idx as u8);
+            self.binary_index_builder.insert(self.writer.len() as u32);
+            head.encode_full_into(
+                self.writer,
+                &mut self.state,
+                self.fixed_key_len,
+                self.fixed_value_len,
+            )?;
+            for item in tail {
+                let shared_prefix_len = longest_shared_prefix_length(head.key(), item.key());
+                item.encode_truncated_into(
+                    self.writer,
+                    &mut self.state,
+                    shared_prefix_len,
+                    self.fixed_key_len,
+                    self.fixed_value_len,
+                )?;
+            }
         }
-
-        self.item_count += 1;
-
-        Ok(())
-    }
-
-    pub fn finish(self) -> crate::Result<()> {
         Trailer::write(self)
     }
 }

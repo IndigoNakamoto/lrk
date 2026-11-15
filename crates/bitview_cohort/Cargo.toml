@@ -1,0 +1,21 @@
+[package]
+name = "bitview_cohort"
+description = "Cohort definitions used throughout Bitview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+litecoin = ["bitview_primitives/litecoin", "bitview_traversable?/litecoin", "brk_types/litecoin"]
+default = []
+storage = ["dep:bitview_traversable", "dep:rayon", "brk_types/storage", "bitview_primitives/storage"]
+
+[dependencies]
+bitview_primitives = { workspace = true }
+bitview_traversable = { workspace = true, optional = true }
+brk_types = { workspace = true }
+rayon = { workspace = true, optional = true }
+schemars = { workspace = true }
+serde = { workspace = true }

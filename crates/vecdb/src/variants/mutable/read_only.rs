@@ -1,0 +1,200 @@
+use std::{collections::BTreeSet, ops::Deref, sync::Arc};
+
+use parking_lot::RwLock;
+
+use crate::{
+    AnyVec, ReadableBoxedVec, ReadableCloneableVec, ReadableVec, StoredVec, TypedVec, Version,
+    vec_region_name_with,
+};
+
+use super::{MutableRawVec, MutableVec};
+
+#[derive(Debug, Clone)]
+pub struct ReadOnlyMutableVec<V> {
+    vec: V,
+    holes: Arc<RwLock<Arc<BTreeSet<usize>>>>,
+}
+
+impl<V> StoredVec for MutableVec<V>
+where
+    V: MutableRawVec,
+{
+    type ReadOnly = ReadOnlyMutableVec<V::ReadOnly>;
+
+    #[inline]
+    fn read_only_clone(&self) -> Self::ReadOnly {
+        ReadOnlyMutableVec {
+            vec: self.vec.read_only_clone(),
+            holes: Arc::clone(&self.published_holes),
+        }
+    }
+}
+
+impl<V> ReadableCloneableVec<V::I, V::T> for MutableVec<V>
+where
+    V: MutableRawVec,
+{
+    #[inline]
+    fn read_only_boxed_clone(&self) -> ReadableBoxedVec<V::I, V::T> {
+        ReadableBoxedVec::from_read_only(self.read_only_clone())
+    }
+}
+
+impl<V> Deref for ReadOnlyMutableVec<V> {
+    type Target = V;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+
+impl<V> AnyVec for ReadOnlyMutableVec<V>
+where
+    V: TypedVec,
+{
+    #[inline]
+    fn version(&self) -> Version {
+        self.vec.version()
+    }
+
+    #[inline]
+    fn name(&self) -> &str {
+        self.vec.name()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    #[inline]
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
+    crate::any_vec_type_methods!(V::I, V::T);
+
+    fn region_names(&self) -> Vec<String> {
+        let mut names = self.vec.region_names();
+        if !self.holes.read_recursive().is_empty() {
+            names.push(format!(
+                "{}_holes",
+                vec_region_name_with::<V::I>(self.vec.name())
+            ));
+        }
+        names
+    }
+}
+
+impl<V: TypedVec> TypedVec for ReadOnlyMutableVec<V> {
+    type I = V::I;
+    type T = V::T;
+}
+
+impl<V> ReadableVec<V::I, V::T> for ReadOnlyMutableVec<V>
+where
+    V: TypedVec + ReadableVec<V::I, V::T>,
+{
+    #[inline(always)]
+    fn cursor_chunk_size(&self) -> usize {
+        self.vec.cursor_chunk_size()
+    }
+
+    #[inline(always)]
+    fn collect_one_at(&self, index: usize) -> Option<V::T> {
+        if self.holes.read_recursive().contains(&index) {
+            None
+        } else {
+            self.vec.collect_one_at(index)
+        }
+    }
+
+    fn read_into_at(&self, from: usize, to: usize, buf: &mut Vec<V::T>) {
+        let to = to.min(self.vec.len());
+        if from >= to {
+            return;
+        }
+        let holes = self.holes.read_recursive();
+        let mut start = from;
+        buf.reserve(to - from);
+        for &hole in holes.range(from..to) {
+            if start < hole {
+                self.vec.read_into_at(start, hole, buf);
+            }
+            start = hole + 1;
+        }
+        if start < to {
+            self.vec.read_into_at(start, to, buf);
+        }
+    }
+
+    #[inline]
+    fn read_sorted_into_at(&self, indices: &[usize], out: &mut Vec<V::T>) {
+        let holes = self.holes.read_recursive();
+        if holes.is_empty() {
+            self.vec.read_sorted_into_at(indices, out);
+            return;
+        }
+        let indices = &indices[..indices.partition_point(|&i| i < self.vec.len())];
+        let (Some(&first), Some(&last)) = (indices.first(), indices.last()) else {
+            return;
+        };
+        if last - first < indices.len() && indices.len() > 1 {
+            let mut holes = holes.range(first..=last).peekable();
+            let requested: Vec<_> = indices
+                .iter()
+                .copied()
+                .filter(|&index| {
+                    while holes.peek().is_some_and(|&&hole| hole < index) {
+                        holes.next();
+                    }
+                    holes.peek() != Some(&&index)
+                })
+                .collect();
+            self.vec.read_sorted_into_at(&requested, out);
+            return;
+        }
+        out.reserve(indices.len());
+        for &index in indices {
+            if !holes.contains(&index)
+                && let Some(value) = self.vec.collect_one_at(index)
+            {
+                out.push(value);
+            }
+        }
+    }
+
+    #[inline]
+    fn for_each_range_dyn_at(&self, from: usize, to: usize, f: &mut dyn FnMut(V::T)) {
+        self.fold_range_at(from, to, (), |(), value| f(value));
+    }
+
+    fn try_fold_range_at<B, E, F>(&self, from: usize, to: usize, init: B, mut f: F) -> Result<B, E>
+    where
+        Self: Sized,
+        F: FnMut(B, V::T) -> Result<B, E>,
+    {
+        let len = self.vec.len();
+        let from = from.min(len);
+        let to = to.min(len);
+        if from >= to {
+            return Ok(init);
+        }
+
+        let holes = self.holes.read_recursive();
+        if holes.is_empty() {
+            return self.vec.try_fold_range_at(from, to, init, f);
+        }
+
+        let mut start = from;
+        let mut acc = init;
+        for &hole in holes.range(from..to) {
+            if start < hole {
+                acc = self.vec.try_fold_range_at(start, hole, acc, &mut f)?;
+            }
+            start = hole + 1;
+        }
+        self.vec.try_fold_range_at(start, to, acc, f)
+    }
+}

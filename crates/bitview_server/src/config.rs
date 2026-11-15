@@ -1,0 +1,53 @@
+use std::{
+    net::{IpAddr, Ipv4Addr},
+    path::PathBuf,
+};
+
+use bitview_primitives::OHLCCents;
+use bitview_website::Website;
+
+use crate::{Port, cache::CdnCacheMode};
+
+/// Default max series-query response weight, in raw value bytes: 10k OHLC values (320 KB), a
+/// chart's largest request. Bounding each response this way needs no server-wide body
+/// budget.
+pub const DEFAULT_MAX_WEIGHT: usize = 10_000 * size_of::<OHLCCents>();
+
+/// Default max UTXOs returned per address, electrs's `--utxos-limit` default as mempool.space serves.
+/// Bounds worst-case work and response size, prevents heavy-address DDoS.
+pub const DEFAULT_MAX_UTXOS: usize = 500;
+
+/// Default HTTP bind address: this machine only (the server has no authentication); `0.0.0.0` serves its network.
+pub const DEFAULT_BIND: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
+
+#[derive(Debug, Clone)]
+pub struct ServerConfig {
+    pub bind: IpAddr,
+    pub port: Port,
+    pub data_path: PathBuf,
+    pub website: Website,
+    pub cdn_cache_mode: CdnCacheMode,
+    pub max_weight: usize,
+    pub max_utxos: usize,
+}
+
+impl ServerConfig {
+    /// Directory for daemon and benchmark logs.
+    pub fn logs_path(&self) -> PathBuf {
+        self.data_path.join("logs")
+    }
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            bind: DEFAULT_BIND,
+            port: Port::DEFAULT,
+            data_path: PathBuf::default(),
+            website: Website::default(),
+            cdn_cache_mode: CdnCacheMode::default(),
+            max_weight: DEFAULT_MAX_WEIGHT,
+            max_utxos: DEFAULT_MAX_UTXOS,
+        }
+    }
+}

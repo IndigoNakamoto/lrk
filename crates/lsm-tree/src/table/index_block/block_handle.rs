@@ -2,18 +2,20 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::{SeqNo, UserKey};
+use std::io::{Cursor, Read, Write};
+
+use byteorder::{ReadBytesExt, WriteBytesExt};
+use varint_rs::{VarintReader, VarintWriter};
+
 use crate::{
+    Result, Slice,
     coding::{Decode, Encode},
     table::{
-        block::{BlockOffset, Decodable, Encodable, TRAILER_START_MARKER},
+        block::{BlockOffset, Decodable, Encodable, TRAILER_START_MARKER, read_key},
         index_block::IndexBlockParsedItem,
         util::SliceIndexes,
     },
 };
-use byteorder::{ReadBytesExt, WriteBytesExt};
-use std::io::{Cursor, Seek};
-use varint_rs::{VarintReader, VarintWriter};
 
 /// Points to a block on file
 #[derive(Copy, Clone, Debug, Default)]
@@ -43,7 +45,7 @@ impl BlockHandle {
 }
 
 impl Encode for BlockHandle {
-    fn encode_into<W: std::io::Write>(&self, writer: &mut W) -> Result<(), crate::Error> {
+    fn encode_into<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_u64_varint(*self.offset)?;
         writer.write_u32_varint(self.size)?;
         Ok(())
@@ -51,7 +53,7 @@ impl Encode for BlockHandle {
 }
 
 impl Decode for BlockHandle {
-    fn decode_from<R: std::io::Read>(reader: &mut R) -> Result<Self, crate::Error>
+    fn decode_from<R: Read>(reader: &mut R) -> Result<Self>
     where
         Self: Sized,
     {
@@ -69,10 +71,10 @@ impl Decode for BlockHandle {
 #[derive(Clone, Debug)]
 pub struct KeyedBlockHandle {
     /// Key of last item in block
-    end_key: UserKey,
+    end_key: Slice,
 
     /// Seqno of last item in block
-    seqno: SeqNo,
+    seqno: u64,
 
     inner: BlockHandle,
 }
@@ -90,7 +92,7 @@ impl KeyedBlockHandle {
     }
 
     #[must_use]
-    pub fn new(end_key: UserKey, seqno: SeqNo, handle: BlockHandle) -> Self {
+    pub fn new(end_key: Slice, seqno: u64, handle: BlockHandle) -> Self {
         Self {
             end_key,
             seqno,
@@ -99,7 +101,7 @@ impl KeyedBlockHandle {
     }
 
     #[must_use]
-    pub fn seqno(&self) -> SeqNo {
+    pub fn seqno(&self) -> u64 {
         self.seqno
     }
 
@@ -118,26 +120,19 @@ impl KeyedBlockHandle {
     }
 
     #[must_use]
-    pub fn end_key(&self) -> &UserKey {
+    pub fn end_key(&self) -> &Slice {
         &self.end_key
     }
 }
 
-#[cfg(test)]
-impl PartialEq for KeyedBlockHandle {
-    fn eq(&self, other: &Self) -> bool {
-        self.offset() == other.offset()
-    }
-}
-
 impl Encodable<BlockOffset> for KeyedBlockHandle {
-    fn encode_full_into<W: std::io::Write>(
+    fn encode_full_into<W: Write>(
         &self,
         writer: &mut W,
         state: &mut BlockOffset,
         _fixed_key_len: Option<u16>,
         _fixed_value_len: Option<u32>,
-    ) -> crate::Result<()> {
+    ) -> Result<()> {
         // We encode restart markers as:
         // [marker=0] [offset] [size] [seqno] [key len] [end key]
         // 1          2        3      4       5         6
@@ -159,14 +154,14 @@ impl Encodable<BlockOffset> for KeyedBlockHandle {
 
     // TODO: see https://github.com/fjall-rs/lsm-tree/issues/184
     #[cfg_attr(coverage_nightly, coverage(off))]
-    fn encode_truncated_into<W: std::io::Write>(
+    fn encode_truncated_into<W: Write>(
         &self,
         _writer: &mut W,
         _state: &mut BlockOffset,
         _shared_len: usize,
         _fixed_key_len: Option<u16>,
         _fixed_value_len: Option<u32>,
-    ) -> crate::Result<()> {
+    ) -> Result<()> {
         unimplemented!()
     }
 
@@ -190,25 +185,11 @@ impl Decodable<IndexBlockParsedItem> for KeyedBlockHandle {
 
         let handle = unwrap!(BlockHandle::decode_from(reader));
         let seqno = unwrap!(reader.read_u64_varint());
-
-        let key_len: usize =
-            fixed_key_len.map_or_else(|| unwrap!(reader.read_u16_varint()).into(), usize::from);
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "blocks tend to be some megabytes in size at most, so position should fit into usize"
-        )]
-        let key_start = offset + reader.position() as usize;
-
-        #[expect(
-            clippy::cast_possible_wrap,
-            reason = "key_len is bounded by u16::MAX, no wrap expected"
-        )]
-        let offset_i64 = key_len as i64;
-        unwrap!(reader.seek_relative(offset_i64));
+        let end_key = read_key(reader, offset, fixed_key_len);
 
         Some(IndexBlockParsedItem {
             prefix: None,
-            end_key: SliceIndexes(key_start, key_start + key_len),
+            end_key,
             offset: handle.offset(),
             size: handle.size(),
             seqno,
@@ -221,7 +202,7 @@ impl Decodable<IndexBlockParsedItem> for KeyedBlockHandle {
         data: &'a [u8],
         fixed_key_len: Option<u16>,
         _fixed_value_len: Option<u32>,
-    ) -> Option<(&'a [u8], SeqNo)> {
+    ) -> Option<(&'a [u8], u64)> {
         let marker = unwrap!(reader.read_u8());
 
         if marker == TRAILER_START_MARKER {
@@ -231,25 +212,9 @@ impl Decodable<IndexBlockParsedItem> for KeyedBlockHandle {
         let _file_offset = unwrap!(reader.read_u64_varint());
         let _size = unwrap!(reader.read_u32_varint());
         let seqno = unwrap!(reader.read_u64_varint());
+        let SliceIndexes(start, end) = read_key(reader, offset, fixed_key_len);
 
-        let key_len: usize =
-            fixed_key_len.map_or_else(|| unwrap!(reader.read_u16_varint()).into(), usize::from);
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "blocks tend to be some megabytes in size at most, so position should fit into usize"
-        )]
-        let key_start = offset + reader.position() as usize;
-
-        #[expect(
-            clippy::cast_possible_wrap,
-            reason = "key_len is bounded by u16::MAX, no wrap expected"
-        )]
-        let key_len_i64 = key_len as i64;
-        unwrap!(reader.seek_relative(key_len_i64));
-
-        data.get(key_start..)
-            .and_then(|s| s.get(..key_len))
-            .map(|k| (k, seqno))
+        data.get(start..end).map(|k| (k, seqno))
     }
 
     // TODO: see https://github.com/fjall-rs/lsm-tree/issues/184

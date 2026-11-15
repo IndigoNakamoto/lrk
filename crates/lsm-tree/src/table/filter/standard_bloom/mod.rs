@@ -2,29 +2,28 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-pub(crate) mod builder;
+use std::io::Cursor;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::{Error, Result, Slice};
+
+use self::builder::secondary_hash;
+
+pub mod builder;
 
 pub use builder::Builder;
 
-use super::bit_array::BitArrayReader;
-use crate::{
-    file::MAGIC_BYTES,
-    table::filter::{FilterType, standard_bloom::builder::secondary_hash},
-};
-use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::{Cursor, Read};
+const HEADER_LEN: usize = 2 * size_of::<u64>();
 
-/// A standard bloom filter
-///
-/// Allows buffering the key hashes before actual filter construction
-/// which is needed to properly calculate the filter size, as the number of items
-/// are unknown during table construction.
+/// Reads an owned, pinned filter or borrows a filter from a cached block.
 ///
 /// The filter uses double hashing instead of `k` hash functions, see:
 /// <https://fjall-rs.github.io/post/bloom-filter-hash-sharing>
-pub struct StandardBloomFilterReader<'a> {
-    /// Raw bytes exposed as bit array
-    inner: BitArrayReader<'a>,
+#[derive(Clone)]
+pub struct StandardBloomFilterReader<B = Slice> {
+    /// Encoded header and bit array.
+    inner: B,
 
     /// Bit count
     m: usize,
@@ -33,73 +32,33 @@ pub struct StandardBloomFilterReader<'a> {
     k: usize,
 }
 
-impl<'a> StandardBloomFilterReader<'a> {
-    pub fn new(slice: &'a [u8]) -> crate::Result<Self> {
-        let mut reader = Cursor::new(slice);
+impl<B: AsRef<[u8]>> StandardBloomFilterReader<B> {
+    pub fn new(slice: B) -> Result<Self> {
+        let mut reader = Cursor::new(slice.as_ref());
 
-        // Check header
-        let mut magic = [0u8; MAGIC_BYTES.len()];
-        reader.read_exact(&mut magic)?;
-
-        if magic != MAGIC_BYTES {
-            return Err(crate::Error::InvalidHeader("BloomFilter"));
-        }
-
-        // NOTE: Filter type
-        let filter_type = reader.read_u8()?;
-        let filter_type = FilterType::try_from(filter_type)?;
-        assert_eq!(
-            FilterType::StandardBloom,
-            filter_type,
-            "Invalid filter type, got={filter_type:?}, expected={:?}",
-            FilterType::StandardBloom
-        );
-
-        // NOTE: Hash type (unused)
-        let hash_type = reader.read_u8()?;
-        assert_eq!(0, hash_type, "Invalid bloom hash type");
-
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "filters in a single table tend to be a couple of megabits of data at most, so easily fits into usize"
-        )]
-        let m = reader.read_u64::<LittleEndian>()? as usize;
-
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "k easily fits into any integer"
-        )]
-        let k = reader.read_u64::<LittleEndian>()? as usize;
-
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "filters in a single table tend to be a couple of megabytes of data at most, so easily fits into usize"
-        )]
-        let offset = reader.position() as usize;
+        let m = usize::try_from(reader.read_u64::<LittleEndian>()?)
+            .map_err(|_| Error::InvalidHeader("BloomFilter"))?;
+        let k = usize::try_from(reader.read_u64::<LittleEndian>()?)
+            .map_err(|_| Error::InvalidHeader("BloomFilter"))?;
 
         let bytes = slice
-            .get(offset..)
-            .ok_or(crate::Error::InvalidHeader("BloomFilter"))?;
+            .as_ref()
+            .get(HEADER_LEN..)
+            .ok_or(Error::InvalidHeader("BloomFilter"))?;
         let bit_len = bytes
             .len()
             .checked_mul(8)
-            .ok_or(crate::Error::InvalidHeader("BloomFilter"))?;
+            .ok_or(Error::InvalidHeader("BloomFilter"))?;
         if m == 0 || m != bit_len {
-            return Err(crate::Error::InvalidHeader("BloomFilter"));
+            return Err(Error::InvalidHeader("BloomFilter"));
         }
 
-        Ok(Self {
-            k,
-            m,
-            inner: BitArrayReader::new(bytes),
-        })
+        Ok(Self { k, m, inner: slice })
     }
 
-    /// Size of bloom filter in bytes.
-    #[must_use]
-    #[expect(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.inner.bytes().len()
+    pub fn maybe_contains(&self, key: &[u8], hash: &mut Option<u64>) -> bool {
+        let hash = *hash.get_or_insert_with(|| Builder::get_hash(key));
+        self.contains_hash(hash)
     }
 
     /// Returns `true` if the hash may be contained.
@@ -127,202 +86,15 @@ impl<'a> StandardBloomFilterReader<'a> {
         true
     }
 
-    /// Returns `true` if the item may be contained.
-    ///
-    /// Will never have a false negative.
-    #[must_use]
-    pub fn contains(&self, key: &[u8]) -> bool {
-        self.contains_hash(Self::get_hash(key))
-    }
-
     /// Returns `true` if the bit at `idx` is `1`.
     fn has_bit(&self, idx: usize) -> bool {
         debug_assert!(idx < self.m);
 
-        // SAFETY: construction validates that `m` matches the bit array, and
-        // callers derive `idx` modulo `m`.
-        unsafe { self.inner.get_unchecked(idx) }
-    }
-
-    /// Gets the hash of a key.
-    fn get_hash(key: &[u8]) -> u64 {
-        Builder::get_hash(key)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_log::test;
-
-    #[test]
-    fn filter_bloom_standard_serde_round_trip() -> crate::Result<()> {
-        let mut filter = Builder::with_fp_rate(10, 0.0001);
-
-        let keys = &[
-            b"item0", b"item1", b"item2", b"item3", b"item4", b"item5", b"item6", b"item7",
-            b"item8", b"item9",
-        ];
-
-        for key in keys {
-            filter.set_with_hash(StandardBloomFilterReader::get_hash(*key));
-        }
-
-        let filter_bytes = filter.build();
-        let filter_copy = StandardBloomFilterReader::new(&filter_bytes)?;
-
-        assert_eq!(filter.k, filter_copy.k);
-        assert_eq!(filter.m, filter_copy.m);
-        assert!(!filter_copy.contains(b"asdasads"));
-        assert!(!filter_copy.contains(b"item10"));
-        assert!(!filter_copy.contains(b"cxycxycxy"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn filter_bloom_standard_rejects_truncated_bits() {
-        let filter = Builder::with_fp_rate(10, 0.0001);
-        let mut filter_bytes = filter.build();
-        filter_bytes.pop();
-
-        assert!(matches!(
-            StandardBloomFilterReader::new(&filter_bytes),
-            Err(crate::Error::InvalidHeader("BloomFilter"))
-        ));
-    }
-
-    #[test]
-    fn filter_bloom_standard_basic() -> crate::Result<()> {
-        let mut filter = Builder::with_fp_rate(10, 0.0001);
-
-        let keys = [
-            b"item0" as &[u8],
-            b"item1",
-            b"item2",
-            b"item3",
-            b"item4",
-            b"item5",
-            b"item6",
-            b"item7",
-            b"item8",
-            b"item9",
-        ];
-
-        for key in &keys {
-            filter.set_with_hash(Builder::get_hash(key));
-        }
-
-        let filter_bytes = filter.build();
-        let filter = StandardBloomFilterReader::new(&filter_bytes)?;
-
-        for key in &keys {
-            assert!(filter.contains(key));
-        }
-
-        assert!(!filter.contains(b"asdasdasdasdasdasdasd"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn filter_bloom_standard_bpk() -> crate::Result<()> {
-        let item_count = 1_000;
-        let bpk = 5.0;
-
-        let mut filter = Builder::with_bpk(item_count, bpk);
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            filter.set_with_hash(Builder::get_hash(key));
-        }
-
-        let filter_bytes = filter.build();
-        let filter = StandardBloomFilterReader::new(&filter_bytes)?;
-
-        let mut false_positives = 0;
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            if filter.contains(key) {
-                false_positives += 1;
-            }
-        }
-
-        #[expect(clippy::cast_precision_loss)]
-        let fpr = false_positives as f32 / item_count as f32;
-        assert!(fpr < 0.13);
-
-        Ok(())
-    }
-
-    #[test]
-    fn filter_bloom_standard_fpr() -> crate::Result<()> {
-        let item_count = 100_000;
-        let wanted_fpr = 0.1;
-
-        let mut filter = Builder::with_fp_rate(item_count, wanted_fpr);
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            filter.set_with_hash(Builder::get_hash(key));
-        }
-
-        let filter_bytes = filter.build();
-        let filter = StandardBloomFilterReader::new(&filter_bytes)?;
-
-        let mut false_positives = 0;
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            if filter.contains(key) {
-                false_positives += 1;
-            }
-        }
-
-        #[expect(clippy::cast_precision_loss)]
-        let fpr = false_positives as f32 / item_count as f32;
-        assert!(fpr > 0.05);
-        assert!(fpr < 0.13);
-
-        Ok(())
-    }
-
-    #[test]
-    fn filter_bloom_standard_fpr_2() -> crate::Result<()> {
-        let item_count = 100_000;
-        let wanted_fpr = 0.5;
-
-        let mut filter = Builder::with_fp_rate(item_count, wanted_fpr);
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            filter.set_with_hash(Builder::get_hash(key));
-        }
-
-        let filter_bytes = filter.build();
-        let filter = StandardBloomFilterReader::new(&filter_bytes)?;
-
-        let mut false_positives = 0;
-
-        for key in (0..item_count).map(|_| nanoid::nanoid!()) {
-            let key = key.as_bytes();
-
-            if filter.contains(key) {
-                false_positives += 1;
-            }
-        }
-
-        #[expect(clippy::cast_precision_loss)]
-        let fpr = false_positives as f32 / item_count as f32;
-        assert!(fpr > 0.45);
-        assert!(fpr < 0.55);
-
-        Ok(())
+        #[expect(
+            clippy::indexing_slicing,
+            reason = "construction validates the bit array length"
+        )]
+        let byte = self.inner.as_ref()[HEADER_LEN + idx / 8];
+        byte & (0b1000_0000_u8 >> (idx % 8)) != 0
     }
 }

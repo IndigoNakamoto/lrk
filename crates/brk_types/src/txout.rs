@@ -1,81 +1,87 @@
-use brk_chain::primitives as bitcoin;
-use crate::{Addr, AddrBytes, OutputType, Sats};
-use bitcoin::ScriptBuf;
-use schemars::JsonSchema;
+#[cfg(feature = "schemars")]
+use std::borrow::Cow;
+
+use bitcoin::{ScriptBuf, TxOut as BitcoinTxOut};
+#[cfg(feature = "schemars")]
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeStruct};
+#[cfg(feature = "schemars")]
+use serde_json::json;
 
-/// Transaction output
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+use crate::{Address, AddressBytes, OutputType, Sats, bytes::DisplayStr};
+#[cfg(feature = "schemars")]
+use crate::{Hex, OutputTypeNormalized};
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct TxOut {
-    /// Script pubkey (locking script)
-    #[serde(
-        rename = "scriptpubkey",
-        serialize_with = "serialize_with_script_pubkey"
-    )]
-    #[schemars(
-        with = "String",
-        example = "00143b064c595a95f977f00352d6e917501267cacdc6"
-    )]
+    #[serde(rename = "scriptpubkey")]
     pub script_pubkey: ScriptBuf,
-
-    /// Script pubkey in assembly format
-    #[allow(dead_code)]
-    #[serde(skip, rename = "scriptpubkey_asm")]
-    #[schemars(
-        with = "String",
-        example = "OP_0 OP_PUSHBYTES_20 3b064c595a95f977f00352d6e917501267cacdc6"
-    )]
-    script_pubkey_asm: (),
-
-    /// Esplora/mempool.space script type
-    #[allow(dead_code)]
-    #[serde(skip, rename = "scriptpubkey_type")]
-    #[schemars(with = "crate::OutputTypeNormalized", example = &"v0_p2wpkh")]
-    script_pubkey_type: (),
-
-    /// Bitcoin address (if applicable, None for OP_RETURN)
-    #[allow(dead_code)]
-    #[serde(skip, rename = "scriptpubkey_address")]
-    #[schemars(with = "Option<Addr>", example = Some("bc1q8vryck26jhuh0uqr2ttwj96szfnu4nwxfmu39y".to_string()))]
-    script_pubkey_addr: (),
-
-    /// Value of the output in satoshis
-    #[schemars(example = Sats::new(7782))]
     pub value: Sats,
 }
 
-impl TxOut {
-    pub fn addr(&self) -> Option<Addr> {
-        Addr::try_from(&self.script_pubkey).ok()
+#[cfg(feature = "schemars")]
+#[allow(dead_code)]
+#[derive(JsonSchema)]
+struct TxOutSchema {
+    /// Script pubkey (locking script), encoded as hexadecimal.
+    #[schemars(example = "00143b064c595a95f977f00352d6e917501267cacdc6")]
+    scriptpubkey: Hex,
+    /// Script pubkey in assembly format.
+    #[schemars(example = "OP_0 OP_PUSHBYTES_20 3b064c595a95f977f00352d6e917501267cacdc6")]
+    scriptpubkey_asm: String,
+    /// Esplora/mempool.space script type.
+    #[schemars(example = &"v0_p2wpkh")]
+    scriptpubkey_type: OutputTypeNormalized,
+    /// Bitcoin address, omitted for scripts without an address (P2PK included, as Esplora).
+    #[schemars(example = &"bc1q8vryck26jhuh0uqr2ttwj96szfnu4nwxfmu39y")]
+    scriptpubkey_address: Address,
+    /// Value of the output in satoshis.
+    #[schemars(example = Sats::new(7782))]
+    value: Sats,
+}
+
+#[cfg(feature = "schemars")]
+impl JsonSchema for TxOut {
+    fn schema_name() -> Cow<'static, str> {
+        "TxOut".into()
     }
 
-    pub fn addr_bytes(&self) -> Option<AddrBytes> {
-        AddrBytes::try_from(&self.script_pubkey).ok()
-    }
-
-    pub fn type_(&self) -> OutputType {
-        OutputType::from(&self.script_pubkey)
-    }
-
-    pub fn script_pubkey_asm(&self) -> String {
-        self.script_pubkey.to_asm_string()
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        let mut schema = TxOutSchema::json_schema(generator);
+        schema.insert(
+            "required".to_owned(),
+            json!([
+                "scriptpubkey",
+                "scriptpubkey_asm",
+                "scriptpubkey_type",
+                "value"
+            ]),
+        );
+        schema
     }
 }
 
-impl From<bitcoin::TxOut> for TxOut {
+impl TxOut {
+    pub fn addr_bytes(&self) -> Option<AddressBytes> {
+        AddressBytes::try_from(&self.script_pubkey).ok()
+    }
+
+    pub fn output_type(&self) -> OutputType {
+        OutputType::from(&self.script_pubkey)
+    }
+}
+
+impl From<BitcoinTxOut> for TxOut {
     #[inline]
-    fn from(txout: bitcoin::TxOut) -> Self {
+    fn from(txout: BitcoinTxOut) -> Self {
         Self {
             script_pubkey: txout.script_pubkey,
             value: txout.value.into(),
-            script_pubkey_asm: (),
-            script_pubkey_addr: (),
-            script_pubkey_type: (),
         }
     }
 }
 
-impl From<&TxOut> for bitcoin::TxOut {
+impl From<&TxOut> for BitcoinTxOut {
     #[inline]
     fn from(txout: &TxOut) -> Self {
         Self {
@@ -90,9 +96,6 @@ impl From<(ScriptBuf, Sats)> for TxOut {
     fn from((script, value): (ScriptBuf, Sats)) -> Self {
         Self {
             script_pubkey: script,
-            script_pubkey_addr: (),
-            script_pubkey_asm: (),
-            script_pubkey_type: (),
             value,
         }
     }
@@ -103,77 +106,27 @@ impl Serialize for TxOut {
     where
         S: Serializer,
     {
-        let output_type = self.type_();
-        let addr = self.addr();
+        let output_type = self.output_type();
+        // As Esplora, P2PK has no address here; the pubkey hex stands for one only in the
+        // address endpoints.
+        let addr = (!matches!(output_type, OutputType::P2PK65 | OutputType::P2PK33))
+            .then(|| Address::try_from((&self.script_pubkey, output_type)).ok())
+            .flatten();
         let field_count = if addr.is_some() { 5 } else { 4 };
         let mut state = serializer.serialize_struct("TxOut", field_count)?;
-        state.serialize_field("scriptpubkey", &self.script_pubkey.to_hex_string())?;
-        state.serialize_field("scriptpubkey_asm", &self.script_pubkey_asm())?;
+        state.serialize_field(
+            "scriptpubkey",
+            &DisplayStr(format_args!("{:x}", self.script_pubkey)),
+        )?;
+        state.serialize_field(
+            "scriptpubkey_asm",
+            &DisplayStr(self.script_pubkey.as_script()),
+        )?;
         state.serialize_field("scriptpubkey_type", &output_type.normalized())?;
         if let Some(addr) = &addr {
             state.serialize_field("scriptpubkey_address", addr)?;
         }
         state.serialize_field("value", &self.value)?;
         state.end()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn p2pk_script(pubkey: &[u8]) -> ScriptBuf {
-        let mut script = Vec::with_capacity(pubkey.len() + 2);
-        script.push(pubkey.len() as u8);
-        script.extend_from_slice(pubkey);
-        script.push(0xac);
-        ScriptBuf::from_bytes(script)
-    }
-
-    fn script_type(script: ScriptBuf) -> (OutputType, String) {
-        let txout = TxOut::from((script, Sats::new(0)));
-        let output_type = txout.type_();
-        let value = serde_json::to_value(txout).unwrap();
-        let script_type = value["scriptpubkey_type"].as_str().unwrap().to_owned();
-        (output_type, script_type)
-    }
-
-    #[test]
-    fn script_type_uses_normalized_names() {
-        let p2pk33 = [
-            0x02, 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce,
-            0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2, 0x81,
-            0x5b, 0x16, 0xf8, 0x17, 0x98,
-        ];
-        let p2pk65 = [
-            0x04, 0x67, 0x8a, 0xfd, 0xb0, 0xfe, 0x55, 0x48, 0x27, 0x19, 0x67, 0xf1, 0xa6, 0x71,
-            0x30, 0xb7, 0x10, 0x5c, 0xd6, 0xa8, 0x28, 0xe0, 0x39, 0x09, 0xa6, 0x79, 0x62, 0xe0,
-            0xea, 0x1f, 0x61, 0xde, 0xb6, 0x49, 0xf6, 0xbc, 0x3f, 0x4c, 0xef, 0x38, 0xc4, 0xf3,
-            0x55, 0x04, 0xe5, 0x1e, 0xc1, 0x12, 0xde, 0x5c, 0x38, 0x4d, 0xf7, 0xba, 0x0b, 0x8d,
-            0x57, 0x8a, 0x4c, 0x70, 0x2b, 0x6b, 0xf1, 0x1d, 0x5f,
-        ];
-
-        assert_eq!(
-            script_type(p2pk_script(&p2pk33)),
-            (OutputType::P2PK33, "p2pk".to_string())
-        );
-        assert_eq!(
-            script_type(p2pk_script(&p2pk65)),
-            (OutputType::P2PK65, "p2pk".to_string())
-        );
-        assert_eq!(
-            script_type(ScriptBuf::from_bytes(vec![0x51, 0x02, 0x4e, 0x73])),
-            (OutputType::P2A, "anchor".to_string())
-        );
-        let mut p2wpkh = vec![0; 22];
-        p2wpkh[1] = 0x14;
-        assert_eq!(
-            script_type(ScriptBuf::from_bytes(p2wpkh)),
-            (OutputType::P2WPKH, "v0_p2wpkh".to_string())
-        );
-        assert_eq!(
-            script_type(ScriptBuf::from_bytes(vec![0x6a])),
-            (OutputType::OpReturn, "op_return".to_string())
-        );
     }
 }

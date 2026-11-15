@@ -1,14 +1,14 @@
 use std::{marker::PhantomData, sync::Arc};
 
-mod any_vec;
-mod avg;
-mod change;
-mod clone;
-mod op;
-mod rate;
-mod readable;
-mod sub;
-mod typed;
+pub mod any_vec;
+pub mod avg;
+pub mod change;
+pub mod clone;
+pub mod op;
+pub mod rate;
+pub mod readable;
+pub mod sub;
+pub mod typed;
 
 pub use avg::DeltaAvg;
 pub use change::DeltaChange;
@@ -16,31 +16,50 @@ pub use op::DeltaOp;
 pub use rate::DeltaRate;
 pub use sub::DeltaSub;
 
-use crate::{ReadableBoxedVec, VecIndex, VecValue, Version};
+use crate::{
+    AnyVec, CheckedSub, ReadableBoxedVec, VecIndex, VecValue, Version, WindowBatch, WindowBuffers,
+    before_window_bounds, read_batches,
+};
 
-/// Lazily computed vector that combines a source value with a lookback value.
+/// `current - before` as `f64`, subtracted exactly first: cumulative integers can exceed `f64`'s
+/// 53 bits, where converting both operands first loses the difference. A difference past `S`'s
+/// range (signed extremes) is subtracted in `f64` instead.
+#[inline(always)]
+fn exact_diff<S: CheckedSub + PartialOrd + Clone + Into<f64>>(current: S, before: S) -> f64 {
+    let (high, low, sign) = if current >= before {
+        (current, before, 1.0)
+    } else {
+        (before, current, -1.0)
+    };
+    let diff = high
+        .clone()
+        .checked_sub(low.clone())
+        .map_or_else(|| high.into() - low.into(), Into::into);
+    sign * diff
+}
+
+/// Lazily computed vector that combines a source value with the value before its window.
 ///
-/// For each index `h` with `start = window_starts[h]`:
-/// - `INCLUSIVE` ops (cumulative source): reads `source[h]` and `source[start - 1]`,
-///   count = `h - start + 1`. Used for rolling sums/averages from prefix sums.
-/// - Non-inclusive ops (raw source): reads `source[h]` and `source[start]`,
-///   count = `h - start`. Used for point-to-point deltas (change, rate).
+/// For each index `h` with `start = window_starts[h]` (the window's first index), `Op` combines
+/// `source[h]` with the value before the window, `source[start - 1]` (the default for a window
+/// from 0), and the count [`DeltaOp::count`] gives (by default the window length
+/// `h - start + 1`): rolling sums/averages from prefix sums, and changes that equal the sum of
+/// the flows in the window.
 ///
-/// Nothing is stored on disk — values are computed on-the-fly during iteration.
-pub struct LazyDeltaVec<I, S, T, Op> {
-    pub(super) name: Arc<str>,
-    pub(super) base_version: Version,
-    pub(super) source: ReadableBoxedVec<I, S>,
-    pub(super) window_starts_version: Version,
-    #[allow(clippy::type_complexity)]
-    pub(super) window_starts: Arc<dyn Fn() -> Arc<[I]> + Send + Sync>,
-    pub(super) _op: PhantomData<(Op, T)>,
+/// Sources are dense (every index below their length holds a value) and never shrink while read:
+/// they may grow, but a truncation waits for readers (checked in dev builds).
+pub struct LazyDeltaVec<I: VecIndex, S: VecValue, T, Op> {
+    name: Arc<str>,
+    base_version: Version,
+    source: ReadableBoxedVec<I, S>,
+    window_starts: ReadableBoxedVec<I, I>,
+    _op: PhantomData<(Op, T)>,
 }
 
 impl<I, S, T, Op> LazyDeltaVec<I, S, T, Op>
 where
     I: VecIndex,
-    S: VecValue,
+    S: VecValue + Default,
     T: VecValue,
     Op: DeltaOp<S, T>,
 {
@@ -48,67 +67,53 @@ where
         name: &str,
         version: Version,
         source: ReadableBoxedVec<I, S>,
-        window_starts_version: Version,
-        window_starts: impl Fn() -> Arc<[I]> + Send + Sync + 'static,
+        window_starts: ReadableBoxedVec<I, I>,
     ) -> Self {
         Self {
             name: Arc::from(name),
             base_version: version,
             source,
-            window_starts_version,
-            window_starts: Arc::new(window_starts),
+            window_starts,
             _op: PhantomData,
         }
     }
 
-    /// Core bulk iteration with fold + early exit support: collect source range
-    /// covering both current and ago positions in a single sequential read,
-    /// then apply Op per element.
-    #[inline]
-    pub(super) fn bulk_try_fold<B, E>(
+    /// Visits `[from, to)` in [`read_batches`], each with its window starts and its source batch
+    /// ([`WindowBuffers`]). Scratch covers the batch and the span of its before-window values.
+    fn try_for_each_batch<E>(
         &self,
         from: usize,
         to: usize,
-        starts: &[I],
-        init: B,
-        mut f: impl FnMut(B, T) -> std::result::Result<B, E>,
-    ) -> std::result::Result<B, E> {
-        if from >= to {
-            return Ok(init);
+        mut visit: impl FnMut(usize, &[I], WindowBatch<'_, S>) -> Result<(), E>,
+    ) -> Result<(), E> {
+        let to = to.min(self.len());
+        let (mut starts, mut buffers) = (Vec::new(), WindowBuffers::default());
+        // Batches large enough that historical pages shared by adjacent ones are rarely read twice.
+        for (at, end) in read_batches(from, to, self.source.cursor_chunk_size()) {
+            starts.clear();
+            self.window_starts.read_into_at(at, end, &mut starts);
+            debug_assert_eq!(starts.len(), end - at, "LazyDeltaVec sources are dense");
+            let bounds = before_window_bounds(&starts);
+            visit(at, &starts, buffers.read(&*self.source, at, end, bounds))?;
         }
-
-        // Starts are monotonically non-decreasing, so the earliest ago is from starts[from].
-        let read_from = Op::ago_index(starts[from].to_usize())
-            .unwrap_or(0)
-            .min(from);
-
-        let source_data = self.source.collect_range_dyn(read_from, to);
-
-        let mut acc = init;
-        for i in from..to {
-            let start = starts[i].to_usize();
-            let current = source_data[i - read_from].clone();
-            let ago = match Op::ago_index(start) {
-                Some(idx) => source_data[idx - read_from].clone(),
-                None => Op::ago_default(),
-            };
-            acc = f(acc, Op::combine(current, ago, Op::count(i, start)))?;
-        }
-        Ok(acc)
+        Ok(())
     }
 
-    #[inline]
-    pub(super) fn bulk_for_each(
-        &self,
-        from: usize,
-        to: usize,
-        starts: &[I],
-        mut each: impl FnMut(T),
-    ) {
-        self.bulk_try_fold(from, to, starts, (), |(), v| {
-            each(v);
-            Ok::<_, std::convert::Infallible>(())
-        })
-        .unwrap_or_else(|e: std::convert::Infallible| match e {})
+    fn transformed_values<'a>(
+        at: usize,
+        starts: &'a [I],
+        batch: WindowBatch<'a, S>,
+    ) -> impl Iterator<Item = T> + 'a {
+        (at..)
+            .zip(batch.current)
+            .zip(starts)
+            .map(move |((index, current), start)| {
+                let start = start.to_usize();
+                Op::combine(
+                    current.clone(),
+                    batch.before(start),
+                    Op::count(index, start),
+                )
+            })
     }
 }

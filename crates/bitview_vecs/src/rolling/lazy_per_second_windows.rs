@@ -1,0 +1,41 @@
+use bitview_primitives::{Count, PerSecond};
+use bitview_traversable::Traversable;
+use brk_types::Version;
+use derive_more::{Deref, DerefMut};
+
+use crate::{
+    LazyPerBlock, LazyRollingSumFromHeight, LazyRollingSumsFromHeight, ops::CountPerSecond,
+    shapes::Windows,
+};
+
+#[derive(Clone, Deref, DerefMut, Traversable)]
+pub struct LazyPerSecondWindows(
+    /// Per-second average over a trailing window: the window's total
+    /// count divided by its fixed duration in seconds. The divisor remains the
+    /// full duration before enough history exists. At time-period indexes, the
+    /// value is taken from the period's final block.
+    pub Windows<LazyPerBlock<PerSecond, Count>>,
+);
+
+impl LazyPerSecondWindows {
+    pub fn new(name: &str, version: Version, source: &LazyRollingSumsFromHeight<Count>) -> Self {
+        fn window<const SECONDS: u32>(
+            name: &str,
+            version: Version,
+            source: &LazyRollingSumFromHeight<Count>,
+        ) -> LazyPerBlock<PerSecond, Count> {
+            LazyPerBlock::from_resolutions::<CountPerSecond<SECONDS>>(
+                name,
+                version,
+                &source.resolutions,
+            )
+        }
+
+        Self(Windows {
+            _24h: window::<86_400>(&format!("{name}_24h"), version, &source._24h),
+            _1w: window::<604_800>(&format!("{name}_1w"), version, &source._1w),
+            _1m: window::<2_592_000>(&format!("{name}_1m"), version, &source._1m),
+            _1y: window::<31_536_000>(&format!("{name}_1y"), version, &source._1y),
+        })
+    }
+}

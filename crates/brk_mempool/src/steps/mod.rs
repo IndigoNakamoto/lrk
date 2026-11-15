@@ -1,11 +1,9 @@
-//! Cycle stages in pipeline order.
+//! Cycle stages: fetcher, preparer, applier, then prevouts.
 
-mod applier;
-mod fetcher;
-mod preparer;
-mod prevouts;
+pub mod applier;
+pub mod fetcher;
+pub mod preparer;
+pub mod prevouts;
 
-pub use applier::Applier;
-pub use fetcher::{Fetched, Fetcher};
-pub use preparer::{Preparer, TxRemoval};
-pub use prevouts::Prevouts;
+pub use fetcher::Fetched;
+pub use preparer::TxRemoval;

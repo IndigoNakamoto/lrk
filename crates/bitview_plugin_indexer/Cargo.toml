@@ -1,0 +1,32 @@
+[package]
+name = "bitview_plugin_indexer"
+description = "The blockchain indexer plugin for Bitview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage = "https://bitview.dev"
+repository.workspace = true
+readme = "README.md"
+
+[features]
+litecoin = ["bitcoin/litecoin", "bitview_plugin/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_store/litecoin", "brk_types/litecoin"]
+
+[dependencies]
+arc-swap = { workspace = true }
+bitcoin = { workspace = true }
+bitview_plugin = { workspace = true }
+bitview_primitives = { workspace = true, features = ["storage"] }
+brk_error = { workspace = true, features = ["fjall", "vecdb"] }
+brk_exit = { workspace = true }
+brk_reader = { workspace = true }
+brk_store = { workspace = true }
+bitview_traversable = { workspace = true }
+brk_types = { workspace = true, features = ["storage"] }
+crossbeam-channel = "0.5.17"
+fjall = { workspace = true }
+rayon = { workspace = true }
+rustc-hash = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+vecdb = { workspace = true }

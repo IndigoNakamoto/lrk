@@ -1,15 +1,16 @@
-use brk_chain::primitives as bitcoin;
-use std::ops::{Add, AddAssign, Div};
-
-use derive_more::Deref;
-use jiff::{civil::date, tz::TimeZone};
+use bitcoin::locktime::absolute::Time;
+use derive_more::{Add, AddAssign, Deref, From};
+use jiff::Timestamp as JiffTimestamp;
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{CheckedSub, Formattable, Pco};
 
-use super::Date;
+use crate::CheckedSub;
 
-/// UNIX timestamp in seconds
+#[cfg(feature = "storage")]
+use vecdb::Pco;
+
+/// A Unix timestamp, in seconds.
 #[derive(
     Debug,
     Default,
@@ -22,41 +23,24 @@ use super::Date;
     Ord,
     Serialize,
     Deserialize,
-    Pco,
-    JsonSchema,
+    Add,
+    AddAssign,
+    From,
 )]
-#[schemars(
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
+#[cfg_attr(feature = "schemars", schemars(
     example = &1231006505,
     example = &1672531200,
     example = &1713571200,
     example = &1743631892,
     example = &1759000868
-)]
+))]
 pub struct Timestamp(u32);
 
 pub const ONE_HOUR_IN_SEC: u32 = 60 * 60;
 pub const ONE_DAY_IN_SEC: u32 = 24 * 60 * 60;
 pub const ONE_DAY_IN_SEC_F64: f64 = ONE_DAY_IN_SEC as f64;
-
-/// 2009-01-01 00:00:00 UTC — Bitcoin default for fixed-interval time indexes.
-/// For Litecoin the value is 2011-01-01 (1_293_840_000). Set at startup via
-/// `brk_types::init_chain_epoch`.
-pub const INDEX_EPOCH: u32 = 1_230_768_000;
-
-static INDEX_EPOCH_GLOBAL: std::sync::atomic::AtomicU32 =
-    std::sync::atomic::AtomicU32::new(INDEX_EPOCH);
-
-/// Returns the active chain's index epoch (seconds since UNIX epoch).
-/// Defaults to the Bitcoin value; override with `set_index_epoch` at startup.
-#[inline]
-pub fn index_epoch() -> u32 {
-    INDEX_EPOCH_GLOBAL.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-/// Set the chain index epoch once at program startup.
-pub fn set_index_epoch(epoch: u32) {
-    INDEX_EPOCH_GLOBAL.store(epoch, std::sync::atomic::Ordering::Relaxed);
-}
 
 impl Timestamp {
     pub const ZERO: Self = Self(0);
@@ -65,58 +49,22 @@ impl Timestamp {
         Self(timestamp)
     }
 
-    pub fn floor_seconds(self) -> Self {
-        let zoned = jiff::Timestamp::from(self).to_zoned(TimeZone::UTC);
-        let date_time = jiff::civil::DateTime::from(zoned);
-        let trunc_date_time = date(date_time.year(), date_time.month(), date_time.day()).at(
-            date_time.hour(),
-            date_time.minute(),
-            0,
-            0,
-        );
-        Self::from(trunc_date_time.to_zoned(TimeZone::UTC).unwrap().timestamp())
-    }
-
     #[inline]
-    pub fn difference_in_days_between(&self, older: Self) -> usize {
-        // if self.0 < older.0 {
-        //     unreachable!()
-        // }
-        ((self.0 - older.0) / ONE_DAY_IN_SEC) as usize
-    }
-
-    #[inline]
-    pub fn difference_in_days_between_float(&self, older: Self) -> f64 {
-        // if self.0 < older.0 {
-        //     unreachable!()
-        // }
+    pub fn days_since(&self, older: Self) -> f64 {
         (self.0 - older.0) as f64 / ONE_DAY_IN_SEC_F64
     }
 
     #[inline]
-    pub fn difference_in_hours_between(&self, older: Self) -> usize {
+    pub fn hours_since(&self, older: Self) -> usize {
         ((self.0 - older.0) / ONE_HOUR_IN_SEC) as usize
     }
 
-    #[inline]
-    pub fn is_more_than_hour(&self) -> bool {
-        self.0 >= ONE_HOUR_IN_SEC
-    }
-
     pub fn now() -> Self {
-        Self::from(jiff::Timestamp::now())
+        Self::from(JiffTimestamp::now())
     }
 
-    /// Returns an ISO 8601 formatted string
     pub fn to_iso8601(self) -> String {
-        jiff::Timestamp::from(self).to_string()
-    }
-}
-
-impl From<u32> for Timestamp {
-    #[inline]
-    fn from(value: u32) -> Self {
-        Self(value)
+        JiffTimestamp::from(self).to_string()
     }
 }
 
@@ -129,23 +77,23 @@ impl From<i64> for Timestamp {
     }
 }
 
-impl From<jiff::Timestamp> for Timestamp {
+impl From<JiffTimestamp> for Timestamp {
     #[inline]
-    fn from(value: jiff::Timestamp) -> Self {
+    fn from(value: JiffTimestamp) -> Self {
         Self(value.as_second() as u32)
     }
 }
 
-impl From<Timestamp> for jiff::Timestamp {
+impl From<Timestamp> for JiffTimestamp {
     #[inline]
     fn from(value: Timestamp) -> Self {
-        jiff::Timestamp::from_second(*value as i64).unwrap()
+        JiffTimestamp::from_second(*value as i64).unwrap()
     }
 }
 
-impl From<bitcoin::locktime::absolute::Time> for Timestamp {
+impl From<Time> for Timestamp {
     #[inline]
-    fn from(value: bitcoin::locktime::absolute::Time) -> Self {
+    fn from(value: Time) -> Self {
         Self(value.to_consensus_u32())
     }
 }
@@ -171,41 +119,9 @@ impl From<Timestamp> for u64 {
     }
 }
 
-impl From<Date> for Timestamp {
-    #[inline]
-    fn from(value: Date) -> Self {
-        Self::from(
-            jiff::civil::Date::from(value)
-                .to_zoned(TimeZone::UTC)
-                .unwrap()
-                .timestamp(),
-        )
-    }
-}
-
 impl CheckedSub<Timestamp> for Timestamp {
     fn checked_sub(self, rhs: Self) -> Option<Self> {
         self.0.checked_sub(rhs.0).map(Self)
-    }
-}
-
-impl Div<usize> for Timestamp {
-    type Output = Self;
-    fn div(self, rhs: usize) -> Self::Output {
-        Self(self.0 / rhs as u32)
-    }
-}
-
-impl Add for Timestamp {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for Timestamp {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
     }
 }
 
@@ -225,18 +141,4 @@ impl From<Timestamp> for f64 {
     }
 }
 
-impl std::fmt::Display for Timestamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = itoa::Buffer::new();
-        let str = buf.format(self.0);
-        f.write_str(str)
-    }
-}
-
-impl Formattable for Timestamp {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
-    }
-}
+crate::impl_int_format!(Timestamp);

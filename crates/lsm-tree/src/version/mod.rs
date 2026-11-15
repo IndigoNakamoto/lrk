@@ -2,162 +2,78 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-mod optimize;
+mod level;
+pub mod optimize;
 mod persist;
 pub mod recovery;
 pub mod run;
-mod super_version;
+mod set;
 
-pub use persist::persist_version;
+pub use level::Level;
 pub use run::Run;
-pub use super_version::{SuperVersion, SuperVersions};
+pub use set::Set;
 
-use crate::checksum::ChecksumType;
 use crate::compaction::state::hidden_set::HiddenSet;
-use crate::version::recovery::Recovery;
-use crate::{HashSet, KeyRange, Table, TableId};
+use crate::{Result, Table};
+use byteorder::{LittleEndian, WriteBytesExt};
 use optimize::optimize_runs;
-use run::Ranged;
-use std::{ops::Deref, sync::Arc};
+use rustc_hash::FxHashSet;
+use std::{
+    io::{Error as IoError, ErrorKind, Write},
+    ops::Deref,
+    sync::Arc,
+};
 
 pub const DEFAULT_LEVEL_COUNT: u8 = 7;
 
-/// Monotonically increasing ID of a version.
-pub type VersionId = u64;
-
-impl Ranged for Table {
-    fn key_range(&self) -> &KeyRange {
-        &self.metadata.key_range
-    }
+fn level_contains_any(level: &Level, ids: &FxHashSet<u32>) -> bool {
+    level
+        .iter()
+        .flat_map(|run| run.iter())
+        .any(|table| ids.contains(&table.id()))
 }
 
-pub struct GenericLevel<T: Ranged> {
-    runs: Vec<Arc<Run<T>>>,
-}
+fn rebuild_level(
+    level: &Level,
+    removed_ids: &FxHashSet<u32>,
+    new_run: Option<Run<Table>>,
+    append_new_run: bool,
+) -> Level {
+    let mut runs = level
+        .iter()
+        .filter_map(|run| {
+            Run::new(
+                run.iter()
+                    .filter(|table| !removed_ids.contains(&table.id()))
+                    .cloned()
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
 
-impl<T: Ranged> std::ops::Deref for GenericLevel<T> {
-    type Target = [Arc<Run<T>>];
-
-    fn deref(&self) -> &Self::Target {
-        &self.runs
-    }
-}
-
-impl<T: Ranged> GenericLevel<T> {
-    pub fn new(runs: Vec<Arc<Run<T>>>) -> Self {
-        Self { runs }
-    }
-
-    pub fn table_count(&self) -> usize {
-        self.iter().map(|x| x.len()).sum()
-    }
-
-    pub fn run_count(&self) -> usize {
-        self.runs.len()
-    }
-
-    pub fn is_disjoint(&self) -> bool {
-        self.run_count() == 1
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.runs.is_empty()
-    }
-
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Arc<Run<T>>> {
-        self.runs.iter()
-    }
-}
-
-#[derive(Clone)]
-pub struct Level(Arc<GenericLevel<Table>>);
-
-impl std::ops::Deref for Level {
-    type Target = GenericLevel<Table>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Level {
-    pub fn empty() -> Self {
-        Self::from_runs(vec![])
-    }
-
-    pub fn from_runs(runs: Vec<Arc<Run<Table>>>) -> Self {
-        Self(Arc::new(GenericLevel { runs }))
-    }
-
-    pub fn list_ids(&self) -> HashSet<TableId> {
-        self.iter()
-            .flat_map(|run| run.iter())
-            .map(Table::id)
-            .collect()
-    }
-
-    pub fn first_run(&self) -> Option<&Arc<Run<Table>>> {
-        self.runs.first()
-    }
-
-    /// Returns the on-disk size of the level.
-    pub fn size(&self) -> u64 {
-        self.0
-            .iter()
-            .flat_map(|x| x.iter())
-            .map(Table::file_size)
-            .sum()
-    }
-
-    pub fn aggregate_key_range(&self) -> KeyRange {
-        if self.run_count() == 1 {
-            #[expect(
-                clippy::expect_used,
-                reason = "we check for run_count, so the first run must exist"
-            )]
-            self.runs
-                .first()
-                .expect("should exist")
-                .aggregate_key_range()
+    if let Some(new_run) = new_run {
+        if append_new_run {
+            runs.push(new_run);
         } else {
-            let key_ranges = self
-                .iter()
-                .map(|x| Run::aggregate_key_range(x))
-                .collect::<Vec<_>>();
-
-            KeyRange::aggregate(key_ranges.iter())
+            runs.insert(0, new_run);
         }
     }
-}
 
-pub struct VersionInner {
-    /// The version's ID
-    id: VersionId,
-
-    /// The individual LSM-tree levels which consist of runs of tables
-    levels: Vec<Level>,
+    Level::from_runs(optimize_runs(runs).into_iter().map(Arc::new).collect())
 }
 
 /// A version is an immutable, point-in-time view of a tree's structure
 ///
 /// Any time a table is created or deleted, a new version is created.
-#[derive(Clone)]
 pub struct Version {
-    inner: Arc<VersionInner>,
-}
-
-impl std::ops::Deref for Version {
-    type Target = VersionInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
+    id: u64,
+    levels: Vec<Level>,
 }
 
 // TODO: impl using generics so we can easily unit test Version transformation functions
 impl Version {
     /// Returns the version ID.
-    pub fn id(&self) -> VersionId {
+    pub fn id(&self) -> u64 {
         self.id
     }
 
@@ -177,55 +93,15 @@ impl Version {
     }
 
     /// Creates a new empty version.
-    pub fn new(id: VersionId) -> Self {
+    pub fn new(id: u64) -> Self {
         let levels = (0..DEFAULT_LEVEL_COUNT).map(|_| Level::empty()).collect();
 
-        Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        }
-    }
-
-    pub(crate) fn from_recovery(recovery: &Recovery, tables: &[Table]) -> crate::Result<Self> {
-        let version_levels = recovery
-            .table_ids
-            .iter()
-            .map(|level| {
-                let level_runs = level
-                    .iter()
-                    .map(|run| {
-                        let run_tables = run
-                            .iter()
-                            .map(|table| {
-                                tables
-                                    .iter()
-                                    .find(|x| x.id() == table.id)
-                                    .cloned()
-                                    .ok_or(crate::Error::Unrecoverable)
-                            })
-                            .collect::<crate::Result<Vec<_>>>()?;
-
-                        Ok(Arc::new(
-                            #[expect(
-                                clippy::expect_used,
-                                reason = "empty runs should not exist, so there should not be any empty persisted runs"
-                            )]
-                            Run::new(run_tables).expect("persisted runs should not be empty"),
-                        ))
-                    })
-                    .collect::<crate::Result<Vec<_>>>()?;
-
-                Ok(Level::from_runs(level_runs))
-            })
-            .collect::<crate::Result<Vec<_>>>()?;
-
-        Ok(Self::from_levels(recovery.curr_version_id, version_levels))
+        Self { id, levels }
     }
 
     /// Creates a new pre-populated version.
-    pub fn from_levels(id: VersionId, levels: Vec<Level>) -> Self {
-        Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        }
+    pub fn from_levels(id: u64, levels: Vec<Level>) -> Self {
+        Self { id, levels }
     }
 
     /// Returns the number of levels.
@@ -238,21 +114,12 @@ impl Version {
         self.levels.iter()
     }
 
-    /// Returns the number of tables in all levels.
-    pub fn table_count(&self) -> usize {
-        self.iter_levels().map(|x| x.table_count()).sum()
-    }
-
     /// Returns an iterator over all tables.
     pub fn iter_tables(&self) -> impl Iterator<Item = &Table> {
         self.levels
             .iter()
+            .flat_map(Level::iter)
             .flat_map(|x| x.iter())
-            .flat_map(|x| x.iter())
-    }
-
-    pub(crate) fn get_table(&self, id: TableId) -> Option<&Table> {
-        self.iter_tables().find(|x| x.metadata.id == id)
     }
 
     /// Gets the n-th level.
@@ -298,176 +165,70 @@ impl Version {
         // L1+
         levels.extend(self.levels.iter().skip(1).cloned());
 
-        Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        }
+        Self { id, levels }
     }
 
-    /// Returns a new version with a list of tables removed.
-    ///
-    /// The table files are not immediately deleted, this is handled by the version system's free list.
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "preserves the fallible version-transformation API"
-    )]
-    pub fn with_dropped(&self, ids: &[TableId]) -> crate::Result<Self> {
+    pub fn with_merge(
+        &self,
+        old_ids: &FxHashSet<u32>,
+        new_tables: &[Table],
+        dest_level: usize,
+    ) -> Self {
         let id = self.id + 1;
+        let levels = self
+            .levels
+            .iter()
+            .enumerate()
+            .map(|(level_idx, level)| {
+                let is_destination = level_idx == dest_level && !new_tables.is_empty();
 
-        let mut levels = vec![];
+                if !is_destination && !level_contains_any(level, old_ids) {
+                    return level.clone();
+                }
 
-        for level in &self.levels {
-            let runs = level
-                .runs
-                .iter()
-                .map(|run| {
-                    // TODO: don't clone Arc inner if we don't need to modify
-                    let mut run: Run<_> = run.deref().clone();
+                rebuild_level(
+                    level,
+                    old_ids,
+                    is_destination.then(|| {
+                        #[expect(
+                            clippy::expect_used,
+                            reason = "the destination run is known to contain tables"
+                        )]
+                        Run::new(new_tables.to_vec()).expect("new run should not be empty")
+                    }),
+                    // An intra-L0 result represents older inputs. Keep any run published while
+                    // compaction was in flight ahead of it so point reads still see newest first.
+                    dest_level == 0,
+                )
+            })
+            .collect();
 
-                    run.retain(|x| !ids.contains(&x.metadata.id));
-                    run
-                })
-                .filter(|x| !x.is_empty())
-                .collect::<Vec<_>>();
-
-            let runs = optimize_runs(runs);
-
-            levels.push(Level::from_runs(runs.into_iter().map(Arc::new).collect()));
-        }
-
-        Ok(Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        })
+        Self { id, levels }
     }
 
-    pub fn with_merge(&self, old_ids: &[TableId], new_tables: &[Table], dest_level: usize) -> Self {
-        let id = self.id + 1;
-
-        let mut levels = vec![];
-
-        for (level_idx, level) in self.levels.iter().enumerate() {
-            let mut runs = level
-                .runs
-                .iter()
-                .map(|run| {
-                    // TODO: don't clone Arc inner if we don't need to modify
-                    let mut run: Run<_> = run.deref().clone();
-                    run.retain(|x| !old_ids.contains(&x.metadata.id));
-                    run
-                })
-                .filter(|x| !x.is_empty())
-                .collect::<Vec<_>>();
-
-            if level_idx == dest_level
-                && let Some(run) = Run::new(new_tables.to_vec())
-            {
-                runs.insert(0, run);
-            }
-
-            let runs = optimize_runs(runs);
-
-            levels.push(Level::from_runs(runs.into_iter().map(Arc::new).collect()));
-        }
-
-        Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        }
-    }
-
-    pub fn with_moved(&self, ids: &[TableId], dest_level: usize) -> Self {
-        let id = self.id + 1;
-
-        let affected_tables = self
+    /// Moves the tables `ids` unchanged into `dest_level`.
+    pub fn with_moved(&self, ids: &FxHashSet<u32>, dest_level: usize) -> Self {
+        debug_assert!(dest_level > 0, "moves never target L0");
+        let tables = self
             .iter_tables()
-            .filter(|x| ids.contains(&x.id()))
+            .filter(|table| ids.contains(&table.id()))
             .cloned()
             .collect::<Vec<_>>();
 
-        assert_eq!(affected_tables.len(), ids.len(), "invalid table IDs");
+        assert_eq!(tables.len(), ids.len(), "invalid table IDs");
 
-        let mut levels = vec![];
-
-        for (level_idx, level) in self.levels.iter().enumerate() {
-            let mut runs = level
-                .runs
-                .iter()
-                .map(|run| {
-                    // TODO: don't clone Arc inner if we don't need to modify
-                    let mut run: Run<_> = run.deref().clone();
-                    run.retain(|x| !ids.contains(&x.metadata.id));
-                    run
-                })
-                .filter(|x| !x.is_empty())
-                .collect::<Vec<_>>();
-
-            if level_idx == dest_level
-                && let Some(run) = Run::new(affected_tables.clone())
-            {
-                runs.insert(0, run);
-            }
-
-            let runs = optimize_runs(runs);
-
-            levels.push(Level::from_runs(runs.into_iter().map(Arc::new).collect()));
-        }
-
-        Self {
-            inner: Arc::new(VersionInner { id, levels }),
-        }
+        self.with_merge(ids, &tables, dest_level)
     }
 }
 
 impl Version {
-    pub(crate) fn encode_into(
-        &self,
-        writer: &mut sfa::Writer<impl std::io::Write + std::io::Seek>,
-    ) -> Result<(), crate::Error> {
-        use crate::FormatVersion;
-        use byteorder::{LittleEndian, WriteBytesExt};
-        use std::io::Write;
-
-        //
-        // Manifest
-        //
-
-        writer.start("format_version")?;
-        writer.write_u8(FormatVersion::V5.into())?;
-
-        writer.start("crate_version")?;
-        writer.write_all(env!("CARGO_PKG_VERSION").as_bytes())?;
-
-        writer.start("tree_type")?;
-        writer.write_u8(0)?;
-
-        writer.start("level_count")?;
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "level count is bounded by 255"
-        )]
-        writer.write_u8(self.level_count() as u8)?;
-
-        writer.start("filter_hash_type")?;
-        writer.write_u8(u8::from(ChecksumType::Xxh3))?;
-
-        //
-        // Levels
-        //
-
-        writer.start("tables")?;
-
-        // Level count
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "there are always less than 256 levels"
-        )]
-        writer.write_u8(self.level_count() as u8)?;
-
+    pub fn encode_into(&self, writer: &mut impl Write) -> Result<()> {
         for level in self.iter_levels() {
-            // Run count
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "there are always less than 256 runs"
-            )]
-            writer.write_u8(level.len() as u8)?;
+            // Run count, a byte: a level with more runs is refused, not truncated.
+            let runs = u8::try_from(level.len()).map_err(|_| {
+                IoError::new(ErrorKind::InvalidData, "a level holds more than 255 runs")
+            })?;
+            writer.write_u8(runs)?;
 
             for run in level.iter() {
                 // Table count
@@ -480,8 +241,6 @@ impl Version {
                 // Tables
                 for table in run.iter() {
                     writer.write_u32::<LittleEndian>(table.id())?;
-                    writer.write_u8(0)?; // Checksum type, 0 = XXH3
-                    writer.write_u128::<LittleEndian>(table.checksum().into_u128())?;
                     writer.write_u64::<LittleEndian>(table.global_seqno())?;
                 }
             }

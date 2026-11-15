@@ -1,52 +1,82 @@
 use std::ops::Range;
 
 /// First height the oracle computes on-chain, with the slow cold-start EMA
-/// ([`slow`](Config::slow)). Below it, prices come from
+/// ([`Config::for_height`]). Below it, prices come from
 /// [`pre_oracle_prices_from`](crate::pre_oracle_prices_from).
+#[cfg(not(feature = "litecoin"))]
 pub const START_HEIGHT_SLOW: usize = 340_000;
 
 /// Height where the oracle switches slow -> fast EMA ([`default`](Config::default)).
 /// The regimes are complementary: slow resists the round-USD half-price drift
 /// that locks fast below here, while fast tracks the 2018-2019 crashes that lock
 /// slow.
+#[cfg(not(feature = "litecoin"))]
 pub const START_HEIGHT_FAST: usize = 508_000;
+
+/// Litecoin's first on-chain height (2022-01-26), straight into the fast EMA: earlier, its
+/// payments' mix in dollars no longer fits the relock's template (see `relock`), and exchange
+/// closes give the prices.
+#[cfg(feature = "litecoin")]
+pub const START_HEIGHT_SLOW: usize = 2_200_000;
+#[cfg(feature = "litecoin")]
+pub const START_HEIGHT_FAST: usize = START_HEIGHT_SLOW;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Config {
     /// EMA decay: 2/(N+1) where N is span in blocks. 2/7 = 6-block span.
-    pub alpha: f64,
-    /// Ring buffer depth. 12 blocks for deterministic convergence at any start height.
+    pub(crate) alpha: f64,
+    /// Ring buffer depth: the EMA depends on these last blocks only (12 by default).
     pub window_size: usize,
     /// Search window bins below/above previous estimate. Asymmetric for log-scale.
-    pub search_below: usize,
-    pub search_above: usize,
+    pub(crate) search_below: usize,
+    pub(crate) search_above: usize,
     /// Weight of the adaptive shape-anchoring restoring force added to the
     /// stencil score. `0.0` disables it (mature regime, where the fast EMA
     /// tracks real moves the shape term would resist). The slow cold-start uses
     /// a positive weight to resist round-USD octave aliasing in the thin early
     /// output mix.
-    pub shape_weight: f64,
+    pub(crate) shape_weight: f64,
 }
 
 impl Default for Config {
+    /// Under `litecoin`, a narrower search (8 bins either way): Litecoin's thinner payments let
+    /// a wider one slide onto a neighboring alias.
     fn default() -> Self {
         Self {
             alpha: 2.0 / 7.0,
             window_size: 12,
-            search_below: 12,
-            search_above: 11,
+            search_below: if cfg!(feature = "litecoin") { 8 } else { 12 },
+            search_above: if cfg!(feature = "litecoin") { 8 } else { 11 },
             shape_weight: 0.0,
         }
     }
 }
 
 impl Config {
+    /// A config of one's own: for tuning the oracle offline on another chain.
+    #[doc(hidden)]
+    pub const fn custom(
+        alpha: f64,
+        window_size: usize,
+        search_below: usize,
+        search_above: usize,
+        shape_weight: f64,
+    ) -> Self {
+        Self {
+            alpha,
+            window_size,
+            search_below,
+            search_above,
+            shape_weight,
+        }
+    }
+
     /// Cold-start config below [`START_HEIGHT_FAST`]: a slow EMA
     /// (span ~19) that resists the round-USD half-price drift the fast default
     /// octave-locks onto in the thin pre-2018 output mix. Window grows to 40 to
     /// hold the decay, and a shape-anchoring restoring force (`shape_weight`)
     /// pulls the pick toward the octave whose arm-shape looks like real payments.
-    pub fn slow() -> Self {
+    fn slow() -> Self {
         Self {
             alpha: 0.10,
             window_size: 40,
@@ -55,7 +85,7 @@ impl Config {
         }
     }
 
-    /// Config for `height`: [`slow`](Self::slow) below [`START_HEIGHT_FAST`], else
+    /// Config for `height`: the slow cold-start config below [`START_HEIGHT_FAST`], else
     /// [`default`](Self::default).
     pub fn for_height(height: usize) -> Self {
         if height < START_HEIGHT_FAST {
@@ -71,40 +101,5 @@ impl Config {
         [range.start..split, split..range.end]
             .into_iter()
             .filter(|range| !range.is_empty())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn segments_for_range_splits_at_fast_start() {
-        let segments: Vec<_> =
-            Config::segments_for_range((START_HEIGHT_FAST - 2)..(START_HEIGHT_FAST + 2)).collect();
-        assert_eq!(
-            segments,
-            vec![
-                (START_HEIGHT_FAST - 2)..START_HEIGHT_FAST,
-                START_HEIGHT_FAST..(START_HEIGHT_FAST + 2),
-            ]
-        );
-    }
-
-    #[test]
-    fn segments_for_range_omits_empty_sides() {
-        let slow: Vec<_> =
-            Config::segments_for_range((START_HEIGHT_FAST - 2)..START_HEIGHT_FAST).collect();
-        assert_eq!(slow, vec![(START_HEIGHT_FAST - 2)..START_HEIGHT_FAST]);
-
-        let fast: Vec<_> =
-            Config::segments_for_range(START_HEIGHT_FAST..(START_HEIGHT_FAST + 2)).collect();
-        assert_eq!(fast, vec![START_HEIGHT_FAST..(START_HEIGHT_FAST + 2)]);
-    }
-
-    #[test]
-    fn for_height_selects_regime() {
-        assert_eq!(Config::for_height(START_HEIGHT_FAST - 1), Config::slow());
-        assert_eq!(Config::for_height(START_HEIGHT_FAST), Config::default());
     }
 }

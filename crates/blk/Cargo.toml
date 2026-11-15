@@ -8,23 +8,13 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
-litecoin = [
-    "brk_chain/litecoin",
-    "brk_error/litecoin",
-    "brk_reader/litecoin",
-    "brk_rpc/litecoin",
-    "brk_types/litecoin",
-]
+litecoin = ["bitcoin/litecoin", "brk_error/litecoin", "brk_reader/litecoin", "brk_rpc/litecoin", "brk_types/litecoin"]
 
 [dependencies]
-brk_chain = { workspace = true }
-brk_error = { workspace = true }
+bitcoin = { workspace = true }
+brk_error = { workspace = true, features = ["serde_json"] }
 brk_reader = { workspace = true }
 brk_rpc = { workspace = true }
 brk_types = { workspace = true }
-owo-colors = { workspace = true, features = ["supports-colors"] }
+owo-colors = { workspace = true }
 serde_json = { workspace = true }
-
-[[bin]]
-name = "blk"
-path = "src/main.rs"

@@ -1,0 +1,19 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / TxinIndex
+
+# Type Alias: TxinIndex
+
+> **TxinIndex** = `object`
+
+Defined in: modules/bitview-client/index.js:6328
+
+## Type Parameters
+
+## Type Declaration
+
+### identity
+
+> **identity**: [`SeriesPattern20`](SeriesPattern20.md)\<[`TxInIndex`](TxInIndex-1.md)\>

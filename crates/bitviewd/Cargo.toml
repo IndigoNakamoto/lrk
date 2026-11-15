@@ -1,0 +1,21 @@
+[package]
+name = "bitviewd"
+description = "The self-hostable Bitview Bitcoin data daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage = "https://bitview.dev"
+repository.workspace = true
+readme = "README.md"
+keywords = ["bitcoin", "analytics", "blockchain", "data", "self-hosted"]
+
+[package.metadata.release]
+pre-release-hook = ["cargo", "run", "-p", "bitview_devtools", "--bin", "bitview-bindgen"]
+
+[features]
+litecoin = ["bitview/litecoin", "bitview_default/litecoin"]
+
+[dependencies]
+bitview = { workspace = true, features = ["full-api"] }
+bitview_default = { workspace = true }
+brk_alloc = { workspace = true }

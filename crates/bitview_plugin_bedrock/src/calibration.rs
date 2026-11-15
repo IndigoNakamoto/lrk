@@ -1,0 +1,88 @@
+use super::{Modes, Percentiles, Thresholds};
+use bitview_compute::ExactOrderStats;
+use brk_types::{Height, Version};
+use vecdb::{ReadableVec, VecValue};
+
+// One nominal year of block observations. The represented block is excluded.
+const MINIMUM_BLOCKS: usize = brk_types::TARGET_BLOCKS_PER_YEAR as usize;
+const PERCENTILES: [f64; 5] = [0.95, 0.98, 0.99, 0.995, 0.999];
+
+pub struct Calibration {
+    pub(crate) end: usize,
+    pub(crate) version: Version,
+    histories: Modes<ExactOrderStats>,
+}
+impl Calibration {
+    pub fn from_sources<T, U>(
+        raw: &impl ReadableVec<Height, T>,
+        cointime: &impl ReadableVec<Height, U>,
+        coinflow: &impl ReadableVec<Height, U>,
+        end: usize,
+        version: Version,
+    ) -> Self
+    where
+        T: VecValue,
+        U: VecValue,
+        f64: From<T> + From<U>,
+    {
+        Self {
+            end,
+            version,
+            histories: Modes {
+                unweighted: Self::history(raw, end),
+                awake: Self::history(cointime, end),
+                mobile: Self::history(coinflow, end),
+            },
+        }
+    }
+    /// One block's loss shares by mode; non-finite shares are missing.
+    pub fn loss_shares(
+        raw: Option<f64>,
+        cointime: Option<f64>,
+        coinflow: Option<f64>,
+    ) -> Modes<Option<f64>> {
+        let finite = |share: Option<f64>| share.filter(|v| v.is_finite());
+        Modes {
+            unweighted: finite(raw),
+            awake: finite(cointime),
+            mobile: finite(coinflow),
+        }
+    }
+    pub fn thresholds(&self, current: &Modes<Option<f64>>) -> Thresholds {
+        Thresholds::from_fn(|mode| {
+            let history = self.histories.select(mode);
+            (current.select(mode).is_some() && history.count() >= MINIMUM_BLOCKS).then(|| {
+                let [p95, p98, p99, p99_5, p99_9] = history.percentiles(PERCENTILES);
+                Percentiles {
+                    p95,
+                    p98,
+                    p99,
+                    p99_5,
+                    p99_9,
+                }
+            })
+        })
+    }
+    pub fn observe(&mut self, shares: Modes<Option<f64>>) {
+        for (history, &share) in self.histories.iter_mut().zip(shares.iter()) {
+            if let Some(share) = share {
+                history.insert(share);
+            }
+        }
+        self.end += 1;
+    }
+    fn history<T>(source: &impl ReadableVec<Height, T>, end: usize) -> ExactOrderStats
+    where
+        T: VecValue,
+        f64: From<T>,
+    {
+        let mut values = Vec::with_capacity(end);
+        source.for_each_range_at(0, end, |value| {
+            let value = f64::from(value);
+            if value.is_finite() {
+                values.push(value);
+            }
+        });
+        ExactOrderStats::from_unsorted(values)
+    }
+}

@@ -1,0 +1,136 @@
+use bitview_primitives::{Bytes, Bytes32, Difficulty};
+use bitview_traversable::{Compact, Traversable};
+use brk_error::Result;
+use brk_types::{
+    BlkPosition, BlockHash, CoinbaseTag, Height, Timestamp, Version, Weight, Weight32,
+};
+use vecdb::{
+    AnyStoredVec, AnyVec, Budgeted, BytesVec, Database, ImportableVec, PcoVec, Rw, StorageMode,
+    WritableVec,
+};
+
+pub mod median_time;
+
+use median_time::MedianTimeWindow;
+
+use super::transactions::features::{BlockCount, block_count};
+
+#[derive(Traversable)]
+pub struct BlocksVecs<M: StorageMode = Rw> {
+    /// Double-SHA256 hash of the block header, displayed in Bitcoin's
+    /// conventional hexadecimal byte order.
+    pub blockhash: M::Stored<BytesVec<Height, BlockHash>>,
+    /// First 100 bytes of the coinbase transaction's first-input `scriptSig`,
+    /// exposed as a string by mapping each byte to the same-valued Unicode code
+    /// point. This is raw coinbase data, not a normalized mining-pool label.
+    pub coinbase_tag: M::Stored<BytesVec<Height, CoinbaseTag>>,
+    /// Mining difficulty encoded by the block header, calculated as Bitcoin's
+    /// maximum target divided by this block's proof-of-work target.
+    /// Public through the blocks plugin (`blocks.difficulty.value`, every index).
+    #[traversable(hidden)]
+    pub difficulty: M::Stored<PcoVec<Height, Difficulty, Budgeted>>,
+    /// Unix timestamp in seconds: at a height, the block's header time (not guaranteed to
+    /// increase between heights); at a calendar period, its UTC start; at a halving or
+    /// difficulty epoch, its first block's header time.
+    pub timestamp: M::Stored<PcoVec<Height, Timestamp, Budgeted>>,
+    /// Median time past: the median of this block's header timestamp and up to
+    /// ten predecessors (the upper middle for the first blocks' even-length
+    /// windows), which consensus requires each next block's timestamp to exceed.
+    pub median_time: M::Stored<PcoVec<Height, Timestamp>>,
+    /// Serialized block size in bytes, including witness data: its 80-byte header,
+    /// transaction-count CompactSize, and every serialized transaction. Value for the represented
+    /// block.
+    #[traversable(lead = "Block size: the bytes each block takes, witness data included.")]
+    pub size: Compact<PcoVec<Height, Bytes32>, Bytes, M>,
+    /// BIP-141 block weight in weight units: non-witness bytes count as four
+    /// weight units and witness bytes count as one. Value for the represented block.
+    #[traversable(lead = "Block weight: each block measured against the limit of 4 million weight units.")]
+    pub weight: Compact<PcoVec<Height, Weight32>, Weight, M>,
+    #[traversable(hidden)]
+    pub position: M::Stored<PcoVec<Height, BlkPosition>>,
+    /// Non-coinbase transactions using SegWit serialization. Value for the represented block.
+    pub segwit_tx_count: BlockCount<M>,
+    /// Combined total serialized size in bytes of the block's non-coinbase
+    /// SegWit transactions; excludes block overhead and all other transactions.
+    pub segwit_tx_size: Compact<PcoVec<Height, Bytes32>, Bytes, M>,
+    /// Combined BIP-141 weight in weight units of the block's non-coinbase
+    /// SegWit transactions; excludes block overhead and all other transactions.
+    pub segwit_tx_weight: Compact<PcoVec<Height, Weight32>, Weight, M>,
+    median_window: M::WriteOnly<MedianTimeWindow>,
+}
+
+impl BlocksVecs {
+    pub fn import(db: &Database, version: Version) -> Result<Self> {
+        let (
+            blockhash,
+            coinbase_tag,
+            difficulty,
+            timestamp,
+            median_time,
+            size,
+            weight,
+            position,
+            segwit_tx_count,
+            segwit_tx_size,
+            segwit_tx_weight,
+        ) = parallel_import! {
+            blockhash = BytesVec::import(db, "blockhash", version),
+            coinbase_tag = BytesVec::import(db, "coinbase_tag", version),
+            difficulty = PcoVec::import(db, "difficulty", version),
+            timestamp = PcoVec::import(db, "timestamp", version),
+            median_time = PcoVec::import(db, "median_time", version),
+            size = PcoVec::import(db, "block_size", version).map(Compact::new),
+            weight = PcoVec::import(db, "block_weight", version).map(Compact::new),
+            position = PcoVec::import(db, "block_position", version),
+            segwit_tx_count = block_count(db, "segwit_tx_count", version),
+            segwit_tx_size = PcoVec::import(db, "segwit_tx_size", version).map(Compact::new),
+            segwit_tx_weight = PcoVec::import(db, "segwit_tx_weight", version).map(Compact::new),
+        };
+        let mut this = Self {
+            blockhash,
+            coinbase_tag,
+            difficulty,
+            timestamp,
+            median_time,
+            size,
+            weight,
+            position,
+            segwit_tx_count,
+            segwit_tx_size,
+            segwit_tx_weight,
+            median_window: MedianTimeWindow::default(),
+        };
+        // Median times derive from the timestamps: rebuild them, not append, when their length or
+        // checkpoint differs (a mismatched checkpoint can hold another branch).
+        if this.median_time.len() != this.timestamp.len()
+            || this.median_time.stamp() != this.timestamp.stamp()
+        {
+            this.median_time.clear()?;
+            this.compute_median_times();
+            this.median_time.stamped_write(this.timestamp.stamp())?;
+        }
+        Ok(this)
+    }
+
+    /// Forgets the retained median-time window, for a rollback: the next run reseeds it.
+    pub fn reset_median_window(&mut self) {
+        self.median_window = MedianTimeWindow::default();
+    }
+
+    pub fn iter_any(&self) -> impl Iterator<Item = &dyn AnyStoredVec> {
+        [
+            &self.blockhash as &dyn AnyStoredVec,
+            &self.coinbase_tag,
+            &self.difficulty,
+            &self.timestamp,
+            &self.median_time,
+            &*self.size,
+            &*self.weight,
+            &self.position,
+            &*self.segwit_tx_count,
+            &*self.segwit_tx_size,
+            &*self.segwit_tx_weight,
+        ]
+        .into_iter()
+    }
+}

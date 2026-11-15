@@ -1,0 +1,3004 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Its launch from a home screen, every showcase's. -->
+    <script src="/assets/launch/launch.js" data-app="Stack" data-color="#00d632"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+    <title>Stack · Bitview</title>
+    <meta name="description" content="Dollar-cost averaging that saves from each all-time high and buys bitcoin from the cycle's floor: what any plan since 2010 would be worth, beside the plain plan buying the same each time, and how every start and length turned out." />
+    <!-- (How a shared link previews: a plan's link shows the page's card, whatever the plan.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bitview.space/stack/" />
+    <meta property="og:site_name" content="Bitview" />
+    <meta property="og:title" content="Stack on Bitview" />
+    <meta property="og:description" content="Dollar-cost averaging that saves from each all-time high and buys bitcoin from the cycle's floor: what any plan since 2010 would be worth, beside the plain plan buying the same each time, and how every start and length turned out." />
+    <meta property="og:image" content="https://bitview.space/stack/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A smart plan of $100 of bitcoin every week since 2018, its worth and its chart, beside the plain plan's" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+    <style>
+      @font-face {
+        font-family: Inter;
+        src: url("/assets/fonts/InterVariable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
+      /* A money app, as Cash App draws its own: a light-gray page and white cards (black and near-black at night); one
+         sans, regular for statements and semibold for money; big numbers centered; soft-gray pills, black for an
+         action; green for the line and gains only. */
+      :root {
+        color-scheme: light dark;
+        --app: light-dark(#f2f2f2, #000000);
+        --card: light-dark(#ffffff, #151515);
+        --raised: light-dark(#f2f2f2, #242424);
+        --pressed: light-dark(#dcdcdc, #3d3d3d);
+        --ink: light-dark(#000000, #ffffff);
+        --soft: light-dark(#6b6b6b, #9a9a9f);
+        --line: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.1));
+        --hover: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.07));
+        --focus: light-dark(rgb(0 0 0 / 0.55), rgb(255 255 255 / 0.6));
+        --brand: #00d632;
+        --on-brand: #000000;
+        --gain: light-dark(#007f2d, #00d632);
+        --loss: light-dark(#cf281d, #ff5147);
+        /* (Lines and their keys: the brand's green, a shade deeper on white to read as a graphic, 3:1.) */
+        --line-up: light-dark(#00a32a, #00d632);
+        /* (The plain plan, the smart one's baseline, wherever it shows: black, white at night; no hue of its own beside the
+           green, the smart plan's.) */
+        --plain: var(--ink);
+        --gain-fill: light-dark(rgb(0 214 50 / 0.04), rgb(0 214 50 / 0.06));
+        --loss-fill: light-dark(rgb(217 45 32 / 0.04), rgb(255 81 71 / 0.06));
+        --sans: Inter, -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+        /* (A press gives a little and springs back; a choice slides.) */
+        --spring: cubic-bezier(0.3, 0.7, 0.4, 1.4);
+        --slide: cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      /* Increase Contrast (iOS's and macOS's, prefers-contrast: more): the greys toward the ink, each still a step
+         apart, the hairlines about twice as strong; the page's hues kept, nothing else changed. (Mixed in OKLab and
+         written out here, so every reader, the canvases' among them, gets plain colours.) */
+      @media (prefers-contrast: more) {
+        :root {
+          --soft: light-dark(#323232, #c1c1c4);
+          --line: light-dark(rgb(0 0 0 / 0.18), rgb(255 255 255 / 0.22));
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--app);
+        font: 450 16px/1.45 var(--sans);
+        letter-spacing: -0.011em;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button,
+      input {
+        font: inherit;
+        color: inherit;
+        letter-spacing: inherit;
+      }
+
+      /* (A press shows itself, not a browser's tap flash over it.) */
+      button,
+      input,
+      label,
+      .plot,
+      canvas {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+
+      /* (A ring only for keys: a field or picker tapped or clicked counts as reached by keys in some browsers, Safari's
+         picker and every date field among them. `data-pointer` is the page's: a pointer was last used, not keys.) */
+      :root[data-pointer] :focus-visible {
+        outline: none;
+      }
+
+      /* (Figures of one width where numbers change, so they don't jitter; only there: a tabular hyphen is wide.) */
+      .worth,
+      .coins,
+      .change,
+      .versus,
+      .keys,
+      .tag,
+      .amount,
+      .rows dd,
+      .vs td,
+      .cell {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .gain {
+        color: var(--gain);
+      }
+
+      .loss {
+        color: var(--loss);
+      }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 16px 64px;
+
+        @media (min-width: 720px) {
+          padding: 0 32px 88px;
+        }
+      }
+
+      /* ── Header: the way home and Share, as an app's bar; under it the screen's title ── */
+
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 56px;
+
+        @media (min-width: 720px) {
+          height: 64px;
+        }
+      }
+
+      .brand {
+        display: flex;
+        margin-right: auto;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 700;
+
+        img {
+          width: 22px;
+          height: 25.5px;
+        }
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+      }
+
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+
+      .lede {
+        max-width: 52ch;
+        margin: 12px 0 0;
+        color: var(--soft);
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 1.4;
+
+        @media (min-width: 720px) {
+          font-size: 18px;
+        }
+      }
+
+      .note {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin: 12px 0 0;
+        color: var(--loss);
+        font-size: 14px;
+        font-weight: 600;
+
+        &:empty {
+          display: none;
+        }
+      }
+
+      /* ── Cards: the value and its chart; the plan; the facts ── */
+
+      /* (Columns of a fixed share, never their content's width: a long number can't widen a card.) */
+      .board {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        margin-top: 16px;
+
+        /* (On a desk: the value, the plan and its breakdown beside it, both ending together, the value's chart taking
+           the difference; smart against plain across under both.) */
+        @media (min-width: 960px) {
+          grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+          gap: 16px;
+          margin-top: 20px;
+
+          .card.smart,
+          .card.today {
+            grid-column: 1 / -1;
+          }
+        }
+      }
+
+      .side {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-content: start;
+        gap: 12px;
+
+        /* (A tablet: the plan and its breakdown side by side under the value.) */
+        @media (min-width: 720px) and (max-width: 959px) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        @media (min-width: 960px) {
+          gap: 16px;
+        }
+      }
+
+      .card {
+        border-radius: 20px;
+        padding: 20px;
+        background: var(--card);
+
+        @media (min-width: 720px) {
+          padding: 24px;
+        }
+      }
+
+      /* The value, centered as the app's Bitcoin screen has it: what it's for, the number, the bitcoin, the change; as
+         of the day pointed at, else the plan's last day. Its chart runs to the card's edges. */
+      .value {
+        border-radius: 28px;
+        text-align: center;
+
+        @media (min-width: 960px) {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .corners {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .pill {
+            height: 30px;
+            padding: 0 12px;
+            font-size: 13px;
+          }
+        }
+
+        /* (Lines held for the longest plan's words, two on a phone, at the foot of their box.) */
+        .sentence {
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          min-height: 2.9em;
+          margin: 14px 0 0;
+          color: var(--soft);
+          font-size: 14px;
+          font-weight: 400;
+
+          @media (min-width: 720px) {
+            min-height: 1.45em;
+          }
+        }
+
+        .worth {
+          display: block;
+          margin-top: 4px;
+          font-size: clamp(48px, 12.5vw, 64px);
+          font-weight: 650;
+          line-height: 1.05;
+          letter-spacing: -0.04em;
+          white-space: nowrap;
+        }
+
+        .coins {
+          margin: 2px 0 0;
+          color: var(--soft);
+          font-size: 14px;
+          font-weight: 400;
+        }
+
+        /* (One line, whatever day is pointed at: the chart below never moves under a finger.) */
+        .change {
+          overflow: hidden;
+          margin-top: 10px;
+          font-size: 16px;
+          font-weight: 600;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        .plot {
+          margin-inline: -20px;
+
+          @media (min-width: 720px) {
+            margin-inline: -24px;
+          }
+
+          @media (min-width: 960px) {
+            flex: 1 1 auto;
+          }
+        }
+
+        .keys {
+          justify-content: center;
+        }
+
+      }
+
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .pill {
+        position: relative;
+        min-width: 44px;
+        height: 34px;
+        border: 0;
+        border-radius: 17px;
+        padding: 0 14px;
+        background: var(--raised);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 160ms var(--spring),
+          background-color 120ms,
+          color 120ms;
+
+        &:active:not(:disabled) {
+          transform: scale(0.94);
+          transition-duration: 60ms;
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: default;
+        }
+
+        /* (A finger's reach, unseen: 44px tall whatever the pill's height.) */
+        &::before {
+          content: "";
+          position: absolute;
+          inset: min(-5px, calc((100% - 44px) / 2)) -2px;
+        }
+
+        @media (hover: hover) {
+          &:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--raised), var(--ink) 6%);
+          }
+        }
+
+        /* (Chosen: black, white at night: a state that reads at a glance, 3:1 and more against any card.) */
+        &[aria-pressed="true"],
+        &[aria-pressed="true"]:hover {
+          color: var(--app);
+          background: var(--ink);
+        }
+      }
+
+      /* An action: black (white at night). */
+      .action,
+      .action:hover:not(:disabled) {
+        color: var(--app);
+        background: var(--ink);
+      }
+
+      /* (Share as wide as it says "Copied" from the start: saying it moves nothing.) */
+      #share {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        &::after {
+          content: "Copied";
+          height: 0;
+          overflow: hidden;
+          visibility: hidden;
+        }
+      }
+
+      /* (The ranges and the tops' picker: one row where there's room; on a phone, two lines of one width.) */
+      .spans {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 6px 8px;
+        margin-top: 16px;
+      }
+
+      .ranges {
+        flex: 0 1 312px;
+        flex-wrap: nowrap;
+        justify-content: center;
+        gap: 8px;
+
+        .pill {
+          flex: 1;
+          height: 32px;
+          padding: 0;
+          font-size: 13px;
+        }
+      }
+
+      .plot {
+        position: relative;
+        margin: 18px -4px 0;
+        border-radius: 8px;
+        touch-action: pan-y;
+        cursor: crosshair;
+        user-select: none;
+        -webkit-user-select: none;
+
+        /* (Its height: a phone's, a tablet's; on a desk, the room its card has, at least 260px.) */
+        svg {
+          display: block;
+          width: 100%;
+          height: 200px;
+          overflow: visible;
+
+          @media (min-width: 720px) {
+            height: 240px;
+          }
+
+          @media (min-width: 960px) {
+            height: 100%;
+            min-height: 260px;
+          }
+        }
+      }
+
+      .above {
+        fill: var(--gain-fill);
+      }
+
+      .below {
+        fill: var(--loss-fill);
+      }
+
+      /* (Thin: the plan's own 2px, the rest 1.25px.) */
+      .line {
+        fill: none;
+        stroke-width: 2px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+
+        &.up {
+          stroke: var(--line-up);
+        }
+
+        &.down {
+          stroke: var(--loss);
+        }
+
+        &.price {
+          stroke: var(--soft);
+          stroke-width: 1.25px;
+        }
+
+        &.plain {
+          stroke: var(--plain);
+          stroke-width: 1.25px;
+        }
+
+        &.dashed {
+          stroke: var(--soft);
+          stroke-width: 1.25px;
+          stroke-dasharray: 3 5;
+        }
+      }
+
+      .cross {
+        line {
+          stroke: var(--soft);
+          stroke-width: 1px;
+        }
+
+        circle {
+          stroke: var(--card);
+          stroke-width: 3px;
+        }
+      }
+
+      /* (Each line's last day, "now", while nothing is pointed at.) */
+      .ends circle {
+        stroke: var(--card);
+        stroke-width: 3px;
+      }
+
+      /* The day pointed at, over the crosshair. */
+      .tag {
+        position: absolute;
+        top: -10px;
+        left: 0;
+        border-radius: 999px;
+        padding: 2px 9px;
+        color: var(--app);
+        background: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      /* (Below the chart, so as the day pointed at changes nothing above it moves; one line, or with the plain plan's
+         third key, two held on a phone.) */
+      .keys {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 18px;
+        overflow: hidden;
+        height: 1.45em;
+        margin-top: 10px;
+        white-space: nowrap;
+        color: var(--soft);
+        font-size: 13px;
+        font-weight: 400;
+
+        /* (Three keys with the plain plan's: two lines held on a phone.) */
+        @media (max-width: 719px) {
+          height: calc(2.9em + 2px);
+        }
+
+        b {
+          color: var(--ink);
+          font-weight: 600;
+        }
+
+        i {
+          display: inline-block;
+          width: 12px;
+          height: 0;
+          margin-right: 6px;
+          vertical-align: 0.3em;
+          border-top: 2px solid var(--line-up);
+          border-radius: 2px;
+        }
+
+        .dashed i {
+          border-top: 2px dotted var(--soft);
+        }
+
+        .price i {
+          border-top-color: var(--soft);
+          border-top-width: 1.5px;
+        }
+
+        .down i {
+          border-top-color: var(--loss);
+        }
+
+        .plain i {
+          border-top-color: var(--plain);
+          border-top-width: 1.5px;
+        }
+
+        .plain-name {
+          color: var(--plain);
+        }
+      }
+
+      /* The cycle tops: one picker pill beside the ranges (under them on a phone, as wide), black once the plan is from
+         one; a fixed width, so options arriving never resize it; 44px tall to a finger, 32px to the eye. */
+      .picker {
+        position: relative;
+        flex: 0 1 312px;
+
+        @media (min-width: 720px) {
+          flex: none;
+        }
+
+        select {
+          width: 100%;
+          height: 44px;
+          border: 6px solid transparent;
+          border-inline-width: 0;
+          border-radius: 22px;
+          padding: 0 30px;
+          color: var(--ink);
+          background: var(--raised) padding-box;
+          text-align: center;
+          text-align-last: center;
+          font: inherit;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+          transition: transform 160ms var(--spring);
+
+          @media (min-width: 720px) {
+            width: 152px;
+          }
+
+          &:active {
+            transform: scale(0.94);
+            transition-duration: 60ms;
+          }
+
+          &.on {
+            color: var(--app);
+            background: var(--ink) padding-box;
+          }
+        }
+
+        /* (Its chevron, inside its right end.) */
+        &::after {
+          content: "";
+          position: absolute;
+          right: 15px;
+          top: 50%;
+          width: 6px;
+          height: 6px;
+          border-right: 1.5px solid currentColor;
+          border-bottom: 1.5px solid currentColor;
+          transform: translateY(-75%) rotate(45deg);
+          pointer-events: none;
+        }
+
+        &:has(.on)::after {
+          color: var(--app);
+        }
+      }
+
+      /* The plan, like a recurring buy: a big amount (smaller as its digits, --chars, would outgrow the card), how
+         often, from when to when. */
+      .plan {
+        container-type: inline-size;
+
+        .amount {
+          position: relative;
+          display: flex;
+          align-items: baseline;
+          justify-content: center;
+          height: 56px;
+          margin: 8px 0 4px;
+          font-size: min(44px, 150cqi / var(--chars, 4));
+
+          @media (min-width: 720px) {
+            font-size: min(48px, 150cqi / var(--chars, 4));
+          }
+
+          font-weight: 650;
+          line-height: 1.1;
+          letter-spacing: -0.04em;
+
+          input {
+            min-width: 1.4ch;
+            border: 0;
+            padding: 0;
+            background: none;
+            text-align: left;
+            font: inherit;
+            letter-spacing: inherit;
+
+            &:focus-visible {
+              outline: none;
+            }
+
+            &[aria-invalid="true"] {
+              color: var(--loss);
+            }
+          }
+
+          &:focus-within {
+            text-decoration: underline 3px var(--brand);
+            text-underline-offset: 8px;
+          }
+
+          .twin {
+            position: absolute;
+            visibility: hidden;
+            white-space: pre;
+          }
+        }
+
+        /* (Or what's wrong with the plan as typed, in its place: nothing below moves.) */
+        .each {
+          margin: 0;
+          color: var(--soft);
+          text-align: center;
+          font-size: 14px;
+          font-weight: 400;
+
+          &.wrong {
+            color: var(--loss);
+          }
+        }
+
+        .chips {
+          display: flex;
+          justify-content: center;
+          gap: 6px;
+          margin-top: 14px;
+
+          .pill {
+            height: 30px;
+            padding: 0 12px;
+            font-size: 13px;
+          }
+        }
+
+        /* (The choice a green thumb that slides to it, --at: 0, 1 or 2.) */
+        .every {
+          position: relative;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 4px;
+          margin-top: 16px;
+          border-radius: 20px;
+          padding: 4px;
+          background: var(--raised);
+
+          &::before {
+            content: "";
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc((100% - 16px) / 3);
+            height: 36px;
+            border-radius: 16px;
+            background: var(--ink);
+            transform: translateX(calc(var(--at, 1) * (100% + 4px)));
+            transition: transform 240ms var(--slide);
+          }
+
+          .pill {
+            z-index: 1;
+            height: 36px;
+            border-radius: 16px;
+            background: none;
+            color: var(--soft);
+          }
+
+          .pill[aria-pressed="true"],
+          .pill[aria-pressed="true"]:hover {
+            color: var(--app);
+            background: none;
+          }
+        }
+      }
+
+      /* Today: what the smart plan says to do as of the last close, the plan's own dollars; then the levels that would
+         change it. Beside each other on a desk. */
+      .today {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px 32px;
+
+        &[hidden] {
+          display: none;
+        }
+
+        @media (min-width: 720px) {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+
+          .head {
+            grid-column: 1 / -1;
+          }
+        }
+
+        .head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        /* (Today's step, by its name, lit as the steps light it.) */
+        .phase {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          border-radius: 999px;
+          padding: 4px 10px 4px 8px;
+          background: var(--raised);
+          font-size: 13px;
+          font-weight: 600;
+
+          &::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--brand);
+          }
+
+          /* (Not lit till the step is known.) */
+          &:has(.bone)::before {
+            background: var(--pressed);
+          }
+        }
+
+        /* (Each part holds the lines its longest wording takes at that width: editing the plan (its amount, its
+           schedule, its dates) never moves the card. Its thresholds, one or two, are the market's step's, not the plan's.) */
+        .now {
+          container-type: inline-size;
+        }
+
+        /* (One line once the card holds the longest, "Buy $999,999 on 28 May 2026", 452 px: millions read "$1.2M".) */
+        .act {
+          min-height: 2lh;
+          margin: 12px 0 0;
+          font-size: 32px;
+          font-weight: 700;
+          line-height: 1.1;
+          letter-spacing: -0.03em;
+          font-variant-numeric: tabular-nums;
+
+          @container (min-width: 452px) {
+            min-height: 1lh;
+          }
+        }
+
+        .why {
+          min-height: 4lh;
+          margin: 8px 0 0;
+          font-size: 16px;
+          line-height: 1.4;
+
+          @media (min-width: 960px) {
+            min-height: 3lh;
+          }
+        }
+
+        .when {
+          min-height: 2lh;
+          margin: 8px 0 0;
+          color: var(--soft);
+          font-size: 13px;
+          font-weight: 500;
+
+          @media (max-width: 359px) {
+            min-height: 3lh;
+          }
+        }
+
+        .rows {
+          align-self: end;
+        }
+      }
+
+      .rows {
+        margin: 14px 0 0;
+
+        > div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          min-height: 56px;
+          border-top: 1px solid var(--line);
+          padding: 8px 0;
+
+          &:first-child {
+            border-top: 0;
+          }
+        }
+
+        dt {
+          min-width: 0;
+          font-weight: 500;
+
+          /* (One line, so a row never grows as plans change.) */
+          small {
+            display: block;
+            overflow: hidden;
+            color: var(--soft);
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+        }
+
+        dd {
+          margin: 0;
+          text-align: right;
+          font-weight: 600;
+          white-space: nowrap;
+
+          small {
+            display: block;
+            color: var(--soft);
+            font-size: 13px;
+            font-weight: 500;
+          }
+        }
+
+        /* (A date as a row's value, in the page's own words ("24 Oct 2022") whatever the browser; the real date field
+           invisibly over it, so a tap or click opens the browser's own calendar, and keys still reach it.) */
+        .date {
+          position: relative;
+
+          span {
+            display: inline-block;
+            min-width: 7.5em;
+            border-radius: 10px;
+            padding: 6px 8px;
+            text-align: right;
+            font-weight: 500;
+          }
+
+          input[type="date"] {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border: 0;
+            padding: 0;
+            opacity: 0;
+            font: inherit;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+          }
+
+          @media (hover: hover) {
+            &:hover span {
+              background: var(--raised);
+            }
+          }
+
+          :root:not([data-pointer]) &:has(input:focus-visible) span {
+            outline: 2px solid var(--focus);
+            outline-offset: 2px;
+          }
+
+          &:has([aria-invalid="true"]) span {
+            color: var(--loss);
+            box-shadow: inset 0 0 0 1.5px var(--loss);
+          }
+
+          /* (Reached by keys, the browser's own field shows to be edited, its segments seen, over the row's value; the
+             page's words wait until focus leaves.) */
+          &.editing {
+            span {
+              visibility: hidden;
+            }
+
+            input[type="date"] {
+              left: auto;
+              width: auto;
+              min-width: 100%;
+              border-radius: 10px;
+              padding: 0 8px;
+              opacity: 1;
+              background: var(--raised);
+            }
+          }
+        }
+      }
+
+      .facts .rows {
+        margin-top: 4px;
+      }
+
+      /* The plain plan's worth and return under the smart one's. (One line, held.) */
+      .versus {
+        height: 1.45em;
+        overflow: hidden;
+        margin-top: 4px;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      /* (Its words, then its table; on a desk, side by side.) */
+      .card.smart {
+        @media (min-width: 960px) {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+          align-items: start;
+          gap: 40px;
+        }
+
+        .rule {
+          margin: 6px 0 0;
+          color: var(--soft);
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        /* (Its steps, numbered down a thread, today's lit in the brand's green: the Today card's chip names it.) */
+        .steps {
+          display: grid;
+          gap: 12px;
+          margin: 16px 0 14px;
+          padding: 0;
+          list-style: none;
+          counter-reset: step;
+
+          li {
+            position: relative;
+            display: grid;
+            grid-template-columns: 22px minmax(0, 1fr);
+            column-gap: 12px;
+            color: var(--soft);
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.4;
+            counter-increment: step;
+
+            &::before {
+              content: counter(step);
+              grid-row: span 2;
+              display: grid;
+              place-items: center;
+              width: 22px;
+              height: 22px;
+              border-radius: 999px;
+              background: var(--raised);
+              color: var(--ink);
+              font-size: 12px;
+              font-weight: 650;
+              font-variant-numeric: tabular-nums;
+            }
+
+            &:not(:last-child)::after {
+              content: "";
+              position: absolute;
+              top: 26px;
+              bottom: -8px;
+              left: 10.5px;
+              width: 1px;
+              background: var(--line);
+            }
+
+            &[aria-current]::before {
+              background: var(--brand);
+              color: var(--on-brand);
+            }
+          }
+
+          b {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 22px;
+            color: var(--ink);
+            font-size: 15px;
+            font-weight: 600;
+          }
+
+          [aria-current] b::after {
+            content: "Today";
+            color: var(--gain);
+            font-size: 13px;
+            font-weight: 600;
+          }
+        }
+
+        /* (Lines held for the longest verdict: three on a phone, two on a desk.) */
+        .verdict {
+          min-height: 4.35em;
+          margin: 12px 0 0;
+          font-size: 18px;
+          font-weight: 400;
+          line-height: 1.3;
+          letter-spacing: -0.015em;
+
+          @media (min-width: 720px) {
+            min-height: 2.9em;
+          }
+
+          b {
+            font-weight: 650;
+          }
+        }
+      }
+
+      /* (Amounts whole on one line each; the labels wrap, and on a phone it all sets a size down.) */
+      .vs {
+        width: 100%;
+        margin-top: 10px;
+        border-collapse: collapse;
+
+        @media (max-width: 719px) {
+          font-size: 14px;
+        }
+
+        th,
+        td {
+          border-top: 1px solid var(--line);
+          padding: 12px 0;
+          text-align: right;
+          white-space: nowrap;
+        }
+
+        th[scope="row"] {
+          text-align: left;
+          font-weight: 500;
+          white-space: normal;
+        }
+
+        thead th {
+          border-top: 0;
+          padding-top: 0;
+          color: var(--soft);
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        td {
+          padding-left: 8px;
+          font-weight: 600;
+        }
+
+        thead th:nth-child(2) {
+          color: var(--ink);
+        }
+      }
+
+      /* Said to a screen reader only. */
+      .vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      /* ── The map: every start, every length ── */
+
+      .atlas {
+        border-radius: 24px;
+        margin-top: 12px;
+
+        /* (Its intro short: three lines held on a phone, two above.) */
+        #map-lede {
+          min-height: 60px;
+          margin-top: 6px;
+          font-size: 14px;
+          line-height: 20px;
+
+          @media (min-width: 720px) {
+            min-height: 40px;
+          }
+        }
+
+        @media (min-width: 960px) {
+          margin-top: 16px;
+        }
+      }
+
+      .map-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 16px;
+
+        .pill {
+          height: 30px;
+          padding: 0 12px;
+          font-size: 13px;
+        }
+      }
+
+      .findings {
+        display: grid;
+        gap: 12px;
+        margin: 16px 0 0;
+
+        @media (min-width: 960px) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 24px;
+        }
+
+        /* (Lines held for the longest statement: three on a phone (four on the narrowest), two on a desk, three again
+           where the two columns are narrowest, until the page reaches its full width.) */
+        p {
+          min-height: 3.9em;
+          margin: 0;
+          color: var(--ink);
+          font-size: 18px;
+          font-weight: 400;
+          line-height: 1.3;
+          letter-spacing: -0.015em;
+
+          @media (min-width: 720px) {
+            min-height: 2.6em;
+            font-size: 20px;
+          }
+
+          @media (min-width: 960px) and (max-width: 1183px) {
+            min-height: 3.9em;
+          }
+
+          @media (max-width: 359px) {
+            min-height: 5.2em;
+          }
+        }
+
+        b {
+          font-weight: 650;
+        }
+      }
+
+      .map {
+        margin-top: 22px;
+      }
+
+      .map-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px 24px;
+      }
+
+      /* (Three lines, always: the plan, its result, a hint; the map below never moves as they change.) */
+      .cell {
+        flex: 1 1 400px;
+        min-width: 0;
+
+        strong,
+        > span {
+          display: block;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        strong {
+          font-weight: 600;
+        }
+
+        > span:last-child {
+          color: var(--soft);
+          font-size: 13px;
+          font-weight: 400;
+        }
+
+        > span:nth-child(2) {
+          font-weight: 600;
+        }
+
+        a {
+          color: var(--gain);
+          font-weight: 700;
+        }
+      }
+
+      .legend {
+        width: min(100%, 240px);
+
+        .ramp {
+          height: 8px;
+          border-radius: 4px;
+        }
+
+        .marks {
+          position: relative;
+          height: 16px;
+          margin-top: 4px;
+          color: var(--soft);
+          font-size: 11px;
+          font-weight: 400;
+
+          span {
+            position: absolute;
+            transform: translateX(-50%);
+            white-space: nowrap;
+          }
+
+          span:first-child {
+            transform: none;
+          }
+
+          span:last-child {
+            transform: translateX(-100%);
+          }
+        }
+      }
+
+      /* (Its height is set here, from its width; the drawing reads it.) */
+      .canvas {
+        position: relative;
+        margin-top: 12px;
+        container-type: inline-size;
+        touch-action: pan-y;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+
+        canvas {
+          display: block;
+          width: 100%;
+          height: clamp(340px, 42cqi, 480px);
+        }
+      }
+
+      .fine {
+        max-width: 72ch;
+        margin: 32px 0 0;
+        color: var(--soft);
+        font-size: 13.5px;
+        font-weight: 500;
+      }
+
+      /* Loading: bones where numbers will be, pulsing (still with reduced motion). */
+      .bone {
+        display: inline-block;
+        width: var(--w, 4.5em);
+        height: 0.72em;
+        border-radius: 6px;
+        background: var(--hover);
+        vertical-align: -0.02em;
+        animation: pulse 1.2s ease-in-out infinite alternate;
+      }
+
+      /* (A line a phone's narrower card adds: its words wrap once more there.) */
+      .bone.narrow {
+        @media (min-width: 720px) {
+          display: none;
+        }
+      }
+
+      @keyframes pulse {
+        to {
+          opacity: 0.35;
+        }
+      }
+
+      /* The plain plan's mark, under the value. */
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 1px 7px;
+        color: var(--app);
+        background: var(--plain);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+      /* (A finger's reach, unseen: the brand, 44px tall whatever they're drawn at; up and down only, into the room
+         around them, never over a neighbour.) */
+      :is(a.brand) {
+        position: relative;
+
+        /* (For fingers: a pointer needs none, and rows that wrap stay apart.) */
+        @media (pointer: coarse) {
+          &::before {
+            content: "";
+            position: absolute;
+            inset: min(0px, calc((100% - 44px) / 2)) 0;
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <a class="brand" href="/"><img src="/assets/logo/logo.svg" alt="" />Bitview</a>
+        <button type="button" class="pill action" id="share" disabled>Share</button>
+      </header>
+
+      <main>
+        <h1 class="vh">Stack</h1>
+        <p class="note" id="failed" role="alert"></p>
+
+        <div class="board" id="calculator" aria-busy="true" inert>
+          <section class="card value" aria-label="What it's worth">
+            <div class="corners">
+              <div class="pills" role="group" aria-label="Chart">
+                <button type="button" class="pill" data-view="value">Value</button>
+                <button type="button" class="pill" data-view="cost">Cost</button>
+              </div>
+              <button type="button" class="pill" id="log" aria-pressed="false">Log</button>
+            </div>
+            <p class="sentence" id="sentence">Reading the daily price.</p>
+            <span class="worth" id="worth"><span class="bone" style="--w: 4.6ch"></span></span>
+            <p class="coins" id="coins">&nbsp;</p>
+            <div class="change" id="delta">&nbsp;</div>
+            <div class="versus" id="versus">&nbsp;</div>
+            <div class="plot" id="plots" tabindex="0" aria-label="The plan day by day: arrows move a day (Shift: a month), Home and End go to its ends">
+              <svg id="chart" aria-hidden="true"></svg>
+              <span class="tag" id="tag" hidden></span>
+            </div>
+            <div class="keys" id="keys"><span>&nbsp;</span></div>
+            <div class="spans">
+              <div class="pills ranges" role="group" aria-label="The last years up to the last day">
+                <button type="button" class="pill" data-years="1">1Y</button>
+                <button type="button" class="pill" data-years="2">2Y</button>
+                <button type="button" class="pill" data-years="4">4Y</button>
+                <button type="button" class="pill" data-years="8">8Y</button>
+              </div>
+              <label class="picker"><select id="tops" aria-label="From a cycle's top, or the latest all-time high, to the last day"><option value="">From a top</option></select></label>
+            </div>
+          </section>
+
+          <div class="side">
+            <section class="card plan" aria-labelledby="plan-title">
+              <h2 id="plan-title">Your plan</h2>
+              <label class="amount">$<input id="amount" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Dollars a buy" value="100" /></label>
+              <p class="each" id="note" role="status">saved each time</p>
+              <div class="chips" role="group" aria-label="Quick amounts">
+                <button type="button" class="pill" data-amount="10">$10</button>
+                <button type="button" class="pill" data-amount="25">$25</button>
+                <button type="button" class="pill" data-amount="50">$50</button>
+                <button type="button" class="pill" data-amount="100">$100</button>
+                <button type="button" class="pill" data-amount="1000">$1K</button>
+              </div>
+              <div class="every" role="group" aria-label="How often" style="--at: 1">
+                <button type="button" class="pill" data-every="day">Daily</button>
+                <button type="button" class="pill" data-every="week">Weekly</button>
+                <button type="button" class="pill" data-every="month">Monthly</button>
+              </div>
+              <dl class="rows">
+                <div><dt><label for="from">Starts</label></dt><dd class="date"><span id="from-shown" aria-hidden="true">&nbsp;</span><input id="from" type="date" required /></dd></div>
+                <div><dt><label for="to">Ends</label></dt><dd class="date"><span id="to-shown" aria-hidden="true">&nbsp;</span><input id="to" type="date" required /></dd></div>
+              </dl>
+            </section>
+
+            <section class="card facts" aria-labelledby="facts-title">
+              <h2 id="facts-title">Breakdown</h2>
+              <dl class="rows">
+                <div data-fact="bought"><dt>Bitcoin bought<small>&nbsp;</small></dt><dd><span class="bone"></span></dd></div>
+                <div data-fact="spent"><dt>Put in<small>&nbsp;</small></dt><dd><span class="bone"></span></dd></div>
+                <div data-fact="cost"><dt>Average cost<small>&nbsp;</small></dt><dd><span class="bone"></span></dd></div>
+                <div data-fact="yearly"><dt>Annual return<small>&nbsp;</small></dt><dd><span class="bone"></span></dd></div>
+                <div data-fact="low"><dt>Lowest point<small>&nbsp;</small></dt><dd><span class="bone"></span></dd></div>
+              </dl>
+            </section>
+
+          </div>
+
+          <!-- (Its shape held while the smart plan's series come, bones in place of its words; gone if they can't be read.) -->
+          <section class="card today" id="today" aria-labelledby="today-title">
+            <div class="head"><h2 id="today-title">Today</h2><span class="phase" id="today-phase"><span class="bone" style="--w: 7ch"></span></span></div>
+            <div class="now">
+              <p class="act" id="today-act"><span class="bone" style="--w: 9ch"></span> <span class="bone narrow" style="--w: 60%"></span></p>
+              <p class="why" id="today-why"><span class="bone" style="--w: 100%"></span> <span class="bone narrow" style="--w: 100%"></span> <span class="bone" style="--w: 60%"></span></p>
+              <p class="when" id="today-when"><span class="bone" style="--w: 100%"></span> <span class="bone" style="--w: 40%"></span></p>
+            </div>
+            <dl class="rows" id="today-levels" aria-label="What would change it">
+              <div><dt><span class="bone" style="--w: 8em"></span><small>&nbsp;</small></dt><dd><span class="bone"></span><small>&nbsp;</small></dd></div>
+            </dl>
+          </section>
+
+          <section class="card smart" id="smart" aria-labelledby="smart-title">
+            <div class="words">
+              <h2 id="smart-title">Smart vs plain</h2>
+              <ol class="steps" id="steps" aria-label="The smart plan's steps, from a high to the next"></ol>
+              <p class="rule">The plain plan buys the same amount every time.</p>
+              <p class="verdict" id="verdict">&nbsp;</p>
+            </div>
+            <table class="vs" id="vs">
+              <thead>
+                <tr><th scope="col"><span class="vh">Fact</span></th><th scope="col">Smart</th><th scope="col">Plain</th></tr>
+              </thead>
+              <tbody>
+                <tr data-vs="spent"><th scope="row">Put in</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+                <tr data-vs="bought"><th scope="row">Bitcoin bought</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+                <tr data-vs="cash"><th scope="row">Still saved</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+                <tr data-vs="cost"><th scope="row">Average cost</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+                <tr data-vs="worth"><th scope="row">Worth</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+                <tr data-vs="return"><th scope="row">Return</th><td><span class="bone"></span></td><td><span class="bone"></span></td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <section class="card atlas" id="atlas" aria-labelledby="map-title" inert>
+          <div class="map-head">
+            <h2 id="map-title">Every start, every length</h2>
+            <div class="pills" role="group" aria-label="The map shows">
+              <button type="button" class="pill" data-atlas="returns">Return</button>
+              <button type="button" class="pill" data-atlas="edge">Smart vs plain</button>
+            </div>
+          </div>
+          <p class="lede" id="map-lede">&nbsp;</p>
+          <div class="findings"><p id="wins">&nbsp;</p><p id="sure">&nbsp;</p></div>
+          <div class="map">
+            <div class="map-bar">
+              <div class="cell" id="cell"><strong>&nbsp;</strong><span>&nbsp;</span><span>&nbsp;</span></div>
+              <div class="legend" aria-hidden="true">
+                <div class="ramp" id="ramp"></div>
+                <div class="marks" id="marks"></div>
+              </div>
+            </div>
+            <div class="canvas">
+              <canvas id="map" tabindex="0" role="img" aria-label="Plans by starting month (across) and length (up). Arrows move, Enter shows one in the calculator."></canvas>
+            </div>
+          </div>
+        </section>
+
+        <p class="fine">Each buy is at that day's closing price (UTC), with no fees; the last day is at the latest price. A monthly plan buys on its first day's date each month, or a shorter month's last day. <span id="smart-fine"></span> <span id="since">Prices and the smart plan's series are this server's daily ones.</span></p>
+      </main>
+    </div>
+
+    <script type="module">
+      // @ts-check
+      // A plan puts the same dollars in every day, week or month: the plain plan buys bitcoin with them each time, the smart
+      // plan saves them from each all-time high and buys from the cycle's floor (its rule all in `Smart`). What went in, what it bought, what it
+      // was worth; and every plan that began on a month's first day, of every whole number of months, colored by how it
+      // ended. All from the server's daily series (day1: days since 1 Jan 2009, UTC), computed here.
+      const $ = (/** @type {string} */ id) => /** @type {HTMLElement} */ (document.getElementById(id));
+      const DAY = 86_400_000, ORIGIN = Date.UTC(2009, 0, 1);
+      const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const SVG = "http://www.w3.org/2000/svg";
+      // How focus was last reached, a pointer's or keys' (for the rings, and how a date field shows itself).
+      addEventListener("pointerdown", () => (document.documentElement.dataset.pointer = ""), { capture: true });
+      // (A shortcut isn't using keys, as browsers' own rings have it.)
+      addEventListener("keydown", (event) => {
+        if (!(event.metaKey || event.ctrlKey || event.altKey)) delete document.documentElement.dataset.pointer;
+      }, { capture: true });
+
+      /** @typedef {"day" | "week" | "month"} Every */
+
+      // ── Days: indexes since 1 Jan 2009; months: year × 12 + month ──
+
+      const ymd = (/** @type {number} */ day) => {
+        const at = new Date(ORIGIN + day * DAY);
+        return [at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()];
+      };
+      const iso = (/** @type {number} */ day) => new Date(ORIGIN + day * DAY).toISOString().slice(0, 10);
+      const dayOf = (/** @type {string} */ date) => Math.round((Date.parse(`${date}T00:00:00Z`) - ORIGIN) / DAY);
+      const dated = (/** @type {number} */ day) => {
+        const [y, m, d] = ymd(day);
+        return `${d} ${MONTHS[m]} ${y}`;
+      };
+      const monthOf = (/** @type {number} */ day) => {
+        const [y, m] = ymd(day);
+        return y * 12 + m;
+      };
+      /** A month's first day. */
+      const firstOf = (/** @type {number} */ month) => (Date.UTC(Math.floor(month / 12), month % 12, 1) - ORIGIN) / DAY;
+      /** A day as months, fractional: where the month's first day is whole. */
+      const asMonths = (/** @type {number} */ day) => {
+        const [y, m, d] = ymd(day);
+        return y * 12 + m + (d - 1) / new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+      };
+      /** The same date some years before (29 Feb: 28 Feb's). */
+      const yearsBefore = (/** @type {number} */ day, /** @type {number} */ years) => {
+        const [y, m, d] = ymd(day);
+        return (Date.UTC(y - years, m, Math.min(d, new Date(Date.UTC(y - years, m + 1, 0)).getUTCDate())) - ORIGIN) / DAY;
+      };
+      const lasting = (/** @type {number} */ months) => {
+        const years = Math.floor(months / 12), rest = months % 12;
+        // (A number and its unit never split over two lines.)
+        const y = years ? `${years}\u00a0year${years > 1 ? "s" : ""}` : "", m = rest ? `${rest}\u00a0month${rest > 1 ? "s" : ""}` : "";
+        return y && m ? `${y} and ${m}` : y || m;
+      };
+
+      // ── Numbers ──
+
+      /** Numbers grouped as "1,234" by one formatter, made once (a number's toLocaleString makes one each call). */
+      const groupedFormat = new Intl.NumberFormat("en-US");
+      const sigFormat = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 4 });
+      const grouped = (/** @type {number} */ n) => groupedFormat.format(Math.round(n));
+      const sig = (/** @type {number} */ n) => sigFormat.format(n);
+      /** A large amount: under 1,000 to 4 digits, then whole and grouped, millions on as 4 digits and a letter. */
+      const scaled = (/** @type {number} */ v) => {
+        const [scale, letter] = /** @type {[number, string][]} */ ([[1e12, "T"], [1e9, "B"], [1e6, "M"]]).find(([scale]) => v >= scale) ?? [1, ""];
+        return scale > 1 ? `${sig(v / scale)}${letter}` : v >= 1000 ? grouped(v) : sig(v);
+      };
+      const usd = (/** @type {number} */ v) => `$${scaled(v)}`;
+      /** Bitcoin: from a thousand coins as dollars are; a whole coin on, to 4 decimals; under a hundredth, sats. */
+      const btc = (/** @type {number} */ v) =>
+        v >= 1000 ? `₿${scaled(v)}` : v >= 1 ? `₿${v.toFixed(4)}` : v >= 0.01 ? `₿${v.toFixed(6)}` : `${grouped(v * 1e8)} sats`;
+      /** A multiple's return: "+30.1%", "−29.4%", "+12,345%"; its sign as it reads once rounded ("0.0%": none). */
+      const percent = (/** @type {number} */ multiple) => {
+        const p = (multiple - 1) * 100, digits = Math.abs(p) >= 100 ? grouped(Math.abs(p)) : Math.abs(p).toFixed(1);
+        return `${/[1-9]/.test(digits) ? (p > 0 ? "+" : "−") : ""}${digits}%`;
+      };
+      const times = (/** @type {number} */ m) => `${m >= 1000 ? grouped(m) : m >= 10 ? m.toFixed(1) : m.toFixed(2)}×`;
+      /** Worth against what went in: more, less, or even (within float error: a day's buy is worth what it cost). */
+      const gained = (/** @type {number} */ multiple) => multiple > 1 + 1e-9;
+      const lost = (/** @type {number} */ multiple) => multiple < 1 - 1e-9;
+      const tone = (/** @type {number} */ multiple) => (gained(multiple) ? "gain" : lost(multiple) ? "loss" : "");
+      /** A change's arrow, as the app marks one: up, down, or none when even. */
+      const arrow = (/** @type {number} */ multiple) => (gained(multiple) ? "▲ " : lost(multiple) ? "▼ " : "");
+      /** The smart plan's worth over the plain plan's (from the same dollars), in words: "24.2% more", "8.1% less". */
+      const edge = (/** @type {number} */ ratio) => (gained(ratio) || lost(ratio) ? `${percent(ratio).replace(/^[+−]/, "")} ${gained(ratio) ? "more" : "less"}` : "the same");
+
+      // ── The price: each day's, from the first day with one ──
+
+      /** @type {Float64Array} */
+      let price = new Float64Array();
+      /** Whether the smart plan's series were read: the comparison needs them. */
+      let comparable = false;
+      let first = 0, last = 0;
+
+      /** The days a plan buys on, from its first: every day, every 7th, or each month on the first day's date (a shorter
+       * month: its last day). */
+      function* buyDays(/** @type {number} */ from, /** @type {Every} */ every) {
+        if (every !== "month") for (let day = from; ; day += every === "week" ? 7 : 1) yield day;
+        const [y, m, d] = ymd(from);
+        for (let k = 0; ; k++) yield (Date.UTC(y, m + k, Math.min(d, new Date(Date.UTC(y, m + k + 1, 0)).getUTCDate())) - ORIGIN) / DAY;
+      }
+
+      /** A plan day by day: the dollars put in, the bitcoin held and the dollars not yet in bitcoin at each day's end, and
+       * how many days it bought. @typedef {{ from: number, to: number, every: Every, amount: number, spent: Float64Array, held: Float64Array, cash: Float64Array, buys: number }} Run */
+      /** A plan a day at a time: `day(d, saved)` takes its day `d` (and the amount, when `saved`); then its totals.
+       * @typedef {{ day: (d: number, saved: boolean) => void, put: number, coins: number, cash: number, buys: number }} Stepper */
+
+      /** The plain plan: the amount into bitcoin each time. @returns {Stepper} */
+      function plainly(/** @type {number} */ amount) {
+        return {
+          put: 0,
+          coins: 0,
+          cash: 0,
+          buys: 0,
+          day(d, saved) {
+            if (!saved) return;
+            this.put += amount;
+            this.coins += amount / price[d];
+            this.buys++;
+          },
+        };
+      }
+
+      // ── The smart plan: its whole rule here, its series, its steps and its words, so another can take its place ──
+      // (The cycle's: saved from each all-time high, bought from the cycle's floor, all in once the young coins' cost is
+      // retaken, then bought as it comes until the next high. Mobile-weighted throughout: each coin's age range counted by
+      // how likely its coins are ever to move.)
+      const Smart = (() => {
+        /** Bedrock's floors, highest to deepest, and the share of the savings bought each day the price closes at or
+         * under one (the deepest it's under): a tenth, doubling with each, all at the last.
+         * @type {[string, number][]} */
+        const FLOORS = [["p95", 0.1], ["p98", 0.2], ["p99", 0.4], ["p99_5", 0.8], ["p99_9", 1]];
+        /** The young coins: younger than 6 months. */
+        const young = "age_under_6m_mobile";
+        /** Per day: what it does then (WAIT nothing, FLOOR a share of the savings, RETAKE all of them, DCA each saving as
+         * it comes), and on a floor's day, that share. */
+        const WAIT = 0, FLOOR = 1, RETAKE = 2, DCA = 3;
+        let phase = new Uint8Array(), share = new Float64Array();
+        /** Per day: the all-time high to then and its day, and the day the phase then began; and the series, by day. */
+        let high = new Float64Array(), highDay = new Int32Array(), began = new Int32Array();
+        let level = (/** @type {number} */ k, /** @type {number} */ d) => NaN;
+        /** Its series' first day, for the fine print. */
+        let since = 0;
+
+        /** Reads its series and readies each day's phase to `last`; an error says why it's unavailable. */
+        async function prepare(/** @type {(id: string) => Promise<{ start: number, data: (number | null)[] }>} */ read) {
+          const ids = [
+            ...FLOORS.map(([p]) => `bedrock_mobile_floor_${p}`),
+            `${young}_capitalized_price`,
+            `${young}_median_capitalized_price`,
+          ];
+          const all = await Promise.all(ids.map(read));
+          // (Each whole over the plans' days, from the first price to the last: a day missing would change the rule's answer,
+          // not just a number.)
+          for (const series of all) {
+            if (series.start > first || series.start + series.data.length - 1 < last || series.data.slice(first - series.start).some((v) => v === null)) throw new Error("its series have days missing");
+          }
+          // (Where each sits among `ids`: the floors, then the young coins' capitalized price and its median.)
+          const at = (/** @type {number} */ k, /** @type {number} */ d) => /** @type {number} */ (all[k].data[d - all[k].start]);
+          const MEAN = FLOORS.length, MEDIAN = MEAN + 1;
+          phase = new Uint8Array(last + 1);
+          share = new Float64Array(last + 1);
+          high = new Float64Array(last + 1);
+          highDay = new Int32Array(last + 1);
+          began = new Int32Array(last + 1);
+          level = at;
+          let now = WAIT, top = 0, topDay = first;
+          for (let d = first; d <= last; d++) {
+            const p = price[d], record = d > first && p > top, was = now;
+            if (p > top) [top, topDay] = [p, d];
+            [high[d], highDay[d]] = [top, topDay];
+            // (A new high: waiting again. Waiting, a close at or under the first floor begins the floor; there, the first close
+            // above the young coins' capitalized price and its median, both, takes them back, the same day too: all in that
+            // day, each saving as it comes after.)
+            if (record) now = WAIT;
+            else if (now === RETAKE) now = DCA;
+            else {
+              if (now === WAIT && p <= at(0, d)) now = FLOOR;
+              if (now === FLOOR && p > Math.max(at(MEAN, d), at(MEDIAN, d))) now = RETAKE;
+            }
+            phase[d] = now;
+            began[d] = d === first || now !== was ? d : began[d - 1];
+            if (now === FLOOR) FLOORS.forEach(([, s], k) => p <= at(k, d) && (share[d] = s));
+          }
+          since = first;
+        }
+
+        /** One smart plan, a day at a time. @returns {Stepper} */
+        function start(/** @type {Every} */ every, /** @type {number} */ amount) {
+          return {
+            put: 0,
+            coins: 0,
+            cash: 0,
+            buys: 0,
+            day(d, deposit) {
+              if (deposit) {
+                this.put += amount;
+                this.cash += amount;
+              }
+              const spend = Math.min(this.cash, phase[d] === FLOOR ? this.cash * share[d] : phase[d] === RETAKE ? this.cash : phase[d] === DCA && deposit ? amount : 0);
+              if (spend > 0) {
+                this.coins += spend / price[d];
+                this.cash -= spend;
+                this.buys++;
+              }
+            },
+          };
+        }
+
+        /**
+         * What it says to do on day `d`, a plan's: what to do, why, and the levels that would change it (each its words,
+         * their detail, its price and how far it is from the day's).
+         * @param {{ cash: number, spend: number, amount: number, next: number, now: number }} plan its savings before the
+         * day's buy, that buy, a saving's amount, its next saving's day after `d`, and the day it is now (the next saving,
+         * on it, is today's).
+         * @returns {{ step: number, act: string, why: string, levels: [string, string, number][] }}
+         */
+        function today(d, plan) {
+          const p = price[d], line = Math.max(level(FLOORS.length, d), level(FLOORS.length + 1, d)), saved = usd(plan.cash);
+          const allTime = /** @type {[string, string, number]} */ (["Back to waiting", "if a day closes above the all-time high", high[d]]);
+          const allIn = /** @type {[string, string, number]} */ (["All in", "if a day closes above what young coins paid", line]);
+          if (phase[d] === WAIT) {
+            return {
+              step: 0,
+              act: "Save, don't buy",
+              why: `Waiting since the all-time high of ${usd(high[d])} on ${dated(highDay[d])}, with ${saved} saved so far.`,
+              levels: [["Buying 10% a day", "if a day closes at or under Bedrock's first floor", level(0, d)]],
+            };
+          }
+          if (phase[d] === FLOOR) {
+            const k = FLOORS.reduce((deepest, _, j) => (p <= level(j, d) ? j : deepest), -1);
+            const deeper = k + 1 < FLOORS.length ? [/** @type {[string, string, number]} */ ([FLOORS[k + 1][1] === 1 ? "Buying all of it" : `Buying ${FLOORS[k + 1][1] * 100}% a day`, `if a day closes at or under Bedrock's ${ORDINALS[k + 1]} floor`, level(k + 1, d)])] : [];
+            if (k >= 0 && plan.spend < 0.005) return { step: 1, act: "Nothing today", why: `The price closed at ${usd(p)}, at or under Bedrock's ${ORDINALS[k]} floor, but nothing is saved yet to buy with.`, levels: [...deeper, allIn] };
+            return k < 0
+              ? { step: 1, act: "Nothing today", why: `The price closed at ${usd(p)}, above Bedrock's first floor. ${saved} is saved for the floors and the climb back.`, levels: [...deeper, allIn] }
+              : { step: 1, act: `Buy ${usd(plan.spend)}`, why: `${FLOORS[k][1] * 100}% of the ${saved} saved: the price closed at ${usd(p)}, at or under Bedrock's ${ORDINALS[k]} floor (${usd(level(k, d))}).`, levels: [...deeper, allIn] };
+          }
+          if (phase[d] === RETAKE) {
+            if (plan.spend < 0.005) return { step: 2, act: "Nothing today", why: `The price closed at ${usd(p)}, back above what coins younger than six months paid, but nothing is saved yet to put in.`, levels: [allTime] };
+            return {
+              step: 2,
+              act: `Put in all ${usd(plan.spend)}`,
+              why: `The price closed at ${usd(p)}, back above what coins younger than six months paid: ${usd(level(FLOORS.length, d))} on average, ${usd(level(FLOORS.length + 1, d))} at the median.`,
+              levels: [allTime],
+            };
+          }
+          return {
+            step: 3,
+            act: plan.next === plan.now ? `Buy ${usd(plan.amount)} today` : `Buy ${usd(plan.amount)} on ${dated(plan.next)}`,
+            // (The climb back: the day before this step began.)
+            why: `The price climbed back above what young coins paid on ${dated(began[d] - 1)}; since then, each saving is bought as it comes.`,
+            levels: [allTime],
+          };
+        }
+        const ORDINALS = ["first", "second", "third", "fourth", "fifth"];
+
+        /** Its words on the page: its steps (each its name and what it does), a few words for a plan, and the fine
+         * print's line. */
+        const words = {
+          steps: [
+            ["Wait", "From each all-time high, save every dollar and buy nothing."],
+            ["Buy the floors", "Each day the price closes at or under one of Bedrock's floors, buy 10% of the savings: twice as much at each deeper floor, all of it at the fifth."],
+            ["All in", "The first day it closes back above what coins younger than six months paid, on average and at the median, put in all that's left."],
+            ["Keep buying", "Then buy each saving as it comes, until the next all-time high."],
+          ],
+          plan: "on the smart plan",
+          fine: "Bedrock weighs each age of coins by how likely its coins are ever to move. Its floors are the prices at which as many coins would sit at a loss as at the 95th, 98th, 99th, 99.5th and 99.9th percentile of their history; what young coins paid is their capitalized price, average and median. Every four-year smart plan from 2017 on, and every one running to today, ended ahead of the plain plan; a shorter one ending in a bull run, its savings still waiting for the next floor, can end far behind. That's three cycles, and any look back is hindsight.",
+        };
+        return { prepare, start, today, words, since: () => since };
+      })();
+
+      // (Its steps, written at once: the rule needs no data.)
+      $("steps").replaceChildren(...Smart.words.steps.map(([name, does]) => {
+        const item = document.createElement("li");
+        item.append(Object.assign(document.createElement("b"), { textContent: name }), " ", does);
+        return item;
+      }));
+
+      /** A plan day by day over [from, to]: each day's dollars in, bitcoin held and cash; the plain plan or the smart one. */
+      function run(/** @type {number} */ from, /** @type {number} */ to, /** @type {Every} */ every, /** @type {number} */ amount, smartly = false) {
+        const n = to - from + 1, spent = new Float64Array(n), held = new Float64Array(n), cash = new Float64Array(n), days = buyDays(from, every);
+        const step = smartly ? Smart.start(every, amount) : plainly(amount);
+        let next = /** @type {number} */ (days.next().value);
+        for (let i = 0; i < n; i++) {
+          const saved = from + i === next;
+          step.day(from + i, saved);
+          if (saved) next = /** @type {number} */ (days.next().value);
+          spent[i] = step.put;
+          held[i] = step.coins;
+          cash[i] = step.cash;
+        }
+        return /** @type {Run} */ ({ from, to, every, amount, spent, held, cash, buys: step.buys });
+      }
+      /** A plan's worth at its i-th day: its bitcoin at that day's price and its cash. */
+      const worthOf = (/** @type {Run} */ r, /** @type {number} */ i) => r.held[i] * price[r.from + i] + r.cash[i];
+      /** What a coin cost it: the dollars it put into bitcoin over the bitcoin; NaN before it's bought any. */
+      const costOf = (/** @type {Run} */ r, /** @type {number} */ i) => (r.held[i] > 0 ? (r.spent[i] - r.cash[i]) / r.held[i] : NaN);
+      /**
+       * What a plan returned a year by its i-th day, as a multiple (1.38: +38% a year): the yearly rate at which each
+       * day's dollars in, each growing from its own day, come to what the plan's worth then (money-weighted, as a bank
+       * rate is, so the dollars put in late count for less time). Null under a year, where a year's rate would make a
+       * few weeks' luck look like a fortune, and NaN past what it looks between (−99.995% to +2,200,000% a year).
+       */
+      function yearlyOf(/** @type {Run} */ r, /** @type {number} */ i) {
+        if (i < 365) return null;
+        const worth = worthOf(r, i);
+        // Worth against the rate (as its log, ln(1 + rate)): it only grows with the rate, so halving the range finds it.
+        // (Over the days something was put in, found once: not every day again at each of its 60 halvings.)
+        const ages = /** @type {number[]} */ ([]), puts = /** @type {number[]} */ ([]);
+        for (let d = 0; d <= i; d++) {
+          const put = r.spent[d] - (d ? r.spent[d - 1] : 0);
+          if (put) (ages.push((i - d) / 365.25), puts.push(put));
+        }
+        const at = (/** @type {number} */ g) => {
+          let total = 0;
+          for (let k = 0; k < puts.length; k++) total += puts[k] * Math.exp(g * ages[k]);
+          return total;
+        };
+        let low = -10, high = 10;
+        if (!(at(low) <= worth && worth <= at(high))) return NaN;
+        // (40 halvings: the rate's log to 2e-11, far past the tenth of a percent shown.)
+        for (let k = 0; k < 40; k++) {
+          const mid = (low + high) / 2;
+          if (at(mid) < worth) low = mid;
+          else high = mid;
+        }
+        return Math.exp((low + high) / 2);
+      }
+
+      /** A schedule's plans by start and length; with, as they're made, its pictures (by measure and scheme) and its
+       * findings (by measure), which change with nothing else.
+       * @typedef {"returns" | "edge"} Atlas
+       * @typedef {{ every: Every, start: number, cols: number, rows: number, cells: Float64Array, smartCells: Float64Array, edges: Float64Array, pictures: Making<ImageData>, found: Map<string, [string, string]> }} Grid */
+
+      /** Every plan from a month's first day for whole months, each its worth over what went in at its last day (the day
+       * before a month's first), the smart plan's too, and the smart plan's worth over the plain plan's (the same dollars
+       * went into both); by start (column) and length in months (row 0: one month). The amount doesn't matter, nor the
+       * plan's dates: one per schedule, made once (see gridOf). A step a start, so it can be made a slice at a time. */
+      function* gridSteps(/** @type {Every} */ every) {
+        const start = monthOf(first) + (ymd(first)[2] === 1 ? 0 : 1);
+        let cols = 0;
+        while (firstOf(start + cols + 1) - 1 <= last) cols++;
+        const rows = cols, [cells, smartCells, edges] = [0, 1, 2].map(() => new Float64Array(cols * rows).fill(NaN));
+        for (let s = 0; s < cols; s++) {
+          const from = firstOf(start + s), days = buyDays(from, every), plain = plainly(1), smarter = comparable ? Smart.start(every, 1) : null;
+          let next = /** @type {number} */ (days.next().value), day = from;
+          for (let d = 1; s + d <= cols; d++) {
+            const end = firstOf(start + s + d) - 1;
+            for (; day <= end; day++) {
+              const saved = day === next;
+              plain.day(day, saved);
+              smarter?.day(day, saved);
+              if (saved) next = /** @type {number} */ (days.next().value);
+            }
+            const worth = plain.coins * price[end], smartWorth = smarter ? smarter.coins * price[end] + smarter.cash : NaN;
+            cells[s * rows + d - 1] = worth / plain.put;
+            smartCells[s * rows + d - 1] = smartWorth / plain.put;
+            edges[s * rows + d - 1] = smartWorth / worth;
+          }
+          yield;
+        }
+        return /** @type {Grid} */ ({ every, start, cols, rows, cells, smartCells, edges, pictures: new Map(), found: new Map() });
+      }
+      /** Each schedule's grid as it's made, by schedule: its steps, then (made) the grid. A schedule switched to takes its
+       * grid made, or finishes it there; the others are made while the page is idle, a few milliseconds at a time, so a
+       * switch never waits for every plan to be run again. */
+      /**
+       * Something made in steps once, kept in `store` under `key`: its steps (a generator: its yields between them, its
+       * return the thing) while it's being made, then the thing. Asked for, it's finished there (`madeNow`); idle, made a
+       * slice at a time (`makeSome`, until a time; true once made).
+       * @template T @typedef {Map<string, Generator<void, T> | T>} Making
+       */
+      const making = (/** @type {unknown} */ kept) => typeof (/** @type {any} */ (kept)?.next) === "function";
+      /** @template T @returns {T} */
+      function madeNow(/** @type {Making<T>} */ store, /** @type {string} */ key, /** @type {() => Generator<void, T>} */ steps) {
+        let kept = store.get(key);
+        if (kept === undefined) store.set(key, (kept = steps()));
+        if (!making(kept)) return /** @type {T} */ (kept);
+        const steps1 = /** @type {Generator<void, T>} */ (kept);
+        let step;
+        try {
+          step = steps1.next();
+          while (!step.done) step = steps1.next();
+        } catch (error) {
+          // (A thing whose making failed isn't kept half made: asked again, it's begun again.)
+          store.delete(key);
+          throw error;
+        }
+        store.set(key, step.value);
+        return step.value;
+      }
+      /** @template T */
+      function makeSome(/** @type {Making<T>} */ store, /** @type {string} */ key, /** @type {() => Generator<void, T>} */ steps, /** @type {number} */ until) {
+        let kept = store.get(key);
+        if (kept === undefined) store.set(key, (kept = steps()));
+        if (!making(kept)) return true;
+        const steps1 = /** @type {Generator<void, T>} */ (kept);
+        let step;
+        try {
+          step = steps1.next();
+          while (!step.done && performance.now() < until) step = steps1.next();
+        } catch (error) {
+          store.delete(key);
+          throw error;
+        }
+        if (step.done) store.set(key, step.value);
+        return Boolean(step.done);
+      }
+      /** @type {Making<Grid>} */
+      const grids = new Map();
+      const gridOf = (/** @type {Every} */ every) => madeNow(grids, every, () => gridSteps(every));
+      /** What a switch would need made, in turn while the page is idle, 8 ms at a time between its frames: every
+       * schedule's grid, then each one's picture for either measure (the scheme in use) and its findings. */
+      function makeGridsIdle() {
+        const until = performance.now() + 8;
+        for (const every of /** @type {Every[]} */ (["week", "day", "month"])) {
+          if (!makeSome(grids, every, () => gridSteps(every), until)) return void setTimeout(makeGridsIdle, 0);
+        }
+        for (const every of /** @type {Every[]} */ (["week", "day", "month"])) {
+          const grid = gridOf(every);
+          for (const atlas of /** @type {Atlas[]} */ (["returns", "edge"])) {
+            if (!makeSome(grid.pictures, pictureKey(atlas), () => pictureSteps(grid, atlas), until)) return void setTimeout(makeGridsIdle, 0);
+            if (performance.now() >= until) return void setTimeout(makeGridsIdle, 0);
+            findingsOf(grid, atlas);
+          }
+        }
+      }
+
+      // ── The plan's state, in the address (to: left out while it's the last day) ──
+
+      /** Each chart's scale by default: the value's linear, a plan's worth as it grew; the cost's log, as the price and a
+       * coin's cost span cents to tens of thousands of dollars. */
+      const LOG = { value: false, cost: true };
+      const state = { amount: 100, every: /** @type {Every} */ ("week"), from: 0, to: 0, logs: { ...LOG }, view: /** @type {"value" | "cost"} */ ("value"), atlas: /** @type {"returns" | "edge"} */ ("returns") };
+      /** Whether the chart shown is on a log scale (each chart keeps its own). */
+      const logged = () => state.logs[state.view];
+      /** The plain plan, and the smart plan over the same days (none without the smart plan). @type {Run} */
+      let plan;
+      /** @type {Run | null} */
+      let smart = null;
+      /** What the page leads with, the smart plan (without the smart plan, the plain one), and its baseline, the plain plan (none
+       * without the smart plan). @type {Run} */
+      let lead;
+      /** @type {Run | null} */
+      let base = null;
+      /** @type {Grid} */
+      let map;
+
+      /** The plan a link asks for; a part that isn't usable stays the default, and the page says which. */
+      function readAddress() {
+        const query = new URLSearchParams(location.search), unused = [];
+        const amount = query.get("amount"), every = query.get("every"), from = query.get("from"), to = query.get("to"), view = query.get("view"), scale = query.get("scale"), atlas = query.get("map");
+        if (amount !== null) amountProblem(Number(amount)) ? unused.push("amount") : (state.amount = Number(amount));
+        if (every !== null) every === "day" || every === "week" || every === "month" ? (state.every = every) : unused.push("schedule");
+        const toDay = to === null ? last : linkDay(to), fromDay = from === null ? NaN : linkDay(from);
+        if (!(toDay >= first && toDay <= last)) unused.push("last day");
+        state.to = toDay >= first && toDay <= last ? toDay : last;
+        if (from !== null && !(fromDay >= first && fromDay <= state.to)) unused.push("first day");
+        state.from = fromDay >= first && fromDay <= state.to ? fromDay : Math.max(first, yearsBefore(state.to, 4) + 1);
+        if (view !== null) view === "value" || view === "cost" ? (state.view = view) : unused.push("chart");
+        // (The scale is the linked chart's.)
+        if (scale !== null) scale === "log" || scale === "lin" ? (state.logs[state.view] = scale === "log") : unused.push("scale");
+        if (atlas !== null) atlas === "returns" || (atlas === "smart" && comparable) ? (state.atlas = atlas === "smart" ? "edge" : "returns") : unused.push("map");
+        return unused.length ? `This link's ${unused.join(", ")} couldn't be used, so ${unused.length > 1 ? "the defaults stand" : "the default stands"} in.` : "";
+      }
+      /** A link's date: a real day written as YYYY-MM-DD, else NaN (2024-02-31 isn't one). */
+      const linkDay = (/** @type {string} */ date) => {
+        const day = /^\d{4}-\d\d-\d\d$/.test(date) ? dayOf(date) : NaN;
+        return !Number.isNaN(day) && iso(day) === date ? day : NaN;
+      };
+
+      function writeAddress() {
+        const query = new URLSearchParams({ amount: String(state.amount), every: state.every, from: iso(state.from) });
+        if (state.to !== last) query.set("to", iso(state.to));
+        // (The chart shown's scale, when it isn't that chart's default.)
+        if (logged() !== LOG[state.view]) query.set("scale", logged() ? "log" : "lin");
+        if (state.view === "cost") query.set("view", "cost");
+        if (state.atlas === "edge") query.set("map", "smart");
+        history.replaceState(null, "", `?${query}`);
+      }
+
+      // ── The form ──
+
+      const amountInput = /** @type {HTMLInputElement} */ ($("amount"));
+      const fromInput = /** @type {HTMLInputElement} */ ($("from")), toInput = /** @type {HTMLInputElement} */ ($("to"));
+      // (A hidden twin of the amount's text, styled as the field is: its width is the field's.)
+      const twin = Object.assign(document.createElement("span"), { className: "twin" });
+      twin.setAttribute("aria-hidden", "true");
+      /** @type {HTMLElement} */ (amountInput.parentElement).append(twin);
+      /** The amount's field as wide as its text, and its size down from 48px as it would outgrow the card. */
+      /** The amount last fitted: the field measured again only when it changes (or `again`: the fonts, the card's size). */
+      let fitted = "";
+      const fitAmount = (again = false) => {
+        if (!again && amountInput.value === fitted) return;
+        fitted = amountInput.value;
+        // (Its size first, then the field exactly as wide as its text at that size, so the amount sits centered.)
+        /** @type {HTMLElement} */ (amountInput.parentElement).style.setProperty("--chars", String(Math.max(4, amountInput.value.length + 1.4)));
+        twin.textContent = amountInput.value || "0";
+        amountInput.style.width = `${Math.ceil(twin.getBoundingClientRect().width) + 1}px`;
+      };
+      // (Sized from the start, so the card doesn't change once prices arrive; again once the fonts it's measured in are in,
+      // and whenever the card's width, which sets its size, changes.)
+      fitAmount(true);
+      document.fonts.ready.then(() => fitAmount(true));
+      new ResizeObserver(() => fitAmount(true)).observe(/** @type {HTMLElement} */ (document.querySelector(".plan")));
+
+      /** What's wrong with an amount ("": nothing): a cent to a billion dollars. */
+      const amountProblem = (/** @type {number} */ amount) => (amount >= 0.01 && amount <= 1e9 ? "" : "Enter dollars from 0.01 to 1,000,000,000.");
+      /** What's wrong with two days as a plan ("": nothing). */
+      const datesProblem = (/** @type {number} */ from, /** @type {number} */ to) =>
+        Number.isNaN(from) || Number.isNaN(to) ? "Pick both days."
+          : from < first || to < first ? `Prices begin on ${dated(first)}.`
+          : from > last || to > last ? `The last day with a price is ${dated(last)}.`
+          : from > to ? "The first day comes after the last."
+          : "";
+      const typed = (/** @type {HTMLInputElement} */ input) => (input.value ? dayOf(input.value) : NaN);
+
+      /** The plan card's line under the amount: what's wrong, if anything, else what the amount is. */
+      const say = (/** @type {string} */ problem) => {
+        $("note").textContent = problem || (comparable ? "saved each time" : "of bitcoin each time");
+        $("note").classList.toggle("wrong", Boolean(problem));
+      };
+
+      /** Reads the form: each part that's valid joins the plan; one that isn't keeps what's typed, marked and said why,
+       * until it's fixed or a control (a span, a square) replaces it. */
+      function readForm() {
+        const amount = Number(amountInput.value.replaceAll(",", "")), from = typed(fromInput), to = typed(toInput);
+        const amountWrong = amountProblem(amount), datesWrong = datesProblem(from, to);
+        amountInput.setAttribute("aria-invalid", String(Boolean(amountWrong)));
+        // (The days are one plan: wrong together, both keep what's typed.)
+        for (const input of [fromInput, toInput]) input.setAttribute("aria-invalid", String(Boolean(datesWrong)));
+        // (One line: the first problem said, every wrong field marked.)
+        say(amountWrong || datesWrong);
+        if (!amountWrong) state.amount = amount;
+        if (!datesWrong) [state.from, state.to] = [from, to];
+        update();
+      }
+
+      /** A plan's days from a control: they replace whatever was typed. */
+      function setDates(/** @type {number} */ from, /** @type {number} */ to) {
+        fromInput.value = iso(from);
+        toInput.value = iso(to);
+        readForm();
+      }
+
+      /** The form as the plan stands, but for a field being typed in or holding a mistake: it keeps what's typed. */
+      function fillForm() {
+        for (const [input, value] of /** @type {[HTMLInputElement, string][]} */ ([[amountInput, String(state.amount)], [fromInput, iso(state.from)], [toInput, iso(state.to)]])) {
+          if (input !== document.activeElement && input.getAttribute("aria-invalid") !== "true") input.value = value;
+        }
+        fitAmount();
+        for (const button of document.querySelectorAll("[data-every]")) button.setAttribute("aria-pressed", String(/** @type {HTMLElement} */ (button).dataset.every === state.every));
+        /** @type {HTMLElement} */ (document.querySelector(".every")).style.setProperty("--at", String(["day", "week", "month"].indexOf(state.every)));
+        for (const button of document.querySelectorAll("[data-amount]")) button.setAttribute("aria-pressed", String(Number(/** @type {HTMLElement} */ (button).dataset.amount) === state.amount));
+        // (The tops' picker shows the top the plan is from, if it's one, to the last day; else its prompt.)
+        const topsPicker = /** @type {HTMLSelectElement} */ ($("tops")), fromTop = state.to === last && [...topsPicker.options].some((o) => o.value === String(state.from));
+        topsPicker.value = fromTop ? String(state.from) : "";
+        topsPicker.classList.toggle("on", fromTop);
+        for (const button of document.querySelectorAll("[data-view]")) button.setAttribute("aria-pressed", String(/** @type {HTMLElement} */ (button).dataset.view === state.view));
+        fromInput.min = toInput.min = iso(first);
+        fromInput.max = toInput.max = iso(last);
+        showDates();
+        for (const button of document.querySelectorAll("[data-years]")) {
+          const years = Number(/** @type {HTMLElement} */ (button).dataset.years);
+          button.setAttribute("aria-pressed", String(state.from === spanStart(years)));
+        }
+        $("log").setAttribute("aria-pressed", String(logged()));
+        for (const button of document.querySelectorAll("[data-atlas]")) button.setAttribute("aria-pressed", String(/** @type {HTMLElement} */ (button).dataset.atlas === state.atlas));
+      }
+
+      /** The first day of the last `years` up to the plan's last day. */
+      const spanStart = (/** @type {number} */ years) => Math.max(first, yearsBefore(state.to, years) + 1);
+
+      amountInput.addEventListener("input", () => {
+        fitAmount();
+        readForm();
+      });
+      // (A quick amount is typed for you: the amount field takes it, as if keyed in.)
+      for (const button of document.querySelectorAll("[data-amount]")) {
+        button.addEventListener("click", () => {
+          amountInput.value = /** @type {string} */ (/** @type {HTMLElement} */ (button).dataset.amount);
+          fitAmount();
+          readForm();
+        });
+      }
+      for (const button of document.querySelectorAll("[data-every]")) {
+        button.addEventListener("click", () => {
+          state.every = /** @type {Every} */ (/** @type {HTMLElement} */ (button).dataset.every);
+          map = gridOf(state.every);
+          paintGrid();
+          update();
+        });
+      }
+      for (const button of document.querySelectorAll("[data-view]")) {
+        button.addEventListener("click", () => {
+          state.view = /** @type {"value" | "cost"} */ (/** @type {HTMLElement} */ (button).dataset.view);
+          writeAddress();
+          fillForm();
+          drawCharts(true);
+        });
+      }
+      /** Each date field's day, shown in the page's words over it (as typed, a draft or a mistake included). */
+      const showDates = () => {
+        for (const input of [fromInput, toInput]) $(`${input.id}-shown`).textContent = input.value ? dated(dayOf(input.value)) : "—";
+      };
+      for (const input of [fromInput, toInput]) {
+        input.addEventListener("change", readForm);
+        input.addEventListener("input", showDates);
+        // (A click, or Enter, opens the browser's calendar: the field itself is invisible. Reached by keys, not a pointer, it
+        // shows itself to be edited until focus leaves.)
+        input.addEventListener("click", () => input.showPicker?.());
+        input.addEventListener("focus", () => /** @type {HTMLElement} */ (input.parentElement).classList.toggle("editing", !("pointer" in document.documentElement.dataset)));
+        input.addEventListener("blur", () => /** @type {HTMLElement} */ (input.parentElement).classList.remove("editing"));
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          input.showPicker?.();
+        });
+      }
+      $("tops").addEventListener("change", () => {
+        // (Its prompt chosen changes nothing: the picker shows the plan's own state again.)
+        const day = Number(/** @type {HTMLSelectElement} */ ($("tops")).value);
+        if (day) setDates(day, last);
+        else fillForm();
+      });
+      for (const button of document.querySelectorAll("[data-years]")) {
+        button.addEventListener("click", () => setDates(spanStart(Number(/** @type {HTMLElement} */ (button).dataset.years)), state.to));
+      }
+      for (const button of document.querySelectorAll("[data-atlas]")) {
+        button.addEventListener("click", () => {
+          state.atlas = /** @type {"returns" | "edge"} */ (/** @type {HTMLElement} */ (button).dataset.atlas);
+          writeAddress();
+          fillForm();
+          paintGrid();
+          drawMap();
+          setTimeout(makeGridsIdle, 0);
+        });
+      }
+      $("log").addEventListener("click", () => {
+        state.logs[state.view] = !logged();
+        update();
+      });
+
+      // ── What it came to ──
+
+      function update() {
+        plan = run(state.from, state.to, state.every, state.amount);
+        smart = comparable ? run(state.from, state.to, state.every, state.amount, true) : null;
+        [lead, base] = smart ? [smart, plan] : [plan, null];
+        writeAddress();
+        fillForm();
+        tell();
+        advise();
+        drawCharts(true);
+        drawMap();
+      }
+
+      /** What the smart plan says to do as of the last close (yesterday's while today's day is still open), for this plan
+       * carried to that day: its dollars saved before the day's buy, that buy, and its next saving. */
+      function advise() {
+        $("today").hidden = !comparable;
+        if (!comparable) return;
+        const open = last >= Math.floor((Date.now() - ORIGIN) / DAY), d = open ? last - 1 : last, from = state.from;
+        // (A plan begun by then, carried to that day; one beginning after it, nothing saved yet.)
+        let cash = 0, spend = 0;
+        if (from <= d) {
+          const run1 = run(from, d, state.every, state.amount, true), n = d - from;
+          spend = (run1.held[n] - (n ? run1.held[n - 1] : 0)) * price[d];
+          cash = run1.cash[n] + spend;
+        }
+        const days = buyDays(from, state.every);
+        let next = /** @type {number} */ (days.next().value);
+        while (next <= d) next = /** @type {number} */ (days.next().value);
+        const told = Smart.today(d, { cash, spend, amount: state.amount, next, now: d + 1 });
+        $("today-phase").textContent = Smart.words.steps[told.step][0];
+        for (const [k, item] of [...$("steps").children].entries()) k === told.step ? item.setAttribute("aria-current", "step") : item.removeAttribute("aria-current");
+        $("today-act").textContent = told.act;
+        $("today-why").textContent = told.why;
+        $("today-when").textContent = `As of the close on ${dated(d)} (${usd(price[d])}), for ${usd(state.amount)} a ${state.every} saved ${from <= d ? "since" : "from"} ${dated(from)}.`;
+        $("today-levels").replaceChildren(
+          ...told.levels.map(([what, when, at]) => {
+            const row = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"), away = (at / price[d] - 1) * 100;
+            dt.append(what, Object.assign(document.createElement("small"), { textContent: when }));
+            dd.append(usd(at), Object.assign(document.createElement("small"), { textContent: `${Math.abs(away).toFixed(1)}% ${away < 0 ? "below" : "above"}` }));
+            row.append(dt, dd);
+            return row;
+          }),
+        );
+      }
+
+      /** The plan the page leads with in a few words, over the value as of its last day: "$100 a week since 24 Oct 2022, on
+       * the smart plan" (without the smart plan: "$100 every week since 24 Oct 2022"); a plan of one day, its one deposit:
+       * "$50 on 1 Jan 2024". */
+      const sentence = () => {
+        if (lead.from === lead.to) return `${usd(lead.spent[0])} on ${dated(lead.from)}`;
+        const when = lead.to === last ? `since ${dated(lead.from)}` : `${dated(lead.from)} – ${dated(lead.to)}`;
+        return base ? `${usd(lead.amount)} a ${lead.every} ${when}, ${Smart.words.plan}` : `${usd(lead.amount)} every ${lead.every} ${when}`;
+      };
+
+      /** The breakdown of the plan the page leads with; its words and value are point()'s, as of the day pointed at. */
+      function tell() {
+        const n = lead.to - lead.from, spent = lead.spent[n], held = lead.held[n], end = price[lead.to], worth = worthOf(lead, n);
+        const multiple = worth / spent, cost = costOf(lead, n), latest = lead.to === last;
+        const yearly = yearlyOf(lead, n);
+        // (The lowest the plan's worth stood against what had gone in, and when.)
+        let low = Infinity, lowDay = lead.from;
+        for (let i = 0; i <= n; i++) {
+          const m = worthOf(lead, i) / lead.spent[i];
+          if (m < low) [low, lowDay] = [m, lead.from + i];
+        }
+
+        const fact = (/** @type {string} */ name, /** @type {string} */ value, /** @type {string} */ more) => {
+          const box = /** @type {HTMLElement} */ (document.querySelector(`[data-fact="${name}"]`));
+          /** @type {HTMLElement} */ (box.querySelector("dd")).innerHTML = value;
+          /** @type {HTMLElement} */ (box.querySelector("small")).textContent = more;
+        };
+        fact("bought", btc(held), lead.buys ? `${grouped(lead.buys)} buy${lead.buys > 1 ? "s" : ""}${lead.cash[n] > 0.005 ? `, ${usd(lead.cash[n])} still saved` : ""}` : "none yet: all still saved");
+        fact("spent", usd(spent), `worth ${times(multiple)} that ${latest ? "now" : "at the end"}`);
+        fact("cost", Number.isNaN(cost) ? "–" : usd(cost), `per bitcoin, against ${usd(end)} ${latest ? "now" : "at the end"}`);
+        if (yearly === null) fact("yearly", "–", "after a year of the plan");
+        else if (Number.isNaN(yearly)) fact("yearly", "–", "out of reach");
+        else fact("yearly", `<span class="${tone(yearly)}">${percent(yearly)}</span>`, "like a savings account's yield");
+        if (lost(low)) fact("low", `<span class="loss">${percent(low)}</span>`, `on ${dated(lowDay)}`);
+        else fact("low", "None", "never below what went in");
+        // The smart plan against its baseline, the plain one: what each was worth from the same dollars, then their facts
+        // side by side.
+        $("vs").hidden = !base;
+        if (base) {
+          const baseSpent = base.spent[n], baseHeld = base.held[n], baseWorth = worthOf(base, n), ratio = worth / baseWorth;
+          $("verdict").innerHTML = `${latest ? "By today" : `By ${dated(lead.to)}`}, from the same dollars, the smart plan was worth <b class="${tone(ratio)}">${edge(ratio)}</b> than the plain one.`;
+          const row = (/** @type {string} */ name, /** @type {string} */ smarter, /** @type {string} */ plain) => {
+            const [a, b] = document.querySelectorAll(`[data-vs="${name}"] td`);
+            [a.innerHTML, b.innerHTML] = [smarter, plain];
+          };
+          row("spent", usd(spent), usd(baseSpent));
+          row("bought", btc(held), btc(baseHeld));
+          row("cash", usd(lead.cash[n]), usd(0));
+          row("cost", Number.isNaN(cost) ? "–" : usd(cost), usd(baseSpent / baseHeld));
+          row("worth", usd(worth), usd(baseWorth));
+          row("return", percent(multiple), percent(baseWorth / baseSpent));
+        }
+        $("calculator").setAttribute("aria-busy", "false");
+      }
+
+      // ── The chart: what it was worth against what went in, or the price against what a coin cost you ──
+
+      const plots = $("plots"), svg = /** @type {SVGSVGElement} */ (/** @type {unknown} */ ($("chart"))), still = matchMedia("(prefers-reduced-motion: reduce)");
+      /** A line: its values (`f`, NaN where there's none), as drawn where it differs (`line`), its ink and name.
+       * @typedef {{ f: (i: number) => number, line?: (i: number) => number, ink: "up" | "down" | "price" | "dashed" | "plain", name: string, from?: (i: number) => number }} Series */
+      const INKS = { up: "var(--line-up)", down: "var(--loss)", price: "var(--soft)", dashed: "var(--soft)", plain: "var(--plain)" };
+      /** What the chart shows: x and y by the plan's day, its series (two, and the baseline's third), the crosshair, and
+       * how to finish drawing it.
+       * @type {{ x: (i: number) => number, onLine: (k: number, i: number) => number, series: Series[], marks: Element[], line: Element, ends: Element, finish: () => void } | null} */
+      let drawn = null;
+      /** The lines as on screen, a point a column: where a glide starts. */
+      let onScreen = /** @type {Float64Array[] | null} */ (null), glide = 0;
+      const GLIDE = 250;
+      const eased = (/** @type {number} */ t) => 1 - (1 - t) ** 3;
+
+      const el = (/** @type {string} */ tag, /** @type {Record<string, string | number>} */ attrs = {}) => {
+        const node = document.createElementNS(SVG, tag);
+        for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+        return node;
+      };
+
+      /** How far in from each side the first and last days sit: a dot's reach (a crosshair's 5px and its 1.5px ring), so
+       * a dot on either end stays in its card. */
+      const INSET = 7;
+      /** A line's points, one every 3px: the curve through them is smooth where a point a pixel is hair. */
+      const STEP = 3;
+
+      /** The slopes at points by x of a curve through them, monotone between each two (Fritsch–Carlson): smooth, and never
+       * above the higher of two neighbors or below the lower, so it shows no high or low the points don't have. */
+      function tangentsOf(/** @type {[number, number][]} */ points) {
+        const n = points.length, slopes = [], tangents = new Array(n).fill(0);
+        if (n < 2) return tangents;
+        for (let k = 0; k < n - 1; k++) slopes.push((points[k + 1][1] - points[k][1]) / (points[k + 1][0] - points[k][0]));
+        [tangents[0], tangents[n - 1]] = [slopes[0], slopes[n - 2]];
+        for (let k = 1; k < n - 1; k++) tangents[k] = slopes[k - 1] * slopes[k] <= 0 ? 0 : (slopes[k - 1] + slopes[k]) / 2;
+        for (let k = 0; k < n - 1; k++) {
+          if (slopes[k] === 0) {
+            tangents[k] = tangents[k + 1] = 0;
+            continue;
+          }
+          const a = tangents[k] / slopes[k], b = tangents[k + 1] / slopes[k], h = a * a + b * b;
+          if (h > 9) [tangents[k], tangents[k + 1]] = [(3 / Math.sqrt(h)) * a * slopes[k], (3 / Math.sqrt(h)) * b * slopes[k]];
+        }
+        return tangents;
+      }
+
+      /** That curve's height between two points `width` apart, with heights y0, y1 and slopes m0, m1, a fraction `u` along. */
+      const hermite = (/** @type {number} */ y0, /** @type {number} */ y1, /** @type {number} */ m0, /** @type {number} */ m1, /** @type {number} */ u, /** @type {number} */ width) =>
+        (2 * u ** 3 - 3 * u ** 2 + 1) * y0 + (u ** 3 - 2 * u ** 2 + u) * width * m0 + (-2 * u ** 3 + 3 * u ** 2) * y1 + (u ** 3 - u ** 2) * width * m1;
+
+      /** That curve as a path, from the first point, and (`reverse()`, the same curve) from the last: worked out and
+       * written once, either way read from the same pieces. */
+      function monotone(/** @type {[number, number][]} */ points, smooth = true) {
+        const n = points.length, at = (/** @type {[number, number]} */ [x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
+        // (Moving, its points joined straight: a point every 3px reads as the curve while it glides, at a third of its
+        // work; at rest, the curve.)
+        if (n < 3 || !smooth) {
+          const written = points.map(at);
+          return { forward: written.map((p, k) => `${k ? "L" : "M"}${p}`).join(""), reverse: () => [...written].reverse().map((p, k) => `${k ? "L" : "M"}${p}`).join("") };
+        }
+        const tangents = tangentsOf(points), written = points.map(at), first = /** @type {string[]} */ ([]), second = /** @type {string[]} */ ([]);
+        for (let k = 0; k < n - 1; k++) {
+          const [[x0, y0], [x1, y1]] = [points[k], points[k + 1]], third = (x1 - x0) / 3;
+          first.push(at([x0 + third, y0 + tangents[k] * third]));
+          second.push(at([x1 - third, y1 - tangents[k + 1] * third]));
+        }
+        let forward = `M${written[0]}`;
+        for (let k = 0; k < n - 1; k++) forward += `C${first[k]},${second[k]},${written[k + 1]}`;
+        const reverse = () => {
+          let path = `M${written[n - 1]}`;
+          for (let k = n - 2; k >= 0; k--) path += `C${second[k]},${first[k]},${written[k]}`;
+          return path;
+        };
+        return { forward, reverse };
+      }
+
+      /** No axes: the numbers are the value above and the keys below, at the day pointed at. The plan the page leads with:
+       * worth is green, or red when the plan ends below what went in; faintly between its two lines, green where the plan
+       * stood above (worth over what went in, the price over your cost), red below. Its baseline's line, thin, under it. A
+       * new plan's lines glide from the old ones (`animate`). */
+      /** The chart's box, read once and again only as it's resized (see sizes), as the map's. @type {{ width: number, height: number } | null} */
+      let chartBox = null;
+      function drawCharts(animate = false) {
+        chartBox ??= { width: plots.clientWidth, height: svg.getBoundingClientRect().height };
+        const n = lead.to - lead.from + 1, { width, height } = chartBox, pad = 12;
+        const at = (/** @type {number} */ i) => price[lead.from + i], worth = (/** @type {number} */ i) => worthOf(lead, i);
+        // (A coin's cost, before the plan's first buy: none, its line drawn along the price's until there.)
+        const spent = (/** @type {number} */ i) => lead.spent[i], cost = (/** @type {number} */ i) => costOf(lead, i);
+        const costLine = (/** @type {number} */ i) => (Number.isNaN(cost(i)) ? at(i) : cost(i));
+        // (The first series is under the fill's edge, the second drawn on top; `good` is the one green above.)
+        /** @type {Series[]} */
+        const series = state.view === "value"
+          ? [{ f: spent, ink: "dashed", name: "Put in" }, { f: worth, ink: lost(worth(n - 1) / spent(n - 1)) ? "down" : "up", name: "Worth" }]
+          : [{ f: at, ink: "price", name: "Price" }, { f: cost, line: costLine, ink: "up", name: "Cost" }];
+        // (The baseline's worth or cost too, third; its worth with what went into it, which isn't the smart plan's.)
+        const other = base;
+        if (other) series.push(state.view === "value" ? { f: (i) => worthOf(other, i), ink: "plain", name: "Plain", from: (i) => other.spent[i] } : { f: (i) => costOf(other, i), ink: "plain", name: "Plain" });
+        const good = state.view === "value" ? 1 : 0;
+        let lo = Infinity, hi = 0;
+        for (const s of series)
+          for (let i = 0; i < n; i++) {
+            const v = (s.line ?? s.f)(i);
+            lo = Math.min(lo, v);
+            hi = Math.max(hi, v);
+          }
+        // (Flat within float error, as a one-day plan is: centered.)
+        const flat = hi - lo <= hi * 1e-9;
+        const log = logged();
+        if (log) [lo, hi] = flat ? [lo / 2, hi * 2] : [lo / 1.04, hi * 1.04];
+        else [lo, hi] = flat ? [lo / 2, hi * 1.5] : [Math.max(0, lo - (hi - lo) * 0.05), hi + (hi - lo) * 0.05];
+        const span = log ? Math.log(hi / lo) : hi - lo;
+        const y = (/** @type {number} */ v) => pad + (height - 2 * pad) * (1 - (log ? Math.log(v / lo) : v - lo) / span);
+        const x = (/** @type {number} */ i) => (n === 1 ? width / 2 : INSET + (i / (n - 1)) * (width - 2 * INSET));
+        const ys = series.map((s) => (/** @type {number} */ i) => y((s.line ?? s.f)(i)));
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        const under = [el("path"), el("path")], clips = el("defs"), fills = [el("path", { class: "above", "clip-path": "url(#chart-up)" }), el("path", { class: "below", "clip-path": "url(#chart-down)" })];
+        clips.innerHTML = '<clipPath id="chart-up"></clipPath><clipPath id="chart-down"></clipPath>';
+        clips.querySelectorAll("clipPath").forEach((clip, k) => clip.append(under[k]));
+        const lines = series.map((s) => el("path", { class: `line ${s.ink}` }));
+        const line = el("line", { y1: 0, y2: height }), marks = series.map((s) => el("circle", { r: 5, style: `fill: ${INKS[s.ink]}` }));
+        const cross = el("g", { class: "cross", visibility: "hidden" }), ends = el("g", { class: "ends" });
+        // (The baseline's end dot smaller, so the green one beside it stays whole.)
+        const dots = series.map((s) => el("circle", { r: s.ink === "plain" ? 3 : 4.5, cx: x(n - 1), style: `fill: ${INKS[s.ink]}${s.ink === "plain" ? "; stroke-width: 2px" : ""}` }));
+        cross.append(line, ...marks);
+        ends.append(...dots);
+        // (The baseline's line under the plan's own, which is on top.)
+        svg.replaceChildren(clips, ...fills, ...[0, 2, 1].flatMap((k) => lines[k] ?? []), ends, cross);
+        // The lines as a point a column, every STEP px, at rest and in a glide alike, so a glide starts and ends on the
+        // shape at rest: where days outnumber columns, the day at each column's x (the first and last columns: the first
+        // and last days); else the curve through the days where each column is, so a short plan is as smooth as a long
+        // one. A one-day plan: its point, in one column.
+        const columns = n === 1 ? 1 : Math.max(2, Math.round((width - 2 * INSET) / STEP));
+        const colX = (/** @type {number} */ j) => (columns === 1 ? width / 2 : INSET + (j / (columns - 1)) * (width - 2 * INSET));
+        // (After the columns, the last day's own value: where the line's end dot sits.)
+        const sample = (/** @type {(i: number) => number} */ yOf) => {
+          const out = new Float64Array(columns + 1);
+          out[columns] = yOf(n - 1);
+          if (n > columns) {
+            for (let j = 0; j < columns; j++) out[j] = yOf(Math.round((j / (columns - 1)) * (n - 1)));
+            return out;
+          }
+          /** @type {[number, number][]} */
+          const days = Array.from({ length: n }, (_, i) => [i, yOf(i)]), tangents = tangentsOf(days);
+          for (let j = 0; j < columns; j++) {
+            // (Between two days, the cubic that joins them with their slopes.)
+            const t = columns === 1 ? 0 : (j / (columns - 1)) * (n - 1), i = Math.min(n - 2, Math.floor(t)), u = t - i;
+            if (n === 1) {
+              out[j] = days[0][1];
+              continue;
+            }
+            out[j] = hermite(days[i][1], days[i + 1][1], tangents[i], tangents[i + 1], u, 1);
+          }
+          return out;
+        };
+        /** A line's samples as points on the chart. */
+        const pointsOf = (/** @type {Float64Array} */ line) => Array.from({ length: columns }, (_, j) => /** @type {[number, number]} */ ([colX(j), line[j]]));
+        /** Draws the lines, the fill between the first two and its clips, from their samples. */
+        const paint = (/** @type {Float64Array[]} */ shape, smooth = true) => {
+          // (Each line's curve once a paint: its line, the fill's edge and (reversed) the fill's other side read from it.)
+          const curves = shape.map((line) => monotone(pointsOf(line), smooth));
+          lines.forEach((path, k) => path.setAttribute("d", curves[k].forward));
+          dots.forEach((dot, k) => dot.setAttribute("cy", shape[k][columns].toFixed(1)));
+          const edge = curves[1 - good].forward, between = `${curves[good].forward}L${curves[1 - good].reverse().slice(1)}Z`;
+          fills.forEach((fill) => fill.setAttribute("d", between));
+          under[0].setAttribute("d", `${edge}L${width},0L0,0Z`);
+          under[1].setAttribute("d", `${edge}L${width},${height}L0,${height}Z`);
+        };
+        // (A glide only between the same lines at the same width: a redraw without the smart plan or after a resize is at once.)
+        const target = ys.map(sample), from = onScreen?.length === target.length && onScreen[0].length === target[0].length ? onScreen : null;
+        const finish = () => {
+          cancelAnimationFrame(glide);
+          glide = 0;
+          paint(target);
+          onScreen = target;
+        };
+        // (A day's mark on its line as drawn at rest: on the curve between the two points around it, where the day falls
+        // between points; the keys say the day's own numbers.)
+        const tangents = target.map((line) => tangentsOf(pointsOf(line)));
+        const onLine = (/** @type {number} */ k, /** @type {number} */ i) => {
+          if (columns === 1) return target[k][0];
+          const at = (i / (n - 1)) * (columns - 1), j = Math.min(columns - 2, Math.floor(at));
+          return hermite(target[k][j], target[k][j + 1], tangents[k][j], tangents[k][j + 1], at - j, colX(j + 1) - colX(j));
+        };
+        drawn = { x, onLine, series, marks, line, ends, finish };
+        cancelAnimationFrame(glide);
+        if (animate && from && !still.matches) {
+          const start = performance.now();
+          const frame = (/** @type {number} */ now) => {
+            // (A frame's time can come before `start`: clamped, never a step backwards.)
+            const t = Math.min(1, Math.max(0, (now - start) / GLIDE));
+            if (t === 1) return finish();
+            onScreen = target.map((to, k) => to.map((v, j) => from[k][j] + (v - from[k][j]) * eased(t)));
+            paint(onScreen, false);
+            glide = requestAnimationFrame(frame);
+          };
+          frame(start);
+        } else finish();
+        scrub = null;
+        point(null, animate);
+      }
+
+      /** A glide under way ends at once: the chart is being read. */
+      const settle = () => glide && drawn?.finish();
+
+      /** The big value: rolled to a new plan's over a glide's time (`roll`), else set. */
+      let rolling = 0, worthShown = NaN;
+      function setWorth(/** @type {number} */ value, /** @type {boolean} */ roll) {
+        cancelAnimationFrame(rolling);
+        const from = worthShown, show = (/** @type {number} */ v) => ($("worth").textContent = usd((worthShown = v)));
+        if (!roll || still.matches || Number.isNaN(from)) {
+          show(value);
+          return;
+        }
+        // (From the value on screen, mid-roll or not.)
+        const start = performance.now();
+        const frame = (/** @type {number} */ now) => {
+          const t = Math.min(1, Math.max(0, (now - start) / GLIDE));
+          // (Its last frame the value itself, not one float error away.)
+          show(t === 1 ? value : from + (value - from) * eased(t));
+          if (t < 1) rolling = requestAnimationFrame(frame);
+        };
+        frame(start);
+      }
+
+      /** The value, its change and the keys at a day of the plan (null: its last day, no crosshair). */
+      function point(/** @type {number | null} */ i, roll = false) {
+        if (!drawn) return;
+        const n = lead.to - lead.from, at = i ?? n, day = lead.from + at, spent = lead.spent[at], worth = worthOf(lead, at), m = worth / spent;
+        drawn.line.parentElement?.setAttribute("visibility", i === null ? "hidden" : "visible");
+        drawn.ends.setAttribute("visibility", i === null ? "visible" : "hidden");
+        // The day pointed at, over the crosshair, kept inside the chart.
+        const tag = $("tag");
+        tag.hidden = i === null;
+        if (i !== null) {
+          tag.textContent = dated(day);
+          const half = tag.offsetWidth / 2, width = plots.clientWidth;
+          tag.style.transform = `translateX(${Math.min(width - half, Math.max(half, drawn.x(at))) - half}px)`;
+        }
+        if (i !== null) {
+          const x = String(drawn.x(at));
+          drawn.line.setAttribute("x1", x);
+          drawn.line.setAttribute("x2", x);
+          drawn.marks.forEach((mark, k) => {
+            mark.setAttribute("cx", x);
+            mark.setAttribute("cy", String(/** @type {NonNullable<typeof drawn>} */ (drawn).onLine(k, at)));
+          });
+        }
+        setWorth(worth, roll);
+        // (The deposits so far, the same for both plans.)
+        const buys = Math.round(plan.spent[at] / plan.amount);
+        $("sentence").textContent = i === null ? sentence() : `On ${dated(day)}, ${grouped(buys)} ${lead === plan ? "buy" : "deposit"}${buys > 1 ? "s" : ""} in`;
+        $("coins").textContent = btc(lead.held[at]);
+        $("delta").className = `change ${tone(m)}`;
+        // (Even within float error: no change, not a few femtodollars.)
+        $("delta").textContent = `${arrow(m)}${usd(gained(m) || lost(m) ? Math.abs(worth - spent) : 0)} (${percent(m).replace(/^[+−]/, "")})`;
+        $("keys").innerHTML = drawn.series.map((s) => `<span class="${s.ink}"><i></i>${s.ink === "plain" ? '<span class="plain-name">Plain</span>' : s.name} <b>${Number.isNaN(s.f(at)) ? "–" : usd(s.f(at))}</b>${s.from ? ` from ${usd(s.from(at))}` : ""}</span>`).join("");
+        // The baseline's own worth and return, as the value above is the smart plan's, as of the same day.
+        if (base) {
+          const baseWorth = worthOf(base, at), baseMultiple = baseWorth / base.spent[at];
+          $("versus").innerHTML = `<em class="badge">Plain</em> <b>${usd(baseWorth)}</b> <span class="${tone(baseMultiple)}">${arrow(baseMultiple)}${percent(baseMultiple).replace(/^[+−]/, "")}</span>`;
+        }
+      }
+
+      /** Whether a move over `target` reads what's under it: a mouse's or a pen's always; a finger's once it's moved more
+       * across than down, as until then it may be scrolling the page (a scroll that starts on the chart or the map never
+       * flashes a day or a plan). */
+      function readsAcross(/** @type {HTMLElement} */ target) {
+        /** Where a finger came down, till it's moved more across than down. @type {{ x: number, y: number } | null} */
+        let down = null;
+        target.addEventListener("pointerdown", (event) => (down = event.pointerType === "touch" ? { x: event.clientX, y: event.clientY } : null));
+        for (const type of ["pointerleave", "pointercancel"]) target.addEventListener(type, () => (down = null));
+        return (/** @type {PointerEvent} */ event) => {
+          if (down && Math.abs(event.clientX - down.x) <= Math.abs(event.clientY - down.y)) return false;
+          down = null;
+          return true;
+        };
+      }
+
+      // Read by pointer or touch (a horizontal drag; a vertical one scrolls the page), or by keys once focused.
+      /** The day read by keys, kept while the chart has focus. @type {number | null} */
+      let scrub = null;
+      const dayAt = (/** @type {PointerEvent} */ event) => {
+        const box = plots.getBoundingClientRect(), n = plan.to - plan.from;
+        return Math.round(Math.min(1, Math.max(0, (event.clientX - box.left - INSET) / (box.width - 2 * INSET))) * n);
+      };
+      const chartReads = readsAcross(plots);
+      plots.addEventListener("pointerdown", (event) => {
+        // (A finger reads once it's moved across: see readsAcross.)
+        if (event.pointerType === "touch") return;
+        settle();
+        point(dayAt(event));
+      });
+      plots.addEventListener("pointermove", (event) => {
+        if (!chartReads(event)) return;
+        settle();
+        point(dayAt(event));
+      });
+      for (const type of ["pointerleave", "pointercancel"]) plots.addEventListener(type, () => point(scrub));
+      plots.addEventListener("keydown", (event) => {
+        const n = plan.to - plan.from, step = event.shiftKey ? 30 : 1;
+        const to = /** @type {Record<string, number>} */ ({ ArrowLeft: (scrub ?? n) - step, ArrowRight: (scrub ?? n) + step, Home: 0, End: n })[event.key];
+        if (to === undefined) return;
+        event.preventDefault();
+        settle();
+        scrub = Math.min(n, Math.max(0, to));
+        point(scrub);
+      });
+      plots.addEventListener("blur", () => {
+        scrub = null;
+        point(null);
+      });
+
+      // ── Cycle tops ──
+
+      /** Each cycle's top: an all-time high the price later fell at least 75% from before topping it; and the latest
+       * all-time high, the current cycle's top so far, unless it's the last day (a plan from it would be one day). */
+      function tops() {
+        const out = [];
+        let top = first, low = price[first];
+        for (let day = first + 1; day <= last; day++) {
+          if (price[day] > price[top]) {
+            if (low <= price[top] / 4) out.push(top);
+            [top, low] = [day, price[day]];
+          } else low = Math.min(low, price[day]);
+        }
+        // (The latest high: a cycle's top once it's fallen 75%, the current one's before; either way, once.)
+        if (top !== last) out.push(top);
+        return out;
+      }
+
+      // ── Share: the system's share sheet where there's one, else the link copied ──
+
+      const shareButton = /** @type {HTMLButtonElement} */ ($("share"));
+      shareButton.addEventListener("click", async () => {
+        if (navigator.share) return navigator.share({ title: document.title, url: location.href }).catch(() => {});
+        shareButton.textContent = await Promise.resolve()
+          .then(() => navigator.clipboard.writeText(location.href))
+          .then(() => "Copied", () => "Failed");
+        setTimeout(() => (shareButton.textContent = "Share"), 1500);
+      });
+
+      // ── The map ──
+
+      const canvas = /** @type {HTMLCanvasElement} */ ($("map")), dark = matchMedia("(prefers-color-scheme: dark)");
+      // (Room above and to the right for the ring of a plan reaching past the whole months: the longest, this month's.)
+      const MARGIN = { left: 34, right: 18, top: 12, bottom: 22 };
+      /** What the map colors, each with its scale (`place`, −1 to 1), colors by place, legend and words: each smart plan's
+       * worth over what went in (a quarter to a thousand times; without the smart plan, each plain plan's); or, comparing, the
+       * bitcoin a dollar the smart rule got over the plain plan's (a third less to half as much again). */
+      const MEASURES = {
+        returns: {
+          cells: (/** @type {Grid} */ grid) => (comparable ? grid.smartCells : grid.cells),
+          place: (/** @type {number} */ m) => (m < 1 ? Math.max(-1, Math.log2(m) / 2) : Math.min(1, Math.log10(m) / 3)),
+          stops: {
+            light: [[-1, "#8e1a12"], [-0.5, "#e0453a"], [-0.001, "#ffd6d2"], [0, "#d4f5dc"], [0.1, "#8fe6a3"], [1 / 3, "#00c22d"], [2 / 3, "#00801f"], [1, "#00390e"]],
+            dark: [[-1, "#ff8a80"], [-0.5, "#e0453a"], [-0.001, "#3d1411"], [0, "#0b2913"], [0.1, "#0f5a22"], [1 / 3, "#008c22"], [2 / 3, "#00b82b"], [1, "#00d632"]],
+          },
+          marks: [[0.25, "≤0.25×"], [1, "1×"], [10, "10×"], [1000, "≥1,000×"]],
+          label: "colored by what each ended up worth against what went in",
+          read: (/** @type {number} */ m) => `${times(m)} · ${percent(m)}`,
+          lede: "colored by what it ended up worth against what went in.",
+        },
+        edge: {
+          cells: (/** @type {Grid} */ grid) => grid.edges,
+          place: (/** @type {number} */ r) => Math.max(-1, Math.min(1, Math.log(r) / Math.log(1.5))),
+          stops: {
+            light: [[-1, "#8e1a12"], [-0.5, "#e0453a"], [-0.001, "#ffd6d2"], [0, "#d4f5dc"], [0.5, "#00b82b"], [1, "#00501a"]],
+            dark: [[-1, "#ff8a80"], [-0.5, "#e0453a"], [-0.001, "#3d1411"], [0, "#0b2913"], [0.5, "#00a827"], [1, "#00d632"]],
+          },
+          marks: [[2 / 3, "≤−33%"], [1, "same"], [1.5, "≥+50%"]],
+          label: "colored by how much more the smart plan was worth than buying the same each time, from the same dollars",
+          read: (/** @type {number} */ r) => `worth ${edge(r)}`,
+          lede: "colored by how much more the smart plan was worth than the plain one.",
+        },
+      };
+      const measure = () => MEASURES[state.atlas];
+      const scheme = (/** @type {Atlas} */ atlas = state.atlas) => /** @type {[number, string][]} */ (MEASURES[atlas].stops[dark.matches ? "dark" : "light"]);
+      /** A color token as the scheme in use resolves it (a canvas can't read light-dark()). */
+      const probe = document.createElement("i");
+      const ink = (/** @type {string} */ token) => {
+        probe.style.color = `var(${token})`;
+        document.body.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      };
+      const rgb = (/** @type {string} */ hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+      /** The plans as one pixel each, drawn once per schedule and scheme; scaled up, unsmoothed. */
+      const pixels = document.createElement("canvas");
+      /** A picture's measure and scheme, its key in a grid's pictures. */
+      const pictureKey = (/** @type {Atlas} */ atlas) => `${atlas} ${dark.matches ? "dark" : "light"}`;
+      /** A grid's picture for a measure, a pixel a plan, made once (see madeNow), a step a column. */
+      function* pictureSteps(/** @type {Grid} */ grid, /** @type {Atlas} */ atlas) {
+        const image = new ImageData(grid.cols, grid.rows), { place } = MEASURES[atlas], cells = MEASURES[atlas].cells(grid);
+        // (Each cell its color between the two stops around it, the stops read once: not the scheme and every stop's hex
+        // again for each of thousands of cells.)
+        const ramp = scheme(atlas).map(([at, hex]) => [at, ...rgb(hex)]), data = image.data;
+        for (let s = 0; s < grid.cols; s++, yield)
+          for (let d = 0; d < grid.rows; d++) {
+            const m = cells[s * grid.rows + d];
+            if (Number.isNaN(m)) continue;
+            const t = place(m);
+            let k = 1;
+            while (k < ramp.length - 1 && ramp[k][0] < t) k++;
+            const a = ramp[k - 1], b = ramp[k], f = Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0])));
+            const at = ((grid.rows - 1 - d) * grid.cols + s) * 4;
+            data[at] = Math.round(a[1] + (b[1] - a[1]) * f);
+            data[at + 1] = Math.round(a[2] + (b[2] - a[2]) * f);
+            data[at + 2] = Math.round(a[3] + (b[3] - a[3]) * f);
+            data[at + 3] = 255;
+          }
+        return image;
+      }
+      function paintGrid() {
+        pixels.width = map.cols;
+        pixels.height = map.rows;
+        /** @type {CanvasRenderingContext2D} */ (pixels.getContext("2d")).putImageData(madeNow(map.pictures, pictureKey(state.atlas), () => pictureSteps(map, state.atlas)), 0, 0);
+        const { place, marks, lede } = measure(), stops = scheme();
+        $("ramp").style.background = `linear-gradient(to right, ${stops.map(([t, c]) => `${c} ${((t + 1) / 2) * 100}%`).join(", ")})`;
+        $("marks").innerHTML = marks.map(([m, label]) => `<span style="left: ${((place(/** @type {number} */ (m)) + 1) / 2) * 100}%">${label}</span>`).join("");
+        $("map-lede").textContent = `Every ${comparable ? "smart " : ""}plan from a month's first day, by start and length, ${lede}`;
+        canvas.setAttribute("aria-label", `Plans by starting month (across) and length (up), ${measure().label}. Arrows move, Enter shows one in the calculator.`);
+        findings();
+      }
+
+      /** The shortest length (rows above it too) at which every plan gained, by its cells; `rows` when none is. */
+      function sureFrom(/** @type {Float64Array} */ cells, /** @type {Grid} */ grid) {
+        const { cols, rows } = grid;
+        let sure = rows;
+        for (let d = rows - 1; d >= 0; d--) {
+          let short = false;
+          for (let s = 0; s + d < cols; s++) short ||= !gained(cells[s * rows + d]);
+          if (short) break;
+          sure = d;
+        }
+        return sure;
+      }
+
+      /** What the map says, by its measure: how many smart plans gained (ended worth more, or got more bitcoin a dollar
+       * than the plain plans), and from what length every one ended worth more than went in (comparing: against the plain
+       * plans'). Without the smart plan, the plain plans. */
+      function findings() {
+        const [wins, sure] = findingsOf(map);
+        $("wins").innerHTML = wins;
+        $("sure").innerHTML = sure;
+      }
+      /** A grid's two findings for a measure, made once. */
+      function findingsOf(/** @type {Grid} */ grid, /** @type {Atlas} */ atlas = state.atlas) {
+        const kept = grid.found.get(atlas);
+        if (kept) return kept;
+        const cells = MEASURES[atlas].cells(grid), every = { day: "daily", week: "weekly", month: "monthly" }[grid.every], kind = comparable ? "smart " : "";
+        let wins = 0, all = 0;
+        for (const m of cells) if (!Number.isNaN(m)) [all, wins] = [all + 1, wins + (gained(m) ? 1 : 0)];
+        const share = `<b>${Math.round((wins / all) * 100)}%</b> of the ${grouped(all)} ${every} ${kind}plans`, rows = grid.rows;
+        /** @type {[string, string]} */
+        let found;
+        if (atlas === "edge") {
+          const smarter = sureFrom(grid.smartCells, grid), plain = sureFrom(grid.cells, grid);
+          found = [`The smart plan beat the plain one in <b>${Math.round((wins / all) * 100)}%</b> of the ${grouped(all)} ${every} plans.`, smarter < rows ? `No smart plan of <b>${lasting(smarter + 1)}</b> or longer lost money (plain: ${plain < rows ? `from ${lasting(plain + 1)}` : "every length lost some"}).` : ""];
+        } else {
+          const sure = sureFrom(cells, grid);
+          found = [`${share[0].toUpperCase()}${share.slice(1)} ended worth more than went in.`, sure < rows ? `Every ${kind}plan of <b>${lasting(sure + 1)}</b> or longer did.` : ""];
+        }
+        grid.found.set(atlas, found);
+        return found;
+      }
+
+      /** @type {{ s: number, d: number } | null} */
+      let pointed = null;
+      /** The plan on the map's cursor (from the keyboard) when the pointer isn't on it. */
+      let cursor = { s: 0, d: 0 };
+      /** The map's frame. Lengths go up on a square-root scale, so the short plans, where the losses are, get room: a
+       * length's height is `edge(months)`. */
+      /** The map's box, read once and again only as it's resized (see sizes): drawn after the page's other changes, a
+       * read here would lay the page out first. @type {{ width: number, height: number } | null} */
+      let mapBox = null;
+      const geometry = () => {
+        mapBox ??= { width: canvas.clientWidth, height: canvas.clientHeight };
+        const { width, height } = mapBox;
+        const plotW = width - MARGIN.left - MARGIN.right, plotH = height - MARGIN.top - MARGIN.bottom;
+        const edge = (/** @type {number} */ months) => MARGIN.top + plotH * (1 - Math.sqrt(Math.max(0, months) / map.rows));
+        return { width, height, plotW, plotH, cw: plotW / map.cols, edge };
+      };
+
+      function drawMap() {
+        const { width, height, plotW, plotH, cw, edge } = geometry(), ratio = devicePixelRatio || 1;
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+        const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d"));
+        context.scale(ratio, ratio);
+        context.imageSmoothingEnabled = false;
+        // (A row of plans at a time: length d + 1 months, from edge(d + 1) down to edge(d).)
+        for (let d = 0; d < map.rows; d++) context.drawImage(pixels, 0, map.rows - 1 - d, map.cols, 1, MARGIN.left, edge(d + 1), plotW, edge(d) - edge(d + 1));
+        // Axes: the starts' years across, the lengths up (a label only where it has room).
+        context.font = `400 12px ${getComputedStyle(document.body).getPropertyValue("--sans")}`;
+        context.fillStyle = ink("--soft");
+        context.textAlign = "center";
+        const yearStep = cw * 12 < 34 ? 2 : 1;
+        for (let k = map.start; k <= map.start + map.cols; k++) {
+          if (k % 12 || (k / 12) % yearStep) continue;
+          const x = MARGIN.left + (k - map.start) * cw;
+          context.fillText(yearStep === 2 ? `’${String(k / 12).slice(2)}` : String(k / 12), x, height - 6);
+          context.fillRect(x - 0.5, MARGIN.top + plotH, 1, 4);
+        }
+        context.textAlign = "right";
+        let room = Infinity;
+        for (const months of [3, 6, 12, 24, 48, 96, 192, 384]) {
+          const y = edge(months);
+          if (months > map.rows || room - y < 16) continue;
+          room = y;
+          context.fillText(months < 12 ? `${months}m` : `${months / 12}y`, MARGIN.left - 7, y + 4);
+          context.fillRect(MARGIN.left - 4, y - 0.5, 4, 1);
+        }
+        // The calculator's plan, wherever it falls on the map: a ring.
+        const ring = ringAt();
+        if (ring) {
+          const rx = MARGIN.left + (ring.s + 0.5) * cw, ry = (edge(Math.floor(ring.d)) + edge(Math.floor(ring.d) + 1)) / 2;
+          context.lineWidth = 3;
+          context.strokeStyle = ink("--card");
+          context.beginPath();
+          context.arc(rx, ry, 8, 0, Math.PI * 2);
+          context.stroke();
+          context.lineWidth = 1.75;
+          context.strokeStyle = ink("--ink");
+          context.stroke();
+        }
+        // The plan pointed at: its square outlined.
+        const shown = pointed ?? (document.activeElement === canvas ? cursor : null);
+        if (shown) {
+          const x = MARGIN.left + shown.s * cw, top = edge(shown.d + 1), rh = edge(shown.d) - top, w = Math.max(cw, 4), h = Math.max(rh, 4);
+          context.lineWidth = 1.5;
+          context.strokeStyle = ink("--ink");
+          context.strokeRect(x - (w - cw) / 2 - 1, top - (h - rh) / 2 - 1, w + 2, h + 2);
+        }
+        describe(shown);
+      }
+
+      /** The calculator's plan on the map, its column and row fractional (a plan from a month's first day for whole
+       * months: whole; one into this month, a little past the triangle's edge), or null when it begins before the map's
+       * first month. */
+      function ringAt() {
+        const s = asMonths(plan.from) - map.start, d = asMonths(plan.to + 1) - asMonths(plan.from) - 0.5;
+        return s >= 0 ? { s, d } : null;
+      }
+
+      /** The words above the map: the plan pointed at, else the calculator's. */
+      function describe(/** @type {{ s: number, d: number } | null} */ shown) {
+        const result = (/** @type {number} */ m) => `<span class="${tone(m)}">${measure().read(m)}</span>`;
+        if (!shown) {
+          const n = lead.to - lead.from, m = base && state.atlas === "edge" ? worthOf(lead, n) / worthOf(base, n) : worthOf(lead, n) / lead.spent[n];
+          $("cell").innerHTML = ringAt()
+            ? `<strong>Your plan, circled</strong>${result(m)}<span>Pick a square to try another.</span>`
+            : `<strong>Your plan</strong>${result(m)}<span>It starts before the map's first month.</span>`;
+          return;
+        }
+        const k = map.start + shown.s, d = shown.d + 1, picked = state.from === firstOf(k) && state.to === firstOf(k + d) - 1;
+        const length = [Math.floor(d / 12) && `${Math.floor(d / 12)}y`, d % 12 && `${d % 12}m`].filter(Boolean).join(" ");
+        $("cell").innerHTML = `<strong>${MONTHS[k % 12]} ${Math.floor(k / 12)} for ${length}</strong>${result(measure().cells(map)[shown.s * map.rows + shown.d])}`
+          + (picked ? `<span>Your plan now. <a href="#calculator">See it ↑</a></span>` : `<span>${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} to try it.</span>`);
+      }
+
+      const valid = (/** @type {{ s: number, d: number }} */ at) => at.s >= 0 && at.d >= 0 && at.s + at.d < map.cols;
+      /** The plan under a point: its square; or, up to 8px above the triangle's edge, where squares are thinnest, that
+       * month's longest plan (a finger can't land on a fraction of a pixel). */
+      function at(/** @type {MouseEvent} */ event) {
+        const box = canvas.getBoundingClientRect(), { plotW, plotH, edge } = geometry(), y = event.clientY - box.top;
+        const s = Math.floor(((event.clientX - box.left - MARGIN.left) / plotW) * map.cols);
+        if (s < 0 || s >= map.cols || y > MARGIN.top + plotH) return null;
+        const up = (MARGIN.top + plotH - y) / plotH, d = Math.floor(up * up * map.rows), longest = map.cols - 1 - s;
+        return d <= longest ? { s, d } : y >= edge(longest + 1) - 8 ? { s, d: longest } : null;
+      }
+      const pick = (/** @type {{ s: number, d: number }} */ spot) => setDates(firstOf(map.start + spot.s), firstOf(map.start + spot.s + spot.d + 1) - 1);
+      const mapReads = readsAcross(canvas);
+      canvas.addEventListener("pointermove", (event) => {
+        if (!mapReads(event)) return;
+        // (One selection: the pointer moves the keys' cursor too, so Enter picks what's outlined.)
+        pointed = at(event);
+        if (pointed) cursor = pointed;
+        drawMap();
+      });
+      canvas.addEventListener("pointerleave", () => {
+        pointed = null;
+        drawMap();
+      });
+      canvas.addEventListener("click", (event) => {
+        const spot = at(event);
+        if (!spot) return;
+        cursor = spot;
+        pick(spot);
+      });
+      canvas.addEventListener("focus", () => {
+        // (The cursor starts on the square pointed at, else on the calculator's plan or near it.)
+        const s = Math.round(asMonths(plan.from) - map.start), d = Math.round(asMonths(plan.to + 1) - asMonths(plan.from)) - 1;
+        const spot = { s: Math.min(map.cols - 1, Math.max(0, s)), d: Math.max(0, d) };
+        cursor = pointed ?? (valid(spot) ? spot : { s: 0, d: 0 });
+        drawMap();
+      });
+      canvas.addEventListener("blur", drawMap);
+      canvas.addEventListener("keydown", (event) => {
+        const moves = /** @type {Record<string, [number, number]>} */ ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] });
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          pointed = null;
+          pick(cursor);
+          return;
+        }
+        const move = moves[event.key];
+        if (!move) return;
+        event.preventDefault();
+        // (The keys take over from the pointer: what's outlined is what Enter picks.)
+        pointed = null;
+        const step = event.shiftKey ? 12 : 1, next = { s: cursor.s + move[0] * step, d: cursor.d + move[1] * step };
+        if (valid(next)) cursor = next;
+        drawMap();
+      });
+
+      // ── Sizes and schemes ──
+
+      // (Each redrawn when its own box changes size, once a frame: the chart's height follows its card on a desk.)
+      let queued = false;
+      const sizes = new ResizeObserver(() => {
+        mapBox = chartBox = null;
+        if (queued || !plan) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          drawCharts();
+          drawMap();
+        });
+      });
+      sizes.observe(svg);
+      sizes.observe(canvas);
+      dark.addEventListener("change", () => {
+        if (!plan) return;
+        paintGrid();
+        drawMap();
+        setTimeout(makeGridsIdle, 0);
+      });
+      // (Its axis words in the soft grey, drawn again with Increase Contrast.)
+      matchMedia("(prefers-contrast: more)").addEventListener("change", () => plan && drawMap());
+
+      async function load() {
+        try {
+          const read = async (/** @type {string} */ id, /** @type {AbortSignal | undefined} */ signal = undefined) => {
+            // (Unreached, said as such: fetch's own TypeError, not one of the page's.)
+            const response = await fetch(`/api/series/${id}/day1`, { signal }).catch((error) => {
+              throw error instanceof TypeError ? Object.assign(new Error("this server couldn't be reached"), { name: "Unreached" }) : error;
+            });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(body?.error?.message ?? `The server answered ${response.status}.`);
+            return /** @type {{ start: number, data: (number | null)[] }} */ (body);
+          };
+          // (Prices are needed; the smart plan's series only for it, which without them is unavailable, and says so: within
+          // 8 seconds, or unread, as a stalled answer never holds the plain calculator.)
+          const prices = await read("price");
+          const data = prices.data, start = prices.start;
+          // (Prices are whole from the day after the last one missing on.)
+          let gap = data.length - 1;
+          while (gap >= 0 && (data[gap] ?? 0) > 0) gap--;
+          first = start + gap + 1;
+          last = start + data.length - 1;
+          price = new Float64Array(last + 1);
+          for (let day = first; day <= last; day++) price[day] = /** @type {number} */ (data[day - start]);
+          const signal = AbortSignal.timeout(8000);
+          const why = await Smart.prepare((id) => read(id, signal)).then(() => "", (error) => (error instanceof Error && error.name !== "TimeoutError" ? error.message : "its series couldn't be read"));
+          comparable = !why;
+          $("smart-fine").textContent = Smart.words.fine;
+          if (!comparable) {
+            $("verdict").textContent = `Unavailable: ${why}.`;
+            $("versus").innerHTML = `<em class="badge">Smart</em> unavailable: ${why}`;
+            /** @type {HTMLButtonElement} */ (document.querySelector('[data-atlas="edge"]')).disabled = true;
+          }
+          // (One date when both begin on the same day.)
+          $("since").textContent = !comparable
+            ? `Prices are this server's daily ones, from ${dated(first)}; the smart plan's series are unavailable.`
+            : Smart.since() === first
+              ? `Prices and the smart plan's series are this server's daily ones, from ${dated(first)}.`
+              : `Prices and the smart plan's series are this server's daily ones: prices from ${dated(first)}, the smart plan's from ${dated(Smart.since())}.`;
+          for (const id of ["calculator", "atlas"]) $(id).inert = false;
+          const unusable = readAddress();
+          $("tops").append(...tops().map((day) => {
+            const [y, m] = ymd(day);
+            return Object.assign(document.createElement("option"), { value: String(day), textContent: `From ${MONTHS[m]} ’${String(y).slice(2)}`, title: `The top of ${dated(day)}, ${usd(price[day])}` });
+          }));
+          shareButton.disabled = false;
+          map = gridOf(state.every);
+          paintGrid();
+          update();
+          say(unusable);
+          setTimeout(makeGridsIdle, 0);
+        } catch (error) {
+          // (Said outside the calculator and the map, which stay inert without prices.)
+          $("sentence").textContent = "";
+          $("today").hidden = true;
+          for (const bone of document.querySelectorAll(".bone")) bone.replaceWith("—");
+          // (Unreached, said plainly; else what went wrong.)
+          $("failed").replaceChildren(
+            error instanceof Error && error.name === "Unreached" ? "This server couldn't be reached. " : `The daily price couldn't be read: ${error instanceof Error ? error.message : error}. `,
+            Object.assign(document.createElement("button"), { type: "button", className: "pill action", textContent: "Try again", onclick: () => location.reload() }),
+          );
+          $("calculator").setAttribute("aria-busy", "false");
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

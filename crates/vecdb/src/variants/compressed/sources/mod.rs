@@ -1,5 +1,9 @@
-mod io;
-mod mmap;
+pub mod io;
+pub mod mmap;
+pub mod range_cursor;
+pub mod source;
 
-pub(crate) use io::*;
-pub(crate) use mmap::*;
+pub use io::*;
+pub use mmap::*;
+pub use range_cursor::CompressedRangeCursor;
+pub use source::*;

@@ -1,19 +1,14 @@
-//! Single-locked container for the live mempool. All cycle steps and
-//! read-side accessors take a guard on this one lock.
-//!
-//! # Concurrency
-//!
-//! `State` is held under one `RwLock` at the crate root. The cycle
-//! takes the write guard for `Applier` and `Prevouts`, then drops it
-//! before the [`crate::snapshot::Rebuilder`] runs. No code path holds
-//! a `State` guard at the same time as a `Rebuilder` lock, so the two
-//! domains are independent and lock-ordering between them is moot.
+//! Private state owned exclusively by the update loop.
 
-mod tx_entry;
+mod pool;
+mod read_only;
+pub mod tx_entry;
 
+use brk_types::{MempoolInfo, Txid};
+pub(crate) use pool::Pool;
+pub use read_only::ReadOnlyState;
+use rustc_hash::FxHashSet;
 pub use tx_entry::TxEntry;
-
-use brk_types::{MempoolInfo, Timestamp, Txid};
 
 use crate::stores::{AddrTracker, OutpointSpends, TxGraveyard, TxStore};
 
@@ -24,17 +19,14 @@ pub struct State {
     pub addrs: AddrTracker,
     pub outpoint_spends: OutpointSpends,
     pub graveyard: TxGraveyard,
+    /// The last applied poll's template txids absent from the raw listing.
+    /// One still pooled and listed now reclaims its outpoints. Empty at every
+    /// pool publication, so a restored state starts it empty.
+    pub template_only: FxHashSet<Txid>,
 }
 
 impl State {
-    /// Smooths the flicker between drop and indexer catch-up. `Replaced`
-    /// tombstones are excluded since the tx will not confirm.
-    pub fn first_seen(&self, txid: &Txid) -> Option<Timestamp> {
-        if let Some(e) = self.txs.entry(txid) {
-            return Some(e.first_seen);
-        }
-        self.graveyard
-            .get_vanished(txid)
-            .map(|t| t.entry.first_seen)
+    pub fn contains_all(&self, live_txids: &[Txid]) -> bool {
+        self.txs.len() == live_txids.len() && live_txids.iter().all(|txid| self.txs.contains(txid))
     }
 }

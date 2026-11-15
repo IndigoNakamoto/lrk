@@ -1,0 +1,69 @@
+use bitview_cohort::AgeAggregate;
+use bitview_distribution::AllChainSources;
+use bitview_plugin::ImportContext;
+use bitview_plugin_age::Vecs as Age;
+use bitview_plugin_mappings::Vecs as Mappings;
+use bitview_plugin_price::Vecs as Price;
+use bitview_vecs::{LazyIndexedVec, LazyWindowStartVec, shapes::Windows};
+use brk_error::Result;
+use brk_types::{Cents, Height, Sats};
+use vecdb::{ReadableBoxedVec, ReadableCloneableVec};
+
+use crate::{STORAGE, Vecs, columns::Columns, cost_basis::CostBasisVecs, section::Imports};
+
+impl Vecs {
+    pub fn import(
+        context: ImportContext<'_>,
+        mappings: &Mappings,
+        windows: &Windows<&LazyWindowStartVec>,
+        price: &Price,
+        supply: &ReadableBoxedVec<Height, Sats>,
+        age: &Age,
+    ) -> Result<Self> {
+        let under_1h = &age.ranges.under_1h;
+        let db = STORAGE.open_database(context, 20_000_000)?;
+        let version = STORAGE.schema_version();
+        let spot = price.spot.cents.height.read_only_boxed_clone();
+        let cost_basis = CostBasisVecs::import(&db, version, mappings)?;
+        let columns = AgeAggregate::try_from_fn(|id| Columns::import(&db, id, version))?;
+        let cohorts = AgeAggregate::try_build(&Imports {
+            db: &db,
+            v: version,
+            columns: &columns,
+            mappings,
+            windows,
+            spot: &spot,
+            cost_basis: &cost_basis,
+            under_1h_volume: under_1h.activity.transfer_volume.cents.cumulative_source(),
+            under_1h_value_destroyed: under_1h.realized.value_destroyed.stored.cumulative_source(),
+        })?;
+        let all_market_cap = LazyIndexedVec::new(
+            "aggregate_market_cap_source",
+            version,
+            supply,
+            &spot,
+            |_, sats: Sats, price| sats.value_at(price),
+        )
+        .read_only_boxed_clone();
+        STORAGE.finalize_database(&db)?;
+        Ok(Self {
+            db,
+            cohorts,
+            columns,
+            cost_basis,
+            all_supply: supply.read_only_boxed_clone(),
+            all_market_cap,
+            live: None,
+        })
+    }
+    pub fn all_chain_sources(&self) -> AllChainSources {
+        AllChainSources::new(
+            &self.all_supply,
+            &self.all_market_cap,
+            &self.cohorts.all.capital.total.cents.height,
+        )
+    }
+    pub fn all_market_cap(&self) -> &ReadableBoxedVec<Height, Cents> {
+        &self.all_market_cap
+    }
+}

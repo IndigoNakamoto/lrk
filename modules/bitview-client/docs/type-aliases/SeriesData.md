@@ -1,0 +1,17 @@
+[**bitview-client**](../README.md)
+
+***
+
+[bitview-client](../globals.md) / SeriesData
+
+# Type Alias: SeriesData\<T\>
+
+> **SeriesData**\<`T`\> = [`SeriesDataBase`](../interfaces/SeriesDataBase.md)\<`T`\> & `Iterable`\<\[`number`, `T`\]\>
+
+Defined in: modules/bitview-client/index.js:1982
+
+## Type Parameters
+
+### T
+
+`T`

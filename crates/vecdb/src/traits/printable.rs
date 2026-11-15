@@ -1,11 +1,14 @@
-use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::{
+    any,
+    collections::HashMap,
+    sync::{Mutex, OnceLock},
+};
 
 /// Extracts the short type name from a full type path and caches it.
 pub fn short_type_name<T: 'static>() -> &'static str {
     static CACHE: OnceLock<Mutex<HashMap<&'static str, &'static str>>> = OnceLock::new();
 
-    let full: &'static str = std::any::type_name::<T>();
+    let full: &'static str = any::type_name::<T>();
 
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut guard = cache.lock().unwrap();
@@ -24,9 +27,17 @@ pub fn short_type_name<T: 'static>() -> &'static str {
 /// Shortens a type name by removing path prefixes, including inside generics.
 /// `some::module::Close<another::path::Dollars>` -> `Close<Dollars>`
 ///
-/// Also unwraps `Option<T>` to just `T` since Option is a serialization
-/// concern (null in JSON) not a type identity.
+/// `Option<T>` shortens to `T`: missingness is a serialization concern (JSON `null`), not a
+/// type identity.
 fn shorten_type_name(full: &str) -> String {
+    if let Some(inner) = full
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        && let Some((element, len)) = inner.rsplit_once(';')
+    {
+        return format!("[{}; {}]", shorten_type_name(element.trim()), len.trim());
+    }
+
     let generic_start = full.find('<');
 
     let (base, generics) = match generic_start {
@@ -36,7 +47,6 @@ fn shorten_type_name(full: &str) -> String {
 
     let short_base = base.rsplit("::").next().unwrap_or(base);
 
-    // Option is a serialization concern (null in JSON), not a type identity.
     if short_base == "Option"
         && let Some(inner) = generics
     {
@@ -82,18 +92,10 @@ fn split_generic_params(params: &str) -> Vec<&str> {
 pub trait PrintableIndex {
     /// Returns the canonical string name for this index type.
     fn to_string() -> &'static str;
-
-    /// Returns all accepted string representations for this index type.
-    /// Used for parsing and type identification.
-    fn to_possible_strings() -> &'static [&'static str];
 }
 
 impl PrintableIndex for usize {
     fn to_string() -> &'static str {
         "usize"
-    }
-
-    fn to_possible_strings() -> &'static [&'static str] {
-        &["usize"]
     }
 }

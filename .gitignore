@@ -3,19 +3,19 @@
 
 # Builds
 target
-websites/dist
 bridge/
 /ids.txt
 rust_out
-.wrangler/
 
 # Copies
 *\ copy*
 
 # Ignored
 _*
+!showcases/_*
 !__*.py
 /*.md
+!/TODO.md
 /*.py
 /*.json
 /*.html

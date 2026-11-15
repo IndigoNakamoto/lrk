@@ -1,92 +1,61 @@
-use derive_more::Deref;
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Bytes, Formattable};
 
-/// Index of the output being spent in the previous transaction
+/// Index of the output being spent in the previous transaction (coinbase inputs: 4294967295)
 #[derive(
-    Debug,
-    Default,
-    Deref,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    Bytes,
-    Hash,
+    Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash,
 )]
-#[schemars(example = &0, example = &1, example = &2, example = &5, example = &10)]
-pub struct Vout(u16);
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(example = &0, example = &1, example = &2, example = &5, example = &10))]
+pub struct Vout(u32);
 
 impl Vout {
     pub const ZERO: Self = Vout(0);
-    pub const MAX: Self = Vout(u16::MAX);
+    /// Also the protocol's coinbase vout.
+    pub const MAX: Self = Vout(u32::MAX);
 
     pub fn is_zero(&self) -> bool {
         *self == Self::ZERO
-    }
-
-    pub fn to_be_bytes(&self) -> [u8; 2] {
-        self.0.to_be_bytes()
-    }
-
-    pub fn to_ne_bytes(&self) -> [u8; 2] {
-        self.0.to_ne_bytes()
     }
 }
 
 impl From<u16> for Vout {
     #[inline]
     fn from(value: u16) -> Self {
+        Self(u32::from(value))
+    }
+}
+
+impl From<u32> for Vout {
+    #[inline]
+    fn from(value: u32) -> Self {
         Self(value)
     }
 }
 
-const U16_MAX_AS_U32: u32 = u16::MAX as u32;
-impl From<u32> for Vout {
-    #[inline]
-    fn from(value: u32) -> Self {
-        if value > U16_MAX_AS_U32 {
-            panic!()
-        }
-        Self(value as u16)
-    }
-}
-
-const U16_MAX_AS_USIZE: usize = u16::MAX as usize;
 impl From<usize> for Vout {
     #[inline]
     fn from(value: usize) -> Self {
-        if value > U16_MAX_AS_USIZE {
-            panic!()
-        }
-        Self(value as u16)
-    }
-}
-
-impl From<Vout> for u16 {
-    #[inline]
-    fn from(value: Vout) -> Self {
-        value.0
+        debug_assert!(
+            u32::try_from(value).is_ok(),
+            "vout {value} does not fit a u32"
+        );
+        Self(value as u32)
     }
 }
 
 impl From<Vout> for u32 {
     #[inline]
     fn from(value: Vout) -> Self {
-        value.0 as u32
+        value.0
     }
 }
 
 impl From<Vout> for u64 {
     #[inline]
     fn from(value: Vout) -> Self {
-        value.0 as u64
+        u64::from(value.0)
     }
 }
 
@@ -97,16 +66,4 @@ impl From<Vout> for usize {
     }
 }
 
-impl std::fmt::Display for Vout {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Formattable for Vout {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
-    }
-}
+crate::impl_int_format!(Vout);

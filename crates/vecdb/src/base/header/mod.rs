@@ -1,47 +1,68 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
+use inner::HeaderInner;
 use parking_lot::RwLock;
 use rawdb::Region;
 
-mod inner;
-
-use inner::HeaderInner;
-
-use crate::{Result, Stamp, Version};
-
 use super::Format;
+use crate::{Error, Result, Stamp, Version};
+use write_guard::WriteGuard;
 
-const HEADER_VERSION: Version = Version::TWO;
+pub mod inner;
+mod write_guard;
+
+const HEADER_VERSION: Version = Version::new(3);
 pub const HEADER_OFFSET: usize = size_of::<HeaderInner>();
+// The serialized header writes `value_size` at bytes 22..24.
+const _: () = assert!(HEADER_OFFSET >= 24);
 
 #[derive(Debug, Clone)]
 pub struct Header {
     inner: Arc<RwLock<HeaderInner>>,
     modified: bool,
+    write_failed: Arc<AtomicBool>,
 }
 
 impl Header {
-    pub fn create_and_write(region: &Region, vec_version: Version, format: Format) -> Result<Self> {
-        let inner = HeaderInner::create_and_write(region, vec_version, format)?;
-        Ok(Self {
-            inner: Arc::new(RwLock::new(inner)),
-            modified: false,
-        })
-    }
-
-    pub fn import_and_verify(
+    pub(crate) fn create_and_write(
         region: &Region,
         vec_version: Version,
         format: Format,
+        value_size: u16,
     ) -> Result<Self> {
-        let inner = HeaderInner::import_and_verify(region, vec_version, format)?;
-        Ok(Self {
-            inner: Arc::new(RwLock::new(inner)),
-            modified: false,
-        })
+        HeaderInner::create_and_write(region, vec_version, format, value_size).map(Self::from_inner)
     }
 
-    pub fn update_stamp(&mut self, stamp: Stamp) {
+    pub(crate) fn import_and_verify(
+        region: &Region,
+        vec_version: Version,
+        format: Format,
+        value_size: u16,
+    ) -> Result<Self> {
+        HeaderInner::import_and_verify(region, vec_version, format, value_size)
+            .map(Self::from_inner)
+    }
+
+    /// Reads a region's leading bytes as a current-version vector header, without checking
+    /// the vector's version, format or value size. For inspection tools: on a region that
+    /// doesn't hold a vector the fields are meaningless.
+    pub fn read_unverified(region: &Region) -> Result<Self> {
+        HeaderInner::read(region).map(Self::from_inner)
+    }
+
+    fn from_inner(inner: HeaderInner) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(inner)),
+            modified: false,
+            write_failed: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    pub(crate) fn update_stamp(&mut self, stamp: Stamp) {
+        self.assert_writable();
         let mut inner = self.inner.write();
         if inner.stamp != stamp {
             self.modified = true;
@@ -49,7 +70,8 @@ impl Header {
         }
     }
 
-    pub fn update_computed_version(&mut self, computed_version: Version) {
+    pub(crate) fn update_computed_version(&mut self, computed_version: Version) {
+        self.assert_writable();
         let mut inner = self.inner.write();
         if inner.computed_version != computed_version {
             self.modified = true;
@@ -58,7 +80,7 @@ impl Header {
     }
 
     #[inline(always)]
-    pub fn modified(&self) -> bool {
+    pub(crate) fn modified(&self) -> bool {
         self.modified
     }
 
@@ -73,13 +95,58 @@ impl Header {
     }
 
     #[inline(always)]
-    pub fn stamp(&self) -> Stamp {
+    pub fn header_version(&self) -> Version {
+        self.inner.read().header_version
+    }
+
+    #[inline(always)]
+    pub fn format(&self) -> Format {
+        self.inner.read().format
+    }
+
+    /// `size_of` the stored value.
+    #[inline(always)]
+    pub fn value_size(&self) -> u16 {
+        self.inner.read().value_size
+    }
+
+    /// Computed sources carry their provenance; raw sources carry their schema.
+    #[inline(always)]
+    pub(crate) fn source_version(&self) -> Version {
+        let inner = self.inner.read();
+        if inner.computed_version == Version::ZERO {
+            inner.vec_version
+        } else {
+            inner.computed_version
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn stamp(&self) -> Stamp {
         self.inner.read().stamp
     }
 
-    pub fn write(&mut self, region: &Region) -> Result<()> {
+    pub(crate) fn write(&mut self, region: &Region) -> Result<()> {
+        let guard = self.begin_write()?;
         self.inner.read().write(region)?;
         self.modified = false;
-        Ok(())
+        guard.finish(Ok(()))
+    }
+
+    pub(crate) fn check_writable(&self) -> Result<()> {
+        if self.write_failed.load(Ordering::Relaxed) {
+            Err(Error::WriteFailed)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn assert_writable(&self) {
+        self.check_writable()
+            .expect("vector cannot continue after a failed write");
+    }
+
+    pub(crate) fn begin_write(&self) -> Result<WriteGuard> {
+        WriteGuard::new(&self.write_failed)
     }
 }

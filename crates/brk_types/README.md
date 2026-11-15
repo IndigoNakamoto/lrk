@@ -1,45 +1,49 @@
 # brk_types
 
-Domain types for Bitcoin data analysis with serialization and indexing support.
+Bitcoin primitives shared across BRK and Bitview.
 
-## What It Enables
+## What it provides
 
-Work with Bitcoin primitives (heights, satoshis, addresses, transactions) through purpose-built types that handle encoding, arithmetic, time conversions, and database storage automatically.
+Types for heights, amounts, hashes, addresses, transactions, block
+templates and mempool state, including responses shared with `brk_mempool` such
+as `MempoolInfo`. Bitview's
+index, value and state types (calendar indexes, protocol epochs, per-type address
+indexes, unit-typed scalars) live in `bitview_primitives`; query-protocol types and
+REST response DTOs live in `bitview_types`; `TreeNode` lives in `bitview_catalog`; CPFP
+linearization lives in `brk_cpfp`.
 
-## Key Features
+## Features
 
-- **Bitcoin primitives**: `Height`, `Sats`, `Txid`, `BlockHash`, `Outpoint` with full arithmetic and conversion support
-- **Address types**: All output types (P2PK33, P2PK65, P2PKH, P2MS, P2SH, P2WPKH, P2WSH, P2TR, P2A, OP_RETURN) with address index variants
-- **Time indexes**: `DateIndex`, `WeekIndex`, `MonthIndex`, `QuarterIndex`, `SemesterIndex`, `YearIndex`, `DecadeIndex` with cross-index conversion
-- **Protocol types**: `Epoch`, `Halving`, `TxVersion`, `RawLocktime`
-- **Financial types**: `Dollars`, `Cents`, `OHLC` (Open/High/Low/Close)
-- **Serialization**: Serde + JSON Schema generation via schemars
-- **Compression**: PCO (Pco) derive for columnar compression in vecdb
+The default build has no `vecdb`, `rawdb` or `schemars` dependency, so BRK
+libraries such as `brk_mempool` and `brk_rpc` stay lean.
 
-## Type Categories
+- `schemars` adds the JSON Schema derives (and `Version`'s schema with
+  `storage`) that Bitview's API needs; `bitview_primitives` enables it.
+- `storage` adds byte/compression derives, vector traits, storage versions, and
+  storage error conversions, for crates that persist domain values; catalog and
+  API-only consumers leave it disabled.
 
-| Category | Examples |
-|----------|----------|
-| Block metadata | `Height`, `BlockHash`, `BlockTimestamp`, `BlkPosition` |
-| Transaction | `Txid`, `TxIndex`, `TxIn`, `TxOut`, `Vsize`, `Weight` |
-| Address | `P2PKHAddressIndex`, `P2TRBytes`, `AnyAddressIndex`, `AddressStats` |
-| Value | `Sats`, `Dollars`, `Cents`, `Bitcoin` |
-| Time | `Date`, `DateIndex`, `WeekIndex`, `MonthIndex`, ... |
-| Metric | `Metric`, `MetricData`, `MetricSelection` |
-| API | `Pagination`, `Health`, `RecommendedFees`, `MempoolInfo` |
+Index names and aliases (`Height`, `TxIndex`), arithmetic (including
+`CheckedSub`), Serde, and JSON Schema (with `schemars`) remain available without
+storage. `bitview_types::SeriesData::version` and Rust client version endpoints expose
+the wire value as `u32`, not the storage engine's `Version` type.
 
-## Core API
+Verify the modes separately to avoid workspace feature unification hiding an
+accidental storage or schemars dependency:
 
-All types implement standard traits: `Debug`, `Clone`, `Serialize`, `Deserialize`, plus domain-specific operations like `CheckedSub`, `Formattable`, and `PrintableIndex`.
-
-```rust,ignore
-use brk_types::{Height, Sats, DateIndex, Date};
-
-let height = Height::new(840_000);
-let reward = Sats::FIFTY_BTC / 16;  // Post-4th-halving reward
-let date_idx = DateIndex::try_from(Date::new(2024, 4, 20))?;
+```sh
+cargo check -p brk_types --no-default-features
+cargo check -p brk_types --features storage
+cargo check -p brk_types --features schemars,storage
+cargo tree -p bitview_catalog
 ```
 
-## Built On
+## Example
 
-- `brk_error` for error handling
+```rust,ignore
+use brk_types::Height;
+
+let height = Height::new(840_000);
+let reward = height.subsidy();
+let blocks_left = height.left_before_next_halving();
+```

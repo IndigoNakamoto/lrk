@@ -1,0 +1,37 @@
+use bitcoin::transaction::Version;
+use derive_more::Deref;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "storage")]
+use vecdb::Pco;
+
+/// Compact indexed transaction-version category. Values 1, 2, and 3 preserve
+/// those exact signed 32-bit Bitcoin transaction versions; 255 represents every
+/// other version.
+#[derive(
+    Debug, Deref, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[cfg_attr(feature = "storage", derive(Pco))]
+pub struct TxVersion(u8);
+
+impl TxVersion {
+    pub const ONE: Self = Self(1);
+    pub const TWO: Self = Self(2);
+    pub const THREE: Self = Self(3);
+    const NON_STANDARD: Self = Self(u8::MAX);
+}
+
+impl From<Version> for TxVersion {
+    #[inline]
+    fn from(value: Version) -> Self {
+        match value.0 {
+            1 => Self::ONE,
+            2 => Self::TWO,
+            3 => Self::THREE,
+            _ => Self::NON_STANDARD,
+        }
+    }
+}
+
+brk_types::impl_int_format!(TxVersion);

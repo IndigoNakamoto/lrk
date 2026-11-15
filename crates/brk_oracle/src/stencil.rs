@@ -1,9 +1,9 @@
 use std::ops::Range;
 
-use crate::scale::{HistogramEma, NUM_BINS};
+use crate::{HistogramEma, NUM_BINS};
 
 /// Bin offsets for 19 round-USD amounts relative to the $100 reference (offset 0).
-/// Each offset = log10(amount / 100) * BINS_PER_DECADE.
+/// Each offset = round(log10(amount / 100) * BINS_PER_DECADE).
 const STENCIL_OFFSETS: [i32; 19] = [
     -400, // $1
     -340, // $2
@@ -26,8 +26,14 @@ const STENCIL_OFFSETS: [i32; 19] = [
     400,  // $10000
 ];
 
-/// Number of round-USD stencil arms.
+/// The 19 round-dollar amounts behind [`STENCIL_OFFSETS`], in dollars.
+pub const ROUND_DOLLARS: [f64; 19] = [
+    1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0, 150.0, 200.0, 300.0, 500.0,
+    1000.0, 2000.0, 5000.0, 10000.0,
+];
+
 const N_ARMS: usize = STENCIL_OFFSETS.len();
+
 type Arms = [f64; N_ARMS];
 
 /// EMA rate for the adaptive shape template (~250-block time constant), slow
@@ -47,7 +53,7 @@ fn bin_value(ema: &HistogramEma, idx: i64) -> f64 {
 
 /// Raw EMA mass on each of the 19 stencil arms at `center`.
 fn arms_at(ema: &HistogramEma, center: i64) -> Arms {
-    STENCIL_OFFSETS.map(|offset| bin_value(ema, center + offset as i64))
+    STENCIL_OFFSETS.map(|offset| bin_value(ema, center.saturating_add(offset as i64)))
 }
 
 /// [`arms_at`] L1-normalized to sum 1, or `None` when the center carries no mass.
@@ -57,30 +63,37 @@ fn normalized_arms_at(ema: &HistogramEma, center: i64) -> Option<Arms> {
     if sum <= 0.0 {
         return None;
     }
-    for arm in &mut arms {
+    for arm in arms.iter_mut() {
         *arm /= sum;
     }
     Some(arms)
 }
 
-/// Round-dollar stencil picker.
-///
-/// Input: current EMA histogram, previous reference bin, and search bounds.
-/// Output: next reference bin. Internal state is only the adaptive shape profile
-/// used by the slow cold-start regime.
+/// Round-dollar stencil picker. Its only state is the adaptive shape profile of the slow
+/// cold-start regime.
 #[derive(Clone)]
-pub(super) struct Stencil {
+pub struct Stencil {
     shape: ShapeAnchor,
 }
 
 impl Stencil {
-    pub(super) fn new(shape_weight: f64) -> Self {
+    pub fn new(shape_weight: f64) -> Self {
+        debug_assert!(
+            ROUND_DOLLARS
+                .iter()
+                .zip(STENCIL_OFFSETS)
+                .all(
+                    |(dollars, offset)| ((dollars / 100.0).log10() * 200.0).round() as i32
+                        == offset
+                ),
+            "each stencil offset is its round amount's bin distance from $100"
+        );
         Self {
             shape: ShapeAnchor::new(shape_weight),
         }
     }
 
-    pub(super) fn pick(
+    pub fn pick(
         &mut self,
         ema: &HistogramEma,
         prev_bin: f64,
@@ -90,6 +103,26 @@ impl Stencil {
         let ref_bin = find_best_bin(ema, prev_bin, search_below, search_above, &self.shape);
         self.shape.update(ema, ref_bin.round() as i64);
         ref_bin
+    }
+
+    /// Every candidate's score in the window around `prev_bin`, as [`pick`](Self::pick) ranks them:
+    /// the window's first bin and the scores in bin order, all zero without any evidence (when
+    /// `pick` keeps its reference). `None` without a searchable bin.
+    pub fn scores(
+        &self,
+        ema: &HistogramEma,
+        prev_bin: f64,
+        search_below: usize,
+        search_above: usize,
+    ) -> Option<(usize, Vec<f64>)> {
+        let range = search_range(prev_bin, search_below, search_above)?;
+        let scorer = CandidateScorer::new(ema, &self.shape, range.clone());
+        let scores = if scorer.has_evidence() {
+            range.clone().map(|bin| scorer.score(bin)).collect()
+        } else {
+            vec![0.0; range.len()]
+        };
+        Some((range.start, scores))
     }
 }
 
@@ -101,8 +134,8 @@ impl Stencil {
 /// resist round-USD octave aliasing in the thin pre-2018 output mix.
 ///
 /// A zero `weight` makes it inert ([`score`](Self::score) returns 0,
-/// [`update`](Self::update) is a no-op), so the fast regime carries it for free
-/// without call sites special-casing the disabled path.
+/// [`update`](Self::update) is a no-op), so callers need not special-case the
+/// fast regime.
 #[derive(Clone)]
 struct ShapeAnchor {
     weight: f64,
@@ -173,6 +206,11 @@ impl<'a> CandidateScorer<'a> {
         }
     }
 
+    /// Whether any round-USD arm carries mass anywhere in the search window.
+    fn has_evidence(&self) -> bool {
+        self.arm_peaks.iter().any(|&peak| peak > 0.0)
+    }
+
     fn score(&self, bin: usize) -> f64 {
         let mut total = 0.0;
         for (i, &offset) in STENCIL_OFFSETS.iter().enumerate() {
@@ -224,15 +262,23 @@ impl<'a> CandidateScorer<'a> {
 }
 
 fn search_range(prev_bin: f64, search_below: usize, search_above: usize) -> Option<Range<usize>> {
+    // A zero historical price maps to +infinity. It has no searchable bin;
+    // preserve that price while the histogram window continues to advance.
+    if !prev_bin.is_finite() {
+        return None;
+    }
     let center = prev_bin.round() as usize;
     let search_start = center.saturating_sub(search_below);
-    let search_end = (center + search_above + 1).min(NUM_BINS);
+    let search_end = center
+        .saturating_add(search_above)
+        .saturating_add(1)
+        .min(NUM_BINS);
 
     (search_start < search_end).then_some(search_start..search_end)
 }
 
 fn arm_peaks(ema: &HistogramEma, range: Range<usize>) -> Arms {
-    let mut peaks = [0.0f64; N_ARMS];
+    let mut peaks: Arms = [0.0; N_ARMS];
     for (i, &offset) in STENCIL_OFFSETS.iter().enumerate() {
         for bin in range.clone() {
             peaks[i] = peaks[i].max(bin_value(ema, bin as i64 + offset as i64));
@@ -257,6 +303,10 @@ fn find_best_bin(
     };
 
     let scorer = CandidateScorer::new(ema, shape, range);
+    // Without evidence every candidate ties at zero: keep the reference instead of stepping to the first.
+    if !scorer.has_evidence() {
+        return prev_bin;
+    }
     let (best_bin, best_score) = scorer.best_bin();
     scorer.interpolated_bin(best_bin, best_score)
 }

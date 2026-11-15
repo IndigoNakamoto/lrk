@@ -1,0 +1,20 @@
+use brk_types::{Dollars, Height, Version};
+use vecdb::{Convert, LazyVec, ReadableCloneableVec};
+
+use crate::{Fiat, FiatType, LazyPerBlock, LazyPreviousDeltaVec};
+
+/// Per-block fiat values derived from cumulative cents.
+pub type LazyFiatBlock<C> = Fiat<LazyPreviousDeltaVec<Height, C>, LazyVec<Height, Dollars, C>>;
+
+impl<C: FiatType> LazyFiatBlock<C> {
+    pub(crate) fn from_cumulative_source(
+        name: &str,
+        version: Version,
+        cumulative: &LazyPerBlock<C>,
+    ) -> Self {
+        let cents =
+            LazyPreviousDeltaVec::new(&format!("{name}_cents"), version, &cumulative.height);
+        let usd = LazyVec::transformed::<Convert>(name, version, cents.read_only_boxed_clone());
+        Self { usd, cents }
+    }
+}

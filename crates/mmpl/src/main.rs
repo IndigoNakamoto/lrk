@@ -1,20 +1,19 @@
-mod args;
-mod emitter;
-mod event;
-mod usage;
-
 use std::{
+    env,
     io::{self, BufWriter},
     process::ExitCode,
     thread,
     time::{Duration, Instant},
 };
 
-use brk_error::Result;
+use brk_error::{Error, Result};
 use brk_mempool::Mempool;
-
-use args::Args;
 use emitter::Emitter;
+
+mod args;
+mod emitter;
+mod event;
+mod usage;
 
 const PERIOD: Duration = Duration::from_millis(500);
 
@@ -29,14 +28,14 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<()> {
-    let raw: Vec<String> = std::env::args().skip(1).collect();
+    let raw: Vec<String> = env::args().skip(1).collect();
     if raw.iter().any(|a| matches!(a.as_str(), "-h" | "--help")) {
         usage::print();
         return Ok(());
     }
-    let args = Args::parse(raw)?;
-    let client = args.rpc()?;
-    let mempool = Mempool::new(&client);
+    let client = args::parse(raw)?.client()?;
+    let mut mempool = Mempool::new(&client);
+    let published = mempool.read_only_clone();
 
     let stdout = io::stdout();
     let mut out = BufWriter::new(stdout.lock());
@@ -45,11 +44,13 @@ fn run() -> Result<()> {
     loop {
         let started = Instant::now();
         match mempool.tick() {
-            Ok(cycle) => match emitter.emit(&mut out, &cycle) {
+            Ok(()) => match emitter.emit(&mut out, &client, &published.load(), started.elapsed()) {
                 Ok(()) => {}
                 // Broken pipe (e.g. `mmpl | head`) is a normal end-of-stream.
-                Err(e) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(()),
-                Err(e) => return Err(e.into()),
+                Err(Error::IO(e)) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(()),
+                Err(Error::IO(e)) => return Err(e.into()),
+                // A publication moving on mid-read, or a failed RPC: retry the whole cycle.
+                Err(e) => eprintln!("mmpl: cycle skipped: {e}"),
             },
             // Transient RPC failure - log, then retry on the next tick.
             Err(e) => eprintln!("mmpl: tick failed: {e}"),

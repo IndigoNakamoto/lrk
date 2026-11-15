@@ -1,0 +1,14 @@
+[package]
+name = "brk_cpfp"
+description = "Ancestor-set linearization of CPFP transaction clusters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+litecoin = ["brk_types/litecoin"]
+
+[dependencies]
+brk_types = { workspace = true }

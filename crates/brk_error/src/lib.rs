@@ -1,18 +1,34 @@
 #![doc = include_str!("../README.md")]
 
-use std::{borrow::Cow, fmt, io, path::PathBuf, result, time};
+#[cfg(feature = "bitcoin")]
+use bitcoin::consensus::encode::Error as EncodeError;
+#[cfg(feature = "bitcoin")]
+use bitcoin::consensus::encode::FromHexError;
+#[cfg(feature = "bitcoin")]
+use bitcoin::hex::HexToArrayError;
+#[cfg(feature = "corepc")]
+use corepc_jsonrpc::error::Error as JsonRpcError;
+#[cfg(feature = "fjall")]
+use fjall::Error as FjallError;
+#[cfg(feature = "jiff")]
+use jiff::Error as JiffError;
+#[cfg(feature = "serde_json")]
+use serde_json::Error as SerdeJsonError;
+use std::{borrow::Cow, io, path::PathBuf, result::Result as StdResult};
 
 use thiserror::Error;
 
-#[cfg(feature = "bitcoin")]
-use brk_chain::primitives as bitcoin;
+#[cfg(feature = "tokio")]
+use tokio::task::JoinError;
+#[cfg(feature = "vecdb")]
+use vecdb::Error as VecdbError;
+#[cfg(feature = "vecdb")]
+use vecdb::RawDBError;
 
-pub type Result<T, E = Error> = result::Result<T, E>;
+pub type Result<T> = StdResult<T, Error>;
 
-/// Convert `Option<T>` → `Result<T>` without panicking.
-///
-/// Replaces `.unwrap()` in query paths so a missing value returns
-/// HTTP 500 instead of crashing the server (`panic = "abort"`).
+/// In plugin code, a missing value fails the computation with an internal error instead of a
+/// panic, which aborts the process (`panic = "abort"`).
 pub trait OptionData<T> {
     fn data(self) -> Result<T>;
 }
@@ -31,65 +47,39 @@ pub enum Error {
 
     #[cfg(feature = "corepc")]
     #[error(transparent)]
-    CorepcRPC(#[from] corepc_jsonrpc::error::Error),
+    CorepcRPC(#[from] JsonRpcError),
 
     #[cfg(feature = "jiff")]
     #[error(transparent)]
-    Jiff(#[from] jiff::Error),
+    Jiff(#[from] JiffError),
 
     #[cfg(feature = "fjall")]
     #[error(transparent)]
-    Fjall(#[from] fjall::Error),
+    Fjall(#[from] FjallError),
 
     #[cfg(feature = "vecdb")]
     #[error(transparent)]
-    VecDB(#[from] vecdb::Error),
-
-    #[cfg(feature = "vecdb")]
-    #[error(transparent)]
-    RawDB(#[from] vecdb::RawDBError),
-
-    #[cfg(feature = "ureq")]
-    #[error(transparent)]
-    Ureq(#[from] ureq::Error),
-
-    #[error(transparent)]
-    SystemTimeError(#[from] time::SystemTimeError),
+    VecDB(#[from] VecdbError),
 
     #[cfg(feature = "bitcoin")]
     #[error(transparent)]
-    BitcoinConsensusEncode(#[from] bitcoin::consensus::encode::Error),
+    BitcoinConsensusEncode(#[from] EncodeError),
 
     #[cfg(feature = "bitcoin")]
     #[error(transparent)]
-    BitcoinBip34Error(#[from] bitcoin::block::Bip34Error),
+    BitcoinHexError(#[from] FromHexError),
 
     #[cfg(feature = "bitcoin")]
     #[error(transparent)]
-    BitcoinHexError(#[from] bitcoin::consensus::encode::FromHexError),
-
-    #[cfg(feature = "bitcoin")]
-    #[error(transparent)]
-    BitcoinFromScriptError(#[from] bitcoin::address::FromScriptError),
-
-    #[cfg(feature = "bitcoin")]
-    #[error(transparent)]
-    BitcoinHexToArrayError(#[from] bitcoin::hex::HexToArrayError),
-
-    #[cfg(feature = "pco")]
-    #[error(transparent)]
-    Pco(#[from] pco::errors::PcoError),
+    BitcoinHexToArrayError(#[from] HexToArrayError),
 
     #[cfg(feature = "serde_json")]
     #[error(transparent)]
-    SerdeJSON(#[from] serde_json::Error),
+    SerdeJSON(#[from] SerdeJsonError),
 
     #[cfg(feature = "tokio")]
     #[error(transparent)]
-    TokioJoin(#[from] tokio::task::JoinError),
-
-    #[error("ZeroCopy error")]
-    ZeroCopyError,
+    TokioJoin(#[from] JoinError),
 
     #[error("Wrong length, expected: {expected}, received: {received}")]
     WrongLength { expected: usize, received: usize },
@@ -97,34 +87,21 @@ pub enum Error {
     #[error("Wrong address type")]
     WrongAddrType,
 
-    #[error("Date cannot be indexed, must be 2009-01-03, 2009-01-09 or greater")]
+    #[error("Date is outside the supported index range")]
     UnindexableDate,
 
-    #[error("Quick cache error")]
-    QuickCacheError,
-
-    #[error("The provided address appears to be invalid")]
-    InvalidAddr,
+    #[error("Invalid address")]
+    InvalidAddress,
 
     #[error("Invalid network")]
     InvalidNetwork,
 
-    #[error("The provided TXID appears to be invalid")]
-    InvalidTxid,
-
-    #[error("Mempool data is not available")]
-    MempoolNotAvailable,
-
-    #[error("Address not found in the blockchain (no transaction history)")]
-    UnknownAddr,
-
-    #[error("Failed to find the TXID in the blockchain")]
-    UnknownTxid,
+    #[error("State is updating")]
+    StateUpdating,
 
     #[error("Unsupported type ({0})")]
     UnsupportedType(String),
 
-    // Generic errors with context
     #[error("{0}")]
     NotFound(String),
 
@@ -137,36 +114,30 @@ pub enum Error {
     #[error("Internal error: {0}")]
     Internal(&'static str),
 
-    #[error("Authentication failed")]
-    AuthFailed,
+    #[error(
+        "No RPC credentials: no rpcpassword is set and there's no cookie file at {cookie:?} (is bitcoind running?)"
+    )]
+    NoRpcCredentials { cookie: PathBuf },
 
-    // Series-specific errors
+    #[error(
+        "Bitcoin Core rejected the RPC credentials (check rpcuser and rpcpassword, or the cookie file)"
+    )]
+    RpcAuthFailed,
+
+    #[error(
+        "Bitcoin Core refused this RPC request (check rpcallowip, or rpcwhitelist for this user)"
+    )]
+    RpcForbidden,
+
+    #[error("Bitview reads mainnet's blocks only, and this node runs {0}")]
+    NotMainnet(String),
+
+    /// The node refused a submitted transaction (policy or consensus); the reason is the node's.
     #[error("{0}")]
-    SeriesNotFound(SeriesNotFound),
+    TxRejected(String),
 
-    #[error("'{series}' doesn't support the requested index. Try: {supported}")]
-    SeriesUnsupportedIndex { series: String, supported: String },
-
-    #[error("No series specified")]
-    NoSeries,
-
-    #[error("No data available")]
-    NoData,
-
-    #[error("Request weight {requested} exceeds maximum {max}")]
-    WeightExceeded { requested: usize, max: usize },
-
-    #[error("Too many unspent transaction outputs (>1000).")]
-    TooManyUtxos,
-
-    #[error("Deserialization error: {0}")]
-    Deserialization(String),
-
-    #[error("Fetch failed after retries: {0}")]
-    FetchFailed(String),
-
-    #[error("HTTP {status}: {url}")]
-    HttpStatus { status: u16, url: String },
+    #[error("Data without a version marker at {path:?}")]
+    MissingVersion { path: PathBuf },
 
     #[error("Version mismatch at {path:?}: expected {expected}, found {found}")]
     VersionMismatch {
@@ -176,147 +147,38 @@ pub enum Error {
     },
 }
 
+/// Raw database errors go through vecdb's, which owns their lock and corruption classification.
+#[cfg(feature = "vecdb")]
+impl From<RawDBError> for Error {
+    #[inline]
+    fn from(error: RawDBError) -> Self {
+        Self::VecDB(error.into())
+    }
+}
+
 impl Error {
     /// Returns true if this error is due to a file lock (another process has the database open).
     /// Lock errors are transient and should not trigger data deletion.
-    #[cfg(feature = "vecdb")]
     pub fn is_lock_error(&self) -> bool {
-        let is_vecdb_lock = matches!(self, Error::VecDB(e) if e.is_lock_error());
-        #[cfg(feature = "fjall")]
-        {
-            is_vecdb_lock || matches!(self, Error::Fjall(fjall::Error::Locked))
-        }
-        #[cfg(not(feature = "fjall"))]
-        {
-            is_vecdb_lock
+        match self {
+            #[cfg(feature = "vecdb")]
+            Error::VecDB(e) => e.is_lock_error(),
+            #[cfg(feature = "fjall")]
+            Error::Fjall(FjallError::Locked) => true,
+            _ => false,
         }
     }
 
     /// Returns true if this error indicates data corruption or version incompatibility.
     /// These errors may require resetting/deleting the data to recover.
-    #[cfg(feature = "vecdb")]
     pub fn is_data_error(&self) -> bool {
-        let is_vecdb_data = matches!(self, Error::VecDB(e) if e.is_data_error())
-            || matches!(self, Error::VersionMismatch { .. });
-        #[cfg(feature = "fjall")]
-        {
-            is_vecdb_data
-                || matches!(
-                    self,
-                    Error::Fjall(
-                        fjall::Error::JournalRecovery(_)
-                            | fjall::Error::InvalidVersion(_)
-                            | fjall::Error::Decompress(_)
-                            | fjall::Error::InvalidTrailer
-                            | fjall::Error::InvalidTag(_)
-                            | fjall::Error::Unrecoverable
-                    )
-                )
-        }
-        #[cfg(not(feature = "fjall"))]
-        {
-            is_vecdb_data
-        }
-    }
-
-    /// Returns true if this network/fetch error indicates a permanent/blocking condition
-    /// that won't be resolved by retrying (e.g., DNS failure, connection refused, blocked endpoint).
-    /// Returns false for transient errors worth retrying (timeouts, rate limits, server errors).
-    pub fn is_network_permanently_blocked(&self) -> bool {
         match self {
-            #[cfg(feature = "ureq")]
-            Error::Ureq(e) => is_ureq_error_permanent(e),
-            Error::IO(e) => is_io_error_permanent(e),
-            // 403 Forbidden suggests IP/geo blocking; 429 and 5xx are transient
-            Error::HttpStatus { status, .. } => *status == 403,
-            // Other errors are data/parsing related, not network - treat as transient
+            #[cfg(feature = "vecdb")]
+            Error::VecDB(e) => e.is_data_error(),
+            #[cfg(feature = "fjall")]
+            Error::Fjall(e) => e.is_data_error(),
+            Error::VersionMismatch { .. } | Error::MissingVersion { .. } => true,
             _ => false,
         }
-    }
-}
-
-#[cfg(feature = "ureq")]
-fn is_ureq_error_permanent(e: &ureq::Error) -> bool {
-    let msg = format!("{:?}", e);
-    msg.contains("nodename nor servname")
-        || msg.contains("Name or service not known")
-        || msg.contains("No such host")
-        || msg.contains("connection refused")
-        || msg.contains("Connection refused")
-        || msg.contains("certificate")
-        || msg.contains("SSL")
-        || msg.contains("TLS")
-        || msg.contains("handshake")
-}
-
-fn is_io_error_permanent(e: &std::io::Error) -> bool {
-    use std::io::ErrorKind::*;
-    match e.kind() {
-        // Permanent errors
-        ConnectionRefused | PermissionDenied | AddrNotAvailable => true,
-        // Check the error message for DNS failures
-        _ => {
-            let msg = e.to_string();
-            msg.contains("nodename nor servname")
-                || msg.contains("Name or service not known")
-                || msg.contains("No such host")
-        }
-    }
-}
-
-/// Maximum length of a user-supplied series name in error messages before
-/// truncating with an ellipsis.
-const SERIES_NAME_MAX_DISPLAY_LEN: usize = 100;
-
-/// Truncate a user-supplied series name for inclusion in an error message,
-/// appending an ellipsis if it exceeds the display cap. Used for both
-/// `SeriesNotFound` and `SeriesUnsupportedIndex` so far-too-long names don't
-/// blow up the response body.
-pub fn truncate_series_name(mut series: String) -> String {
-    if series.len() > SERIES_NAME_MAX_DISPLAY_LEN {
-        series.truncate(SERIES_NAME_MAX_DISPLAY_LEN);
-        series.push_str("...");
-    }
-    series
-}
-
-#[derive(Debug)]
-pub struct SeriesNotFound {
-    pub series: String,
-    pub suggestions: Vec<&'static str>,
-    pub total_matches: usize,
-}
-
-impl SeriesNotFound {
-    pub fn new(series: String, suggestions: Vec<&'static str>, total_matches: usize) -> Self {
-        Self {
-            series: truncate_series_name(series),
-            suggestions,
-            total_matches,
-        }
-    }
-}
-
-impl fmt::Display for SeriesNotFound {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "'{}' not found", self.series)?;
-
-        if self.suggestions.is_empty() {
-            return Ok(());
-        }
-
-        let quoted: Vec<_> = self.suggestions.iter().map(|s| format!("'{s}'")).collect();
-        write!(f, ", did you mean {}?", quoted.join(", "))?;
-
-        let remaining = self.total_matches.saturating_sub(self.suggestions.len());
-        if remaining > 0 {
-            write!(
-                f,
-                " ({remaining} more — /api/series/search?q={} for all)",
-                self.series
-            )?;
-        }
-
-        Ok(())
     }
 }

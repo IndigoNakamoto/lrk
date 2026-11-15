@@ -1,6 +1,6 @@
 [package]
 name = "rawdb"
-description = "Single-file, low-level and space efficient storage engine with filesystem-like API"
+description = "Embedded storage engine with named memory-mapped regions and hole punching"
 keywords = ["vec", "disk", "database"]
 categories = ["database"]
 version.workspace = true
@@ -13,14 +13,10 @@ readme = "README.md"
 [dependencies]
 libc = { workspace = true }
 log = { workspace = true }
-memmap2 = "0.9.11"
+memmap2 = "0.9.12"
 parking_lot = { workspace = true }
-rayon = { workspace = true }
-smallvec = "1.15"
-thiserror = "2.0.19"
-
-[dev-dependencies]
-tempfile = { workspace = true }
+thiserror = { workspace = true }
+rustc-hash = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

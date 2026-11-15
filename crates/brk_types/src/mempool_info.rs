@@ -1,26 +1,31 @@
 use std::collections::BTreeMap;
 
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{FeeRate, Sats, Transaction, VSize};
 
 /// Mempool statistics with incrementally maintained fee histogram.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 pub struct MempoolInfo {
     /// Number of transactions in the mempool
-    #[schemars(example = 5000)]
+    #[cfg_attr(feature = "schemars", schemars(example = 5000))]
     pub count: usize,
     /// Total virtual size of all transactions in the mempool (vbytes)
     pub vsize: VSize,
     /// Total fees of all transactions in the mempool (satoshis)
     pub total_fee: Sats,
-    /// Fee histogram: `[[fee_rate, vsize], ...]` sorted by descending fee rate
+    /// Fee histogram as Esplora bins it: `[[fee_rate, vsize], ...]` by descending fee rate, each
+    /// entry the vsize of the transactions paying from its fee rate up to the previous entry's,
+    /// a bin closing at the first fee rate change past 50,000 vB
     #[serde(
         serialize_with = "serialize_fee_histogram",
         deserialize_with = "deserialize_fee_histogram"
     )]
-    pub fee_histogram: BTreeMap<FeeRate, VSize>,
+    #[cfg_attr(feature = "schemars", schemars(with = "Vec<[f64; 2]>"))]
+    fee_histogram: BTreeMap<FeeRate, VSize>,
 }
 
 impl MempoolInfo {
@@ -48,12 +53,29 @@ impl MempoolInfo {
     }
 }
 
+/// Esplora's histogram bin width (vbytes).
+const VSIZE_BIN_WIDTH: u64 = 50_000;
+
+/// Esplora's `make_fee_histogram`: from the highest fee rate down, a bin closes at the first fee
+/// rate change once it holds more than [`VSIZE_BIN_WIDTH`], labeled by its lowest fee rate.
 fn serialize_fee_histogram<S: Serializer>(
     map: &BTreeMap<FeeRate, VSize>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    let vec: Vec<(FeeRate, VSize)> = map.iter().rev().map(|(&r, &v)| (r, v)).collect();
-    vec.serialize(serializer)
+    let mut bins = Vec::new();
+    let (mut rate, mut vsize) = (FeeRate::ZERO, 0);
+    for (&next_rate, &next_vsize) in map.iter().rev() {
+        if vsize > VSIZE_BIN_WIDTH {
+            bins.push((rate, VSize::from(vsize)));
+            vsize = 0;
+        }
+        rate = next_rate;
+        vsize += u64::from(next_vsize);
+    }
+    if vsize > 0 {
+        bins.push((rate, VSize::from(vsize)));
+    }
+    serializer.collect_seq(bins)
 }
 
 fn deserialize_fee_histogram<'de, D: Deserializer<'de>>(

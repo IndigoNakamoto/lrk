@@ -1,65 +1,72 @@
+use crate::traits::chunk_folds;
 use crate::{AnyVec, ReadableVec, VecIndex, VecValue};
 
 use super::LazyVec;
 
-impl<I, T, S1I, S1T> ReadableVec<I, T> for LazyVec<I, T, S1I, S1T>
+impl<I, T, S> ReadableVec<I, T> for LazyVec<I, T, S>
 where
     I: VecIndex,
     T: VecValue,
-    S1I: VecIndex,
-    S1T: VecValue,
+    S: VecValue,
 {
+    #[inline]
+    fn cursor_chunk_size(&self) -> usize {
+        self.source.cursor_chunk_size()
+    }
+
     #[inline]
     fn read_into_at(&self, from: usize, to: usize, buf: &mut Vec<T>) {
         let to = to.min(self.len());
         buf.reserve(to.saturating_sub(from));
-        self.for_each_range_dyn_at(from, to, &mut |v| buf.push(v));
+        if from < to {
+            (self.read)(self, from, to, buf);
+        }
+    }
+
+    fn for_each_chunk_at(&self, from: usize, to: usize, f: &mut dyn FnMut(usize, &[T])) {
+        let to = to.min(self.len());
+        if from < to {
+            (self.visit)(self, from, to, f);
+        }
     }
 
     #[inline]
     fn for_each_range_dyn_at(&self, from: usize, to: usize, f: &mut dyn FnMut(T)) {
-        let compute = self.compute;
-        let to = to.min(self.len());
-        let mut pos = from;
-        self.source.for_each_range_dyn_at(from, to, &mut |v| {
-            f(compute(I::from(pos), v));
-            pos += 1;
+        self.for_each_chunk_at(from, to, &mut |_, values| {
+            values.iter().cloned().for_each(&mut *f);
         });
     }
 
     #[inline]
-    fn fold_range_at<B, F: FnMut(B, T) -> B>(&self, from: usize, to: usize, init: B, mut f: F) -> B
+    fn fold_range_at<B, F: FnMut(B, T) -> B>(&self, from: usize, to: usize, init: B, f: F) -> B
     where
         Self: Sized,
     {
-        self.try_fold_range_at(from, to, init, |acc, v| {
-            Ok::<_, std::convert::Infallible>(f(acc, v))
-        })
-        .unwrap_or_else(|e: std::convert::Infallible| match e {})
+        chunk_folds::fold(self, from, to, init, f)
     }
 
     #[inline]
-    fn try_fold_range_at<B, E, F: FnMut(B, T) -> std::result::Result<B, E>>(
+    fn try_fold_range_at<B, E, F: FnMut(B, T) -> Result<B, E>>(
         &self,
         from: usize,
         to: usize,
         init: B,
         mut f: F,
-    ) -> std::result::Result<B, E>
+    ) -> Result<B, E>
     where
         Self: Sized,
     {
-        let to = to.min(self.len());
-        if from >= to {
-            return Ok(init);
-        }
+        // Preserve early-exit semantics: do not evaluate this transform for values after the
+        // first error, nor read past its chunk. Infallible reads use the bulk path.
         let compute = self.compute;
-        let buf = self.source.collect_range_dyn(from, to);
-        buf.into_iter()
-            .enumerate()
-            .try_fold(init, |acc, (local, v)| {
-                f(acc, compute(I::from(from + local), v))
-            })
+        chunk_folds::try_fold(
+            &*self.source,
+            from,
+            to,
+            (init, from),
+            |(acc, index), value| Ok((f(acc, compute(I::from(index), value))?, index + 1)),
+        )
+        .map(|(acc, _)| acc)
     }
 
     #[inline]
@@ -70,6 +77,7 @@ where
 
     fn read_sorted_into_at(&self, indices: &[usize], out: &mut Vec<T>) {
         let compute = self.compute;
+        // The source is dense, so its values pair with the leading indices.
         let source_vals = self.source.read_sorted_at(indices);
         out.reserve(source_vals.len());
         indices

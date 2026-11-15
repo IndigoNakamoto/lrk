@@ -1,0 +1,39 @@
+[package]
+name = "bitview_plugin_price"
+description = "Bitcoin USD spot prices and OHLC candles from exchange history and an on-chain oracle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage = "https://bitview.dev"
+repository.workspace = true
+
+[features]
+litecoin = ["bitview_compute/litecoin", "bitview_plugin/litecoin", "bitview_plugin_indexer/litecoin", "bitview_plugin_mappings/litecoin", "bitview_primitives/litecoin", "bitview_traversable/litecoin", "bitview_vecs/litecoin", "brk_error/litecoin", "brk_oracle/litecoin", "brk_types/litecoin", "dep:ureq", "dep:serde_json"]
+
+[dependencies]
+bitview_compute = { workspace = true }
+bitview_primitives = { workspace = true, features = ["storage"] }
+brk_exit = { workspace = true }
+bitview_vecs = { workspace = true }
+bitview_plugin = { workspace = true }
+bitview_plugin_mappings = { workspace = true }
+brk_error = { workspace = true, features = ["vecdb"] }
+bitview_plugin_indexer = { workspace = true }
+brk_oracle = { workspace = true }
+bitview_traversable = { workspace = true }
+brk_types = { workspace = true, features = ["storage"] }
+derive_more = { workspace = true }
+rangeindex = { workspace = true }
+rayon = { workspace = true }
+tracing = { workspace = true }
+vecdb = { workspace = true }
+serde_json = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
+
+[dev-dependencies]
+brk_reader = { workspace = true }
+brk_rpc = { workspace = true }
+
+[[example]]
+name = "oracle_truth"
+required-features = ["litecoin"]

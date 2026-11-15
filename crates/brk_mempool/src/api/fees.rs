@@ -1,38 +1,26 @@
-//! Fee reads: tier recommendations, projected-block stats, per-tx rates.
+use brk_error::Result;
+use brk_types::{PreciseRecommendedFees, RecommendedFees};
 
-use brk_types::{FeeRate, RecommendedFees, Txid, TxidPrefix};
+use crate::{ReadOnlyState, snapshot::BlockStats};
 
-use crate::{Mempool, snapshot::BlockStats};
-
-impl Mempool {
-    #[must_use]
-    pub fn fees(&self) -> RecommendedFees {
-        self.snapshot().fees.clone()
+impl ReadOnlyState {
+    /// mempool.space's whole-sat/vB recommendations (`/api/v1/fees/recommended`).
+    pub fn fees(&self) -> Result<RecommendedFees> {
+        let snapshot = self.snapshot();
+        snapshot.ensure_projection()?;
+        Ok(snapshot.fees.clone())
     }
 
-    #[must_use]
-    pub fn block_stats(&self) -> Vec<BlockStats> {
-        self.snapshot().block_stats.clone()
+    /// mempool.space's precise recommendations (`/api/v1/fees/precise`).
+    pub fn precise_fees(&self) -> Result<PreciseRecommendedFees> {
+        let snapshot = self.snapshot();
+        snapshot.ensure_projection()?;
+        Ok(snapshot.precise_fees.clone())
     }
 
-    /// Effective fee rate for a live tx: snapshot's linearized chunk
-    /// rate. Falls back to `fee/vsize` for txs added since the latest
-    /// snapshot was built (apply -> same-cycle tick gap).
-    pub fn live_effective_fee_rate(&self, prefix: &TxidPrefix) -> Option<FeeRate> {
-        if let Some(rate) = self.snapshot().chunk_rate_for(prefix) {
-            return Some(rate);
-        }
-        self.read()
-            .txs
-            .entry_by_prefix(prefix)
-            .map(|e| e.fee_rate())
-    }
-
-    /// Linearized chunk rate captured at burial - same value
-    /// `live_effective_fee_rate` returned while the tx was alive, so an
-    /// evicted RBF predecessor reports the package-effective rate it
-    /// had in the mempool, not a misleading isolated `fee/vsize`.
-    pub fn graveyard_fee_rate(&self, txid: &Txid) -> Option<FeeRate> {
-        self.read().graveyard.get(txid).map(|tomb| tomb.chunk_rate)
+    pub fn block_stats(&self) -> Result<Vec<BlockStats>> {
+        let snapshot = self.snapshot();
+        snapshot.ensure_projection()?;
+        Ok(snapshot.block_stats.clone())
     }
 }

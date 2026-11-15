@@ -1,19 +1,26 @@
+use std::fmt::{Display, Formatter, Result as FmtResult};
+
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use vecdb::{Formattable, Pco};
 
 use crate::{TxIndex, Vout};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, JsonSchema, Hash, Pco)]
-pub struct OutPoint(u64);
+#[cfg(feature = "storage")]
+use vecdb::{Formattable, Pco};
+
+/// The output a transaction input spends: its transaction index and output position, written as
+/// `{"tx_index": N, "vout": M}` (coinbase inputs: `{"tx_index": 4294967295, "vout": 4294967295}`).
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Hash)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
+pub struct OutPoint(#[cfg_attr(feature = "schemars", schemars(with = "OutPointParts"))] u64);
 
 impl OutPoint {
     pub const COINBASE: Self = Self(u64::MAX);
 
     pub fn new(tx_index: TxIndex, vout: Vout) -> Self {
-        let tx_index_bits = u64::from(tx_index) << 32;
-        let vout_bits = u64::from(vout);
-        Self(tx_index_bits | vout_bits)
+        Self((u64::from(tx_index) << 32) | u64::from(vout))
     }
 
     #[inline(always)]
@@ -21,11 +28,9 @@ impl OutPoint {
         TxIndex::from((self.0 >> 32) as u32)
     }
 
+    /// Coinbase: [`Vout::MAX`].
     #[inline(always)]
     pub fn vout(self) -> Vout {
-        if self.is_coinbase() {
-            return Vout::MAX;
-        }
         Vout::from(self.0 as u32)
     }
 
@@ -40,34 +45,30 @@ impl OutPoint {
     }
 }
 
-impl std::fmt::Display for OutPoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for OutPoint {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "tx_index: {}, vout: {}", self.tx_index(), self.vout())
     }
 }
 
+#[cfg(feature = "storage")]
 impl Formattable for OutPoint {
+    /// The JSON object.
     fn write_to(&self, buf: &mut Vec<u8>) {
-        use std::fmt::Write;
-        let mut s = String::new();
-        write!(s, "{}", self).unwrap();
-        buf.extend_from_slice(s.as_bytes());
+        buf.extend_from_slice(b"{\"tx_index\":");
+        self.tx_index().write_to(buf);
+        buf.extend_from_slice(b",\"vout\":");
+        self.vout().write_to(buf);
+        buf.push(b'}');
     }
 
-    fn fmt_csv(&self, f: &mut String) -> std::fmt::Result {
-        let start = f.len();
-        self.fmt_into(f);
-        if f.as_bytes()[start..].contains(&b',') {
-            f.insert(start, '"');
-            f.push('"');
-        }
-        Ok(())
-    }
-
-    fn fmt_json(&self, buf: &mut Vec<u8>) {
-        buf.push(b'"');
-        self.write_to(buf);
-        buf.push(b'"');
+    /// The JSON object as one quoted cell.
+    fn fmt_csv(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(b"\"{\"\"tx_index\"\":");
+        self.tx_index().write_to(buf);
+        buf.extend_from_slice(b",\"\"vout\"\":");
+        self.vout().write_to(buf);
+        buf.extend_from_slice(b"}\"");
     }
 }
 
@@ -89,12 +90,16 @@ impl<'de> Deserialize<'de> for OutPoint {
     where
         D: Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        struct Helper {
-            tx_index: TxIndex,
-            vout: Vout,
-        }
-        let h = Helper::deserialize(deserializer)?;
-        Ok(Self::new(h.tx_index, h.vout))
+        let parts = OutPointParts::deserialize(deserializer)?;
+        Ok(Self::new(parts.tx_index, parts.vout))
     }
+}
+
+/// The serialized form of an `OutPoint`.
+#[derive(Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
+struct OutPointParts {
+    tx_index: TxIndex,
+    vout: Vout,
 }

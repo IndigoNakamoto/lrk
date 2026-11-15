@@ -1,0 +1,92 @@
+use std::{env, net::Ipv6Addr, path::PathBuf};
+
+use brk_error::{Error, Result};
+
+use crate::{Auth, Client};
+
+/// How to reach a Bitcoin Core node: its data directory, block files and RPC endpoint.
+/// Unset fields fall back to Bitcoin Core's defaults; callers expand `~` themselves.
+#[derive(Debug, Clone, Default)]
+pub struct ConnectArgs {
+    pub bitcoindir: Option<PathBuf>,
+    pub blocksdir: Option<PathBuf>,
+    pub rpcconnect: Option<String>,
+    pub rpcport: Option<u16>,
+    pub rpccookiefile: Option<PathBuf>,
+    pub rpcuser: Option<String>,
+    pub rpcpassword: Option<String>,
+}
+
+impl ConnectArgs {
+    fn bitcoin_dir(&self) -> PathBuf {
+        self.bitcoindir.clone().unwrap_or_else(default_bitcoin_dir)
+    }
+
+    pub fn blocks_dir(&self) -> PathBuf {
+        self.blocksdir
+            .clone()
+            .unwrap_or_else(|| self.bitcoin_dir().join("blocks"))
+    }
+
+    fn url(&self) -> String {
+        let host = self.rpcconnect.as_deref().unwrap_or("localhost");
+        let port = self.rpcport.unwrap_or(DEFAULT_RPC_PORT);
+        // An IPv6 address (`::1`) needs brackets before the port.
+        if host.parse::<Ipv6Addr>().is_ok() {
+            format!("http://[{host}]:{port}")
+        } else {
+            format!("http://{host}:{port}")
+        }
+    }
+
+    /// Relative cookie paths are inside the data directory, like `bitcoin-cli`'s.
+    fn cookie_path(&self) -> PathBuf {
+        match &self.rpccookiefile {
+            Some(path) if path.is_relative() => self.bitcoin_dir().join(path),
+            Some(path) => path.clone(),
+            None => self.bitcoin_dir().join(".cookie"),
+        }
+    }
+
+    /// User and password when a password is set, else the cookie file when there is one
+    /// (`bitcoin-cli`'s rule).
+    fn auth(&self) -> Option<Auth> {
+        match self.rpcpassword.as_deref() {
+            Some(password) if !password.is_empty() => Some(Auth::UserPass(
+                self.rpcuser.clone().unwrap_or_default(),
+                password.to_owned(),
+            )),
+            _ => {
+                let cookie = self.cookie_path();
+                cookie.is_file().then_some(Auth::CookieFile(cookie))
+            }
+        }
+    }
+
+    /// A client for the node, or [`Error::NoRpcCredentials`] when [`Self::auth`] finds none.
+    pub fn client(&self) -> Result<Client> {
+        let auth = self.auth().ok_or_else(|| Error::NoRpcCredentials {
+            cookie: self.cookie_path(),
+        })?;
+        Client::new(&self.url(), auth)
+    }
+}
+
+#[cfg(not(feature = "litecoin"))]
+pub const DEFAULT_RPC_PORT: u16 = 8332;
+#[cfg(feature = "litecoin")]
+pub const DEFAULT_RPC_PORT: u16 = 9332;
+
+#[cfg(not(feature = "litecoin"))]
+const DATADIR: (&str, &str) = ("Bitcoin", ".bitcoin");
+#[cfg(feature = "litecoin")]
+const DATADIR: (&str, &str) = ("Litecoin", ".litecoin");
+
+fn default_bitcoin_dir() -> PathBuf {
+    let home = PathBuf::from(env::var("HOME").unwrap());
+    if env::consts::OS == "macos" {
+        home.join("Library").join("Application Support").join(DATADIR.0)
+    } else {
+        home.join(DATADIR.1)
+    }
+}

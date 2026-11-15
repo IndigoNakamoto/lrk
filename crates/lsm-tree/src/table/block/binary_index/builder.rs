@@ -2,21 +2,27 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
+use std::io::Write;
+
 use byteorder::{LittleEndian, WriteBytesExt};
 
-#[derive(Debug)]
-pub struct Builder(Vec<u32>);
+use crate::Result;
 
-impl Builder {
-    pub fn new(capacity: usize) -> Self {
-        Self(Vec::with_capacity(capacity))
+/// Collects restart offsets into a reused buffer.
+#[derive(Debug)]
+pub struct Builder<'a>(&'a mut Vec<u32>);
+
+impl<'a> Builder<'a> {
+    pub fn new(offsets: &'a mut Vec<u32>) -> Self {
+        offsets.clear();
+        Self(offsets)
     }
 
     pub fn insert(&mut self, pos: u32) {
         self.0.push(pos);
     }
 
-    pub fn write<W: std::io::Write>(&self, writer: &mut W) -> crate::Result<(u8, usize)> {
+    pub fn write<W: Write>(&self, writer: &mut W) -> Result<(u8, usize)> {
         // NOTE: We check if the pointers may fit in 16-bits
         // If so, we halve the index size by storing u16 instead of u32
         let step_size = {
@@ -35,7 +41,7 @@ impl Builder {
 
         if step_size == 2 {
             // Write u16 index
-            for &offset in &self.0 {
+            for &offset in self.0.iter() {
                 #[expect(
                     clippy::cast_possible_truncation,
                     reason = "above we check that the last (highest) pointer still fits into u16"
@@ -45,7 +51,7 @@ impl Builder {
             }
         } else {
             // Write u32 index
-            for &offset in &self.0 {
+            for &offset in self.0.iter() {
                 writer.write_u32::<LittleEndian>(offset)?;
             }
         }

@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-
-# LLM-friendly resources
-# llms.txt: https://llmstxt.org/
-# llms-full.txt: Complete API reference for LLM ingestion
-# api.json: Compact OpenAPI spec optimized for LLM consumption
-Sitemap: https://litview.space/llms.txt
-Sitemap: https://litview.space/llms-full.txt

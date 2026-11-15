@@ -3,112 +3,71 @@
 // (found in the LICENSE-* files in the repository)
 
 use std::{
-    fs::{File, OpenOptions},
+    fs::{File, TryLockError},
     path::Path,
     sync::Arc,
 };
 
-struct LockedFileGuardInner(File);
+use log::{debug, error};
 
-impl Drop for LockedFileGuardInner {
-    fn drop(&mut self) {
-        log::debug!("Unlocking database lock");
+use crate::{Error, Result};
 
-        self.0
-            .unlock()
-            .inspect_err(|e| {
-                log::warn!("Failed to unlock database lock: {e:?}");
-            })
-            .ok();
-    }
-}
+/// The database lock, held while any clone lives: closing the file releases it.
+pub type LockedFileGuard = Arc<File>;
 
-#[derive(Clone)]
-#[expect(unused)]
-pub struct LockedFileGuard(Arc<LockedFileGuardInner>);
+/// Opens (creating it if needed) and locks the database lock file.
+pub fn lock(path: &Path) -> Result<LockedFileGuard> {
+    debug!("Acquiring database lock at {}", path.display());
 
-impl LockedFileGuard {
-    pub fn create_new(path: &Path) -> crate::Result<Self> {
-        log::debug!("Acquiring database lock at {}", path.display());
+    let file = File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)?;
 
-        let file = match File::create_new(path) {
-            Ok(f) => f,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                OpenOptions::new().read(true).write(true).open(path)?
-            }
-            e => e?,
-        };
-
-        file.try_lock().map_err(|e| match e {
-            std::fs::TryLockError::Error(e) => {
-                log::error!("Failed to acquire database lock - if this is expected, you can try opening again (maybe wait a little)");
-                crate::Error::Io(e)
-            }
-            std::fs::TryLockError::WouldBlock => crate::Error::Locked,
-        })?;
-
-        Ok(Self(Arc::new(LockedFileGuardInner(file))))
-    }
-
-    pub fn try_acquire(path: &Path) -> crate::Result<Self> {
-        const RETRIES: usize = 3;
-
-        log::debug!("Acquiring database lock at {}", path.display());
-
-        let file = OpenOptions::new().read(true).write(true).open(path)?;
-
-        for i in 1..=RETRIES {
-            if let Err(e) = file.try_lock() {
-                match e {
-                    std::fs::TryLockError::Error(e) => {
-                        log::error!(
-                            "Failed to acquire database lock - if this is expected, you can try opening again (maybe wait a little)"
-                        );
-                        return Err(crate::Error::Io(e));
-                    }
-                    std::fs::TryLockError::WouldBlock => {
-                        if i == RETRIES {
-                            return Err(crate::Error::Locked);
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    }
-                }
-            } else {
-                // Success
-                break;
-            }
+    file.try_lock().map_err(|e| match e {
+        TryLockError::Error(e) => {
+            error!("Failed to acquire database lock - if this is expected, you can try opening again (maybe wait a little)");
+            Error::Io(e)
         }
+        TryLockError::WouldBlock => Error::Locked,
+    })?;
 
-        Ok(Self(Arc::new(LockedFileGuardInner(file))))
+    Ok(Arc::new(file))
+}
+
+/// An iterator holding the database lock until the tables it reads are released.
+pub struct LockedIter<I> {
+    // Declared first so it drops first: its tables release before the lock.
+    iter: I,
+    _lock: LockedFileGuard,
+}
+
+impl<I> LockedIter<I> {
+    /// Ties `iter` to the database lock.
+    pub fn new(iter: I, lock: &LockedFileGuard) -> Self {
+        Self {
+            iter,
+            _lock: lock.clone(),
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::LockedFileGuard;
-    use std::fs::File;
+impl<I: Iterator> Iterator for LockedIter<I> {
+    type Item = I::Item;
 
-    #[test]
-    fn create_new_acquires_lock_when_file_already_exists() -> crate::Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("lock");
-
-        File::create(&path)?;
-
-        let _guard = LockedFileGuard::create_new(&path)?;
-
-        Ok(())
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 
-    #[test]
-    fn try_acquire_acquires_lock_on_existing_file() -> crate::Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("lock");
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
 
-        File::create(&path)?;
-
-        let _guard = LockedFileGuard::try_acquire(&path)?;
-
-        Ok(())
+impl<I: DoubleEndedIterator> DoubleEndedIterator for LockedIter<I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back()
     }
 }

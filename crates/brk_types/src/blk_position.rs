@@ -1,11 +1,16 @@
 use std::ops::Add;
 
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::{Formattable, Pco};
+
+#[cfg(feature = "storage")]
+use vecdb::Pco;
 
 /// Position within a .blk file, encoding file index and byte offset
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Pco, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[cfg_attr(feature = "storage", derive(Pco))]
 pub struct BlkPosition(u64);
 
 impl BlkPosition {
@@ -29,18 +34,4 @@ impl Add<u32> for BlkPosition {
     }
 }
 
-impl std::fmt::Display for BlkPosition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = itoa::Buffer::new();
-        let str = buf.format(self.0);
-        f.write_str(str)
-    }
-}
-
-impl Formattable for BlkPosition {
-    #[inline(always)]
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        let mut b = itoa::Buffer::new();
-        buf.extend_from_slice(b.format(self.0).as_bytes());
-    }
-}
+crate::impl_int_format!(BlkPosition);

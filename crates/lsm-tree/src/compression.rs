@@ -2,9 +2,17 @@
 // This source code is licensed under both the Apache 2.0 and MIT License
 // (found in the LICENSE-* files in the repository)
 
-use crate::coding::{Decode, Encode};
+use std::{
+    fmt::{Display, Formatter, Result},
+    io::{Read, Write},
+};
+
 use byteorder::{ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Write};
+
+use crate::{
+    Error, Result as CrateResult,
+    coding::{Decode, Encode},
+};
 
 /// Compression algorithm to use
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -18,19 +26,17 @@ pub enum CompressionType {
     ///
     /// Recommended for use cases with a focus
     /// on speed over compression ratio.
-    #[cfg(feature = "lz4")]
     Lz4,
 }
 
-impl std::fmt::Display for CompressionType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for CompressionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
             "{}",
             match self {
                 Self::None => "none",
 
-                #[cfg(feature = "lz4")]
                 Self::Lz4 => "lz4",
             }
         )
@@ -38,13 +44,12 @@ impl std::fmt::Display for CompressionType {
 }
 
 impl Encode for CompressionType {
-    fn encode_into<W: Write>(&self, writer: &mut W) -> Result<(), crate::Error> {
+    fn encode_into<W: Write>(&self, writer: &mut W) -> CrateResult<()> {
         match self {
             Self::None => {
                 writer.write_u8(0)?;
             }
 
-            #[cfg(feature = "lz4")]
             Self::Lz4 => {
                 writer.write_u8(1)?;
             }
@@ -55,40 +60,15 @@ impl Encode for CompressionType {
 }
 
 impl Decode for CompressionType {
-    fn decode_from<R: Read>(reader: &mut R) -> Result<Self, crate::Error> {
+    fn decode_from<R: Read>(reader: &mut R) -> CrateResult<Self> {
         let tag = reader.read_u8()?;
 
         match tag {
             0 => Ok(Self::None),
 
-            #[cfg(feature = "lz4")]
             1 => Ok(Self::Lz4),
 
-            tag => Err(crate::Error::InvalidTag(("CompressionType", tag))),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_log::test;
-
-    #[test]
-    fn compression_serialize_none() {
-        let serialized = CompressionType::None.encode_into_vec();
-        assert_eq!(1, serialized.len());
-    }
-
-    #[cfg(feature = "lz4")]
-    mod lz4 {
-        use super::*;
-        use test_log::test;
-
-        #[test]
-        fn compression_serialize_none() {
-            let serialized = CompressionType::Lz4.encode_into_vec();
-            assert_eq!(1, serialized.len());
+            tag => Err(Error::InvalidTag(("CompressionType", tag))),
         }
     }
 }

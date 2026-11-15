@@ -1,0 +1,105 @@
+use bitview_compute::ComputeRollingMedianFromStarts;
+use bitview_plugin_holders::Vecs as HoldersVecs;
+use bitview_plugin_indexer::Indexer;
+use bitview_plugin_mappings::Vecs as MappingsVecs;
+use bitview_plugin_price::Vecs as PriceVecs;
+use bitview_primitives::{CoinDays, DollarDaysPerCoin, Float64};
+use bitview_vecs::first_wholly_priced;
+use brk_error::Result;
+use brk_exit::Exit;
+use brk_types::{Bitcoin, Dollars, Timestamp};
+use vecdb::{ComputeVec, ReadableVec};
+
+use super::Vecs;
+
+impl Vecs {
+    pub(crate) fn compute(
+        &mut self,
+        indexer: &Indexer,
+        mappings: &MappingsVecs,
+        prices: &PriceVecs,
+        holders: &HoldersVecs,
+        exit: &Exit,
+    ) -> Result<()> {
+        let starting_height = indexer.compute_start().height;
+        let coindays_destroyed = &holders.cohorts.all.activity.coindays_destroyed;
+        let circulating_supply = &holders.cohorts.all.supply.total.btc.height;
+
+        // VOCDD: Value of Coin Days Destroyed = price × (CDD / circulating_supply)
+        // Supply-adjusted to account for growing supply over time
+        let mut cumulative = None;
+        self.vocdd.cumulative.height.compute_transform3(
+            starting_height,
+            &prices.spot.usd.height,
+            &coindays_destroyed.block,
+            circulating_supply,
+            |(i, price, cdd, supply, this): (_, Dollars, CoinDays, Bitcoin, _)| {
+                let cumulative = cumulative.get_or_insert_with(|| {
+                    i.decremented()
+                        .and_then(|height| this.collect_one(height))
+                        .unwrap_or_default()
+                });
+                let supply_f64 = f64::from(supply);
+                let value = if supply_f64 == 0.0 {
+                    DollarDaysPerCoin::ZERO
+                } else {
+                    DollarDaysPerCoin::from(f64::from(price) * f64::from(cdd) / supply_f64)
+                };
+                *cumulative += value;
+                *cumulative
+            },
+            exit,
+        )?;
+
+        // (From the first block whose day's sum has a value: none before it, as the sum.)
+        self.vocdd_median_1m.compute_rolling_median_from_starts(
+            starting_height,
+            first_wholly_priced(&mappings.lookback._24h),
+            &mappings.lookback._1m,
+            &self.vocdd.sum._24h.height,
+            &mut self.vocdd_median_1m_window,
+            exit,
+        )?;
+
+        // Monotonic timestamps: a header timestamp earlier than its parent's would
+        // otherwise count the time between them twice.
+        let timestamps = &mappings.timestamp.monotonic;
+        let mut state = None;
+        self.hodl_bank_sum.height.compute_transform3(
+            starting_height,
+            &prices.spot.usd.height,
+            &self.vocdd_median_1m,
+            timestamps,
+            |(height, price, median, timestamp, this): (
+                _,
+                Dollars,
+                DollarDaysPerCoin,
+                Timestamp,
+                _,
+            )| {
+                let (bank, previous) = state.get_or_insert_with(|| {
+                    let previous = height.decremented();
+                    (
+                        previous
+                            .and_then(|previous| this.collect_one(previous))
+                            .map_or(0.0, f64::from),
+                        previous
+                            .and_then(|previous| timestamps.collect_one(previous))
+                            .unwrap_or(timestamp),
+                    )
+                });
+                let days = timestamp.days_since(*previous);
+                *previous = timestamp;
+                // (Nothing while the median has no value: the first priced day.)
+                let median = f64::from(median);
+                if !median.is_nan() {
+                    *bank += (f64::from(price) - median) * days;
+                }
+                Float64::from(*bank)
+            },
+            exit,
+        )?;
+
+        Ok(())
+    }
+}

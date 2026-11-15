@@ -1,57 +1,39 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 
 use brk_error::{Error, Result};
 use brk_types::Version;
 use fjall::Keyspace;
 
-#[derive(Debug, Clone)]
-pub(super) struct StoreMeta {
-    pathbuf: PathBuf,
-}
+/// Opens the keyspace and checks its version marker: a fresh keyspace gets one, an existing one
+/// must match it. An unreadable marker, or data without one, is an error.
+pub fn checked_open(
+    path: &Path,
+    version: Version,
+    open_keyspace: impl FnOnce() -> Result<Keyspace>,
+) -> Result<Keyspace> {
+    fs::create_dir_all(path)?;
 
-impl StoreMeta {
-    pub(super) fn checked_open<F>(
-        path: &Path,
-        version: Version,
-        open_partition_handle: F,
-    ) -> Result<(Self, Keyspace)>
-    where
-        F: Fn() -> Result<Keyspace>,
-    {
-        fs::create_dir_all(path)?;
+    let keyspace = open_keyspace()?;
+    let marker = path.join("version");
 
-        let partition = open_partition_handle()?;
-
-        if let Ok(prev_version) = Version::try_from(Self::path_version_(path).as_path())
-            && version != prev_version
-        {
-            return Err(Error::VersionMismatch {
+    if !marker.try_exists()? {
+        if !keyspace.is_empty()? {
+            return Err(Error::MissingVersion {
                 path: path.to_path_buf(),
-                expected: usize::from(version),
-                found: usize::from(prev_version),
             });
         }
-
-        let slf = Self {
-            pathbuf: path.to_owned(),
-        };
-
-        version.write(&slf.path_version())?;
-
-        Ok((slf, partition))
+        version.write(&marker)?;
+        return Ok(keyspace);
     }
 
-    pub(super) fn path(&self) -> &Path {
-        &self.pathbuf
+    let found = Version::try_from(marker.as_path())?;
+    if found != version {
+        return Err(Error::VersionMismatch {
+            path: path.to_path_buf(),
+            expected: usize::from(version),
+            found: usize::from(found),
+        });
     }
 
-    fn path_version(&self) -> PathBuf {
-        Self::path_version_(&self.pathbuf)
-    }
-    fn path_version_(path: &Path) -> PathBuf {
-        path.join("version")
-    }
+    Ok(keyspace)
 }

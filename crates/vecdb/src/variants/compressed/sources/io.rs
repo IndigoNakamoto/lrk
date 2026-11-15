@@ -5,107 +5,46 @@ use std::{
 };
 
 use parking_lot::{RwLock, RwLockReadGuard};
-use rawdb::{Region, RegionMetadata};
+use rawdb::Region;
 
-use crate::{AnyStoredVec, BUFFER_SIZE, Pages, VecIndex, VecValue, unlikely};
-
-use super::super::inner::{
-    CompressionStrategy, MAX_UNCOMPRESSED_PAGE_SIZE, Page, ReadWriteCompressedVec,
+use super::{
+    super::inner::{CompressionStrategy, Page},
+    CompressedSource, PageBytes,
 };
+use crate::{BUFFER_SIZE, Pages, VecValue};
 
-/// Buffered file I/O source for reading stored compressed data.
-///
-/// Uses dedicated file handle for sequential reads (better OS readahead than mmap).
-/// Only sees stored (persisted) values. Consumed by fold/try_fold/for_each.
-pub struct CompressedIoSource<'a, I, T, S> {
+/// Page bytes read through a dedicated file handle in buffered spans of whole pages (better OS
+/// readahead than mmap for cold sequential scans).
+pub struct Buffered<'a> {
     file: File,
     file_position: u64,
     region_start: u64,
     buffer: Vec<u8>,
     buffer_len: usize,
     buffer_start_offset: u64,
-    decoded_values: Vec<T>,
-    decoded_page_index: usize,
-    pages: RwLockReadGuard<'a, Pages>,
-    index: usize,
-    end_index: usize,
-    _region_lock: RwLockReadGuard<'a, RegionMetadata>,
-    _marker: std::marker::PhantomData<(I, T, S)>,
+    _region_lock: RwLockReadGuard<'a, ()>,
 }
 
-impl<'a, I, T, S> CompressedIoSource<'a, I, T, S>
-where
-    I: VecIndex,
-    T: VecValue,
-    S: CompressionStrategy<T>,
-{
-    const SIZE_OF_T: usize = size_of::<T>();
-    const PER_PAGE: usize = MAX_UNCOMPRESSED_PAGE_SIZE / Self::SIZE_OF_T;
-    const NO_PAGE: usize = usize::MAX;
+impl Buffered<'_> {
+    /// Reads whole pages from `starting_page_index`, up to `last_page` and [`BUFFER_SIZE`].
+    fn refill(
+        &mut self,
+        pages: &Pages,
+        starting_page_index: usize,
+        last_page: usize,
+    ) -> Option<()> {
+        let start_offset = pages.get(starting_page_index)?.header_start;
+        let max_page = last_page.min(pages.len() - 1);
 
-    pub(crate) fn new(vec: &'a ReadWriteCompressedVec<I, T, S>, from: usize, to: usize) -> Self {
-        Self::new_from_parts(vec.region(), vec.pages(), vec.stored_len(), from, to)
-    }
-
-    pub(crate) fn new_from_parts(
-        region: &'a Region,
-        pages: &'a Arc<RwLock<Pages>>,
-        stored_len: usize,
-        from: usize,
-        to: usize,
-    ) -> Self {
-        let region_lock = region.meta();
-        let region_start = region_lock.start() as u64;
-        let file = region.open_db_read_only_file().expect("open file");
-        let pages = pages.read();
-        let from = from.min(stored_len);
-        let to = to.min(stored_len);
-
-        Self {
-            file,
-            file_position: 0,
-            region_start,
-            buffer: vec![0; BUFFER_SIZE],
-            buffer_len: 0,
-            buffer_start_offset: 0,
-            decoded_values: Vec::with_capacity(Self::PER_PAGE),
-            decoded_page_index: Self::NO_PAGE,
-            pages,
-            index: from,
-            end_index: to,
-            _region_lock: region_lock,
-            _marker: std::marker::PhantomData,
-        }
-    }
-
-    #[inline(always)]
-    fn ensure_page_decoded(&mut self, page_index: usize) -> Option<()> {
-        if unlikely(self.decoded_page_index != page_index) {
-            self.decode_page(page_index)?;
-        }
-        Some(())
-    }
-
-    fn refill_buffer(&mut self, starting_page_index: usize) -> Option<()> {
-        let start_page = self.pages.get(starting_page_index)?;
-        let start_offset = start_page.start;
-
-        let last_needed_page = if self.end_index == 0 {
-            0
-        } else {
-            (self.end_index - 1) / Self::PER_PAGE
-        };
-        let max_page = last_needed_page.min(self.pages.len().saturating_sub(1));
-
-        let mut total_bytes = 0usize;
+        let mut end_offset = start_offset;
         for i in starting_page_index..=max_page {
-            let page = self.pages.get(i)?;
-            let page_bytes = page.bytes as usize;
-            if total_bytes + page_bytes > BUFFER_SIZE {
+            let candidate_end = pages.get(i)?.end();
+            if (candidate_end - start_offset) as usize > BUFFER_SIZE {
                 break;
             }
-            total_bytes += page_bytes;
+            end_offset = candidate_end;
         }
+        let total_bytes = (end_offset - start_offset) as usize;
 
         if total_bytes == 0 {
             return None;
@@ -114,104 +53,87 @@ where
         let absolute_offset = self.region_start + start_offset;
         if self.file_position != absolute_offset {
             self.file_position = absolute_offset;
-            self.file.seek(SeekFrom::Start(absolute_offset)).unwrap();
+            self.file
+                .seek(SeekFrom::Start(absolute_offset))
+                .expect("failed to seek compressed vector");
         }
 
+        if self.buffer.capacity() == 0 {
+            // Once, for the whole requested span: later refills start further on and never
+            // need more, so the buffer neither reallocates nor zeroes bytes it never reads.
+            let span = (pages.get(max_page)?.end() - start_offset) as usize;
+            self.buffer.reserve_exact(span.min(BUFFER_SIZE));
+        }
+        if self.buffer.len() < total_bytes {
+            self.buffer.resize(total_bytes, 0);
+        }
         self.file
             .read_exact(&mut self.buffer[..total_bytes])
-            .unwrap();
+            .expect("failed to read compressed vector");
         self.buffer_len = total_bytes;
         self.buffer_start_offset = start_offset;
         self.file_position += total_bytes as u64;
 
         Some(())
     }
+}
 
-    fn decode_from_buffer(&mut self, page_index: usize, page: Page) -> Option<()> {
-        let in_buffer_offset = (page.start - self.buffer_start_offset) as usize;
-        let data = &self.buffer[in_buffer_offset..in_buffer_offset + page.bytes as usize];
-
-        S::decode_page_into(data, &page, &mut self.decoded_values).ok()?;
-        self.decoded_page_index = page_index;
-
-        Some(())
+impl PageBytes for Buffered<'_> {
+    fn page(
+        &mut self,
+        pages: &Pages,
+        page_index: usize,
+        page: Page,
+        last_page: usize,
+    ) -> Option<(&[u8], &[u8])> {
+        let buffered = self.buffer_len > 0
+            && page.header_start >= self.buffer_start_offset
+            && page.end() <= self.buffer_start_offset + self.buffer_len as u64;
+        if !buffered {
+            self.refill(pages, page_index, last_page)?;
+        }
+        let header_start = (page.header_start - self.buffer_start_offset) as usize;
+        let header_end = (page.header_end - self.buffer_start_offset) as usize;
+        let body_start = (page.start - self.buffer_start_offset) as usize;
+        let body_end = body_start + page.bytes as usize;
+        Some((
+            &self.buffer[header_start..header_end],
+            &self.buffer[body_start..body_end],
+        ))
     }
+}
 
-    fn decode_page(&mut self, page_index: usize) -> Option<()> {
-        if page_index >= self.pages.len() {
-            return None;
-        }
+/// Buffered file I/O [`CompressedSource`].
+pub type CompressedIoSource<'a, T, S> = CompressedSource<'a, T, S, Buffered<'a>>;
 
-        // Copy page metadata to release the borrow on self.pages
-        let page = *self.pages.get(page_index)?;
-
-        if self.buffer_len > 0 {
-            let buffer_end_offset = self.buffer_start_offset + self.buffer_len as u64;
-
-            if page.start >= self.buffer_start_offset && page.end() <= buffer_end_offset {
-                return self.decode_from_buffer(page_index, page);
-            }
-        }
-
-        self.refill_buffer(page_index)?;
-        self.decode_from_buffer(page_index, page)
-    }
-
-    /// Fold all remaining elements — tight pointer loop per page so LLVM can vectorize.
-    #[inline(always)]
-    pub(crate) fn fold<B, F: FnMut(B, T) -> B>(mut self, init: B, mut f: F) -> B {
-        let per_page = Self::PER_PAGE;
-        let end_index = self.end_index;
-        let mut page_index = self.index / per_page;
-        let mut page_start = page_index * per_page;
-        let mut in_page_offset = self.index - page_start;
-        let mut accum = init;
-        while self.index < end_index {
-            if self.ensure_page_decoded(page_index).is_none() {
-                break;
-            }
-            let page_end = (end_index - page_start).min(self.decoded_values.len());
-            let ptr = self.decoded_values.as_ptr();
-            let mut i = in_page_offset;
-            while i < page_end {
-                // Clone rather than move: decoded_values still owns and drops every value.
-                accum = f(accum, unsafe { (&*ptr.add(i)).clone() });
-                i += 1;
-            }
-            self.index = page_start + page_end;
-            page_index += 1;
-            page_start += per_page;
-            in_page_offset = 0;
-        }
-        accum
-    }
-
-    /// Fallible fold with early exit on error.
-    #[inline(always)]
-    pub(crate) fn try_fold<B, E, F: FnMut(B, T) -> std::result::Result<B, E>>(
-        mut self,
-        init: B,
-        mut f: F,
-    ) -> std::result::Result<B, E> {
-        let per_page = Self::PER_PAGE;
-        let end_index = self.end_index;
-        let mut page_index = self.index / per_page;
-        let mut page_start = page_index * per_page;
-        let mut in_page_offset = self.index - page_start;
-        let mut accum = init;
-        while self.index < end_index {
-            if self.ensure_page_decoded(page_index).is_none() {
-                break;
-            }
-            let page_end = (end_index - page_start).min(self.decoded_values.len());
-            for value in &self.decoded_values[in_page_offset..page_end] {
-                accum = f(accum, value.clone())?;
-            }
-            self.index = page_start + page_end;
-            page_index += 1;
-            page_start += per_page;
-            in_page_offset = 0;
-        }
-        Ok(accum)
+impl<'a, T, S> CompressedIoSource<'a, T, S>
+where
+    T: VecValue,
+    S: CompressionStrategy<T>,
+{
+    pub fn new_from_parts(
+        region: &'a Region,
+        pages: &'a Arc<RwLock<Pages>>,
+        stored_len: usize,
+        from: usize,
+        to: usize,
+    ) -> Self {
+        Self::with_bytes(
+            pages,
+            || Buffered {
+                _region_lock: region.read_lock(),
+                region_start: region.meta().start() as u64,
+                file: region
+                    .open_db_read_only_file()
+                    .expect("failed to open compressed vector"),
+                file_position: 0,
+                buffer: Vec::new(),
+                buffer_len: 0,
+                buffer_start_offset: 0,
+            },
+            stored_len,
+            from,
+            to,
+        )
     }
 }

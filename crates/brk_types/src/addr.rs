@@ -1,93 +1,79 @@
-use brk_chain::primitives as bitcoin;
 use std::{fmt, str::FromStr};
 
-use bitcoin::ScriptBuf;
+use bitcoin::{Address as BitcoinAddress, Network, ScriptBuf};
 use brk_error::Error;
-use derive_more::Deref;
+use derive_more::{Deref, From};
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vecdb::Formattable;
-
-use crate::AddrBytes;
 
 use super::OutputType;
+use crate::AddressBytes;
 
-/// Bitcoin address string
-#[derive(Debug, Clone, Deref, Serialize, Deserialize, JsonSchema)]
+#[cfg(feature = "storage")]
+use vecdb::Formattable;
+
+/// Bitcoin address, or the hex public key of a P2PK output.
+#[derive(Debug, Clone, PartialEq, Eq, Deref, Serialize, Deserialize, From)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
 #[serde(transparent)]
-#[schemars(
+#[cfg_attr(feature = "schemars", schemars(
     example = &"04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f",
     example = &"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
     example = &"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
-)]
-pub struct Addr(String);
+))]
+pub struct Address(String);
 
-impl Addr {
-    /// Get the script for this address
-    pub fn script(&self) -> Result<ScriptBuf, Error> {
-        AddrBytes::addr_to_script(&self.0)
-    }
-}
-
-impl From<String> for Addr {
-    #[inline]
-    fn from(addr: String) -> Self {
-        Self(addr)
-    }
-}
-
-impl TryFrom<&ScriptBuf> for Addr {
+impl TryFrom<&ScriptBuf> for Address {
     type Error = Error;
     fn try_from(script: &ScriptBuf) -> Result<Self, Self::Error> {
         Self::try_from((script, OutputType::from(script)))
     }
 }
 
-impl TryFrom<(&ScriptBuf, OutputType)> for Addr {
+impl TryFrom<(&ScriptBuf, OutputType)> for Address {
     type Error = Error;
     fn try_from((script, output_type): (&ScriptBuf, OutputType)) -> Result<Self, Self::Error> {
         match output_type {
             OutputType::P2PK65 | OutputType::P2PK33 => {
                 // P2PK has no standard address encoding, use raw pubkey hex
-                let bytes = AddrBytes::try_from((script, output_type))?;
+                let bytes = AddressBytes::try_from((script, output_type))?;
                 Ok(Self(bytes_to_hex(bytes.as_slice())))
             }
             _ if output_type.is_addr() => {
-                let addr = bitcoin::Address::from_script(script, bitcoin::Network::Bitcoin)
-                    .map_err(|_| Error::InvalidAddr)?;
+                let addr = BitcoinAddress::from_script(script, Network::Bitcoin)
+                    .map_err(|_| Error::InvalidAddress)?;
                 Ok(Self(addr.to_string()))
             }
-            _ => Err(Error::InvalidAddr),
+            _ => Err(Error::InvalidAddress),
         }
     }
 }
 
-impl TryFrom<&AddrBytes> for Addr {
+impl TryFrom<&AddressBytes> for Address {
     type Error = Error;
-    fn try_from(bytes: &AddrBytes) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &AddressBytes) -> Result<Self, Self::Error> {
         Self::try_from(&bytes.to_script_pubkey())
     }
 }
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
-    let mut hex_string = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        use std::fmt::Write;
-        write!(&mut hex_string, "{:02x}", byte).unwrap();
-    }
-    hex_string
+    let mut hex = Vec::new();
+    crate::bytes::push_hex(bytes, &mut hex);
+    String::from_utf8(hex).expect("hex is ASCII")
 }
 
-impl FromStr for Addr {
+impl FromStr for Address {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let _ = AddrBytes::addr_to_script(s)?;
+        AddressBytes::addr_to_script(s)?;
         Ok(Self(s.to_string()))
     }
 }
 
-impl Formattable for Addr {
+#[cfg(feature = "storage")]
+impl Formattable for Address {
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self.0.as_bytes());
     }
@@ -99,7 +85,7 @@ impl Formattable for Addr {
     }
 }
 
-impl fmt::Display for Addr {
+impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
