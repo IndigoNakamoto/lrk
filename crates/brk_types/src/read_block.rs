@@ -17,6 +17,8 @@ pub struct ReadBlock {
     bytes: Vec<u8>,
     /// Each transaction's byte offset within `bytes`.
     tx_offsets: Vec<u32>,
+    /// Where the last transaction ends within `bytes`: an MWEB extension block may follow.
+    txs_end: u32,
     /// The block signalled an MWEB extension block that failed to decode; `mweb_block` is `None`.
     #[cfg(feature = "litecoin")]
     mweb_decode_failed: bool,
@@ -30,8 +32,10 @@ impl ReadBlock {
         position: BlkPosition,
         bytes: Vec<u8>,
         tx_offsets: Vec<u32>,
+        txs_end: u32,
     ) -> Self {
         debug_assert_eq!(block.txdata.len(), tx_offsets.len());
+        debug_assert!(txs_end as usize <= bytes.len());
         Self {
             height,
             hash,
@@ -39,6 +43,7 @@ impl ReadBlock {
             position,
             bytes,
             tx_offsets,
+            txs_end,
             #[cfg(feature = "litecoin")]
             mweb_decode_failed: false,
         }
@@ -53,6 +58,13 @@ impl ReadBlock {
     #[cfg(feature = "litecoin")]
     pub fn mweb_decode_failed(&self) -> bool {
         self.mweb_decode_failed
+    }
+
+    /// The bytes after the transactions: the serialized MWEB extension block (with its presence
+    /// byte), which Core counts in a block's size but not its weight.
+    #[cfg(feature = "litecoin")]
+    pub fn extension_size(&self) -> usize {
+        self.bytes.len() - self.txs_end as usize
     }
 
     pub fn height(&self) -> Height {
@@ -98,7 +110,7 @@ impl ReadBlock {
         let end = self
             .tx_offsets
             .get(index + 1)
-            .map_or(self.bytes.len(), |&off| off as usize);
+            .map_or(self.txs_end as usize, |&off| off as usize);
         &self.bytes[start..end]
     }
 

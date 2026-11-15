@@ -62,6 +62,7 @@ pub fn parse_canonical_body(
         let tx = Transaction::consensus_decode_from_finite_reader(&mut cursor)?;
         txdata.push(tx);
     }
+    let txs_end = cursor.position() as u32;
 
     #[cfg(not(feature = "litecoin"))]
     let block = BitcoinBlock { header, txdata };
@@ -85,6 +86,7 @@ pub fn parse_canonical_body(
         position,
         cursor.into_inner(),
         tx_offsets,
+        txs_end,
     );
     #[cfg(feature = "litecoin")]
     let read = read.with_mweb_decode_failed(mweb_decode_failed);
@@ -238,6 +240,29 @@ mod mweb {
             let expected: serde_json::Value = serde_json::from_str(&json).unwrap();
             let hogaddr = read(3_213_000).txdata.last().unwrap().output[0].value.to_sat();
             assert_eq!(hogaddr, expected["mweb_amount"].as_u64().unwrap());
+        }
+
+        /// Size and weight as Core's `getblock` reports them: the extension block counts in the
+        /// size, but neither in the weight nor in the HogEx, whose bytes must decode on their own.
+        #[test]
+        fn sizes_match_core() {
+            for (height, size, weight) in [
+                (2_265_983, 88_003, 245_119),
+                (2_265_984, 20_249, 44_281),
+                (3_213_000, 254_081, 636_679),
+            ] {
+                let block = read(height);
+                let overhead = 80 + bitcoin::VarInt::from(block.txdata.len()).size();
+                let (mut total, mut wu) = (overhead, 4 * overhead);
+                for (i, tx) in block.txdata.iter().enumerate() {
+                    let (_, _, tx_size) = block.compute_txid_and_sizes(i);
+                    total += tx_size as usize;
+                    wu += tx.weight().to_wu() as usize;
+                    assert_eq!(tx_size as usize, bitcoin::consensus::serialize(tx).len(), "{height} tx {i}");
+                }
+                assert_eq!(total + block.extension_size(), size, "{height}");
+                assert_eq!(wu, weight, "{height}");
+            }
         }
 
         #[test]

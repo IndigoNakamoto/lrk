@@ -74,6 +74,11 @@ impl BlockProcessor<'_> {
             }
         }
 
+        #[cfg(feature = "litecoin")]
+        {
+            total_size += self.block.extension_size();
+        }
+
         let h = self.height;
         let blocks = &mut self.vecs.blocks;
         blocks.size.debug_checked_push(h, total_size.into());

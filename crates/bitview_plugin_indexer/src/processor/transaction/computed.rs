@@ -72,13 +72,23 @@ impl ComputedTx<'_> {
         TxidPrefix::from(&self.txid)
     }
 
+    /// A HogEx carries the segwit marker for its MWEB flag alone, with no witness.
     #[inline]
     pub fn is_segwit(&self) -> bool {
+        #[cfg(feature = "litecoin")]
+        if self.tx.is_hog_ex {
+            return false;
+        }
         self.base_size != self.total_size
     }
 
+    /// A HogEx's marker, flag and MWEB presence byte count in its size but not its weight.
     #[inline]
     pub fn weight(&self) -> Weight {
+        #[cfg(feature = "litecoin")]
+        if self.tx.is_hog_ex {
+            return self.tx.weight();
+        }
         TypesWeight::from_sizes(self.base_size, self.total_size).into()
     }
 }
