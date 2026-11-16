@@ -29,7 +29,7 @@ impl Pages {
                 "home" => public_url.to_owned(),
                 page => format!("{public_url}{page}"),
             };
-            Bytes::from(render_template(&[
+            let html = render_template(&[
                 ("PAGE", &escape_html(page)),
                 ("PAGE_TITLE", &escape_html(title)),
                 ("PAGE_DESCRIPTION", &escape_html(description)),
@@ -38,7 +38,10 @@ impl Pages {
                 ("API_URL", &escape_html(api_url)),
                 ("DISPLAY_NAME", &escape_html(display_name)),
                 ("LOGO_PATH", &escape_html(crate::logo::PATH)),
-            ]))
+            ]);
+            #[cfg(feature = "litecoin")]
+            let html = brk_relabel::relabel(&html);
+            Bytes::from(html)
         };
         Self {
             home: render(

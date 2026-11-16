@@ -4,7 +4,10 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+#[cfg(not(feature = "litecoin"))]
 const PNG: &[u8] = include_bytes!("../assets/logo.png");
+#[cfg(feature = "litecoin")]
+const PNG: &[u8] = include_bytes!("../assets/logo.litecoin.png");
 
 const VERSION_QUERY: &str = concat!("v=", env!("CARGO_PKG_VERSION"));
 

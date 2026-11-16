@@ -490,6 +490,7 @@ dependencies = [
  "base64",
  "bitview_http",
  "brk_logger",
+ "brk_relabel",
  "http-body-util",
  "percent-encoding",
  "rmcp",

@@ -54,6 +54,7 @@ check showcases/studio/presets.js 't.mweb' "Studio MWEB presets present (guarded
 say ""
 say "Checking both builds..."
 cargo check -q -p bitviewd --features litecoin && ok "litecoin build" || bad "litecoin build"
+cargo check -q -p bitview_mcp --features litecoin && ok "litecoin mcp build" || bad "litecoin mcp build"
 cargo check -q --workspace && ok "bitcoin build" || bad "bitcoin build"
 
 say ""

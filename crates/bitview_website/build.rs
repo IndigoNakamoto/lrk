@@ -375,6 +375,9 @@ const FACTS: &[(&str, &str, &str)] = &[
     ),
 ];
 
+/// Apps whose pages name no share card: each gets `litecoin/assets/cards/{app}.jpg`.
+const CARDS: &[&str] = &["brk", "calendar", "changes", "globe", "logs", "oracle", "series"];
+
 fn main() -> io::Result<()> {
     println!("cargo::rerun-if-env-changed=CARGO_FEATURE_LITECOIN");
     if env::var_os("CARGO_FEATURE_LITECOIN").is_none() {
@@ -390,6 +393,12 @@ fn main() -> io::Result<()> {
         assert!(
             Path::new("showcases").join(file).exists(),
             "no showcases/{file}"
+        );
+    }
+    for app in CARDS {
+        assert!(
+            Path::new("litecoin/assets/cards").join(format!("{app}.jpg")).exists(),
+            "no litecoin/assets/cards/{app}.jpg"
         );
     }
     copy(Path::new("showcases"), &out, "", true)?;
@@ -420,6 +429,18 @@ fn copy(from: &Path, to: &Path, relative: &str, relabel: bool) -> io::Result<()>
             for (_, from, to) in FACTS.iter().filter(|(file, ..)| *file == relative) {
                 assert!(text.contains(from), "{relative} no longer has {from:?}");
                 text = text.replace(from, to);
+            }
+            if let Some(app) = CARDS.iter().find(|app| relative == format!("{app}/index.html")) {
+                assert!(!text.contains("og:image"), "{relative} names its own og:image now");
+                assert!(text.contains("  </head>"), "{relative} has no \"  </head>\"");
+                let card = format!(
+                    r#"    <meta property="og:image" content="https://litview.space/assets/cards/{app}.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>"#
+                );
+                text = text.replacen("  </head>", &card, 1);
             }
             fs::write(&target, brk_relabel::relabel(&text))?;
         } else {
