@@ -79,6 +79,12 @@ cargo bindgen --features litecoin   # regenerates the clients as Litecoin
 Upstream's own documentation is in [`docs`](../docs): the
 [architecture](../docs/ARCHITECTURE.md) and the [changelog](../docs/CHANGELOG.md).
 
+## Support
+
+If Litview is useful to you, you can support its development at
+[indigodevlab.com/fund](https://indigodevlab.com/fund): in Litecoin, public or
+private through MWEB, or with X Money.
+
 ## Credits and license
 
 Bitview and the Bitcoin Research Kit are by [nym21](https://x.com/_nym21_). This
