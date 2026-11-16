@@ -22,6 +22,9 @@ const TEXT: &[&str] = &[
 /// Paths (from the showcases' root, by prefix) copied as is: the generated clients are code, and
 /// the release notes are upstream's history, true of Bitcoin.
 const VERBATIM: &[&str] = &["modules", "changes/CHANGELOG.md", "changes/v"];
+/// The favicon's link, under a URL of its own: litview.space's 0.11 server sent its favicon as
+/// immutable for a year, so browsers (and the CDN) holding it never ask for this one otherwise.
+const FAVICON: (&str, &str) = ("favicon/favicon.svg\"", "favicon/favicon.svg?v=litview\"");
 /// Bitcoin's chain facts and words written into the pages, and Litecoin's: (path, upstream's text, Litecoin's),
 /// every occurrence replaced before relabeling. Each must still be found, so an upstream rewrite
 /// fails the build rather than ship Bitcoin's numbers.
@@ -442,6 +445,7 @@ fn copy(from: &Path, to: &Path, relative: &str, relabel: bool) -> io::Result<()>
                 );
                 text = text.replacen("  </head>", &card, 1);
             }
+            let text = text.replace(FAVICON.0, FAVICON.1);
             fs::write(&target, brk_relabel::relabel(&text))?;
         } else {
             fs::copy(&path, &target)?;

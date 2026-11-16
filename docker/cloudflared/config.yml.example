@@ -21,4 +21,7 @@ ingress:
     service: http://localhost:7070
   - hostname: www.litview.space
     service: http://localhost:7070
+  # bitview_mcp (docker/services/mcp.sh)
+  - hostname: mcp.litview.space
+    service: http://localhost:3111
   - service: http_status:404

@@ -56,7 +56,8 @@ bitview_mcp \
 
 The Streamable HTTP endpoint is `http://127.0.0.1:3111/` by default. If that
 port is unavailable, the server tries each port through `3211`. The server
-supports MCP protocol version `2026-07-28`.
+supports MCP protocol versions `2024-11-05` through `2026-07-28`; clients using
+the legacy `initialize` handshake are served statelessly, without a session ID.
 
 Both URLs must be absolute HTTP(S) origins without a path, query, or
 credentials. The public URL is normalized with a trailing slash.

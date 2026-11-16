@@ -25,24 +25,35 @@ Cursor / some shells set `CARGO_TARGET_DIR` to a sandbox cache. Always build int
 
 ```bash
 cd /Volumes/LTC/lrk
-CARGO_TARGET_DIR=$PWD/target cargo build --release -p brk_cli --features litecoin
+CARGO_TARGET_DIR=$PWD/target cargo build --profile release-ltc -p bitviewd --features litecoin
 ./docker/services/install.sh
 ```
 
 Confirm the installed binary matches:
 
 ```bash
-ls -la target/release/brk \
-  "$HOME/Library/Application Support/litview/bin/brk"
+ls -la target/release-ltc/bitviewd \
+  "$HOME/Library/Application Support/litview/bin/bitviewd"
 curl -sS http://127.0.0.1:7070/health
 curl -sS http://127.0.0.1:7070/api/v1/mining/hashrate/3d | head -c 200
 ```
 
-Data dirs on this host: `BRK_DATA_DIR=/Volumes/LTC/brk`, chain under `/Volumes/LTC/litecoin`.
+## MCP server (mcp.litview.space)
+
+`com.litview.mcp` runs `bitview_mcp` (Litview-branded under `--features litecoin`) on `127.0.0.1:3111`. It forwards tool calls to `https://litview.space` so they reuse Cloudflare's cache. Override with `MCP_API`, `MCP_URL`, `MCP_NAME`.
+
+```bash
+CARGO_TARGET_DIR=$PWD/target cargo build --profile release-ltc -p bitview_mcp --features litecoin
+./docker/services/install.sh
+curl -sS http://127.0.0.1:3111/ | grep -o '<title>[^<]*'
+curl -sS https://mcp.litview.space/ | grep -o '<title>[^<]*'
+```
+
+Data dirs on this host: `BITVIEW_DATA_DIR=/Volumes/LTC/bitview` (new Bitview layout; keep `/Volumes/LTC/brk` as the 0.11 archive), chain under `/Volumes/LTC/litecoin`.
 
 ## Tunnel (litview.space)
 
-Ingress must point at `http://127.0.0.1:7070`. Config lives in `docker/cloudflared/` (LaunchAgent working directory).
+Ingress must point `litview.space` at `http://127.0.0.1:7070` and `mcp.litview.space` at `http://127.0.0.1:3111`. Config lives in `docker/cloudflared/` (LaunchAgent working directory).
 
 Production DNS is routed to tunnel **`litview-demo`** (`7df1ff7a-…`) with credentials only on this Mac. The older **`litview-m1`** tunnel may still have a secondary connector online — it must not receive `litview.space` DNS, or public traffic can stick on a stale BRK.
 
@@ -64,7 +75,7 @@ Do **not** run `sudo cloudflared service install` on this Mac (other tunnels use
 
 ## Logs
 
-`~/Library/Logs/litview/` — `brk.out.log`, `litecoin.out.log`, `cloudflared.*.log`, `watchdog.log`
+`~/Library/Logs/litview/` — `brk.out.log`, `mcp.*.log`, `litecoin.out.log`, `cloudflared.*.log`, `watchdog.log`
 
 ## Notes
 

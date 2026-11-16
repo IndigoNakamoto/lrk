@@ -25,6 +25,14 @@ mod tests;
 mod upstream;
 mod upstream_response;
 
+/// Display text as this build's chain reads it: Litview's under `litecoin`, else unchanged.
+fn label(text: &str) -> String {
+    #[cfg(feature = "litecoin")]
+    return brk_relabel::relabel(text);
+    #[cfg(not(feature = "litecoin"))]
+    text.to_owned()
+}
+
 const BIND_START: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 3111);
 
 #[tokio::main]

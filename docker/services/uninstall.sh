@@ -8,6 +8,7 @@ DOMAIN="gui/${UID_NUM}"
 labels=(
   com.litview.watchdog
   com.litview.cloudflared
+  com.litview.mcp
   com.litview.brk
   com.litview.litecoin
 )

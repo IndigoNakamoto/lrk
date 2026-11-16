@@ -1,6 +1,80 @@
-use serde_json::json;
+use axum::{
+    body::{Body, to_bytes},
+    http::Request,
+};
+use serde_json::{Value, json};
+use tower::ServiceExt;
 
-use crate::manifest::{Catalog, Pattern};
+use crate::{
+    manifest::{Catalog, Pattern},
+    page::Pages,
+    server,
+};
+
+async fn post(headers: &[(&str, &str)], body: Value) -> Value {
+    let (url, api) = ("http://127.0.0.1:3111/", "http://127.0.0.1:3110");
+    let router = server::router(
+        api.to_owned(),
+        Catalog::embedded(),
+        "Test".to_owned(),
+        url.to_owned(),
+        Pages::render("Test", url, api),
+    );
+    let mut request = Request::post("/")
+        .header("host", "127.0.0.1:3111")
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream");
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    let response = router
+        .oneshot(request.body(Body::from(body.to_string())).unwrap())
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice(&body).unwrap_or_else(|_| {
+        panic!("{status}: {}", String::from_utf8_lossy(&body));
+    })
+}
+
+/// Clients still on the `initialize` handshake are served statelessly, as are 2026-07-28 clients.
+#[tokio::test]
+async fn protocol_versions() {
+    let initialize = post(
+        &[],
+        json!({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": { "name": "legacy", "version": "0" },
+            },
+        }),
+    )
+    .await;
+    assert_eq!(initialize["result"]["protocolVersion"], "2025-06-18", "{initialize}");
+
+    let legacy = post(
+        &[("mcp-protocol-version", "2025-06-18")],
+        json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
+    )
+    .await;
+    assert!(legacy["result"]["tools"].as_array().is_some_and(|t| !t.is_empty()), "{legacy}");
+
+    let modern = post(
+        &[("mcp-protocol-version", "2026-07-28"), ("mcp-method", "tools/list")],
+        json!({
+            "jsonrpc": "2.0", "id": 3, "method": "tools/list",
+            "params": { "_meta": {
+                "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                "io.modelcontextprotocol/clientCapabilities": {},
+            } },
+        }),
+    )
+    .await;
+    assert!(modern["result"]["tools"].as_array().is_some_and(|t| !t.is_empty()), "{modern}");
+}
 
 #[test]
 fn argument_bounds() {

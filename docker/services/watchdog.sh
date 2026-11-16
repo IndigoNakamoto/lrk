@@ -52,15 +52,21 @@ if ! curl -sf --max-time 3 "${rpc_auth_args[@]}" \
   kick com.litview.litecoin
 fi
 
-# BRK HTTP (only alert/kick if process should be managed)
+# Bitview HTTP (only alert/kick if process should be managed)
 if ! curl -sf --max-time 3 "http://127.0.0.1:${BRK_PORT:-7070}/health" >/dev/null 2>&1; then
-  # During deep sync BRK may reset connections; only kick if binary not running.
-  if ! pgrep -qx brk; then
-    log "WARN brk not running — kickstarting com.litview.brk"
+  # During deep sync bitviewd may defer the server; only kick if binary not running.
+  if ! pgrep -qx bitviewd && ! pgrep -qx brk; then
+    log "WARN bitviewd not running — kickstarting com.litview.brk"
     kick com.litview.brk
   else
-    log "INFO brk process up but /health not ready (likely indexing)"
+    log "INFO bitviewd process up but /health not ready (likely indexing)"
   fi
+fi
+
+# MCP (stateless; any answer on its landing page means it's up)
+if ! curl -sf --max-time 3 -o /dev/null "http://127.0.0.1:${MCP_PORT:-3111}/"; then
+  log "WARN bitview_mcp not answering — kickstarting com.litview.mcp"
+  kick com.litview.mcp
 fi
 
 # Tunnel

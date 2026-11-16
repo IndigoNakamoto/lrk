@@ -20,10 +20,12 @@ fi
 echo "Routing DNS for tunnel '$TUNNEL_NAME':"
 echo "  $HOSTNAME"
 echo "  www.$HOSTNAME"
+echo "  mcp.$HOSTNAME"
 echo
 
 cloudflared tunnel route dns "$TUNNEL_NAME" "$HOSTNAME"
 cloudflared tunnel route dns "$TUNNEL_NAME" "www.$HOSTNAME"
+cloudflared tunnel route dns "$TUNNEL_NAME" "mcp.$HOSTNAME"
 
 echo
 echo "Done. DNS may take a minute to propagate."

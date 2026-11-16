@@ -46,7 +46,6 @@ const MAX_CONCURRENCY: usize = 16;
 const CONCURRENCY_WAIT: Duration = Duration::from_secs(5);
 const CATALOG_TTL_MS: u64 = 3_600_000;
 const MAX_UPSTREAM_ERROR_BYTES: usize = 2_048;
-static SUPPORTED_PROTOCOL_VERSIONS: [ProtocolVersion; 1] = [ProtocolVersion::V_2026_07_28];
 
 struct AppState {
     catalog: Catalog,
@@ -73,8 +72,7 @@ pub fn router(
         .with_sse_retry(None)
         .with_legacy_session_mode(false)
         .with_json_response(true)
-        .with_max_request_body_bytes(MAX_REQUEST_BYTES)
-        .with_stateless_protocol_metadata_required(true);
+        .with_max_request_body_bytes(MAX_REQUEST_BYTES);
 
     let state = Arc::new(AppState {
         catalog,
@@ -119,18 +117,18 @@ impl BitviewMcp {
                     ])
                     .with_website_url(&self.state.public_url),
             )
-            .with_instructions(
+            .with_instructions(crate::label(
                 "Read-only Bitcoin analytics tools backed by the Bitview REST API's GET endpoints; \
                  calls never mutate upstream state. Use the list, search, and info tools to discover \
                  identifiers before querying dynamic datasets. Binary responses are returned as \
                  embedded MCP resources.",
-            )
+            ))
     }
 }
 
 impl ServerHandler for BitviewMcp {
     fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
-        Cow::Borrowed(&SUPPORTED_PROTOCOL_VERSIONS)
+        Cow::Borrowed(ProtocolVersion::KNOWN_VERSIONS)
     }
 
     fn discover(
@@ -138,7 +136,7 @@ impl ServerHandler for BitviewMcp {
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<DiscoverResult, McpError>> + Send + '_ {
         ready(Ok(DiscoverResult::from_server_info(
-            SUPPORTED_PROTOCOL_VERSIONS.to_vec(),
+            ProtocolVersion::KNOWN_VERSIONS.to_vec(),
             self.server_info(),
         )
         .with_ttl_ms(CATALOG_TTL_MS)

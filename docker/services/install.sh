@@ -31,28 +31,45 @@ LITECOIN_DATADIR="${LITECOIN_DATADIR:-${CHAIN_DATA_DIR:-$HOME/Library/Applicatio
 # Strip quotes if present from .env
 LITECOIN_DATADIR="${LITECOIN_DATADIR%\"}"
 LITECOIN_DATADIR="${LITECOIN_DATADIR#\"}"
-BRK_DATA_DIR="${BRK_DATA_DIR:-$HOME/.brk}"
+BITVIEW_DATA_DIR="${BITVIEW_DATA_DIR:-${BRK_DATA_DIR:-$HOME/.bitview}}"
+BRK_DATA_DIR="$BITVIEW_DATA_DIR"
 
 mkdir -p "$AGENTS" "$LOGS" "$SUPPORT/services" "$SUPPORT/bin"
 chmod +x "$DIR"/*.sh
 
-echo "Deploying scripts + brk binary to $SUPPORT ..."
-cp -f "$DIR/litecoin.sh" "$DIR/brk.sh" "$DIR/watchdog.sh" "$SUPPORT/services/"
-# Prefer repo release binary; fall back to existing deploy.
-if [[ -x "$REPO_ROOT/target/release/brk" ]]; then
-  cp -f "$REPO_ROOT/target/release/brk" "$SUPPORT/bin/brk"
-elif [[ ! -x "$SUPPORT/bin/brk" ]]; then
-  echo "error: missing $REPO_ROOT/target/release/brk — build with:" >&2
-  echo "  CARGO_TARGET_DIR=$REPO_ROOT/target cargo build --release -p brk_cli --features litecoin" >&2
+echo "Deploying scripts + bitviewd binary to $SUPPORT ..."
+cp -f "$DIR/litecoin.sh" "$DIR/brk.sh" "$DIR/mcp.sh" "$DIR/watchdog.sh" "$SUPPORT/services/"
+# Prefer repo release-ltc binary; fall back to existing deploy.
+if [[ -x "$REPO_ROOT/target/release-ltc/bitviewd" ]]; then
+  cp -f "$REPO_ROOT/target/release-ltc/bitviewd" "$SUPPORT/bin/bitviewd"
+elif [[ -x "$REPO_ROOT/target/release/bitviewd" ]]; then
+  cp -f "$REPO_ROOT/target/release/bitviewd" "$SUPPORT/bin/bitviewd"
+elif [[ ! -x "$SUPPORT/bin/bitviewd" ]]; then
+  echo "error: missing $REPO_ROOT/target/release-ltc/bitviewd — build with:" >&2
+  echo "  CARGO_TARGET_DIR=$REPO_ROOT/target cargo build --profile release-ltc -p bitviewd --features litecoin" >&2
   exit 1
 fi
-chmod +x "$SUPPORT/services/"*.sh "$SUPPORT/bin/brk"
+chmod +x "$SUPPORT/services/"*.sh "$SUPPORT/bin/bitviewd"
+# Keep a `brk` alias so older tooling/docs still find the daemon binary.
+ln -sfn bitviewd "$SUPPORT/bin/brk"
+if [[ -x "$REPO_ROOT/target/release-ltc/bitview_mcp" ]]; then
+  cp -f "$REPO_ROOT/target/release-ltc/bitview_mcp" "$SUPPORT/bin/bitview_mcp"
+elif [[ ! -x "$SUPPORT/bin/bitview_mcp" ]]; then
+  echo "error: missing $REPO_ROOT/target/release-ltc/bitview_mcp — build with:" >&2
+  echo "  CARGO_TARGET_DIR=$REPO_ROOT/target cargo build --profile release-ltc -p bitview_mcp --features litecoin" >&2
+  exit 1
+fi
+chmod +x "$SUPPORT/bin/bitview_mcp"
 
 # Local copies tuned for Application Support layout
 sed -i '' \
   -e 's|^ROOT=.*|ROOT="${LITVIEW_ROOT:-$HOME/Library/Application Support/litview}"|' \
-  -e 's|BRK_BIN="${BRK_BIN:-$ROOT/target/release/brk}"|BRK_BIN="${BRK_BIN:-$ROOT/bin/brk}"|' \
+  -e 's|BRK_BIN="${BRK_BIN:-$ROOT/target/release-ltc/bitviewd}"|BRK_BIN="${BRK_BIN:-$ROOT/bin/bitviewd}"|' \
   "$SUPPORT/services/brk.sh"
+sed -i '' \
+  -e 's|^ROOT=.*|ROOT="${LITVIEW_ROOT:-$HOME/Library/Application Support/litview}"|' \
+  -e 's|MCP_BIN="${MCP_BIN:-$ROOT/target/release-ltc/bitview_mcp}"|MCP_BIN="${MCP_BIN:-$ROOT/bin/bitview_mcp}"|' \
+  "$SUPPORT/services/mcp.sh"
 sed -i '' \
   -e 's|^ROOT=.*|ROOT="${LITVIEW_ROOT:-$HOME/Library/Application Support/litview}"|' \
   "$SUPPORT/services/watchdog.sh"
@@ -79,9 +96,10 @@ exec "\$QT" -daemon -datadir="\$DATADIR" -pid="\$PIDFILE"
 EOF
 chmod +x "$SUPPORT/start-litecoin.sh"
 
-echo "Stopping Docker brk (native brk will own :7070)..."
+echo "Stopping Docker bitview/brk (native bitviewd will own :7070)..."
+docker update --restart=no bitview 2>/dev/null || true
 docker update --restart=no brk 2>/dev/null || true
-docker compose -f "$DIR/../docker-compose.yml" stop brk 2>/dev/null || true
+docker compose -f "$DIR/../docker-compose.yml" stop bitview brk 2>/dev/null || true
 
 echo "Stopping manual litview cloudflared (if any)..."
 # Only the litview config — do not touch other Cloudflare tunnels on this Mac.
@@ -137,12 +155,16 @@ PLIST
     <string>${LITECOIN_DATADIR}</string>
     <key>BRK_DATA_DIR</key>
     <string>${BRK_DATA_DIR}</string>
+    <key>BITVIEW_DATA_DIR</key>
+    <string>${BITVIEW_DATA_DIR}</string>
     <key>BRK_BIN</key>
-    <string>${SUPPORT}/bin/brk</string>
+    <string>${SUPPORT}/bin/bitviewd</string>
+    <key>MCP_BIN</key>
+    <string>${SUPPORT}/bin/bitview_mcp</string>
     <key>LITVIEW_ENV</key>
     <string>${SUPPORT}/.env</string>
     <key>BRK_WEBSITE</key>
-    <string>${REPO_ROOT}/website</string>
+    <string>true</string>
     <key>LOG</key>
     <string>info</string>
   </dict>
@@ -196,6 +218,9 @@ fi
 write_plist com.litview.brk "$SUPPORT/services/brk.sh" brk true
 load_label com.litview.brk
 
+write_plist com.litview.mcp "$SUPPORT/services/mcp.sh" mcp true
+load_label com.litview.mcp
+
 write_plist com.litview.watchdog "$SUPPORT/services/watchdog.sh" watchdog false 60
 load_label com.litview.watchdog
 
@@ -218,6 +243,8 @@ echo
 echo "Done. Logs: $LOGS"
 echo "  launchctl print $DOMAIN/com.litview.brk | head"
 echo "  tail -f $LOGS/brk.out.log"
-echo "  data: LITECOIN_DATADIR=$LITECOIN_DATADIR  BRK_DATA_DIR=$BRK_DATA_DIR"
+echo "  tail -f $LOGS/mcp.err.log   (MCP on :3111 -> mcp.litview.space)"
+echo "  data: LITECOIN_DATADIR=$LITECOIN_DATADIR  BITVIEW_DATA_DIR=$BITVIEW_DATA_DIR"
 echo
-echo "Note: leave Docker Desktop brk stopped. Index resumes from BRK_DATA_DIR."
+echo "Note: leave Docker Desktop bitview stopped. Fresh Bitview dirs reindex from genesis;"
+echo "      keep /Volumes/LTC/brk as the old 0.11 archive — do not point BITVIEW_DATA_DIR at it."
