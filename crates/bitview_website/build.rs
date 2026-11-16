@@ -339,8 +339,8 @@ const FACTS: &[(&str, &str, &str)] = &[
         "dev/index.html",
         r#"<span class="label">Install, or update</span><button type="button" data-copy='rustup update &amp;&amp; RUSTFLAGS="-C target-cpu=native" cargo install --locked bitviewd'>Copy</button></div>
           <pre class="terminal"><span class="line"><span class="prompt">$</span> rustup update &amp;&amp; RUSTFLAGS="-C <span class="w">target-cpu=native</span>" cargo install <span class="w">--locked</span> bitviewd</span>"#,
-        r#"<span class="label">Install</span><button type="button" data-copy='git clone https://github.com/IndigoNakamoto/lrk &amp;&amp; cd lrk &amp;&amp; RUSTFLAGS="-C target-cpu=native" cargo install --locked --path crates/bitviewd --features litecoin --profile release-ltc'>Copy</button></div>
-          <pre class="terminal"><span class="line"><span class="prompt">$</span> git clone https://github.com/IndigoNakamoto/lrk &amp;&amp; cd lrk</span><span class="line"><span class="prompt">$</span> RUSTFLAGS="-C <span class="w">target-cpu=native</span>" cargo install <span class="w">--locked</span> --path crates/bitviewd <span class="w">--features litecoin --profile release-ltc</span></span>"#,
+        r#"<span class="label">Install</span><button type="button" data-copy='git clone https://github.com/LitecoinResearchKit/lrk &amp;&amp; cd lrk &amp;&amp; RUSTFLAGS="-C target-cpu=native" cargo install --locked --path crates/bitviewd --features litecoin --profile release-ltc'>Copy</button></div>
+          <pre class="terminal"><span class="line"><span class="prompt">$</span> git clone https://github.com/LitecoinResearchKit/lrk &amp;&amp; cd lrk</span><span class="line"><span class="prompt">$</span> RUSTFLAGS="-C <span class="w">target-cpu=native</span>" cargo install <span class="w">--locked</span> --path crates/bitviewd <span class="w">--features litecoin --profile release-ltc</span></span>"#,
     ),
     (
         "dev/index.html",
@@ -355,7 +355,7 @@ const FACTS: &[(&str, &str, &str)] = &[
     (
         "index.html",
         r#"copy: "cargo install --locked bitviewd" }"#,
-        r#"copy: "git clone https://github.com/IndigoNakamoto/lrk && cd lrk && cargo install --locked --path crates/bitviewd --features litecoin --profile release-ltc" }"#,
+        r#"copy: "git clone https://github.com/LitecoinResearchKit/lrk && cd lrk && cargo install --locked --path crates/bitviewd --features litecoin --profile release-ltc" }"#,
     ),
     (
         "index.html",
