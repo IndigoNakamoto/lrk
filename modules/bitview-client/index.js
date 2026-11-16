@@ -138,7 +138,7 @@ cursor skips the mempool). One that is neither answers 422.
  * @property {number} segwitTotalSize - Total size of segwit transactions in bytes
  * @property {Weight} segwitTotalWeight
  * @property {Hex} header - Raw 80-byte block header as hex
- * @property {number} utxoSetChange - UTXO set change as mempool.space and bitcoin-cli report it: total outputs minus total
+ * @property {number} utxoSetChange - UTXO set change as mempool.space and litecoin-cli report it: total outputs minus total
 inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
  * @property {number} utxoSetSize - Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
  * @property {Sats} totalInputAmt - Total input amount in litoshis
@@ -252,7 +252,7 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {BlockExtras} extras
  */
 /**
- * A stale block at a height of the best chain: a fork tip the node knows (bitcoind's
+ * A stale block at a height of the best chain: a fork tip the node knows (litecoind's
  * `getchaintips`), as mempool.space lists it.
  *
  * @typedef {Object} BlockOrphan
@@ -263,7 +263,7 @@ sequence isn't final), from timestamp 1,771,507,776 on; null before
  * @property {BlockHash} prevhash - Hash of the block the stale block builds on
  */
 /**
- * How far the node validated a fork tip (bitcoind's `getchaintips` statuses other than
+ * How far the node validated a fork tip (litecoind's `getchaintips` statuses other than
  * `active`).
  *
  * @typedef {(("invalid")|("headers-only")|("valid-headers")|("valid-fork"))} BlockOrphanStatus
@@ -4329,6 +4329,76 @@ const _Fullness = _s({
 });
 
 /**
+ * @template A, B
+ * @typedef {{
+ *   block: SeriesPattern18<A>,
+ *   cumulative: SeriesPattern1<A>,
+ *   sum: Windows<A>,
+ *   avg: Windows<B>,
+ *   min: Windows<A>,
+ *   max: Windows<A>,
+ *   p10: Windows<A>,
+ *   p25: Windows<A>,
+ *   median: Windows<A>,
+ *   p75: Windows<A>,
+ *   p90: Windows<A>,
+ * }} FlowStats
+ */
+const _FlowStats = _s({
+  block: [_i18, '*'],
+  cumulative: [_i1, '*_cumulative'],
+  sum: [_Windows, '*_sum'],
+  avg: [_Windows, '*_avg'],
+  min: [_Windows, '*_min'],
+  max: [_Windows, '*_max'],
+  p10: [_Windows, '*_p10'],
+  p25: [_Windows, '*_p25'],
+  median: [_Windows, '*_median'],
+  p75: [_Windows, '*_p75'],
+  p90: [_Windows, '*_p90'],
+});
+
+/**
+ * @template A, B
+ * @typedef {{
+ *   block: SeriesPattern18<A>,
+ *   avg: Windows<B>,
+ * }} Averaged
+ */
+const _Averaged = _s({
+  block: [_i18, '*'],
+  avg: [_Windows, '*_avg'],
+});
+
+/**
+ * @typedef {{
+ *   reactivated: Averaged<Count, ?CountFract>,
+ *   sending: Averaged<Count, ?CountFract>,
+ *   receiving: Averaged<Count, ?CountFract>,
+ *   bidirectional: Averaged<Count, ?CountFract>,
+ *   active: Averaged<Count, ?CountFract>,
+ * }} AddressesActivity
+ */
+const _AddressesActivity = _s({
+  reactivated: [_Averaged, '*_reactivated_address_count'],
+  sending: [_Averaged, '*_sending_address_count'],
+  receiving: [_Averaged, '*_receiving_address_count'],
+  bidirectional: [_Averaged, '*_bidirectional_address_count'],
+  active: [_Averaged, '*_active_address_count'],
+});
+
+/**
+ * @typedef {{
+ *   cumulative: SeriesPattern1<Count>,
+ *   sum: Windows<Count>,
+ * }} CumulativeFlow
+ */
+const _CumulativeFlow = _s({
+  cumulative: [_i1, '*_cumulative'],
+  sum: [_Windows, '*_sum'],
+});
+
+/**
  * @template A
  * @typedef {{
  *   block: SeriesPattern18<A>,
@@ -4461,6 +4531,71 @@ const _AdjustedRealized = _s({
 });
 
 /**
+ * @template A
+ * @typedef {{
+ *   count: A,
+ *   share: Share,
+ * }} EventCount
+ */
+/** @type {_Make} */
+const _EventCount = (c, b, f0) => _n(c, b, {
+  count: [f0, '*_count'],
+  share: [_Share, '*_share'],
+});
+
+/**
+ * @typedef {{
+ *   outputs: EventCount<Flow<Count>>,
+ *   inputs: EventCount<Flow<Count>>,
+ *   active: EventCount<Averaged<Count, ?CountFract>>,
+ * }} ReuseEvents
+ */
+const _ReuseEvents = _s({
+  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_respent_address'],
+  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_respent_address'],
+  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_respent_address'],
+});
+
+/**
+ * @typedef {{
+ *   count: RespentCount,
+ *   supply: PredicateSupply,
+ *   events: ReuseEvents,
+ * }} Respent
+ */
+const _Respent = _s({
+  count: [_RespentCount, '*'],
+  supply: [_PredicateSupply, '*_respent_address_supply'],
+  events: [_ReuseEvents, '*'],
+});
+
+/**
+ * @typedef {{
+ *   outputs: EventCount<Flow<Count>>,
+ *   inputs: EventCount<Flow<Count>>,
+ *   active: EventCount<Averaged<Count, ?CountFract>>,
+ * }} AddressesReuseEvents
+ */
+const _AddressesReuseEvents = _s({
+  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_reused_address'],
+  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_reused_address'],
+  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_reused_address'],
+});
+
+/**
+ * @typedef {{
+ *   count: ReusedCount,
+ *   supply: PredicateSupply,
+ *   events: AddressesReuseEvents,
+ * }} Reused
+ */
+const _Reused = _s({
+  count: [_ReusedCount, '*'],
+  supply: [_PredicateSupply, '*_reused_address_supply'],
+  events: [_AddressesReuseEvents, '*'],
+});
+
+/**
  * @typedef {{
  *   profit: Flow<?Dollars>,
  *   loss: Flow<?Dollars>,
@@ -4582,36 +4717,6 @@ const _SpendableType = _s({
 });
 
 /**
- * @template A, B
- * @typedef {{
- *   block: SeriesPattern18<A>,
- *   cumulative: SeriesPattern1<A>,
- *   sum: Windows<A>,
- *   avg: Windows<B>,
- *   min: Windows<A>,
- *   max: Windows<A>,
- *   p10: Windows<A>,
- *   p25: Windows<A>,
- *   median: Windows<A>,
- *   p75: Windows<A>,
- *   p90: Windows<A>,
- * }} FlowStats
- */
-const _FlowStats = _s({
-  block: [_i18, '*'],
-  cumulative: [_i1, '*_cumulative'],
-  sum: [_Windows, '*_sum'],
-  avg: [_Windows, '*_avg'],
-  min: [_Windows, '*_min'],
-  max: [_Windows, '*_max'],
-  p10: [_Windows, '*_p10'],
-  p25: [_Windows, '*_p25'],
-  median: [_Windows, '*_median'],
-  p75: [_Windows, '*_p75'],
-  p90: [_Windows, '*_p90'],
-});
-
-/**
  * @typedef {{
  *   count: FlowStats<Count, ?CountFract>,
  *   perSecond: Windows<?PerSecond>,
@@ -4622,111 +4727,6 @@ const _Inputs = _s({
   count: [_FlowStats, '*_count'],
   perSecond: [_Windows, 'inputs_per_second'],
   types: [_SpendableType, '*'],
-});
-
-/**
- * @template A, B
- * @typedef {{
- *   block: SeriesPattern18<A>,
- *   avg: Windows<B>,
- * }} Averaged
- */
-const _Averaged = _s({
-  block: [_i18, '*'],
-  avg: [_Windows, '*_avg'],
-});
-
-/**
- * @template A
- * @typedef {{
- *   count: A,
- *   share: Share,
- * }} EventCount
- */
-/** @type {_Make} */
-const _EventCount = (c, b, f0) => _n(c, b, {
-  count: [f0, '*_count'],
-  share: [_Share, '*_share'],
-});
-
-/**
- * @typedef {{
- *   outputs: EventCount<Flow<Count>>,
- *   inputs: EventCount<Flow<Count>>,
- *   active: EventCount<Averaged<Count, ?CountFract>>,
- * }} ReuseEvents
- */
-const _ReuseEvents = _s({
-  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_respent_address'],
-  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_respent_address'],
-  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_respent_address'],
-});
-
-/**
- * @typedef {{
- *   count: RespentCount,
- *   supply: PredicateSupply,
- *   events: ReuseEvents,
- * }} Respent
- */
-const _Respent = _s({
-  count: [_RespentCount, '*'],
-  supply: [_PredicateSupply, '*_respent_address_supply'],
-  events: [_ReuseEvents, '*'],
-});
-
-/**
- * @typedef {{
- *   outputs: EventCount<Flow<Count>>,
- *   inputs: EventCount<Flow<Count>>,
- *   active: EventCount<Averaged<Count, ?CountFract>>,
- * }} AddressesReuseEvents
- */
-const _AddressesReuseEvents = _s({
-  outputs: [(c, b) => _EventCount(c, b, _Flow), '*_output_to_reused_address'],
-  inputs: [(c, b) => _EventCount(c, b, _Flow), '*_input_from_reused_address'],
-  active: [(c, b) => _EventCount(c, b, _Averaged), '*_active_reused_address'],
-});
-
-/**
- * @typedef {{
- *   count: ReusedCount,
- *   supply: PredicateSupply,
- *   events: AddressesReuseEvents,
- * }} Reused
- */
-const _Reused = _s({
-  count: [_ReusedCount, '*'],
-  supply: [_PredicateSupply, '*_reused_address_supply'],
-  events: [_AddressesReuseEvents, '*'],
-});
-
-/**
- * @typedef {{
- *   reactivated: Averaged<Count, ?CountFract>,
- *   sending: Averaged<Count, ?CountFract>,
- *   receiving: Averaged<Count, ?CountFract>,
- *   bidirectional: Averaged<Count, ?CountFract>,
- *   active: Averaged<Count, ?CountFract>,
- * }} AddressesActivity
- */
-const _AddressesActivity = _s({
-  reactivated: [_Averaged, '*_reactivated_address_count'],
-  sending: [_Averaged, '*_sending_address_count'],
-  receiving: [_Averaged, '*_receiving_address_count'],
-  bidirectional: [_Averaged, '*_bidirectional_address_count'],
-  active: [_Averaged, '*_active_address_count'],
-});
-
-/**
- * @typedef {{
- *   cumulative: SeriesPattern1<Count>,
- *   sum: Windows<Count>,
- * }} CumulativeFlow
- */
-const _CumulativeFlow = _s({
-  cumulative: [_i1, '*_cumulative'],
-  sum: [_Windows, '*_sum'],
 });
 
 /**
@@ -6031,7 +6031,7 @@ const _Outputs = _s({
  *   mwebSupply: SeriesPattern1<?Bitcoin>,
  *   pegIn: ValueFlow,
  *   pegOut: ValueFlow,
- *   fee: ValueFlow,
+ *   kernels: Flow<Count>,
  *   netFlow: SeriesPattern1<SatsSigned>,
  *   peginCount: SeriesPattern1<Count32>,
  *   pegoutCount: SeriesPattern1<Count32>,
@@ -6042,7 +6042,7 @@ const _Mweb = _s({
   mwebSupply: [_i1, '*_supply'],
   pegIn: [_ValueFlow, '*_peg_in'],
   pegOut: [_ValueFlow, '*_peg_out'],
-  fee: [_ValueFlow, '*_fee'],
+  kernels: [_Flow, '*_kernels'],
   netFlow: [_i1, '*_net_flow'],
   peginCount: [_i1, '*_pegin_count'],
   pegoutCount: [_i1, '*_pegout_count'],
@@ -7700,7 +7700,7 @@ class BitviewClient extends BitviewClientBase {
   /**
    * Health check
    *
-   * Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a bitcoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
+   * Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a litecoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
    *
    * Endpoint: `GET /health`
    * @param {{ signal?: AbortSignal, onValue?: (value: Health) => void, cache?: boolean, memCache?: boolean }} [options]

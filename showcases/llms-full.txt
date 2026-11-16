@@ -5,7 +5,7 @@
 - Version: `v0.13.0`
 - Base URL: https://bitview.space
 - MCP endpoint: https://mcp.bitview.space/
-- Metrics: 17030
+- Metrics: 17024
 - Operations: 98
 
 For machine-readable tool construction, use [https://bitview.space/openapi.json](https://bitview.space/openapi.json). For the complete source-derived series tree, use [https://bitview.space/api/series](https://bitview.space/api/series).
@@ -345,7 +345,7 @@ Returns: JSON `ReplacementNode[]`
 
 Health check
 
-Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a bitcoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
+Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a litecoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
 
 Returns: JSON `Health`
 
@@ -1169,7 +1169,7 @@ Returns: JSON `ServerVersion`
 - `segwitTotalSize`: `integer` (required) — Total size of segwit transactions in bytes
 - `segwitTotalWeight`: `Weight` (required)
 - `header`: `Hex` (required) — Raw 80-byte block header as hex
-- `utxoSetChange`: `integer` (required) — UTXO set change as mempool.space and bitcoin-cli report it: total outputs minus total inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
+- `utxoSetChange`: `integer` (required) — UTXO set change as mempool.space and litecoin-cli report it: total outputs minus total inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
 - `utxoSetSize`: `integer` (required) — Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
 - `totalInputAmt`: `Sats` (required) — Total input amount in litoshis
 - `virtualSize`: `number` (required) — Virtual size in vbytes: weight / 4, unrounded

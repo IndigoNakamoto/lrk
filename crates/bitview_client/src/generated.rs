@@ -1069,6 +1069,34 @@ pub mod tree {
         p75: Windows<Option<Percent>> = "*_p75",
         p90: Windows<Option<Percent>> = "*_p90",
     } }
+    shape! { FlowStats<A, B> at "series().blocks.size" {
+        block: SeriesPattern18<A> = "*",
+        cumulative: SeriesPattern1<A> = "*_cumulative",
+        sum: Windows<A> = "*_sum",
+        avg: Windows<B> = "*_avg",
+        min: Windows<A> = "*_min",
+        max: Windows<A> = "*_max",
+        p10: Windows<A> = "*_p10",
+        p25: Windows<A> = "*_p25",
+        median: Windows<A> = "*_median",
+        p75: Windows<A> = "*_p75",
+        p90: Windows<A> = "*_p90",
+    } }
+    shape! { Averaged<A, B> at "series().blocks.interval" {
+        block: SeriesPattern18<A> = "*",
+        avg: Windows<B> = "*_avg",
+    } }
+    shape! { AddressesActivity at "series().addresses.activity" {
+        reactivated: Averaged<Count, Option<CountFract>> = "*_reactivated_address_count",
+        sending: Averaged<Count, Option<CountFract>> = "*_sending_address_count",
+        receiving: Averaged<Count, Option<CountFract>> = "*_receiving_address_count",
+        bidirectional: Averaged<Count, Option<CountFract>> = "*_bidirectional_address_count",
+        active: Averaged<Count, Option<CountFract>> = "*_active_address_count",
+    } }
+    shape! { CumulativeFlow at "series().blocks.count" {
+        cumulative: SeriesPattern1<Count> = "*_cumulative",
+        sum: Windows<Count> = "*_sum",
+    } }
     shape! { Flow<A> at "series().blocks.sigop_cost" {
         block: SeriesPattern18<A> = "*",
         cumulative: SeriesPattern1<A> = "*_cumulative",
@@ -1124,6 +1152,30 @@ pub mod tree {
         sell_side_risk_ratio: Windows<Option<Ratio>> = "*_sell_side_risk_ratio",
         adjusted_sopr: AdjustedSopr = "*_adjusted",
     } }
+    shape! { EventCount<A> at "series().addresses.respent.events.active" {
+        count: A = "*_count",
+        share: Share = "*_share",
+    } }
+    shape! { ReuseEvents at "series().addresses.respent.events" {
+        outputs: EventCount<Flow<Count>> = "*_output_to_respent_address",
+        inputs: EventCount<Flow<Count>> = "*_input_from_respent_address",
+        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_respent_address",
+    } }
+    shape! { Respent at "series().addresses.respent" {
+        count: RespentCount = "*",
+        supply: PredicateSupply = "*_respent_address_supply",
+        events: ReuseEvents = "*",
+    } }
+    shape! { AddressesReuseEvents at "series().addresses.reused.events" {
+        outputs: EventCount<Flow<Count>> = "*_output_to_reused_address",
+        inputs: EventCount<Flow<Count>> = "*_input_from_reused_address",
+        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_reused_address",
+    } }
+    shape! { Reused at "series().addresses.reused" {
+        count: ReusedCount = "*",
+        supply: PredicateSupply = "*_reused_address_supply",
+        events: AddressesReuseEvents = "*",
+    } }
     shape! { Realized at "series().addresses.balances._100_to_1k_btc.realized" {
         profit: Flow<Option<Dollars>> = "*_profit",
         loss: Flow<Option<Dollars>> = "*_loss",
@@ -1174,62 +1226,10 @@ pub mod tree {
         empty_script: OutputTypeSeries = "empty_script_*",
         unknown_script: OutputTypeSeries = "unknown_script_*",
     } }
-    shape! { FlowStats<A, B> at "series().blocks.size" {
-        block: SeriesPattern18<A> = "*",
-        cumulative: SeriesPattern1<A> = "*_cumulative",
-        sum: Windows<A> = "*_sum",
-        avg: Windows<B> = "*_avg",
-        min: Windows<A> = "*_min",
-        max: Windows<A> = "*_max",
-        p10: Windows<A> = "*_p10",
-        p25: Windows<A> = "*_p25",
-        median: Windows<A> = "*_median",
-        p75: Windows<A> = "*_p75",
-        p90: Windows<A> = "*_p90",
-    } }
     shape! { Inputs at "series().inputs" {
         count: FlowStats<Count, Option<CountFract>> = "*_count",
         per_second: Windows<Option<PerSecond>> = "inputs_per_second",
         types: SpendableType = "*",
-    } }
-    shape! { Averaged<A, B> at "series().blocks.interval" {
-        block: SeriesPattern18<A> = "*",
-        avg: Windows<B> = "*_avg",
-    } }
-    shape! { EventCount<A> at "series().addresses.respent.events.active" {
-        count: A = "*_count",
-        share: Share = "*_share",
-    } }
-    shape! { ReuseEvents at "series().addresses.respent.events" {
-        outputs: EventCount<Flow<Count>> = "*_output_to_respent_address",
-        inputs: EventCount<Flow<Count>> = "*_input_from_respent_address",
-        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_respent_address",
-    } }
-    shape! { Respent at "series().addresses.respent" {
-        count: RespentCount = "*",
-        supply: PredicateSupply = "*_respent_address_supply",
-        events: ReuseEvents = "*",
-    } }
-    shape! { AddressesReuseEvents at "series().addresses.reused.events" {
-        outputs: EventCount<Flow<Count>> = "*_output_to_reused_address",
-        inputs: EventCount<Flow<Count>> = "*_input_from_reused_address",
-        active: EventCount<Averaged<Count, Option<CountFract>>> = "*_active_reused_address",
-    } }
-    shape! { Reused at "series().addresses.reused" {
-        count: ReusedCount = "*",
-        supply: PredicateSupply = "*_reused_address_supply",
-        events: AddressesReuseEvents = "*",
-    } }
-    shape! { AddressesActivity at "series().addresses.activity" {
-        reactivated: Averaged<Count, Option<CountFract>> = "*_reactivated_address_count",
-        sending: Averaged<Count, Option<CountFract>> = "*_sending_address_count",
-        receiving: Averaged<Count, Option<CountFract>> = "*_receiving_address_count",
-        bidirectional: Averaged<Count, Option<CountFract>> = "*_bidirectional_address_count",
-        active: Averaged<Count, Option<CountFract>> = "*_active_address_count",
-    } }
-    shape! { CumulativeFlow at "series().blocks.count" {
-        cumulative: SeriesPattern1<Count> = "*_cumulative",
-        sum: Windows<Count> = "*_sum",
     } }
     shape! { Blocks at "series().blocks" {
         count: CumulativeFlow = "*_count",
@@ -1391,7 +1391,7 @@ pub mod tree {
         in_profit: Value = "*_in_profit",
         in_loss: Value = "*_in_loss",
     } }
-    shape! { MwebWindows at "series().mweb.fee.sum" {
+    shape! { MwebWindows at "series().mweb.peg_in.sum" {
         _24h: Value = "*_24h",
         _1w: Value = "*_1w",
         _1m: Value = "*_1m",
@@ -1448,7 +1448,7 @@ pub mod tree {
         hyperdonkey: Pool = "*_hyperdonkey",
         zergpool: Pool = "*_zergpool",
     } }
-    shape! { MwebValue at "series().mweb.fee.block" {
+    shape! { MwebValue at "series().mweb.peg_in.block" {
         btc: SeriesPattern18<Option<Bitcoin>> = "*",
         usd: SeriesPattern18<Option<Dollars>> = "*_usd",
     } }
@@ -1535,7 +1535,7 @@ pub mod tree {
         share: Share = "*_tx_share",
         fees: FeesSeries = "*",
     } }
-    shape! { ValueFlow at "series().mweb.fee" {
+    shape! { ValueFlow at "series().mweb.peg_in" {
         block: MwebValue = "*",
         cumulative: Value = "*_cumulative",
         sum: MwebWindows = "*_sum",
@@ -1782,7 +1782,7 @@ pub mod tree {
         mweb_supply: SeriesPattern1<Option<Bitcoin>> = "*_supply",
         peg_in: ValueFlow = "*_peg_in",
         peg_out: ValueFlow = "*_peg_out",
-        fee: ValueFlow = "*_fee",
+        kernels: Flow<Count> = "*_kernels",
         net_flow: SeriesPattern1<SatsSigned> = "*_net_flow",
         pegin_count: SeriesPattern1<Count32> = "*_pegin_count",
         pegout_count: SeriesPattern1<Count32> = "*_pegout_count",
@@ -2254,7 +2254,7 @@ impl BitviewClient {
 
     /// Health check
     ///
-    /// Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a bitcoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
+    /// Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a litecoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
     ///
     /// Endpoint: `GET /health`
     pub fn get_health(&self) -> Result<Health> {

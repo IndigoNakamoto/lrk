@@ -2,7 +2,7 @@ use bitview_compute::{prepare_computed, write_locked};
 use bitview_plugin::{ComputePlugin, UpdateContext, compute_items};
 use bitview_plugin_indexer::Indexer;
 use bitview_primitives::TxOutIndex;
-use bitview_primitives::{Boolean, Count32};
+use bitview_primitives::{Boolean, Count, Count32};
 use brk_error::{OptionData, Result};
 use brk_exit::Exit;
 use brk_types::{
@@ -247,6 +247,12 @@ impl ComputePlugin for Vecs {
         self.peg_in.compute_cents(from, prices, exit)?;
         self.peg_out.compute_cents(from, prices, exit)?;
         self.fee.compute_cents(from, prices, exit)?;
+        self.kernels.compute_cumulative_transformed(
+            from,
+            &indexer.vecs().mweb.kernel_count,
+            Count::from,
+            exit,
+        )?;
         Ok(())
     }
 }
