@@ -288,7 +288,7 @@ Boolean = bool
 # Position of a transaction within a single block (0 = coinbase).
 # Distinct from `TxIndex`, which is the chain-wide global tx index.
 BlockTxIndex = int
-# How far the node validated a fork tip (bitcoind's `getchaintips` statuses other than
+# How far the node validated a fork tip (litecoind's `getchaintips` statuses other than
 # `active`).
 BlockOrphanStatus = Union[Literal["invalid"], Literal["headers-only"], Literal["valid-headers"], Literal["valid-fork"]]
 # Double-SHA256 block-header hash, serialized in Litecoin's conventional
@@ -1403,7 +1403,7 @@ class BlockStatus(_BlockStatusRequired, total=False):
 
 class BlockOrphan(TypedDict):
     """
-    A stale block at a height of the best chain: a fork tip the node knows (bitcoind's
+    A stale block at a height of the best chain: a fork tip the node knows (litecoind's
     `getchaintips`), as mempool.space lists it.
 
     Attributes:
@@ -1792,7 +1792,7 @@ class BlockExtras(_BlockExtrasRequired, total=False):
         feePercentiles: Fee amount percentiles in litoshis: [min, 10%, 25%, 50%, 75%, 90%, max]
         segwitTotalSize: Total size of segwit transactions in bytes
         header: Raw 80-byte block header as hex
-        utxoSetChange: UTXO set change as mempool.space and bitcoin-cli report it: total outputs minus total inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
+        utxoSetChange: UTXO set change as mempool.space and litecoin-cli report it: total outputs minus total inputs, unspendable outputs (OP_RETURN) included, unlike `utxoSetSize`
         utxoSetSize: Total spendable UTXO set size at this height (excludes OP_RETURN and other unspendable outputs)
         totalInputAmt: Total input amount in litoshis
         virtualSize: Virtual size in vbytes: weight / 4, unrounded
@@ -3757,6 +3757,38 @@ class Fullness(_Node):
     p90: Windows[Optional[Percent]] = _at(Windows, '*_p90')
 
 
+class FlowStats(_Node, Generic[A, B]):
+    block: SeriesPattern18[A] = _at(SeriesPattern18, '*')
+    cumulative: SeriesPattern1[A] = _at(SeriesPattern1, '*_cumulative')
+    sum: Windows[A] = _at(Windows, '*_sum')
+    avg: Windows[B] = _at(Windows, '*_avg')
+    min: Windows[A] = _at(Windows, '*_min')
+    max: Windows[A] = _at(Windows, '*_max')
+    p10: Windows[A] = _at(Windows, '*_p10')
+    p25: Windows[A] = _at(Windows, '*_p25')
+    median: Windows[A] = _at(Windows, '*_median')
+    p75: Windows[A] = _at(Windows, '*_p75')
+    p90: Windows[A] = _at(Windows, '*_p90')
+
+
+class Averaged(_Node, Generic[A, B]):
+    block: SeriesPattern18[A] = _at(SeriesPattern18, '*')
+    avg: Windows[B] = _at(Windows, '*_avg')
+
+
+class AddressesActivity(_Node):
+    reactivated: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_reactivated_address_count')
+    sending: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_sending_address_count')
+    receiving: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_receiving_address_count')
+    bidirectional: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_bidirectional_address_count')
+    active: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_active_address_count')
+
+
+class CumulativeFlow(_Node):
+    cumulative: SeriesPattern1[Count] = _at(SeriesPattern1, '*_cumulative')
+    sum: Windows[Count] = _at(Windows, '*_sum')
+
+
 class Flow(_Node, Generic[A]):
     block: SeriesPattern18[A] = _at(SeriesPattern18, '*')
     cumulative: SeriesPattern1[A] = _at(SeriesPattern1, '*_cumulative')
@@ -3819,6 +3851,35 @@ class AdjustedRealized(_Node):
     adjusted_sopr: AdjustedSopr = _at(AdjustedSopr, '*_adjusted')
 
 
+class EventCount(_Node, Generic[A]):
+    count: A = _at(0, '*_count')
+    share: Share = _at(Share, '*_share')
+
+
+class ReuseEvents(_Node):
+    outputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_output_to_respent_address')
+    inputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_input_from_respent_address')
+    active: EventCount[Averaged[Count, Optional[CountFract]]] = _at((EventCount, Averaged), '*_active_respent_address')
+
+
+class Respent(_Node):
+    count: RespentCount = _at(RespentCount, '*')
+    supply: PredicateSupply = _at(PredicateSupply, '*_respent_address_supply')
+    events: ReuseEvents = _at(ReuseEvents, '*')
+
+
+class AddressesReuseEvents(_Node):
+    outputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_output_to_reused_address')
+    inputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_input_from_reused_address')
+    active: EventCount[Averaged[Count, Optional[CountFract]]] = _at((EventCount, Averaged), '*_active_reused_address')
+
+
+class Reused(_Node):
+    count: ReusedCount = _at(ReusedCount, '*')
+    supply: PredicateSupply = _at(PredicateSupply, '*_reused_address_supply')
+    events: AddressesReuseEvents = _at(AddressesReuseEvents, '*')
+
+
 class Realized(_Node):
     profit: Flow[Optional[Dollars]] = _at(Flow, '*_profit')
     loss: Flow[Optional[Dollars]] = _at(Flow, '*_loss')
@@ -3876,71 +3937,10 @@ class SpendableType(_Node):
     unknown_script: OutputTypeSeries = _at(OutputTypeSeries, 'unknown_script_*')
 
 
-class FlowStats(_Node, Generic[A, B]):
-    block: SeriesPattern18[A] = _at(SeriesPattern18, '*')
-    cumulative: SeriesPattern1[A] = _at(SeriesPattern1, '*_cumulative')
-    sum: Windows[A] = _at(Windows, '*_sum')
-    avg: Windows[B] = _at(Windows, '*_avg')
-    min: Windows[A] = _at(Windows, '*_min')
-    max: Windows[A] = _at(Windows, '*_max')
-    p10: Windows[A] = _at(Windows, '*_p10')
-    p25: Windows[A] = _at(Windows, '*_p25')
-    median: Windows[A] = _at(Windows, '*_median')
-    p75: Windows[A] = _at(Windows, '*_p75')
-    p90: Windows[A] = _at(Windows, '*_p90')
-
-
 class Inputs(_Node):
     count: FlowStats[Count, Optional[CountFract]] = _at(FlowStats, '*_count')
     per_second: Windows[Optional[PerSecond]] = _at(Windows, 'inputs_per_second')
     types: SpendableType = _at(SpendableType, '*')
-
-
-class Averaged(_Node, Generic[A, B]):
-    block: SeriesPattern18[A] = _at(SeriesPattern18, '*')
-    avg: Windows[B] = _at(Windows, '*_avg')
-
-
-class EventCount(_Node, Generic[A]):
-    count: A = _at(0, '*_count')
-    share: Share = _at(Share, '*_share')
-
-
-class ReuseEvents(_Node):
-    outputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_output_to_respent_address')
-    inputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_input_from_respent_address')
-    active: EventCount[Averaged[Count, Optional[CountFract]]] = _at((EventCount, Averaged), '*_active_respent_address')
-
-
-class Respent(_Node):
-    count: RespentCount = _at(RespentCount, '*')
-    supply: PredicateSupply = _at(PredicateSupply, '*_respent_address_supply')
-    events: ReuseEvents = _at(ReuseEvents, '*')
-
-
-class AddressesReuseEvents(_Node):
-    outputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_output_to_reused_address')
-    inputs: EventCount[Flow[Count]] = _at((EventCount, Flow), '*_input_from_reused_address')
-    active: EventCount[Averaged[Count, Optional[CountFract]]] = _at((EventCount, Averaged), '*_active_reused_address')
-
-
-class Reused(_Node):
-    count: ReusedCount = _at(ReusedCount, '*')
-    supply: PredicateSupply = _at(PredicateSupply, '*_reused_address_supply')
-    events: AddressesReuseEvents = _at(AddressesReuseEvents, '*')
-
-
-class AddressesActivity(_Node):
-    reactivated: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_reactivated_address_count')
-    sending: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_sending_address_count')
-    receiving: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_receiving_address_count')
-    bidirectional: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_bidirectional_address_count')
-    active: Averaged[Count, Optional[CountFract]] = _at(Averaged, '*_active_address_count')
-
-
-class CumulativeFlow(_Node):
-    cumulative: SeriesPattern1[Count] = _at(SeriesPattern1, '*_cumulative')
-    sum: Windows[Count] = _at(Windows, '*_sum')
 
 
 class Blocks(_Node):
@@ -4559,7 +4559,7 @@ class Mweb(_Node):
     mweb_supply: SeriesPattern1[Optional[Bitcoin]] = _at(SeriesPattern1, '*_supply')
     peg_in: ValueFlow = _at(ValueFlow, '*_peg_in')
     peg_out: ValueFlow = _at(ValueFlow, '*_peg_out')
-    fee: ValueFlow = _at(ValueFlow, '*_fee')
+    kernels: Flow[Count] = _at(Flow, '*_kernels')
     net_flow: SeriesPattern1[SatsSigned] = _at(SeriesPattern1, '*_net_flow')
     pegin_count: SeriesPattern1[Count32] = _at(SeriesPattern1, '*_pegin_count')
     pegout_count: SeriesPattern1[Count32] = _at(SeriesPattern1, '*_pegout_count')
@@ -5680,7 +5680,7 @@ class BitviewClient(BitviewClientBase):
     def get_health(self) -> Health:
         """Health check.
 
-        Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a bitcoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
+        Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a litecoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.
 
         Endpoint: `GET /health`"""
         return self.get_json('/health')

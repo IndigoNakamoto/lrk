@@ -18,9 +18,11 @@ pub use dependencies::Dependencies;
 pub use has::HasMweb;
 
 use bitview_plugin::{Plugin, PluginId, PluginStorage};
-use bitview_primitives::{Boolean, Count32};
+use bitview_primitives::{Boolean, Count, Count32};
 use bitview_traversable::Traversable;
-use bitview_vecs::{LazyPerBlock, PerBlock, ValuePerBlockCumulativeRolling};
+use bitview_vecs::{
+    LazyPerBlock, PerBlock, PerBlockCumulativeRolling, ValuePerBlockCumulativeRolling,
+};
 use brk_types::{Bitcoin, Sats, SatsSigned, Version};
 use vecdb::{Database, Rw, StorageMode};
 
@@ -49,10 +51,14 @@ pub struct Vecs<M: StorageMode = Rw> {
     /// Coins leaving MWEB in the block: the HogEx's outputs after the HogAddr.
     #[traversable(lead = "Peg-outs: coins moving from MWEB back to the transparent chain.")]
     pub peg_out: ValuePerBlockCumulativeRolling<M>,
-    /// Fees paid by MWEB transactions in the block: the HogEx's inputs minus its outputs, which
-    /// the coinbase claims with the transparent fees.
-    #[traversable(lead = "MWEB fees: what MWEB transactions paid miners.")]
+    /// The block's MWEB kernel fees: the HogEx's inputs minus its outputs, which the coinbase
+    /// claims with the transparent fees. Not what MWEB transactions paid miners: a peg-in also
+    /// pays a transparent fee, and its wallet chooses how the fee splits between the two sides.
+    #[traversable(hidden)]
     pub fee: ValuePerBlockCumulativeRolling<M>,
+    /// Kernels in the block's extension block: one or more per MWEB transaction.
+    #[traversable(lead = "MWEB kernels: one or more per MWEB transaction.")]
+    pub kernels: PerBlockCumulativeRolling<Count, M>,
     /// Peg-ins minus peg-outs in the block, in satoshis.
     #[traversable(lead = "MWEB net flow: peg-ins minus peg-outs.")]
     pub net_flow: PerBlock<SatsSigned, M>,

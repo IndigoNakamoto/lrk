@@ -502,7 +502,7 @@ pub static COMMANDS: &[Command] = &[
         method: "GET",
         path: "/health",
         summary: "Health check",
-        description: "Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a bitcoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.",
+        description: "Local health and query-readiness check. Returns server identity, uptime, and a coherent local sync snapshot without a litecoind round-trip. Reads the published prefix during processing; an empty index returns 503 `state_updating` at once. Responses are not cached. For chain-tip catch-up, request `GET /api/server/sync`.",
         path_parameters: &[
         ],
         query_parameters: &[

@@ -98,7 +98,7 @@ const FACTS: &[(&str, &str)] = &[
     ),
     (
         "https://github.com/bitcoinresearchkit/mono",
-        "https://github.com/IndigoNakamoto/lrk",
+        "https://github.com/LitecoinResearchKit/lrk",
     ),
     // Litecoin's prices: exchange daily closes, the earliest carried back to genesis, then the
     // oracle from 2,200,000.
@@ -398,7 +398,7 @@ mod tests {
             ),
             (
                 "[GitHub](https://github.com/bitcoinresearchkit/mono/issues)",
-                "[GitHub](https://github.com/IndigoNakamoto/lrk/issues)",
+                "[GitHub](https://github.com/LitecoinResearchKit/lrk/issues)",
             ),
             (
                 "the coinbases of blocks 91812",
